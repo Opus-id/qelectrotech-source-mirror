@@ -1175,6 +1175,16 @@ add_test(NAME tst_borderpropertiesxml COMMAND tst_borderpropertiesxml)
 target_include_directories(tst_borderpropertiesxml PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_borderpropertiesxml PRIVATE Qt::Test Qt::Xml)
 
+# PipeProperties -- the data of a P&ID pipe line (DN, material, fluid,
+# flow): XML round trip, unreadable values and comparison.
+add_executable(
+  tst_pipeproperties
+  tst_pipeproperties.cpp
+  ${QET_DIR}/sources/pipeproperties.cpp)
+add_test(NAME tst_pipeproperties COMMAND tst_pipeproperties)
+target_include_directories(tst_pipeproperties PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_pipeproperties PRIVATE Qt::Test Qt::Xml)
+
 # Picture files dropped on a folio: which files are taken, the size and
 # pixel limits before a picture is embedded, fitting into the view and the
 # cascade of several pictures.
