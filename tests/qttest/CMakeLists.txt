@@ -87,6 +87,13 @@ if(Python3_Interpreter_FOUND AND CMAKE_GENERATOR STREQUAL "Ninja")
       --source ${CMAKE_CURRENT_SOURCE_DIR}/attached_plain_paste_probe.cpp
       --fixture ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/unlinked_contact_label.qet)
   set_tests_properties(tst_attachedplainpaste PROPERTIES TIMEOUT 300 RUN_SERIAL TRUE)
+  add_test(NAME tst_lazyfolios
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run_lazy_folios_probe.py
+      --build ${CMAKE_BINARY_DIR} --binary $<TARGET_FILE:qelectrotech>
+      --source ${CMAKE_CURRENT_SOURCE_DIR}/lazy_folios_probe.cpp
+      --fixture ${CMAKE_CURRENT_SOURCE_DIR}/../../examples/industrial.qet)
+  set_tests_properties(tst_lazyfolios PROPERTIES TIMEOUT 1800 RUN_SERIAL TRUE
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
   # Deleting a cable, undoing the delete twice and then editing anything
   # has both cable commands tearing down the same cable. Runs under the
   # same objects the application uses, so a second free is caught.
@@ -244,6 +251,54 @@ set_tests_properties(tst_handlersize PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=off
 target_include_directories(tst_handlersize PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_handlersize PRIVATE Qt::Test Qt::Widgets)
 
+# Tests that need the application around the class they test -- a folio,
+# its view, the editor window and its actions -- link the application's own
+# code (the qelectrotech_objects library) and run a real QETApp offscreen,
+# with settings and folders of their own (qetapptest.h).
+function(qet_add_app_test name)
+  add_executable(${name} ${ARGN} qetapptest.h)
+  add_test(NAME ${name} COMMAND ${name})
+  set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  target_include_directories(${name} PRIVATE ${QET_DIR}/sources)
+  target_link_libraries(${name} PRIVATE qelectrotech_objects Qt::Test)
+endfunction()
+
+# Space on a picture turns its own transform, which the file saves (#1413),
+# alone and with a group.
+qet_add_app_test(tst_rotateselectionimage tst_rotateselectionimage.cpp)
+
+# Editing the information of several elements at once (#1439): kept, set
+# and cleared fields, restore and reset, one undo step, the selection
+# panel's editor and the Edit action.
+qet_add_app_test(tst_multielementinfo tst_multielementinfo.cpp)
+target_compile_definitions(tst_multielementinfo PRIVATE
+  "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
+
+# Accepting the settings dialog writes qet-assistant.json with the
+# collection paths just chosen, not the ones they replace.
+qet_add_app_test(tst_assistantinfopaths tst_assistantinfopaths.cpp)
+
+# Escape during a picture's resize, rotate or pivot drag puts it back, keeps
+# it selected and records no undo step (#1414); the key goes to the view.
+qet_add_app_test(tst_imagehandleescape tst_imagehandleescape.cpp)
+
+# A folio's pictures, decoded in parallel, each come back with its own
+# pixels and position; an <image> with no picture does not stop the others.
+qet_add_app_test(tst_folioimageload tst_folioimageload.cpp)
+
+# The Selection properties panel keeps the height the user gave it when the
+# selection has nothing to edit for a moment (#1439).
+qet_add_app_test(tst_selectionpanelheight tst_selectionpanelheight.cpp)
+
+# SVG export with smaller pictures (--svg-small-pictures, the export dialog's
+# option): a picture drawn at a tenth of its size is stored at four times
+# that, a small one whole; without the option every picture is whole.
+qet_add_app_test(tst_svgsmallpictures tst_svgsmallpictures.cpp)
+add_dependencies(tst_svgsmallpictures qelectrotech)
+target_link_libraries(tst_svgsmallpictures PRIVATE Qt::Svg)
+target_compile_definitions(tst_svgsmallpictures PRIVATE
+  "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
 # TextResizeHandles: the corner handles that change the width of a text box,
 # on a plain QGraphicsTextItem with the "textWidth" property QET texts have.
 add_executable(
@@ -255,6 +310,10 @@ add_test(NAME tst_textresizehandles COMMAND tst_textresizehandles)
 set_tests_properties(tst_textresizehandles PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 target_include_directories(tst_textresizehandles PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_textresizehandles PRIVATE Qt::Test Qt::Widgets)
+
+# A line's pivot follows its centre when one of its ends is dragged, as a
+# rectangle's does; a pivot placed by hand stays.
+qet_add_app_test(tst_linepivotresize tst_linepivotresize.cpp)
 
 # legacyelementtypes.h is header-only: the rewrite of element type names in
 # nomenclature queries saved before June 2022.
@@ -552,6 +611,17 @@ else()
   target_link_libraries(tst_crashhandler PRIVATE Qt::Test Qt::Xml)
 endif()
 
+# projectlock.cpp is the sidecar file that says who has a project open; it
+# needs only Qt Core and the version number, so it is linked on its own.
+add_executable(
+  tst_projectlock
+  tst_projectlock.cpp
+  ${QET_DIR}/sources/projectlock.cpp
+  ${QET_DIR}/sources/qetversion.cpp)
+add_test(NAME tst_projectlock COMMAND tst_projectlock)
+target_include_directories(tst_projectlock PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_projectlock PRIVATE Qt::Test Qt::Xml)
+
 # The crash-dump bookkeeping from #905: which dumps get listed, offered and
 # deleted, and what redact() masks. qetlogger.cpp needs exactly one symbol
 # from the application (QETApp::dataDir()), which the test supplies itself,
@@ -608,6 +678,20 @@ set_tests_properties(tst_freetextwidth PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=o
 add_dependencies(tst_freetextwidth qelectrotech)
 target_link_libraries(tst_freetextwidth PRIVATE Qt::Test Qt::Gui Qt::Xml)
 target_compile_definitions(tst_freetextwidth PRIVATE
+  "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
+# A terminal in a symbol's definition with no orientation attribute faces
+# north instead of crashing the program on opening (Qet::orientationFromString()
+# read the first character of an empty string): the real binary's --resave
+# on fixtures/terminal_no_orientation.qet.
+add_executable(
+  tst_terminalnoorientation
+  tst_terminalnoorientation.cpp)
+add_test(NAME tst_terminalnoorientation COMMAND tst_terminalnoorientation)
+set_tests_properties(tst_terminalnoorientation PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+add_dependencies(tst_terminalnoorientation qelectrotech)
+target_link_libraries(tst_terminalnoorientation PRIVATE Qt::Test Qt::Xml)
+target_compile_definitions(tst_terminalnoorientation PRIVATE
   "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 
 # A free text whose x, y or rotation is "nan" or "inf" is loaded at 0 for
@@ -703,6 +787,13 @@ add_dependencies(tst_pdfpagesize qelectrotech)
 target_link_libraries(tst_pdfpagesize PRIVATE Qt::Test Qt::Gui)
 target_compile_definitions(tst_pdfpagesize PRIVATE
   "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
+# The print window's PDF export turns each page to its folio when "Fit in
+# page" is on (#1480), and keeps the chosen orientation when it is off. The
+# links on a turned page are checked on examples/industrial.qet.
+qet_add_app_test(tst_printpdforientation tst_printpdforientation.cpp)
+target_compile_definitions(tst_printpdforientation PRIVATE
+  "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
 
 # --export-pdf writes the cross-reference links in the same order in every
 # run, rather than in Element pointer order. Exports examples/industrial.qet
@@ -809,6 +900,31 @@ if(QET_HAS_SCRIPTING)
   target_compile_definitions(tst_scriptconductoruuid PRIVATE
     "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 
+  # The saved date, time and path of the title block change only when the
+  # project changed, and go into the file that save writes (F124): an
+  # unchanged project saved twice gives an identical file.
+  add_executable(
+    tst_savedstamps
+    tst_savedstamps.cpp)
+  add_test(NAME tst_savedstamps COMMAND tst_savedstamps)
+  add_dependencies(tst_savedstamps qelectrotech)
+  target_link_libraries(tst_savedstamps PRIVATE Qt::Test Qt::Xml)
+  target_compile_definitions(tst_savedstamps PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
+  # Deleting a symbol whose terminal held several wires joins them with a
+  # new wire; its uuid comes from its two ends, so the same deletion saves
+  # the same file every time (F115): examples/affuteuse_250h.qet.
+  add_executable(
+    tst_joinedwireuuid
+    tst_joinedwireuuid.cpp)
+  add_test(NAME tst_joinedwireuuid COMMAND tst_joinedwireuuid)
+  add_dependencies(tst_joinedwireuuid qelectrotech)
+  target_link_libraries(tst_joinedwireuuid PRIVATE Qt::Test)
+  target_compile_definitions(tst_joinedwireuuid PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
+    "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
+
   # qet.terminalPosition() and qet.conductorPath(), checked against each
   # other on a fixture's conductors.
   add_executable(
@@ -877,6 +993,42 @@ if(QET_HAS_SCRIPTING)
   add_dependencies(tst_dbfoliodate qelectrotech)
   target_link_libraries(tst_dbfoliodate PRIVATE Qt::Test)
   target_compile_definitions(tst_dbfoliodate PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
+    "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
+
+  # A folio report keeps showing where its partner is when another of its
+  # information changes (F116), on examples/iso_sfc_example.qet.
+  add_executable(
+    tst_reporttextafterinfo
+    tst_reporttextafterinfo.cpp)
+  add_test(NAME tst_reporttextafterinfo COMMAND tst_reporttextafterinfo)
+  add_dependencies(tst_reporttextafterinfo qelectrotech)
+  target_link_libraries(tst_reporttextafterinfo PRIVATE Qt::Test Qt::Xml)
+  target_compile_definitions(tst_reporttextafterinfo PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
+    "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
+
+  # A .qetz folio whose title only changed keeps its pictures when saved
+  # with folios built when needed (F118), on examples/grafcet.qet.
+  add_executable(
+    tst_qetzheaderpictures
+    tst_qetzheaderpictures.cpp)
+  add_test(NAME tst_qetzheaderpictures COMMAND tst_qetzheaderpictures)
+  add_dependencies(tst_qetzheaderpictures qelectrotech)
+  target_link_libraries(tst_qetzheaderpictures PRIVATE Qt::Test)
+  target_compile_definitions(tst_qetzheaderpictures PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
+    "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
+
+  # Saving refuses a project file another user or program changed since it was
+  # opened (QETProject::changedOnDisk()); QET_OVERWRITE_CHANGED=1 overrides.
+  add_executable(
+    tst_changedondisk
+    tst_changedondisk.cpp)
+  add_test(NAME tst_changedondisk COMMAND tst_changedondisk)
+  add_dependencies(tst_changedondisk qelectrotech)
+  target_link_libraries(tst_changedondisk PRIVATE Qt::Test)
+  target_compile_definitions(tst_changedondisk PRIVATE
     "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
     "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
 
@@ -982,6 +1134,18 @@ target_compile_definitions(tst_derivedwireuuid PRIVATE
   "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
   "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
 
+# A wire follows a terminal that moved a little since the project was saved
+# (a symbol replaced by a newer definition), by its legacy id or by the uuid
+# derived from its old place: Element::fromXml() pairs them (F112).
+add_executable(
+  tst_movedterminals
+  tst_movedterminals.cpp)
+add_test(NAME tst_movedterminals COMMAND tst_movedterminals)
+add_dependencies(tst_movedterminals qelectrotech)
+target_link_libraries(tst_movedterminals PRIVATE Qt::Test Qt::Xml)
+target_compile_definitions(tst_movedterminals PRIVATE
+  "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
 # Symbols sharing one uuid on a folio keep their wires through save and
 # reopen (#1408): nets of examples/Habitat-Schemas_developpes.qet.
 add_executable(
@@ -1029,10 +1193,13 @@ endif()
 
 add_executable(
   tst_resaveunchanged
-  tst_resaveunchanged.cpp)
+  tst_resaveunchanged.cpp
+  ${QET_DIR}/sources/container/qetzip.cpp
+  ${QET_DIR}/sources/container/miniz/miniz.c)
 add_test(NAME tst_resaveunchanged COMMAND tst_resaveunchanged)
 add_dependencies(tst_resaveunchanged qelectrotech)
-target_link_libraries(tst_resaveunchanged PRIVATE Qt::Test)
+target_include_directories(tst_resaveunchanged PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_resaveunchanged PRIVATE Qt::Test SQLite3::SQLite3)
 target_compile_definitions(tst_resaveunchanged PRIVATE
   "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
   "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
@@ -1206,4 +1373,77 @@ if(Qt6_VERSION VERSION_LESS 6.5.0)
       set_tests_properties(${qet_test} PROPERTIES ENVIRONMENT "QT_HASH_SEED=0")
     endif()
   endforeach()
+endif()
+
+# The versions of a project kept before it is saved over: the newest
+# kept, same bytes not kept twice, a failed copy said
+# (sources/utils/previousversions.*).
+add_executable(
+  tst_previousversions
+  tst_previousversions.cpp
+  ${QET_DIR}/sources/utils/previousversions.cpp)
+add_test(NAME tst_previousversions COMMAND tst_previousversions)
+target_include_directories(tst_previousversions PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_previousversions PRIVATE Qt::Test)
+
+# The zip a .qetz project is stored in: round trip, same bytes twice,
+# unsafe entry names refused (sources/container/qetzip.*, bundled miniz).
+add_executable(
+  tst_qetzip
+  tst_qetzip.cpp
+  ${QET_DIR}/sources/container/qetzip.cpp
+  ${QET_DIR}/sources/container/miniz/miniz.c)
+add_test(NAME tst_qetzip COMMAND tst_qetzip)
+target_include_directories(tst_qetzip PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_qetzip PRIVATE Qt::Test)
+
+# A project split into the parts of a .qetz and joined back is the same
+# document, on every example (and QET_CONTAINER_CORPUS if set).
+add_executable(
+  tst_qetcontainer
+  tst_qetcontainer.cpp
+  ${QET_DIR}/sources/container/qetcontainer.cpp
+  ${QET_DIR}/sources/container/qetcontainerdb.cpp
+  ${QET_DIR}/sources/container/qetzip.cpp
+  ${QET_DIR}/sources/container/miniz/miniz.c)
+add_test(NAME tst_qetcontainer COMMAND tst_qetcontainer)
+target_include_directories(tst_qetcontainer PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_qetcontainer PRIVATE Qt::Test Qt::Xml SQLite3::SQLite3)
+target_compile_definitions(tst_qetcontainer PRIVATE
+  "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\""
+  "QET_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/fixtures\""
+  "QET_FORMAT_SPEC=\"${QET_DIR}/sources/container/QETZ-FORMAT.md\"")
+
+# A right-aligned report text emptied and set again while lazy folios are
+# built is saved where it was (F119): the real binary's --run on
+# fixtures/report_text_late_folio.qet, lazily and with every folio built.
+if(QET_HAS_SCRIPTING)
+  add_executable(
+    tst_reporttextlatefolio
+    tst_reporttextlatefolio.cpp)
+  add_test(NAME tst_reporttextlatefolio COMMAND tst_reporttextlatefolio)
+  add_dependencies(tst_reporttextlatefolio qelectrotech)
+  target_link_libraries(tst_reporttextlatefolio PRIVATE Qt::Test)
+  target_compile_definitions(tst_reporttextlatefolio PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
+    "QET_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/fixtures\"")
+endif()
+
+# A save with lazy folios equals one with every folio built (discussion
+# #1440): the same edits made twice on industrial.qet and affuteuse_250h.qet,
+# as .qet and as .qetz, and the saved files compared. The real binary's --run
+# and --resave.
+if(QET_HAS_SCRIPTING)
+  add_executable(
+    tst_lazysaveparity
+    tst_lazysaveparity.cpp
+    ${QET_DIR}/sources/container/qetzip.cpp
+    ${QET_DIR}/sources/container/miniz/miniz.c)
+  add_test(NAME tst_lazysaveparity COMMAND tst_lazysaveparity)
+  add_dependencies(tst_lazysaveparity qelectrotech)
+  target_include_directories(tst_lazysaveparity PRIVATE ${QET_DIR}/sources)
+  target_link_libraries(tst_lazysaveparity PRIVATE Qt::Test SQLite3::SQLite3)
+  target_compile_definitions(tst_lazysaveparity PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
+    "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
 endif()

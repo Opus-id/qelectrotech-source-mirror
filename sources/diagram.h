@@ -133,6 +133,7 @@ class Diagram : public QGraphicsScene
 		bool draw_terminals_;
 		bool draw_terminal_names_;
 		bool draw_colored_conductors_;
+		bool m_small_pictures = false;
 
 		QString m_conductors_autonum_name;
 		DiagramEventInterface *m_event_interface;
@@ -140,6 +141,17 @@ class Diagram : public QGraphicsScene
 		bool m_freeze_new_elements;
 		bool m_freeze_new_conductors_;
 		QUuid m_uuid = QUuid::createUuid();
+			/// The XML of this folio's items, while they are not built yet
+		QDomElement m_deferred;
+		QString m_kept_part;
+		QHash<QUuid, Element *> m_partial_elements;
+		QHash<int, Terminal *> m_partial_table;
+		bool m_partial_changed = false;
+		Element *buildElement(QDomElement element_xml, QHash<int, Terminal *> &table_adr_id,
+							  bool consider_informations);
+		QString m_opened_header;
+		QByteArray m_kept_text;
+		bool m_loading_deferred = false;
 
 			//Selection before the current click, see completeGroupSelection()
 		QList<QPointer<QGraphicsObject>> m_previous_selection;
@@ -200,10 +212,39 @@ class Diagram : public QGraphicsScene
 	
 		// methods related to XML import/export
 		QDomDocument toXml(bool wholeContent = true, bool is_copy_command = false);
+		void writeHeader(QDomDocument &document, QDomElement &dom_root);
 		bool initFromXml(QDomElement &,
 				 QPointF = QPointF(),
 				 bool = true,
 				 DiagramContent * = nullptr);
+			/// false while this folio's items wait in its XML to be
+			/// built (lazy folios)
+		bool isLoaded() const {return m_deferred.isNull();}
+		QDomElement deferredXml() const {return m_deferred;}
+			/// The part @p file of the .qetz the project was opened from
+			/// holds this folio as it is while not built: saving may copy it
+			/// (QETProject::toXml(), stage D4)
+		void setKeptPart(const QString &file) {m_kept_part = file;}
+		QString keptPart() const {return m_kept_part;}
+		QList<Element *> buildSymbols(const QSet<QUuid> &uuids);
+			/// Symbols built as partners (buildSymbols()) changed since:
+			/// the folio must be built to be saved
+		bool partialChanged() const {return m_partial_changed;}
+			/// The symbols built as partners (buildSymbols()), by uuid
+		QHash<QUuid, Element *> partialElements() const {return m_partial_elements;}
+		QString headerXml();
+			/// The folio's text in the file it was read from, while it is
+			/// not built (QETProject::toXml())
+		QByteArray keptText() const {return m_kept_text;}
+		void setKeptText(const QByteArray &text) {m_kept_text = text;}
+			/// Remember the folio's own data as it is now, for
+			/// headerChanged() (QETProject::toXml())
+		void rememberHeader() {m_opened_header = headerXml();}
+		bool headerChanged() {return headerXml() != m_opened_header;}
+		bool headerChangeShowsOnly();
+		QDomElement deferredXmlWithHeader(QDomDocument &document);
+		void ensureLoaded();
+		bool buildDeferred();
 			//The last argument is only for a copy fragment: when it is
 			//given, the cable lines that fragment carries are built as
 			//well and handed back through it -- they are not part of a
@@ -263,6 +304,11 @@ class Diagram : public QGraphicsScene
 		void setDrawTerminalNames(bool);
 		bool drawColoredConductors() const;
 		void setDrawColoredConductors(bool);
+			/// While true, pictures draw a copy of a few times the size
+			/// they are drawn at, not their full resolution (SVG export,
+			/// ExportProperties::svg_small_pictures)
+		bool smallPictures() const {return m_small_pictures;}
+		void setSmallPictures(bool small) {m_small_pictures = small;}
 	
 		QString title() const;
 		bool toPaintDevice(QPaintDevice &, int = -1, int = -1,

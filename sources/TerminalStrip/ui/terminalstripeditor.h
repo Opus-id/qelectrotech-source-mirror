@@ -54,6 +54,7 @@ class TerminalStripEditor : public QWidget
 		void pasteFromClipboard();
 		void clearSelectedTexts();
         void clear();
+		void setManufacturerFilter(const QString &manufacturer);
 		void spanMultiLevelTerminals();
 		void selectionChanged();
 		QSize setUpBridgeCellWidth();
@@ -73,6 +74,7 @@ class TerminalStripEditor : public QWidget
 		void on_m_unbridge_terminals_pb_clicked();
 		void on_m_bridge_color_cb_activated(const QColor &col);
 		void on_m_move_to_pb_clicked();
+		void on_m_add_spare_pb_clicked();
 
 	private:
 		Ui::TerminalStripEditor *ui;

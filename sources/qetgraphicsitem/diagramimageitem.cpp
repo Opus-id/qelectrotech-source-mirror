@@ -167,7 +167,28 @@ void DiagramImageItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 		return;
 	}
 
-	DarkImageRendering::paintPixmap(painter, pixmap_, m_adapt_to_dark_theme);
+		// SVG export with smaller pictures: a copy four times the size the
+		// picture is drawn at, when that is smaller than the picture. An
+		// SVG stores what it is given, so a photo shown at a tenth of its
+		// size would otherwise be written whole.
+	const QTransform world = painter -> worldTransform();
+	const qreal drawn_scale = std::sqrt(std::abs(world.determinant()));
+	const QSize small_size = (QSizeF(pixmap_.size()) * drawn_scale * 4).toSize();
+	if (diagram() && diagram() -> smallPictures() && !pixmap_.isNull()
+			&& small_size.width() < pixmap_.width()
+			&& small_size.height() < pixmap_.height()
+			&& !small_size.isEmpty())
+	{
+		const QPixmap small = pixmap_.scaled(small_size, Qt::IgnoreAspectRatio,
+											 Qt::SmoothTransformation);
+		painter -> save();
+		painter -> scale(qreal(pixmap_.width()) / small.width(),
+						 qreal(pixmap_.height()) / small.height());
+		DarkImageRendering::paintPixmap(painter, small, m_adapt_to_dark_theme);
+		painter -> restore();
+	}
+	else
+		DarkImageRendering::paintPixmap(painter, pixmap_, m_adapt_to_dark_theme);
 
 	Q_UNUSED(option); Q_UNUSED(widget);
 
@@ -1788,6 +1809,71 @@ const QByteArray &DiagramImageItem::encodedPng(const QPixmap &pixmap, QByteArray
 */
 bool DiagramImageItem::fromXml(const QDomElement &e)
 {
+	return fromXml(e, QByteArray());
+}
+
+/**
+	@brief DiagramImageItem::fromXml
+	Load this image from xml element e, its picture being @p picture, not
+	the base64 text of @p e, unless @p picture is empty. A .qetz keeps its
+	pictures as files (QetContainer::join()).
+*/
+bool DiagramImageItem::fromXml(const QDomElement &e, const QByteArray &picture)
+{
+	Picture p = pictureOf(e, picture);
+	decodePicture(p);
+	return fromXml(e, std::move(p));
+}
+
+/**
+	@brief DiagramImageItem::pictureOf
+	@return the picture of @p e, @p picture unless it is empty, else the
+	base64 text of @p e, still encoded : decodePicture() does the slow part.
+	Reads the DOM, so GUI thread only.
+*/
+DiagramImageItem::Picture DiagramImageItem::pictureOf(const QDomElement &e,
+													  const QByteArray &picture)
+{
+	Picture p;
+	p.bytes = picture;
+	if (p.bytes.isEmpty())
+	{
+		// From the first text node only, not e.text(): that also collects
+		// the text of every child element, so on a cropped or colour-keyed
+		// picture it carries <image_base>'s bytes too.
+		const QDomNode image_node = e.firstChild();
+		if (image_node.isText())
+			p.base64 = image_node.toText().data();
+		else
+			p.found = false;
+	}
+	return p;
+}
+
+/**
+	@brief DiagramImageItem::decodePicture
+	Decodes the base64 text and the picture file of @p picture. Touches
+	nothing else, so it can run in any thread : a large photo takes about
+	a quarter of a second, and Diagram::fromXml() decodes a folio's
+	pictures in parallel.
+*/
+void DiagramImageItem::decodePicture(Picture &picture)
+{
+	if (picture.bytes.isEmpty() && !picture.base64.isEmpty())
+	{
+		picture.bytes = QByteArray::fromBase64(picture.base64.toLatin1());
+		picture.base64.clear();
+	}
+	picture.image = QImage::fromData(picture.bytes);
+}
+
+/**
+	@brief DiagramImageItem::fromXml
+	Load this image from xml element e, its picture already decoded by
+	decodePicture().
+*/
+bool DiagramImageItem::fromXml(const QDomElement &e, Picture picture)
+{
 	if (e.tagName() != "image") {
 		return (false);
 	}
@@ -1796,28 +1882,17 @@ bool DiagramImageItem::fromXml(const QDomElement &e)
 	const QUuid uuid(e.attribute(QStringLiteral("uuid")));
 	if (!uuid.isNull() && uuid != m_uuid) setUuid(uuid);
 
-	QDomNode image_node = e.firstChild();
-	if (!image_node.isText()) {
+	if (!picture.found) {
 		return (false);
 	}
+	const QByteArray array = picture.bytes;
 
-	//load xml image to QByteArray
-	QByteArray array;
-	array = QByteArray::fromBase64(e.text().toLatin1());
-
-	//Set QPixmap from the array
-	QPixmap pixmap;
-	pixmap.loadFromData(array);
+	//Set QPixmap from the decoded picture
+	QPixmap pixmap = QPixmap::fromImage(std::move(picture.image));
 	setPixmap(pixmap);
-	// From the first text node only, not e.text(): that also collects the
-	// text of every child element, so on a cropped or colour-keyed picture
-	// it carries <image_base>'s bytes too. loadFromData() stops at the end
-	// of the first PNG and never notices; a cache written back verbatim
-	// would.
-	const QByteArray ownArray = QByteArray::fromBase64(image_node.toText().data().toLatin1());
-	if (isPng(ownArray) && !pixmap_.isNull())
+	if (isPng(array) && !pixmap_.isNull())
 	{
-		m_png_cache = ownArray;
+		m_png_cache = array;
 		m_png_cache_key = pixmap_.cacheKey();
 	}
 

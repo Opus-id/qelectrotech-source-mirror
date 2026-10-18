@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "diagram.h"
+#include "dataBase/projectdatabase.h"
 #include "autoNum/elementautonumschemecommand.h"
 
 #include "ElementsCollection/elementcollectionhandler.h"
@@ -48,9 +49,12 @@
 #include "diagramsortkeys.h"
 #include "itemgroups.h"
 #include "textgrid.h"
+#include "container/qetcontainer.h"
 #include "foliogrid.h"
 #include <QGraphicsView>
 #include <QTextStream>
+#include <QThreadPool>
+#include <QtConcurrentMap>
 #include <algorithm>
 #include <climits>
 #include <cassert>
@@ -193,6 +197,7 @@ Diagram::Diagram(QETProject *project) :
 	 * http://tech-artists.org/t/qt-properly-removing-qgraphicitems/3063
 	 */
 
+	border_and_titleblock.setOwnerFolio(this);
 	qgi_manager_ = new QGIManager(this);
 	setBackgroundBrush(Qt::white);
 	conductor_setter_ = new QGraphicsLineItem(nullptr);
@@ -768,6 +773,157 @@ void Diagram::keyReleaseEvent(QKeyEvent *e)
 }
 
 /**
+	@brief Diagram::ensureLoaded
+	Build this folio's items from the XML kept when the project was
+	opened with lazy folios, and do for them what opening does for
+	every folio's (QETProject::folioLoaded()). Nothing for a folio built
+	already.
+*/
+void Diagram::ensureLoaded()
+{
+	if (isLoaded()) {
+		return;
+	}
+	if (m_project) {
+		m_project->buildFolios({this});
+	} else {
+		buildDeferred();
+	}
+}
+
+/**
+	@brief Diagram::buildSymbols
+	Build, of this folio not built yet (lazy folios), the symbols
+	@p uuids only -- partners a shown folio draws from -- and keep them for
+	when the folio is built (stage D5b). They belong to the
+	folio's scene; the folio stays not built.
+	@return the symbols built now
+*/
+QList<Element *> Diagram::buildSymbols(const QSet<QUuid> &uuids)
+{
+	QList<Element *> built;
+	if (isLoaded() || uuids.isEmpty()) {
+		return built;
+	}
+	const QDomElement xml = deferredXml();
+	if (xml.isNull()) {
+		return built;
+	}
+	projectDataBase *db = m_project ? m_project->dataBase() : nullptr;
+	if (db) db->setBuildingFolio(true);
+	for (QDomElement element_xml :
+		 QET::findInDomElement(xml, QStringLiteral("elements"), QStringLiteral("element")))
+	{
+		const QUuid uuid(element_xml.attribute(QStringLiteral("uuid")));
+		if (uuid.isNull() || !uuids.contains(uuid) || m_partial_elements.contains(uuid)
+				|| !Element::valideXml(element_xml)) {
+			continue;
+		}
+		if (Element *element = buildElement(element_xml, m_partial_table, true)) {
+			m_partial_elements.insert(uuid, element);
+				//A partner unlinked or linked again: the folio is not
+				//saved as it was read any more
+			connect(element, &Element::linkedElementChanged, this, [this]() {
+				if (!isLoaded()) m_partial_changed = true;
+			});
+			built << element;
+		}
+	}
+	if (db) db->setBuildingFolio(false);
+	return built;
+}
+
+namespace {
+	//The title block fields nothing on a folio is computed from: a formula
+	//reads the folio's label, plant, location, extra fields and grid
+	//(autonum::FormulaContext), none of these
+const QStringList ShownOnlyFields = {
+	QStringLiteral("title"), QStringLiteral("author"), QStringLiteral("date"),
+	QStringLiteral("indexrev"), QStringLiteral("version"), QStringLiteral("filename"),
+	QStringLiteral("titleblocktemplate"), QStringLiteral("titleblocktemplateCollection")};
+
+QString headerWithoutShownOnly(const QString &header)
+{
+	QDomDocument document;
+	document.setContent(header);
+	QDomElement root = document.documentElement();
+	for (const QString &field : ShownOnlyFields) root.removeAttribute(field);
+	return document.toString();
+}
+}
+
+/**
+	@brief Diagram::headerChangeShowsOnly
+	@return true if what changed in this folio's own data since it was read
+	(headerChanged()) is only title block fields nothing on the folio is
+	computed from (its title, author, date, revision, file name, template):
+	its items, as read, are what building it would write
+*/
+bool Diagram::headerChangeShowsOnly()
+{
+	return headerWithoutShownOnly(headerXml()) == headerWithoutShownOnly(m_opened_header);
+}
+
+/**
+	@brief Diagram::deferredXmlWithHeader
+	@return this folio, not built, as it saves: its own data as it is now
+	(writeHeader()) and its items as read (deferredXml()), in @p document --
+	when its items are what building it would write (headerChangeShowsOnly())
+*/
+QDomElement Diagram::deferredXmlWithHeader(QDomDocument &document)
+{
+	QDomElement folio = document.createElement(QStringLiteral("diagram"));
+	writeHeader(document, folio);
+	QSet<QString> header_children;
+	for (QDomElement child = folio.firstChildElement() ; !child.isNull() ; child = child.nextSiblingElement())
+		header_children.insert(child.tagName());
+	const QDomElement items = deferredXml();
+	for (QDomElement child = items.firstChildElement() ; !child.isNull() ; child = child.nextSiblingElement())
+		if (!header_children.contains(child.tagName()))
+			folio.appendChild(document.importNode(child, true));
+		//Its pictures written in, as building it writes them. A folio read
+		//from a .qetz names its pictures' files instead, which the next
+		//.qetz written from this document would leave out: that project
+		//then refused to open, "picture ... is missing" (F118).
+	for (QDomElement image : QET::findInDomElement(folio, QStringLiteral("images"), QStringLiteral("image"))) {
+		const QString file = QetContainer::pictureFile(image);
+		if (file.isEmpty() || !m_project) continue;
+		const QByteArray bytes = m_project->containerPicture(file);
+		if (!bytes.isEmpty())
+			QetContainer::inlinePicture(image, bytes);
+	}
+	return folio;
+}
+
+/**
+	@brief Diagram::buildDeferred
+	Build this folio's items from the XML kept for later, and nothing else.
+	Their rows are in the project database already, filled from the same
+	XML: building writes none.
+	@return true if there was something to build
+*/
+bool Diagram::buildDeferred()
+{
+	if (isLoaded()) {
+		return false;
+	}
+	QDomElement xml = m_deferred;
+	m_deferred = QDomElement();
+	m_kept_part.clear();
+	m_kept_text.clear();
+	projectDataBase *db = m_project ? m_project->dataBase() : nullptr;
+	if (db) db->setBuildingFolio(true);
+	m_loading_deferred = true;
+	fromXml(xml, QPointF(), true, nullptr);
+	m_loading_deferred = false;
+	m_partial_elements.clear();
+	m_partial_table.clear();
+	m_partial_changed = false;
+	if (db) db->setBuildingFolio(false);
+	return true;
+}
+
+/**
 	@brief Diagram::uuid
 	@return the uuid of this diagram
 */
@@ -801,7 +957,7 @@ bool Diagram::uuidUsedByOtherDiagram(const QUuid &uuid) const
 	if (!m_project) {
 		return false;
 	}
-	const auto diagrams = m_project->diagrams();
+	const auto diagrams = m_project->folios(); //uuids only: no need to build them
 	for (const Diagram *diagram : diagrams) {
 		if (diagram != this && diagram->m_uuid == uuid) {
 			return true;
@@ -838,7 +994,7 @@ QUuid Diagram::derivedUuid(const QDomElement &root, const QString &reason) const
 				QStringLiteral("{d5951240-154d-44d6-8277-0092a31d1920}"));
 
 	const int index = m_project
-			? m_project->diagrams().indexOf(const_cast<Diagram *>(this))
+			? m_project->folios().indexOf(const_cast<Diagram *>(this))
 			: -1;
 	const QString project_title = root.ownerDocument()
 			.documentElement()
@@ -1088,6 +1244,10 @@ QList < QSet <Conductor *> > Diagram::potentials()
 	\~French Un Document XML (QDomDocument)
 */
 QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
+		//A folio of a project opened with lazy folios is written from
+		//its built items (QETProject::toXml() may write one not built as
+		//it was read instead)
+	ensureLoaded();
 	// document
 	QDomDocument document;
 
@@ -1098,120 +1258,7 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 	// schema properties
 	// proprietes du schema
 	if (whole_content) {
-			//Persist the folio identity, so that a folio keeps the same uuid
-			//across save/load. Without it every load invents a new one, and
-			//nothing outside the running instance (version control, a lock,
-			//a diff tool...) can tell which folio is which.
-		dom_root.setAttribute(QStringLiteral("uuid"), m_uuid.toString());
-		border_and_titleblock.titleBlockToXml(dom_root);
-		border_and_titleblock.borderToXml(dom_root);
-
-		// Default conductor properties
-		QDomElement default_conductor =
-				document.createElement(QStringLiteral("defaultconductor"));
-		defaultConductorProperties.toXml(default_conductor);
-		dom_root.appendChild(default_conductor);
-
-		// Conductor autonum
-		if (!m_conductors_autonum_name.isEmpty()) {
-			dom_root.setAttribute(QStringLiteral("conductorAutonum"),
-						  m_conductors_autonum_name);
-		}
-
-		//Default New Element
-		dom_root.setAttribute(QStringLiteral("freezeNewElement"),
-					  m_freeze_new_elements ? QStringLiteral("true") : QStringLiteral("false"));
-
-		//Default New Conductor
-		dom_root.setAttribute(QStringLiteral("freezeNewConductor"),
-					  m_freeze_new_conductors_
-					  ? QStringLiteral("true") : QStringLiteral("false"));
-
-		//Element Folio Sequential Variables
-		if (!m_elmt_unitfolio_max.isEmpty()
-				|| !m_elmt_tenfolio_max.isEmpty()
-				|| !m_elmt_hundredfolio_max.isEmpty()) {
-			QDomElement elmtfoliosequential =
-					document.createElement(
-						QStringLiteral("elementautonumfoliosequentials"));
-			if (!m_elmt_unitfolio_max.isEmpty()) {
-				QDomElement elmtfolioseq =
-						document.createElement(
-							QStringLiteral("elementunitfolioseq"));
-				folioSequentialsToXml(&m_elmt_unitfolio_max,
-							  &elmtfolioseq,
-							  QStringLiteral("sequf_"),
-							  QStringLiteral("unitfolioseq"),
-							  &document);
-				elmtfoliosequential.appendChild(elmtfolioseq);
-			}
-			if (!m_elmt_tenfolio_max.isEmpty()) {
-				QDomElement elmtfolioseq =
-						document.createElement(
-							QStringLiteral("elementtenfolioseq"));
-				folioSequentialsToXml(&m_elmt_tenfolio_max,
-							  &elmtfolioseq,
-							  QStringLiteral("seqtf_"),
-							  QStringLiteral("tenfolioseq"),
-							  &document);
-				elmtfoliosequential.appendChild(elmtfolioseq);
-			}
-			if (!m_elmt_hundredfolio_max.isEmpty()) {
-				QDomElement elmtfolioseq =
-						document.createElement(
-							QStringLiteral("elementhundredfolioseq"));
-				folioSequentialsToXml(&m_elmt_hundredfolio_max,
-							  &elmtfolioseq,
-							  QStringLiteral("seqhf_"),
-							  QStringLiteral("hundredfolioseq"),
-							  &document);
-				elmtfoliosequential.appendChild(elmtfolioseq);
-			}
-			dom_root.appendChild(elmtfoliosequential);
-		}
-		// Conductor Folio Sequential Variables
-		if (!m_cnd_unitfolio_max.isEmpty()
-				|| !m_cnd_tenfolio_max.isEmpty() ||
-				!m_cnd_hundredfolio_max.isEmpty()) {
-			QDomElement cndfoliosequential =
-					document.createElement(
-						QStringLiteral("conductorautonumfoliosequentials"));
-			QHash<QString, QStringList>::iterator i;
-			if (!m_cnd_unitfolio_max.isEmpty()) {
-				QDomElement cndfolioseq =
-						document.createElement(
-							QStringLiteral("conductorunitfolioseq"));
-				folioSequentialsToXml(&m_cnd_unitfolio_max,
-							  &cndfolioseq,
-							  QStringLiteral("sequf_"),
-							  QStringLiteral("unitfolioseq"),
-							  &document);
-				cndfoliosequential.appendChild(cndfolioseq);
-			}
-			if (!m_cnd_tenfolio_max.isEmpty()) {
-				QDomElement cndfolioseq =
-						document.createElement(
-							QStringLiteral("conductortenfolioseq"));
-				folioSequentialsToXml(&m_cnd_tenfolio_max,
-							  &cndfolioseq,
-							  QStringLiteral("seqtf_"),
-							  QStringLiteral("tenfolioseq"),
-							  &document);
-				cndfoliosequential.appendChild(cndfolioseq);
-			}
-			if (!m_cnd_hundredfolio_max.isEmpty()) {
-				QDomElement cndfolioseq =
-						document.createElement(
-							QStringLiteral("conductorhundredfolioseq"));
-				folioSequentialsToXml(&m_cnd_hundredfolio_max,
-							  &cndfolioseq,
-							  QStringLiteral("seqhf_"),
-							  QStringLiteral("hundredfolioseq"),
-							  &document);
-				cndfoliosequential.appendChild(cndfolioseq);
-			}
-			dom_root.appendChild(cndfoliosequential);
-		}
+		writeHeader(document, dom_root);
 	}
 	else {
 		//this method with whole_content to false,
@@ -1307,8 +1354,15 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 		// since those ids are assigned sequentially in element order.
 	std::stable_sort(list_elements.begin(), list_elements.end(),
 			  [](Element *a, Element *b) { return elementSortKey(a) < elementSortKey(b); });
+		//Wires that tie on their ends (common: several from one terminal)
+		//keep the order they were made in, which for a project's is its
+		//file's -- the order the scene gave them so far, except for a folio
+		//built late (lazy folios), whose scene order differed
 	std::stable_sort(list_conductors.begin(), list_conductors.end(),
-			  [](Conductor *a, Conductor *b) { return conductorSortKey(a) < conductorSortKey(b); });
+			  [](Conductor *a, Conductor *b) {
+		const QString ka = conductorSortKey(a), kb = conductorSortKey(b);
+		return ka != kb ? ka < kb : a->creationRank() < b->creationRank();
+	});
 
 		// A copy carries the numberings its elements follow: pasted into
 		// another project, which does not know them, it can offer to import
@@ -1376,6 +1430,143 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 }
 
 /**
+	@brief Diagram::writeHeader
+	Write this folio's own data -- its uuid, title block, border, default
+	wire, numbering -- into @p dom_root, the folio's element of @p document:
+	what toXml() writes before the folio's items.
+*/
+void Diagram::writeHeader(QDomDocument &document, QDomElement &dom_root)
+{
+		//Persist the folio identity, so that a folio keeps the same uuid
+		//across save/load. Without it every load invents a new one, and
+		//nothing outside the running instance (version control, a lock,
+		//a diff tool...) can tell which folio is which.
+	dom_root.setAttribute(QStringLiteral("uuid"), m_uuid.toString());
+	border_and_titleblock.titleBlockToXml(dom_root);
+	border_and_titleblock.borderToXml(dom_root);
+
+	// Default conductor properties
+	QDomElement default_conductor =
+			document.createElement(QStringLiteral("defaultconductor"));
+	defaultConductorProperties.toXml(default_conductor);
+	dom_root.appendChild(default_conductor);
+
+	// Conductor autonum
+	if (!m_conductors_autonum_name.isEmpty()) {
+		dom_root.setAttribute(QStringLiteral("conductorAutonum"),
+					  m_conductors_autonum_name);
+	}
+
+	//Default New Element
+	dom_root.setAttribute(QStringLiteral("freezeNewElement"),
+				  m_freeze_new_elements ? QStringLiteral("true") : QStringLiteral("false"));
+
+	//Default New Conductor
+	dom_root.setAttribute(QStringLiteral("freezeNewConductor"),
+				  m_freeze_new_conductors_
+				  ? QStringLiteral("true") : QStringLiteral("false"));
+
+	//Element Folio Sequential Variables
+	if (!m_elmt_unitfolio_max.isEmpty()
+			|| !m_elmt_tenfolio_max.isEmpty()
+			|| !m_elmt_hundredfolio_max.isEmpty()) {
+		QDomElement elmtfoliosequential =
+				document.createElement(
+					QStringLiteral("elementautonumfoliosequentials"));
+		if (!m_elmt_unitfolio_max.isEmpty()) {
+			QDomElement elmtfolioseq =
+					document.createElement(
+						QStringLiteral("elementunitfolioseq"));
+			folioSequentialsToXml(&m_elmt_unitfolio_max,
+						  &elmtfolioseq,
+						  QStringLiteral("sequf_"),
+						  QStringLiteral("unitfolioseq"),
+						  &document);
+			elmtfoliosequential.appendChild(elmtfolioseq);
+		}
+		if (!m_elmt_tenfolio_max.isEmpty()) {
+			QDomElement elmtfolioseq =
+					document.createElement(
+						QStringLiteral("elementtenfolioseq"));
+			folioSequentialsToXml(&m_elmt_tenfolio_max,
+						  &elmtfolioseq,
+						  QStringLiteral("seqtf_"),
+						  QStringLiteral("tenfolioseq"),
+						  &document);
+			elmtfoliosequential.appendChild(elmtfolioseq);
+		}
+		if (!m_elmt_hundredfolio_max.isEmpty()) {
+			QDomElement elmtfolioseq =
+					document.createElement(
+						QStringLiteral("elementhundredfolioseq"));
+			folioSequentialsToXml(&m_elmt_hundredfolio_max,
+						  &elmtfolioseq,
+						  QStringLiteral("seqhf_"),
+						  QStringLiteral("hundredfolioseq"),
+						  &document);
+			elmtfoliosequential.appendChild(elmtfolioseq);
+		}
+		dom_root.appendChild(elmtfoliosequential);
+	}
+	// Conductor Folio Sequential Variables
+	if (!m_cnd_unitfolio_max.isEmpty()
+			|| !m_cnd_tenfolio_max.isEmpty() ||
+			!m_cnd_hundredfolio_max.isEmpty()) {
+		QDomElement cndfoliosequential =
+				document.createElement(
+					QStringLiteral("conductorautonumfoliosequentials"));
+		QHash<QString, QStringList>::iterator i;
+		if (!m_cnd_unitfolio_max.isEmpty()) {
+			QDomElement cndfolioseq =
+					document.createElement(
+						QStringLiteral("conductorunitfolioseq"));
+			folioSequentialsToXml(&m_cnd_unitfolio_max,
+						  &cndfolioseq,
+						  QStringLiteral("sequf_"),
+						  QStringLiteral("unitfolioseq"),
+						  &document);
+			cndfoliosequential.appendChild(cndfolioseq);
+		}
+		if (!m_cnd_tenfolio_max.isEmpty()) {
+			QDomElement cndfolioseq =
+					document.createElement(
+						QStringLiteral("conductortenfolioseq"));
+			folioSequentialsToXml(&m_cnd_tenfolio_max,
+						  &cndfolioseq,
+						  QStringLiteral("seqtf_"),
+						  QStringLiteral("tenfolioseq"),
+						  &document);
+			cndfoliosequential.appendChild(cndfolioseq);
+		}
+		if (!m_cnd_hundredfolio_max.isEmpty()) {
+			QDomElement cndfolioseq =
+					document.createElement(
+						QStringLiteral("conductorhundredfolioseq"));
+			folioSequentialsToXml(&m_cnd_hundredfolio_max,
+						  &cndfolioseq,
+						  QStringLiteral("seqhf_"),
+						  QStringLiteral("hundredfolioseq"),
+						  &document);
+			cndfoliosequential.appendChild(cndfolioseq);
+		}
+		dom_root.appendChild(cndfoliosequential);
+	}
+}
+
+/**
+	@brief Diagram::headerXml
+	@return the folio's own data as writeHeader() writes it, as text
+*/
+QString Diagram::headerXml()
+{
+	QDomDocument document;
+	auto dom_root = document.createElement(QStringLiteral("diagram"));
+	document.appendChild(dom_root);
+	writeHeader(document, dom_root);
+	return document.toString();
+}
+
+/**
 	@brief Diagram::folioSequentialsToXml
 	Add folio sequential to QDomElement
 	@param hash to retrieve content with content
@@ -1404,6 +1595,73 @@ void Diagram::folioSequentialsToXml(QHash<QString,
 		}
 		domElement->appendChild(folioseq);
 	}
+}
+
+/**
+	@brief Diagram::buildElement
+	Make the symbol @p element_xml describes and add it to this folio, as
+	fromXml() does for each symbol it reads.
+	@return the symbol, or nullptr if it could not be made (said in the log)
+*/
+Element *Diagram::buildElement(QDomElement element_xml, QHash<int, Terminal *> &table_adr_id,
+							   bool consider_informations)
+{
+	// cree un element dont le type correspond a l'id type
+	QString type_id = element_xml.attribute(QStringLiteral("type"));
+	ElementsLocation element_location;
+	if (type_id.startsWith(QStringLiteral("embed://"))) {
+		element_location = ElementsLocation(type_id, m_project);
+	}
+	else {
+		element_location = ElementsLocation(type_id);
+	}
+
+	int state = 0;
+	Element *nvel_elmt =
+			ElementFactory::Instance() -> createElement(
+				element_location, nullptr, &state);
+	if (state)
+	{
+		QString debug_message =
+			QString("Diagram::fromXml() : Le chargement de "
+				"la description de l'element %1 a "
+				"echoue avec le code d'erreur %2").arg(
+				element_location.path()).arg(state);
+		qDebug() << qPrintable(debug_message);
+		delete nvel_elmt;
+		return nullptr;
+	}
+
+	addItem(nvel_elmt);
+	//Loading fail, remove item from the diagram
+	if (!nvel_elmt->fromXml(element_xml, table_adr_id))
+	{
+		removeItem(nvel_elmt);
+		delete nvel_elmt;
+		qDebug() << QStringLiteral("Diagram::fromXml() : Le chargement des parametres d'un element a echoue");
+		return nullptr;
+	} else {
+			//A symbol saved without a uuid got a random one from
+			//Element::fromXml(): a different identity on every load,
+			//written out on the next save. Derive it instead from what
+			//the symbol is and where it sits on its folio -- never from
+			//the folio's index, so inserting or moving a folio does not
+			//change it. Only for a folio being loaded: a paste renews
+			//uuids anyway.
+		if (consider_informations && m_project
+			&& QUuid(element_xml.attribute(QStringLiteral("uuid"))).isNull()) {
+			nvel_elmt->setUuid(m_project->derivedItemUuid(
+								   QStringLiteral("element"),
+								   QStringList{type_id,
+											   element_xml.attribute(QStringLiteral("x")),
+											   element_xml.attribute(QStringLiteral("y")),
+											   element_xml.attribute(QStringLiteral("orientation"))}
+								   .join(QLatin1Char('\n'))));
+		}
+		ItemGroups::setGroup(nvel_elmt, ItemGroups::read(element_xml));
+		return nvel_elmt;
+	}
+return nullptr;
 }
 
 /**
@@ -1543,6 +1801,11 @@ QList<Terminal *> findTerminals(int conductor_index,
 				if (terminal->derivedUuid() == terminal_uuid)
 					match = terminal;
 			}
+				//A terminal that moved since the project was saved: the
+				//uuid worked out from its old place was paired with it
+				//when the symbol was read (Element::fromXml()).
+			if (!match)
+				match = element->terminalFromOldPlace(terminal_uuid);
 			if (match)
 				found << match;
 			else
@@ -1692,8 +1955,9 @@ bool Diagram::fromXml(QDomElement &document,
 		return(false);
 	}
 
-		// Read attributes of this diagram
-	if (consider_informations)
+		// Read attributes of this diagram (already read for a folio whose
+		// items are built later, see ensureLoaded())
+	if (consider_informations && !m_loading_deferred)
 	{
 			// Restore the persisted folio uuid. Done first, before any item is
 			// loaded, so that everything created below sees the final uuid.
@@ -1701,6 +1965,7 @@ bool Diagram::fromXml(QDomElement &document,
 			// persisted, or uuid already taken by another folio) gets a
 			// deterministic one instead, see derivedUuid().
 		const QUuid persisted_uuid(root.attribute(QStringLiteral("uuid")));
+		const QUuid old_uuid = m_uuid;
 		if (persisted_uuid.isNull()) {
 			m_uuid = derivedUuid(root, QStringLiteral("legacy"));
 		} else if (uuidUsedByOtherDiagram(persisted_uuid)) {
@@ -1709,6 +1974,9 @@ bool Diagram::fromXml(QDomElement &document,
 		} else {
 			m_uuid = persisted_uuid;
 		}
+			//A placed folio's stored title block follows its uuid
+		if (m_project && m_project->dataBase())
+			m_project->dataBase()->folioUuidChanged(this, old_uuid);
 
 		// Load border and titleblock
 		border_and_titleblock.titleBlockFromXml(root);
@@ -1776,6 +2044,16 @@ bool Diagram::fromXml(QDomElement &document,
 		return(true);
 	}
 
+		//A project opened with lazy folios builds a folio's items when
+		//they are first needed: until then the folio has what it says
+		//about itself (uuid, title block, border, numbering) and keeps its
+		//XML, which belongs to the project's document.
+	if (consider_informations && !m_loading_deferred && m_project
+		&& m_project->deferringFolios()) {
+		m_deferred = root;
+		return(true);
+	}
+
 		//If paste from another project
 	if (root.hasAttribute(QStringLiteral("projectId")))
 	{
@@ -1812,65 +2090,23 @@ bool Diagram::fromXml(QDomElement &document,
 		//Load all elements from the XML
 	QList<Element *> added_elements;
 	QHash<int, Terminal *> table_adr_id;
+	if (m_loading_deferred) {
+		table_adr_id = m_partial_table;   //the terminals of symbols built already
+	}
 	for (auto element_xml :
 		 QET::findInDomElement(root, QStringLiteral("elements"), QStringLiteral("element")))
 	{
 		if (!Element::valideXml(element_xml)) continue;
-
-		// cree un element dont le type correspond a l'id type
-		QString type_id = element_xml.attribute(QStringLiteral("type"));
-		ElementsLocation element_location;
-		if (type_id.startsWith(QStringLiteral("embed://"))) {
-			element_location = ElementsLocation(type_id, m_project);
-		}
-		else {
-			element_location = ElementsLocation(type_id);
-		}
-
-		int state = 0;
-		Element *nvel_elmt =
-				ElementFactory::Instance() -> createElement(
-					element_location, nullptr, &state);
-		if (state)
-		{
-			QString debug_message =
-				QString("Diagram::fromXml() : Le chargement de "
-					"la description de l'element %1 a "
-					"echoue avec le code d'erreur %2").arg(
-					element_location.path()).arg(state);
-			qDebug() << qPrintable(debug_message);
-			delete nvel_elmt;
-			continue;
-		}
-
-		addItem(nvel_elmt);
-		//Loading fail, remove item from the diagram
-		if (!nvel_elmt->fromXml(element_xml, table_adr_id))
-		{
-			removeItem(nvel_elmt);
-			delete nvel_elmt;
-			qDebug() << QStringLiteral("Diagram::fromXml() : Le chargement des parametres d'un element a echoue");
-		} else {
-				//A symbol saved without a uuid got a random one from
-				//Element::fromXml(): a different identity on every load,
-				//written out on the next save. Derive it instead from what
-				//the symbol is and where it sits on its folio -- never from
-				//the folio's index, so inserting or moving a folio does not
-				//change it. Only for a folio being loaded: a paste renews
-				//uuids anyway.
-			if (consider_informations && m_project
-				&& QUuid(element_xml.attribute(QStringLiteral("uuid"))).isNull()) {
-				nvel_elmt->setUuid(m_project->derivedItemUuid(
-									   QStringLiteral("element"),
-									   QStringList{type_id,
-												   element_xml.attribute(QStringLiteral("x")),
-												   element_xml.attribute(QStringLiteral("y")),
-												   element_xml.attribute(QStringLiteral("orientation"))}
-									   .join(QLatin1Char('\n'))));
+			//Built already as another folio's partner (buildSymbols())
+		if (m_loading_deferred) {
+			Element *built = m_partial_elements.value(QUuid(element_xml.attribute(QStringLiteral("uuid"))));
+			if (built) {
+				added_elements << built;
+				continue;
 			}
-			ItemGroups::setGroup(nvel_elmt, ItemGroups::read(element_xml));
-			added_elements << nvel_elmt;
 		}
+		if (Element *nvel_elmt = buildElement(element_xml, table_adr_id, consider_informations))
+			added_elements << nvel_elmt;
 	}
 
 		//Texts, images and shapes written before they carried a uuid (or
@@ -1910,12 +2146,37 @@ bool Diagram::fromXml(QDomElement &document,
 	}
 
 		// Load image
+		// Decoding is most of the time of a folio with photos (a quarter of
+		// a second each), so the pictures are decoded first, in parallel,
+		// and the items built afterwards in this thread.
+	const QList<QDomElement> images_xml = QET::findInDomElement(
+				root, QStringLiteral("images"), QStringLiteral("image"));
+	QList<DiagramImageItem::Picture> pictures;
+	pictures.reserve(images_xml.size());
+	for (const QDomElement &image_xml : images_xml) {
+		const QString picture_file = QetContainer::pictureFile(image_xml);
+		pictures << DiagramImageItem::pictureOf(
+						image_xml,
+						!picture_file.isEmpty() && project()
+						? project() -> containerPicture(picture_file)
+						: QByteArray());
+	}
+	if (pictures.size() > 1) {
+		QThreadPool pool;
+		pool.setMaxThreadCount(std::min<int>(QThread::idealThreadCount(),
+											 pictures.size()));
+		QtConcurrent::blockingMap(&pool, pictures,
+								  &DiagramImageItem::decodePicture);
+	} else {
+		for (DiagramImageItem::Picture &picture : pictures)
+			DiagramImageItem::decodePicture(picture);
+	}
+
 	QList<DiagramImageItem *> added_images;
-	for (auto image_xml : QET::findInDomElement(root,
-												QStringLiteral("images"),
-												QStringLiteral("image"))) {
+	for (qsizetype i = 0 ; i < images_xml.size() ; ++i) {
+		const QDomElement &image_xml = images_xml.at(i);
 		DiagramImageItem *dii = new DiagramImageItem ();
-		dii -> fromXml(image_xml);
+		dii -> fromXml(image_xml, std::move(pictures[i]));
 		settle_uuid(dii, image_xml, QStringLiteral("image"), added_images.size());
 		ItemGroups::setGroup(dii, ItemGroups::read(image_xml));
 		addItem(dii);
@@ -1996,6 +2257,7 @@ bool Diagram::fromXml(QDomElement &document,
 	if (consider_informations)
 		m_wires_not_reconnected.clear();
 	QList<Conductor *> added_conductors;
+	int moved_ends = 0;
 	for (auto f : QET::findInDomElement(root,
 										QStringLiteral("conductors"),
 										QStringLiteral("conductor")))
@@ -2067,11 +2329,36 @@ bool Diagram::fromXml(QDomElement &document,
 													  ends.join(QLatin1Char('\n'))));
 				}
 				added_conductors << c;
+				for (Terminal *end : {p1, p2})
+					if (end->parentElement()->terminalWasMoved(end)) ++moved_ends;
 			}
 			else
 				delete c;
 		}
 	}
+	if (consider_informations && moved_ends) {
+		qInfo().noquote() << "Diagram::fromXml():"
+						  << moved_ends
+						  << "wire end(s) on a terminal that moved since the project was saved,"
+						  << "matched to it by place";
+	}
+		//A copy of a symbol sharing its uuid with another (older versions'
+		//copies, F100) gets its own, now that its wires are connected to
+		//it: wires and links then name one symbol each
+		//(QETProject::renewedSharedUuid(), only while the project opens)
+	if (consider_informations && m_project) {
+		const int folio_index = m_project->folioIndex(this);
+		QHash<QUuid, int> ordinal;
+		for (Element *element : std::as_const(added_elements)) {
+			const QUuid shared = element->uuid();
+			const QUuid renewed = m_project->renewedSharedUuid(folio_index, ordinal[shared]++,
+															   shared, uuid());
+			if (!renewed.isNull()) {
+				element->setUuid(renewed);
+			}
+		}
+	}
+
 	if (consider_informations && !m_wires_not_reconnected.isEmpty()) {
 		qWarning().noquote() << "Diagram::fromXml():"
 							 << m_wires_not_reconnected.size()

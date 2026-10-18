@@ -20,6 +20,7 @@
 
 #include "SearchAndReplace/ui/searchandreplacewidget.h"
 #include "diagramcontext.h"
+#include "projectlock.h"
 #include "qetmainwindow.h"
 
 #include <QActionGroup>
@@ -75,6 +76,8 @@ class QETDiagramEditor : public QETMainWindow
 		QList<ProjectView *> openedProjects    () const;
 		void                 addProjectView    (ProjectView *);
 		bool                 openAndAddProject (const QString &, bool = true);
+		enum class LockChoice {ReadOnly, OpenAnyway, Cancel};
+		LockChoice           askAboutLock (const QString &, const ProjectLock::Holder &);
 		QList<QString>       editedFiles       () const;
 		ProjectView         *viewForFile       (const QString &) const;
 		ProjectView *currentProjectView() const;
@@ -86,6 +89,9 @@ class QETDiagramEditor : public QETMainWindow
 	  protected:
 		bool event(QEvent *) override;
 	private:
+		bool offerToRecover(const QString &filepath, const QString &reason);
+		bool openAsRecovered(const QString &source, const QString &original);
+		static QString recoveredPath(const QString &filepath, const QString &suffix);
 		// Declared first so it is initialised before any member whose
 		// constructor may dispatch a Qt event calling event() (e.g. the
 		// QActionGroup members below trigger QObject::setParent events).
@@ -202,6 +208,8 @@ class QETDiagramEditor : public QETMainWindow
 		void showError(const QETResult &);
 		void showError(const QString &);
 		void subWindowActivated(QMdiSubWindow *subWindows);
+		void copyTextFormat();
+		void applyTextFormat();
 
 	private slots:
 		void updateTextGridButton();
@@ -215,7 +223,9 @@ class QETDiagramEditor : public QETMainWindow
 		*m_cut,                     ///< Cut selection to clipboard
 		*m_copy,                    ///< Copy selection to clipboard
 		*m_paste_element_info,      ///< Copy the information of the copied element onto the selected elements (#1375)
-		*m_insert_last_element = nullptr; ///< Place the last placed element again
+		*m_insert_last_element = nullptr, ///< Place the last placed element again
+		*m_copy_text_format = nullptr,  ///< Copy label/text formatting template
+		*m_apply_text_format = nullptr; ///< Apply label/text formatting template
 		
 		QActionGroup
 		m_row_column_actions_group, /// Action related to add/remove rows/column in diagram
@@ -301,6 +311,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_close_file,			///< Close current project file
 		*m_save_file,			///< Save current project
 		*m_save_file_as,		///< Save current project as a specific file
+		*m_save_copy_for_older,	///< Write a .qet copy for an older QElectroTech
 		*m_find = nullptr,
 		*m_jump_to_element = nullptr;	///< Open the "jump to element" quick-open popup
 

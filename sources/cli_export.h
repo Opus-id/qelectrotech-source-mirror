@@ -44,7 +44,7 @@ namespace CLIExport {
 		Usage:
 		  qelectrotech --export-pdf     <project.qet> <output.pdf> [--show-terminals]
 		  qelectrotech --export-png     <project.qet> <output_dir> [--show-terminals]
-		  qelectrotech --export-svg     <project.qet> <output_dir> [--show-terminals]
+		  qelectrotech --export-svg     <project.qet> <output_dir> [--show-terminals] [--svg-small-pictures]
 		  qelectrotech --export-dxf     <project.qet> <output_dir> [--show-terminals] [--dxf-blocks] [--dxf-attributes]
 		  qelectrotech --export-cables  <project.qet> <output.csv>
 		  qelectrotech --export-wires   <project.qet> <output.csv>
@@ -55,6 +55,7 @@ namespace CLIExport {
 		  qelectrotech --info           <project.qet> [output.json]
 		  qelectrotech --check-elements <element.elmt | directory>
 		  qelectrotech --resave         <project.qet> <output.qet>
+		  qelectrotech --recover        <damaged.qetz> <output.qet>
 		  qelectrotech --set-titleblock <project.qet> <output.qet> key=value...
 
 		PDF: one multi-page document (one diagram per page).
@@ -71,6 +72,9 @@ namespace CLIExport {
 		--dxf-attributes: as --dxf-blocks, and a symbol's texts (its label,
 		      function...) are attributes of its INSERT. LibreCAD does not
 		      show attributes.
+		--svg-small-pictures: in an SVG, each picture at most four times the
+		      size it is drawn at instead of its full resolution: a much
+		      smaller file, still sharp when printed.
 		cables: wiring list (one row per conductor) as CSV.
 		wires: list of distinct wire numbers as CSV.
 		bom: bill of materials (one row per element) as CSV.
@@ -91,6 +95,12 @@ namespace CLIExport {
 		      per-page element / conductor counts and unconnected terminals.
 		check-elements: validate .elmt file(s) against the element schema.
 		resave: load and rewrite the project XML (round-trip integrity).
+		--ignore-lock: resave and set-titleblock leave a file alone when a lock
+		      file beside it (.~<name>.lock, made by a QElectroTech that has
+		      the project open) says someone else has it; this writes it
+		      anyway. The verbs that only read a project never look at locks,
+		      and none of them takes one. A lock made on this machine by a
+		      process that is gone is stale and does not count.
 		set-titleblock: stamp title-block fields onto every folio, then save.
 		      Keys: title, author, date (or date=today), plant, location,
 		      revision, version, filename; any other key becomes a custom

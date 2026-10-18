@@ -16,6 +16,9 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "qetdiagrameditor.h"
+#include "container/qetcontainer.h"
+#include "container/qetzip.h"
+#include "utils/previousversions.h"
 #include "shownkinds.h"
 #ifdef QET_HAS_SCRIPTING
 #include "scripting/qetscripting.h"
@@ -25,6 +28,8 @@
 #include "scripting/macrorecorder.h"
 #include "scripting/assistantinfo.h"
 #endif
+#include <QDomDocument>
+#include <QTemporaryDir>
 #include <QCoreApplication>
 #include <QToolButton>
 #include <QWidgetAction>
@@ -53,11 +58,13 @@
 #include "cable/editcablecommand.h"
 #include "diagramevent/diagrameventaddpaste.h"
 #include "diagramview.h"
+#include "elementtextpattern.h"
 #include "elementspanelwidget.h"
 #include "factory/elementpicturefactory.h"
 #include "factory/qetgraphicstablefactory.h"
 #include "print/projectprintwindow.h"
 #include "project/projectpropertieshandler.h"
+#include "ui/multielementinfowidget.h"
 #include "ui/projectpropertiesdialog.h"
 #include "projectview.h"
 #include "qetproject.h"
@@ -469,6 +476,19 @@ void QETDiagramEditor::setUpActions()
 	connect(m_paste_element_info, &QAction::triggered,
 			this, &QETDiagramEditor::pasteElementInformations);
 
+	//Format painter actions
+	m_copy_text_format  = new QAction(QET::Icons::CopyElementTextFormat,  tr("Copy text format"), this);
+	m_apply_text_format = new QAction(QET::Icons::ApplyElementTextFormat, tr("Apply text format"), this);
+
+	ShortcutManager::instance().registerAction(m_copy_text_format, "diagrameditor.copy_text_format", tr("Diagram editors"), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_C));
+	ShortcutManager::instance().registerAction(m_apply_text_format, "diagrameditor.apply_text_format", tr("Diagram editors"), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V));
+
+	m_copy_text_format  -> setStatusTip(tr("Copy the text format of the selected element as a template", "status bar tip"));
+	m_apply_text_format -> setStatusTip(tr("Apply the copied text format to the selected elements", "status bar tip"));
+
+	connect(m_copy_text_format,  &QAction::triggered, this, &QETDiagramEditor::copyTextFormat);
+	connect(m_apply_text_format, &QAction::triggered, this, &QETDiagramEditor::applyTextFormat);
+
 		//Duplicate: copy the selection and place it at a configured,
 		//grid-step offset immediately -- no interactive follow-the-
 		//cursor step, unlike Ctrl+V above. That is deliberate (#991):
@@ -562,8 +582,9 @@ void QETDiagramEditor::setUpActions()
 	m_draw_grid->setCheckable(true);
 	m_draw_grid->setChecked(settings.value("diagrameditor/grid_display_startup", true).toBool());
 	connect(m_draw_grid, &QAction::triggered, [this](bool checked) {
+			//The folio's own setting: folios() builds nothing
 		foreach (ProjectView *prjv, this->openedProjects())
-			foreach (Diagram *d, prjv->project()->diagrams()) {
+			foreach (Diagram *d, prjv->project()->folios()) {
 				d->setDisplayGrid(checked);
 				d->update();
 			}
@@ -603,8 +624,9 @@ void QETDiagramEditor::setUpActions()
 	m_draw_guides->setCheckable(true);
 	m_draw_guides->setChecked(settings.value("diagrameditor/guides_display_startup", false).toBool());
 	connect(m_draw_guides, &QAction::triggered, [this](bool checked) {
+			//The folio's own setting: folios() builds nothing
 		foreach (ProjectView *prjv, this->openedProjects())
-			foreach (Diagram *d, prjv->project()->diagrams()) {
+			foreach (Diagram *d, prjv->project()->folios()) {
 				d->setDisplayGuides(checked);
 			}
 	});
@@ -652,8 +674,10 @@ void QETDiagramEditor::setUpActions()
 		action->setData(int(kind.first));
 		connect(action, &QAction::triggered, this, [kind](bool checked) {
 			ShownKinds::setShown(kind.first, checked);
+				//Items built later are shown or hidden as they are made
+				//(ShownKinds::tag())
 			for (QETProject *project : QETApp::registeredProjects())
-				for (Diagram *diagram : project->diagrams())
+				for (Diagram *diagram : project->builtFolios())
 					ShownKinds::apply(diagram, kind.first);
 			emit QETApp::instance()->shownKindsChanged();
 		});
@@ -974,6 +998,8 @@ void QETDiagramEditor::setUpActions()
 	QAction *open_file = m_file_actions_group.addAction(QET::Icons::DocumentOpen,   tr("&Open"));
 	m_save_file        = m_file_actions_group.addAction(QET::Icons::DocumentSave,   tr("&Save"));
 	m_save_file_as     = m_file_actions_group.addAction(QET::Icons::DocumentSaveAs, tr("Save as"));
+	m_save_copy_for_older = m_file_actions_group.addAction(QET::Icons::DocumentSaveAs,
+														   tr("Save a copy for an older QElectroTech"));
 	m_close_file       = m_file_actions_group.addAction(QET::Icons::ProjectClose,   tr("&Close"));
 
 	ShortcutManager::instance().registerAction(new_file, "diagrameditor.new_file", tr("Diagram editors"), QKeySequence::New);
@@ -987,6 +1013,19 @@ void QETDiagramEditor::setUpActions()
 	m_close_file ->setStatusTip( tr("Closes the current project", "status bar tip") );
 	m_save_file    ->setStatusTip( tr("Saves the current project and all its sheets", "status bar tip") );
 	m_save_file_as ->setStatusTip( tr("Saves the current project with a different file name", "status bar tip") );
+	m_save_copy_for_older->setStatusTip(tr("Writes a copy of the current project as a .qet file, which "
+										   "versions of QElectroTech that cannot open a .qetz open",
+										   "status bar tip"));
+	ShortcutManager::instance().registerAction(m_save_copy_for_older, "diagrameditor.save_copy_for_older",
+											   tr("Diagram editors"), QKeySequence());
+	connect(m_save_copy_for_older, &QAction::triggered, this, [this]() {
+		if (ProjectView *project_view = currentProjectView()) {
+			const QETResult result = project_view->saveCopyForOlderVersions();
+			if (!result.isOk()) {
+				showError(result);
+			}
+		}
+	});
 
 	connect(m_save_file_as, &QAction::triggered, this, &QETDiagramEditor::saveAs);
 	connect(m_save_file,    &QAction::triggered, this, &QETDiagramEditor::save);
@@ -1531,6 +1570,8 @@ void QETDiagramEditor::setUpMenu()
 	menu_edition -> addAction(m_cut);
 	menu_edition -> addAction(m_copy);
 	menu_edition -> addAction(m_paste);
+	menu_edition -> addAction(m_copy_text_format);
+	menu_edition -> addAction(m_apply_text_format);
 	menu_edition -> addAction(m_paste_origin);
 	menu_edition -> addAction(m_paste_element_info);
 	menu_edition -> addAction(m_duplicate);
@@ -1558,6 +1599,8 @@ void QETDiagramEditor::setUpMenu()
 	menu_edition -> addAction(m_rotate_selection);
 	menu_edition -> addAction(m_rotate_group_selection);
 	menu_edition -> addAction(m_rotate_texts);
+	menu_edition -> addAction(m_mirror_horizontal);
+	menu_edition -> addAction(m_mirror_vertical);
 	menu_edition -> addAction(m_find_element);
 	menu_edition -> addAction(m_edit_selection);
 	QMenu *group_menu = menu_edition -> addMenu(QET::Icons::textGroup, tr("Group", "fr: Grouper"));
@@ -1809,7 +1852,7 @@ bool QETDiagramEditor::openProject()
 		this,
 		tr("Open a file"),
 		open_dialog_dir.absolutePath(),
-		tr("QElectroTech project(*.qet);;XML Files (*.xml);;All files (*)")
+		QETProject::openFileFilter() + ";;" + tr("XML Files (*.xml);;All files (*)")
 	);
 	if (filepath.isEmpty()) return(false);
 
@@ -1849,6 +1892,160 @@ bool QETDiagramEditor::closeProject(QETProject *project)
 		return(closeProject(project_view));
 	}
 	return(true);
+}
+
+/**
+	@brief QETDiagramEditor::askAboutLock
+	Tell the user who has the project @p filepath open and let them choose.
+	Read-only is the default: opening anyway can lose the other person's
+	work, and a lock left by a crash on another machine cannot be told from
+	a live one, which is why the age of the last sign of life is shown.
+*/
+QETDiagramEditor::LockChoice QETDiagramEditor::askAboutLock(
+		const QString &filepath,
+		const ProjectLock::Holder &holder)
+{
+	const QString name = QFileInfo(filepath).fileName();
+	QString text;
+	if (holder.session == QLatin1String("?")) {
+		text = tr("%1 is being opened by another session of QElectroTech.").arg(name);
+	} else {
+		const QString since = QLocale::system().toString(holder.since.toLocalTime(), QLocale::ShortFormat);
+		text = tr("%1 is open by %2 on %3 since %4").arg(name, holder.user, holder.host, since);
+		const qint64 minutes = holder.heartbeat.isValid()
+				? holder.heartbeat.secsTo(QDateTime::currentDateTimeUtc()) / 60
+				: -1;
+		if (minutes >= 0) {
+			text += minutes < 1
+					? tr(" (active just now).")
+					: tr(" (active %n minute(s) ago).", nullptr, static_cast<int>(minutes));
+		} else {
+			text += QLatin1Char('.');
+		}
+	}
+
+	QMessageBox box(QMessageBox::Warning, tr("Project in use", "message box title"), text, QMessageBox::NoButton, this);
+	box.setInformativeText(tr("Open it read-only to look at it without changing it. "
+							  "Open it anyway only if you know that session is not "
+							  "using it any more: both of you could then save over each other."));
+	QPushButton *read_only = box.addButton(tr("Open read-only"), QMessageBox::AcceptRole);
+	QPushButton *anyway = box.addButton(tr("Open anyway"), QMessageBox::DestructiveRole);
+	box.addButton(QMessageBox::Cancel);
+	box.setDefaultButton(read_only);
+	box.setEscapeButton(box.button(QMessageBox::Cancel));
+	box.exec();
+	if (box.clickedButton() == read_only) return LockChoice::ReadOnly;
+	if (box.clickedButton() == anyway) return LockChoice::OpenAnyway;
+	return LockChoice::Cancel;
+}
+
+/**
+	@brief QETDiagramEditor::offerToRecover
+	@p filepath could not be read (@p reason): say why, and offer its newest
+	previous version (PreviousVersions) and, for a .qetz, what can be read
+	of it (QetContainer::recover()). Either opens as a new project,
+	"<name> (recovered)"; @p filepath is never moved or written.
+	@return true if a project was opened
+*/
+bool QETDiagramEditor::offerToRecover(const QString &filepath, const QString &reason)
+{
+	const QFileInfo info(filepath);
+	QFile file(filepath);
+	const bool zip = file.open(QIODevice::ReadOnly) && QetContainer::isZip(file.peek(4));
+	file.close();
+	const QStringList versions = PreviousVersions::kept(filepath);
+
+	QMessageBox box(QMessageBox::Warning, tr("Cannot open %1").arg(info.fileName()),
+					reason.isEmpty()
+					? tr("The file %1 cannot be read as a QElectroTech project.").arg(info.fileName())
+					: tr("The project file is damaged:\n%1").arg(reason),
+					QMessageBox::Cancel, this);
+	QAbstractButton *previous = nullptr, *recover = nullptr;
+	if (!versions.isEmpty()) {
+		const QDateTime saved = QFileInfo(versions.first()).lastModified();
+		previous = box.addButton(tr("Open the version saved %1")
+								 .arg(QLocale().toString(saved, QLocale::ShortFormat)),
+								 QMessageBox::AcceptRole);
+	}
+	if (zip)
+		recover = box.addButton(tr("Recover what can be read"), QMessageBox::AcceptRole);
+	if (previous || recover)
+		box.setInformativeText(tr("Either opens as a new project, \"%1\"; %2 is left as it is.")
+							   .arg(recoveredPath(filepath, info.suffix()).section(QLatin1Char('/'), -1),
+									info.fileName()));
+	box.exec();
+
+	if (previous && box.clickedButton() == previous)
+		return openAsRecovered(versions.first(), filepath);
+	if (recover && box.clickedButton() == recover) {
+		file.open(QIODevice::ReadOnly);
+		QDomDocument document;
+		QStringList lost;
+		QString error;
+		if (!QetContainer::recover(file.readAll(), &document, &lost, &error)) {
+			QET::QetMessageBox::warning(this, tr("Cannot open %1").arg(info.fileName()),
+										tr("Nothing can be recovered from it:\n%1").arg(error));
+			return false;
+		}
+			//Opened from a .qetz written of it, as the project it replaces
+		QTemporaryDir dir;
+		const QString read = dir.filePath(info.completeBaseName() + QStringLiteral(".qetz"));
+		const QList<QetZip::Entry> parts = QetContainer::split(document, QString(), &error);
+		if (!dir.isValid() || parts.isEmpty() || !QetZip::write(read, parts, &error)
+				|| !openAsRecovered(read, filepath)) {
+			if (!error.isEmpty())
+				QET::QetMessageBox::warning(this, tr("Cannot open %1").arg(info.fileName()), error);
+			return false;
+		}
+		if (!lost.isEmpty()) {
+			QMessageBox done(QMessageBox::Information, tr("Project recovered"),
+							 tr("What could be read of %1 is open as a new project. "
+								"Some parts could not be read and were left out: see the details.")
+							 .arg(info.fileName()),
+							 QMessageBox::Ok, this);
+			done.setDetailedText(lost.join(QLatin1Char('\n')));
+			done.exec();
+		}
+		return true;
+	}
+	return false;
+}
+
+/**
+	@brief QETDiagramEditor::recoveredPath
+	@return where a project recovered from @p filepath is saved: beside it,
+	"<name> (recovered).<suffix>", numbered if that is taken
+*/
+QString QETDiagramEditor::recoveredPath(const QString &filepath, const QString &suffix)
+{
+	const QFileInfo info(filepath);
+	QString path = info.absoluteDir().filePath(tr("%1 (recovered)").arg(info.completeBaseName())
+											   + QLatin1Char('.') + suffix);
+	for (int n = 2 ; QFileInfo::exists(path) ; ++n)
+		path = info.absoluteDir().filePath(tr("%1 (recovered %2)").arg(info.completeBaseName()).arg(n)
+										   + QLatin1Char('.') + suffix);
+	return path;
+}
+
+/**
+	@brief QETDiagramEditor::openAsRecovered
+	Open @p source as a new project saved beside @p original, of its type
+	(recoveredPath()), not saved yet.
+	@return true if it opened
+*/
+bool QETDiagramEditor::openAsRecovered(const QString &source, const QString &original)
+{
+	QETProject *project = new QETProject(source);
+	if (project->state() != QETProject::Ok) {
+		QET::QetMessageBox::warning(this, tr("Cannot open %1").arg(QFileInfo(source).fileName()),
+									project->openError());
+		delete project;
+		return false;
+	}
+	project->setFilePath(recoveredPath(original, QFileInfo(original).suffix()));
+	project->setModified(true);
+	addProject(project);
+	return true;
 }
 
 /**
@@ -1929,6 +2126,40 @@ bool QETDiagramEditor::openAndAddProject(
 		}
 	}
 
+		//Is someone else working on this file? Taken before the project is
+		//read, so a cancel costs nothing. Never blocks opening: a folder
+		//the lock cannot be made in, or the setting off, opens as before.
+	std::unique_ptr<ProjectLock> lock;
+	bool opened_read_only_by_lock = false;
+	if (ProjectLock::mayTake() && filepath_info.isWritable())
+	{
+		lock = std::make_unique<ProjectLock>();
+		if (lock->acquire(filepath) == ProjectLock::Result::Held)
+		{
+			const ProjectLock::Holder holder = lock->blockingHolder();
+			bool take_over = false;
+			if (interactive) {
+				switch (askAboutLock(filepath, holder)) {
+				case LockChoice::Cancel:
+					return(false);
+				case LockChoice::OpenAnyway:
+					take_over = true;
+					break;
+				case LockChoice::ReadOnly:
+					break;
+				}
+			}
+				//Not interactive (an assistant opening it): read-only, which
+				//is the safe answer to a question nobody is there to ask
+			if (take_over && lock->acquire(filepath, true) == ProjectLock::Result::Acquired) {
+				// ours now
+			} else if (!take_over) {
+				lock.reset();
+				opened_read_only_by_lock = true;
+			}
+		}
+	}
+
 	//Create the project
 	DialogWaiting::instance(this);
 
@@ -1942,7 +2173,17 @@ bool QETDiagramEditor::openAndAddProject(
 	QETProject *project = new QETProject(filepath);
 	if (project -> state() != QETProject::Ok)
 	{
-		if (interactive && project -> state() != QETProject::FileOpenDiscard)
+			//A damaged project: its previous version or what can be read
+			//of it, as a new project; the file itself is left as it is
+		if (interactive && project->state() == QETProject::XmlParsingFailed
+				&& offerToRecover(filepath, project->openError()))
+		{
+			delete project;
+			DialogWaiting::dropInstance();
+			return(true);
+		}
+		if (interactive && project -> state() != QETProject::FileOpenDiscard
+				&& project -> state() != QETProject::XmlParsingFailed)
 		{
 			QET::QetMessageBox::warning(
 				this,
@@ -1961,9 +2202,30 @@ bool QETDiagramEditor::openAndAddProject(
 		return(false);
 	}
 
+	if (opened_read_only_by_lock) project->setOpenedReadOnlyByLock(true);
+	if (lock && lock->isHeld()) {
+		connect(lock.get(), &ProjectLock::lockTaken, this, [this, project](const ProjectLock::Holder &by) {
+			statusBar()->showMessage(
+				tr("%1 on %2 has taken over %3. Save your changes with Save As to keep them.")
+					.arg(by.user, by.host, QFileInfo(project->filePath()).fileName()),
+				30000);
+		});
+		project->setLock(std::move(lock));
+	}
+
 	QETApp::projectsRecentFiles() -> fileWasOpened(filepath);
 	addProject(project);
 	DialogWaiting::dropInstance();
+
+	if (interactive && project->isFromLaterVersion()) {
+		QET::QetMessageBox::warning(
+			this,
+			tr("Opening the file read-only", "message box title"),
+			tr("This project was saved by a later version of QElectroTech. "
+			   "It is opened read-only, so that saving it cannot lose what "
+			   "this version does not know. Use Save As to keep a copy "
+			   "in this version's format."));
+	}
 
 		//Report font descriptions which could not be read as-is (written by
 		//an incompatible Qt version or corrupted), so the user learns about
@@ -2004,7 +2266,7 @@ bool QETDiagramEditor::openAndAddProject(
 		//was not found: they would otherwise vanish on the next save
 		//without the user ever being told.
 	QStringList lost_wires;
-	for (Diagram *diagram : project->diagrams()) {
+	for (Diagram *diagram : project->foliosWithWiresNotReconnected()) {
 		for (const QString &wire : diagram->wiresNotReconnected()) {
 			lost_wires << tr("Sheet %1: %2").arg(diagram->folioIndex() + 1).arg(wire);
 		}
@@ -2746,6 +3008,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_close_file->                  setEnabled(opened_project);
 	m_save_file->                   setEnabled(opened_project);
 	m_save_file_as->                setEnabled(opened_project);
+	m_save_copy_for_older->         setEnabled(opened_project);
 	m_rotate_texts->                setEnabled(editable_project);
 	m_export_to_images->            setEnabled(opened_diagram);
 	m_print->                       setEnabled(opened_diagram);
@@ -2823,6 +3086,21 @@ void QETDiagramEditor::slot_updateUndoStack()
 		undo_group.setActiveStack(currentProjectView()->project()->undoStack());
 }
 
+namespace {
+/**
+	@return the elements of @p diagram's selection which take information
+*/
+QList<Element *> selectedInformationElements(Diagram *diagram)
+{
+	QList<Element *> list;
+	for (Element *element : DiagramContent(diagram).m_elements) {
+		if (MultiElementInfoWidget::takesInformations(element))
+			list << element;
+	}
+	return list;
+}
+} // namespace
+
 /**
 	@brief QETDiagramEditor::slot_updateComplexActions
 	Manage the actions that need some conditions to be enabled or not.
@@ -2871,6 +3149,8 @@ void QETDiagramEditor::slot_updateComplexActions()
 	// number of selected elements
 	int selected_elements_count = dc.count(DiagramContent::Elements);
 	m_find_element->setEnabled(selected_elements_count == 1);
+	m_copy_text_format->setEnabled(selected_elements_count >= 1);
+	m_apply_text_format->setEnabled(!ro && selected_elements_count >= 1 && ElementTextFormatPattern::hasPattern());
 	m_mirror_horizontal->setEnabled(!ro && selected_elements_count);
 	m_mirror_vertical->setEnabled(!ro && selected_elements_count);
 
@@ -2947,7 +3227,16 @@ void QETDiagramEditor::slot_updateComplexActions()
 			+ selected_conductors_count
 			+ selected_cables;
 
-	if (selected_editable == 1)
+		//Several elements and nothing else: edit their information together (#1439)
+	if (!ro && selected_editable > 1 && selected_editable == selected_elements_count
+			&& selectedInformationElements(diagram_).size() > 1)
+	{
+		m_edit_selection -> setEnabled(true);
+		m_edit_selection -> setText(tr("Edit the information of the elements",
+					       "edit several elements"));
+		m_edit_selection -> setIcon(QET::Icons::ElementEdit);
+	}
+	else if (selected_editable == 1)
 	{
 		m_edit_selection -> setEnabled(true);
 		//edit element
@@ -3059,39 +3348,6 @@ void QETDiagramEditor::slot_updateModeActions()
 	}
 }
 
-namespace {
-/**
-	@return true if @p element has information the user can edit, the
-	same element kinds ElementPropertiesWidget gives an ElementInfoWidget.
-	Plain slaves and folio reports take theirs from what they are linked to.
-*/
-bool takesElementInformations(const Element *element)
-{
-	switch (element->linkType()) {
-		case Element::Simple:
-		case Element::Thumbnail:
-		case Element::Master:
-		case Element::Terminale:
-			return true;
-		default:
-			return false;
-	}
-}
-
-/**
-	@return the elements of @p diagram's selection which take information
-*/
-QList<Element *> selectedInformationElements(Diagram *diagram)
-{
-	QList<Element *> list;
-	for (Element *element : DiagramContent(diagram).m_elements) {
-		if (takesElementInformations(element))
-			list << element;
-	}
-	return list;
-}
-} // namespace
-
 /**
 	@brief QETDiagramEditor::slot_updatePasteAction
 	Gere les actions ayant besoin du presse-papier
@@ -3184,7 +3440,8 @@ void QETDiagramEditor::pasteElementInformations()
 			new_info.remove(QETInformation::ELMT_FORMULA_ID);
 		}
 		for (const QString &key : source.keys()) {
-			if (key == QETInformation::ELMT_FORMULA_ID && !keep_scheme_id)
+			if (key == QETInformation::ELMT_FORMULA_ID && !keep_scheme_id
+					|| key == "exclude_from_bom")
 				continue;
 			new_info.addValue(key, source.value(key), source.keyMustShow(key));
 		}
@@ -4689,4 +4946,57 @@ void QETDiagramEditor::updateTextGridButton()
 	}
 		//A divisor the menu does not offer, set by hand in the config file
 	m_text_grid_button->setText(tr("Texts %1").arg(TextGrid::ratioLabel(divisor)));
+}
+/**
+ * @brief QETDiagramEditor::copyTextFormat
+ * Copies the text/label layout and formatting from the currently selected element as a template.
+ */
+void QETDiagramEditor::copyTextFormat()
+{
+	DiagramView *dv = currentDiagramView();
+	if (!dv || !dv->diagram()) return;
+
+	Element *sourceElmt = nullptr;
+	for (QGraphicsItem *item : dv->diagram()->selectedItems()) {
+		if (Element *elmt = qgraphicsitem_cast<Element *>(item)) {
+			sourceElmt = elmt;
+			break;
+		}
+	}
+
+	if (!sourceElmt) return;
+
+	ElementTextFormatPattern pattern = ElementTextFormatPattern::fromElement(sourceElmt);
+	if (pattern.isValid()) {
+		ElementTextFormatPattern::setCurrentPattern(pattern);
+		slot_updateComplexActions();
+		statusBar()->showMessage(tr("Text format of \"%1\" copied").arg(sourceElmt->name()), 3000);
+	}
+}
+
+/**
+ * @brief QETDiagramEditor::applyTextFormat
+ * Applies the stored text formatting template to all selected elements in the active diagram.
+ */
+void QETDiagramEditor::applyTextFormat()
+{
+	if (!ElementTextFormatPattern::hasPattern()) return;
+
+	DiagramView *dv = currentDiagramView();
+	if (!dv || !dv->diagram()) return;
+	if (dv->diagram()->isReadOnly()) return;
+
+	QList<Element *> targetElements;
+	for (QGraphicsItem *item : dv->diagram()->selectedItems()) {
+		if (Element *elmt = qgraphicsitem_cast<Element *>(item)) {
+			targetElements.append(elmt);
+		}
+	}
+
+	if (targetElements.isEmpty()) return;
+
+	const ElementTextFormatPattern &pattern = ElementTextFormatPattern::currentPattern();
+	dv->diagram()->undoStack().push(new ApplyElementTextFormatCommand(targetElements, pattern));
+
+	statusBar()->showMessage(tr("Text format applied to %n element(s)", "", targetElements.size()), 3000);
 }

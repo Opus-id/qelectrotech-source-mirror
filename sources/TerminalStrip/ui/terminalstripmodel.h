@@ -62,11 +62,19 @@ class TerminalStripModel : public QAbstractTableModel
 			Function = 12,
 			Led = 13,
 			Shield = 14,
+			Color = 15,
+			Section = 16,
+			Width = 17,
+			Separator = 18,
 			Invalid = 99
 		};
 
 		static int levelForColumn(TerminalStripModel::Column column);
 		static TerminalStripModel::Column columnTypeForIndex(const QModelIndex &index);
+
+			///Role of the Width column : the label of the terminal chosen in the catalog.
+			///setData() with this role takes a QVariantMap {"mm": width, "entry": label}
+		static constexpr int CatalogEntryRole = Qt::UserRole + 1;
 
 		Q_OBJECT
 	public:
@@ -99,7 +107,8 @@ class TerminalStripModel : public QAbstractTableModel
 
 	private:
 		QPointer<TerminalStrip> m_terminal_strip;
-		QHash<QPointer<Element>, QVector<bool>> m_modified_cell;
+			//Modified cells of each real terminal (spare terminals have no element)
+		QHash<const RealTerminal *, QVector<bool>> m_modified_cell;
 		QVector<modelPhysicalTerminalData> m_physical_data;
 		struct BridgePixmap
 		{
@@ -124,12 +133,21 @@ class TerminalStripModelDelegate : public QStyledItemDelegate
 				QWidget *parent,
 				const QStyleOptionViewItem &option,
 				const QModelIndex &index) const override;
+		void setEditorData(
+				QWidget *editor,
+				const QModelIndex &index) const override;
 		void setModelData(
 				QWidget *editor,
 				QAbstractItemModel *model,
 				const QModelIndex &index) const override;
 
 		void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
+
+		void setManufacturer(const QString &manufacturer);
+
+	private:
+			///Manufacturer of the terminals proposed in the Width column, empty = all
+		QString m_manufacturer;
 };
 
 #endif // TERMINALSTRIPMODEL_H

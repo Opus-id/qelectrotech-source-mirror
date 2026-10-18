@@ -18,6 +18,8 @@
 #include "element.h"
 #include "../qetapp.h"
 #include "../qetproject.h"
+#include "../dataBase/projectdatabase.h"
+#include "../ElementsCollection/terminaluuids.h"
 #include "../PropertiesEditor/propertieseditordialog.h"
 #include "../autoNum/assignvariables.h"
 #include "../autoNum/elementautonumschemecommand.h"
@@ -37,6 +39,8 @@
 #include "../undocommand/changeelementinformationcommand.h"
 #include "../undocommand/setautonumcontextcommand.h"
 #include "crossrefitem.h"
+#include "terminalelement.h"
+#include "../TerminalStrip/terminalstrip.h"
 #include "dynamicelementtextitem.h"
 #include "elementtextitemgroup.h"
 #include "iostream"
@@ -718,6 +722,7 @@ bool Element::buildFromXml(const QDomElement &xml_def_elmt, int *state)
 	m_data.m_informations.fromXml(
 				xml_def_elmt.firstChildElement(QStringLiteral("elementInformations")),
 				QStringLiteral("elementInformation"));
+	storeInformation();
 
 		//scroll of the Children of the Definition: Parts of the Drawing
 	int parsed_elements_count = 0;
@@ -971,6 +976,182 @@ bool Element::valideXml(QDomElement &e)
 }
 
 /**
+	@brief Element::matchMovedTerminals
+	Pair the saved terminals that no live terminal matched exactly with the
+	live terminals that moved a little: the definition of the symbol was
+	replaced or redrawn since the project was saved. A saved record gives
+	the old docking point and orientation of its terminal, so it is paired
+	with a live terminal of the same orientation whose docking point is
+	within moved_terminal_reach in x and y. Two steps, both only where the
+	pairing is clear:
+	- a rigid offset: if exactly one offset (the same for every terminal)
+	  maps every unmatched record onto a distinct live terminal, as when a
+	  whole drawing was moved, all are paired by it;
+	- otherwise per terminal: a record and a live terminal that are each
+	  the only candidate of the other. Several records at one place and as
+	  many live terminals at one place are paired in order.
+	Anything less clear stays unmatched, as before.
+
+	A pair registers the record's legacy id, and the uuid TerminalUuids
+	derived for the terminal at its old place, so that a wire naming either
+	reattaches (see Diagram::findTerminals()).
+	@param records : the saved terminals of this symbol
+	@param matched_records : indexes in records already matched
+	@param matched_terminals : the live terminals already matched
+	@param id_adr : receives the legacy id of each pair
+*/
+void Element::matchMovedTerminals(const QList<QDomElement> &records,
+								  const QSet<int> &matched_records,
+								  const QSet<Terminal *> &matched_terminals,
+								  QHash<int, Terminal *> &id_adr)
+{
+	if (matched_records.size() == records.size()) return;
+
+	const auto dock_of = [](const QDomElement &r) {
+		return QPointF(r.attribute(QStringLiteral("x")).toDouble(),
+					   r.attribute(QStringLiteral("y")).toDouble());
+	};
+	const auto orientation_of = [](const QDomElement &r) {
+		return r.attribute(QStringLiteral("orientation")).toInt();
+	};
+
+	QHash<int, QList<Terminal *>> candidates;  // record -> live terminals in reach
+	QHash<Terminal *, QList<int>> claimants;   // live terminal -> records in reach
+	for (int i = 0; i < records.size(); ++i) {
+		if (matched_records.contains(i)) continue;
+		const QPointF dock = dock_of(records.at(i));
+		for (Terminal *t : std::as_const(m_terminals)) {
+			if (matched_terminals.contains(t)) continue;
+			if (static_cast<int>(t->orientation()) != orientation_of(records.at(i))) continue;
+			if (qAbs(t->dock_elmt_.x() - dock.x()) > moved_terminal_reach
+				|| qAbs(t->dock_elmt_.y() - dock.y()) > moved_terminal_reach) continue;
+			candidates[i] << t;
+			claimants[t] << i;
+		}
+	}
+
+		//Pair a record with a live terminal: register its legacy id, and the
+		//uuid derived for the terminal at its old place
+	const auto pair_up = [&](int index, Terminal *t) {
+		const QDomElement &record = records.at(index);
+		const QPointF dock = dock_of(record);
+
+			//The old place of the terminal: its docking point less the
+			//stub that Terminal::init() added
+		QPointF old_pos = dock;
+		switch (orientation_of(record)) {
+			case Qet::North: old_pos -= QPointF(0, Terminal::terminalSize);  break;
+			case Qet::East : old_pos -= QPointF(-Terminal::terminalSize, 0); break;
+			case Qet::West : old_pos -= QPointF(Terminal::terminalSize, 0);  break;
+			case Qet::South: old_pos -= QPointF(0, -Terminal::terminalSize); break;
+		}
+			//The rank among the records at the same place, as the project
+			//counted it when it gave the terminals their uuids
+		int rank = 0;
+		for (int j = 0; j < index; ++j) {
+			const QPointF other = dock_of(records.at(j));
+			if (orientation_of(records.at(j)) == orientation_of(record)
+				&& qAbs(other.x() - dock.x()) < 1e-6
+				&& qAbs(other.y() - dock.y()) < 1e-6)
+				++rank;
+		}
+
+		id_adr.insert(record.attribute(QStringLiteral("id")).toInt(), t);
+		m_old_place_terminals.insert(TerminalUuids::derived(old_pos.x(), old_pos.y(),
+															orientation_of(record), rank), t);
+		m_moved_terminals << t;
+	};
+	const auto same_place = [](const QPointF &a, const QPointF &b) {
+		return qAbs(a.x() - b.x()) < 1e-6 && qAbs(a.y() - b.y()) < 1e-6;
+	};
+
+		//Rigid offset: when a whole drawing was moved, every terminal moved
+		//by the same amount. Try each offset seen between a record and a
+		//live terminal; if exactly one maps every unmatched record onto a
+		//distinct live terminal, the pairs are settled by it.
+	QList<int> unmatched;
+	QList<QPointF> offsets;
+	for (int i = 0; i < records.size(); ++i) {
+		if (matched_records.contains(i)) continue;
+		unmatched << i;
+		for (Terminal *t : candidates.value(i)) {
+			const QPointF offset = t->dock_elmt_ - dock_of(records.at(i));
+			const bool known = std::any_of(offsets.cbegin(), offsets.cend(),
+										   [&](const QPointF &o) { return same_place(o, offset); });
+			if (!known) offsets << offset;
+		}
+	}
+	QList<QPair<int, Terminal *>> rigid;
+	int rigid_offsets = 0;
+	for (const QPointF &offset : std::as_const(offsets)) {
+		QList<QPair<int, Terminal *>> mapping;
+		QSet<Terminal *> used;
+		for (int i : std::as_const(unmatched)) {
+			Terminal *found = nullptr;  // records at one place take the live ones in order
+			for (Terminal *t : candidates.value(i)) {
+				if (!used.contains(t)
+					&& same_place(t->dock_elmt_, dock_of(records.at(i)) + offset)) {
+					found = t;
+					break;
+				}
+			}
+			if (!found) break;
+			used << found;
+			mapping.append({i, found});
+		}
+		if (mapping.size() != unmatched.size()) continue;
+		++rigid_offsets;
+		rigid = mapping;
+	}
+	if (rigid_offsets == 1) {
+		for (const auto &pair : std::as_const(rigid)) pair_up(pair.first, pair.second);
+		return;
+	}
+
+		//Per terminal: a record and a live terminal that are each the only
+		//candidate of the other. Several records at one place with as many
+		//live terminals at one place pair in order.
+	for (int i : std::as_const(unmatched)) {
+		const QList<Terminal *> live = candidates.value(i);
+		if (live.isEmpty()) continue;
+		QList<int> group;
+		for (int j : std::as_const(unmatched)) {
+			if (orientation_of(records.at(j)) == orientation_of(records.at(i))
+				&& same_place(dock_of(records.at(j)), dock_of(records.at(i))))
+				group << j;
+		}
+		if (group.first() != i || live.size() != group.size()) continue;
+		bool clear = true;
+		for (Terminal *t : live) {
+			if (!same_place(t->dock_elmt_, live.first()->dock_elmt_)
+				|| claimants.value(t) != group) clear = false;
+		}
+		if (!clear) continue;
+		for (int k = 0; k < group.size(); ++k) pair_up(group.at(k), live.at(k));
+	}
+}
+
+/**
+	@return the terminal that was paired with the saved terminal whose uuid
+	derived from its old place is @p old_place_uuid, if any
+	@see matchMovedTerminals()
+*/
+Terminal *Element::terminalFromOldPlace(const QUuid &old_place_uuid) const
+{
+	return m_old_place_terminals.value(old_place_uuid, nullptr);
+}
+
+/**
+	@return true if @p terminal was paired with a saved terminal at another
+	place than its own
+	@see matchMovedTerminals()
+*/
+bool Element::terminalWasMoved(const Terminal *terminal) const
+{
+	return m_moved_terminals.contains(const_cast<Terminal *>(terminal));
+}
+
+/**
 	@brief Element::fromXml
 	Import the parameters of this element from a xml document.
 	When call this function ensure this element is already in a scene, because
@@ -997,22 +1178,28 @@ bool Element::fromXml(QDomElement &e,
 	}
 
 	QHash<int, Terminal *> priv_id_adr;
+	QSet<Terminal *> matched_terminals;
+	QSet<int> matched_records;
 
 	for (auto *qgi : childItems())
 	{
 		if (auto terminal_ = qgraphicsitem_cast<Terminal *>(qgi))
 		{
-			for(auto qde : liste_terminals)
+			for (int i = 0; i < liste_terminals.size(); ++i)
 			{
+				QDomElement qde = liste_terminals.at(i);
 				if (terminal_ -> fromXml(qde))
 				{
 					priv_id_adr.insert(qde.attribute(QStringLiteral("id")).toInt(),
 									   terminal_);
+					matched_terminals << terminal_;
+					matched_records << i;
 				}
 			}
 		}
 	}
 
+	matchMovedTerminals(liste_terminals, matched_records, matched_terminals, priv_id_adr);
 
 		//Check that associated id/address doesn't conflict with table_id_adr
 	for(auto found_id : priv_id_adr.keys())
@@ -1042,7 +1229,9 @@ bool Element::fromXml(QDomElement &e,
 	}
 
 	//uuid of this element
-	m_uuid = QUuid(e.attribute(QStringLiteral("uuid"), QUuid::createUuid().toString()));
+	//Through setUuid(): a folio adds a symbol before reading it, so its
+	//stored information has to follow from the uuid it was born with.
+	setUuid(QUuid(e.attribute(QStringLiteral("uuid"), QUuid::createUuid().toString())));
 
 		//load prefix
 	m_prefix = e.attribute(QStringLiteral("prefix"));
@@ -1111,6 +1300,11 @@ bool Element::fromXml(QDomElement &e,
 	DiagramContext dc;
 	dc.fromXml(e.firstChildElement(QStringLiteral("elementInformations")),
 			   QStringLiteral("elementInformation"));
+		//Changed through the project database while its folio was not
+		//built (lazy folios): the change, not what the file says
+	if (diagram() && diagram()->project())
+		if (const auto edited = diagram()->project()->dataBase()->takeUnbuiltEdit(m_uuid))
+			dc = *edited;
 
 		//Load override properties (For now, only used when the element is a terminal)
 	if (m_data.m_type == ElementData::Terminal)
@@ -1245,18 +1439,21 @@ QDomElement Element::toXml(
 	element.appendChild(inputs);
 
 	//if this element is linked to other elements,
-	//save the uuid of each other elements
-	if (! isFree()) {
+	//save the uuid of each other elements (linksToSave())
+	QList<std::pair<QUuid, int>> links;
+	for (const SavedLink &link : linksToSave(diagram() && diagram()->project()
+											 ? diagram()->project()->waitingLinkTargets() : QSet<QUuid>()))
+		links.append({link.uuid, link.group_index});
+	if (!links.isEmpty()) {
 		QDomElement links_uuids = document.createElement(QStringLiteral("links_uuids"));
-		foreach (Element *elmt, connected_elements) {
+		for (const auto &link : std::as_const(links)) {
 			QDomElement link_uuid =
 					document.createElement(QStringLiteral("link_uuid"));
-			link_uuid.setAttribute(QStringLiteral("uuid"), elmt->uuid().toString());
+			link_uuid.setAttribute(QStringLiteral("uuid"), link.first.toString());
 
 			// Save group index if assigned (for slave->master links)
-			int gi = m_group_index_map.value(elmt, -1);
-			if (gi >= 0) {
-				link_uuid.setAttribute(QStringLiteral("group_index"), gi);
+			if (link.second >= 0) {
+				link_uuid.setAttribute(QStringLiteral("group_index"), link.second);
 			}
 
 			links_uuids.appendChild(link_uuid);
@@ -1265,10 +1462,11 @@ QDomElement Element::toXml(
 	}
 
 	//save information of this element
-	if (! m_data.m_informations.keys().isEmpty()) {
+	const DiagramContext informations = elementInformations();
+	if (! informations.keys().isEmpty()) {
 		QDomElement infos =
 				document.createElement(QStringLiteral("elementInformations"));
-		m_data.m_informations.toXml(infos, QStringLiteral("elementInformation"));
+		informations.toXml(infos, QStringLiteral("elementInformation"));
 			//toXml() skips empty values: an element whose information is
 			//all empty would otherwise be written an empty block, which the
 			//next load reads as no information and the next save drops.
@@ -1625,7 +1823,11 @@ void Element::initLink(QETProject *prj)
 		// if nothing to link return now
 	if (tmp_uuids_link.isEmpty()) return;
 
-	ElementProvider ep(prj);
+		//The symbols built: on the folios built, and those built alone as
+		//partners on folios not built (Diagram::buildSymbols()). A partner
+		//not built yet (lazy folios) is linked when it is, and the
+		//saved list is kept until then, for the order it gives
+	ElementProvider ep(prj->folios());
 	QList<QUuid> uuids;
 	for (const auto &linkInfo : tmp_uuids_link) {
 		uuids.append(linkInfo.uuid);
@@ -1643,7 +1845,66 @@ void Element::initLink(QETProject *prj)
 		}
 	}
 	restoreSavedLinkOrder();
-	tmp_uuids_link.clear();
+	if (pendingLinks().isEmpty() || !prj->unloadedFolioCount()) {
+		tmp_uuids_link.clear();
+	}
+}
+
+/**
+	@brief Element::linksToSave
+	The partners this symbol saves, in the order it saves them: the order
+	it was saved with (tmp_uuids_link), then partners linked since. A
+	partner on a folio not built yet (lazy folios), which this symbol will
+	be linked to, is in the list too: saving needs no partner built (stage
+	D5a). toXml() writes this list, and the project database's link rows
+	are written from it, so the two are the same (QETZ-DB-FIRST stage 2a).
+	@param waiting the symbols on folios not built: a saved partner among
+	them is kept (QETProject::symbolsOnUnbuiltFolios())
+	@return each partner's uuid, its contact group (-1 if none), and the
+	partner itself when it is built (nullptr for one waiting)
+*/
+QList<Element::SavedLink> Element::linksToSave(const QSet<QUuid> &waiting) const
+{
+	QList<SavedLink> links;
+	if (keepsSavedLinks() && diagram() && diagram()->project()) {
+		QSet<Element *> written;
+		for (const auto &link_info : std::as_const(tmp_uuids_link)) {
+			Element *linked = nullptr;
+			for (Element *elmt : std::as_const(connected_elements))
+				if (elmt->uuid() == link_info.uuid && !written.contains(elmt)) { linked = elmt; break; }
+			if (linked) {
+				written.insert(linked);
+				links.append({linked->uuid(), m_group_index_map.value(linked, -1), linked});
+			} else if (waiting.contains(link_info.uuid)) {
+				links.append({link_info.uuid, link_info.group_index, nullptr});
+			}
+		}
+		for (Element *elmt : std::as_const(connected_elements))
+			if (!written.contains(elmt))
+				links.append({elmt->uuid(), m_group_index_map.value(elmt, -1), elmt});
+	} else {
+		for (Element *elmt : std::as_const(connected_elements))
+			links.append({elmt->uuid(), m_group_index_map.value(elmt, -1), elmt});
+	}
+	return links;
+}
+
+/**
+	@brief Element::pendingLinks
+	@return the uuids of the partners this symbol was saved linked to and
+	is not linked to yet: those on a folio not built yet (lazy folios),
+	until initLink() runs again once it is
+*/
+QSet<QUuid> Element::pendingLinks() const
+{
+	QSet<QUuid> pending;
+	for (const auto &link_info : tmp_uuids_link) {
+		pending.insert(link_info.uuid);
+	}
+	for (Element *elmt : connected_elements) {
+		pending.remove(elmt->uuid());
+	}
+	return pending;
 }
 
 /**
@@ -1672,6 +1933,23 @@ void Element::initLink(const QList<Element *> &candidates)
 	}
 	restoreSavedLinkOrder();
 	tmp_uuids_link.clear();
+}
+
+/**
+	@brief Element::waitingLinks
+	@return pendingLinks() in the order this symbol was saved with them,
+	each with its group index (-1 for none)
+*/
+QList<std::pair<QUuid, int>> Element::waitingLinks() const
+{
+	const QSet<QUuid> pending = pendingLinks();
+	QList<std::pair<QUuid, int>> list;
+	for (const auto &link_info : tmp_uuids_link) {
+		if (pending.contains(link_info.uuid)) {
+			list.append({link_info.uuid, link_info.group_index});
+		}
+	}
+	return list;
 }
 
 /**
@@ -1795,6 +2073,49 @@ void Element::setFormulaSchemeId(const QUuid &id)
 		m_data.m_informations.addValue(QETInformation::ELMT_FORMULA_ID,
 									   id.toString(), false);
 	}
+	storeInformation();
+}
+
+/**
+	@brief Element::setUuid
+	A placed symbol's stored information and its database rows follow its
+	uuid (a paste or a folio copy renews it).
+*/
+void Element::setUuid(const QUuid &uuid)
+{
+	const QUuid old_uuid = m_uuid;
+	m_uuid = uuid;
+	if (diagram() && diagram()->project() && diagram()->project()->dataBase())
+		diagram()->project()->dataBase()->elementUuidChanged(this, old_uuid);
+}
+
+namespace {
+/**
+	@brief notifyTerminalStrip
+	If @a element is a terminal of a terminal strip, tell the strip that the
+	data of the terminal changed, so that the strip is redrawn on the folios.
+*/
+void notifyTerminalStrip(Element *element)
+{
+	if (auto terminal_ = dynamic_cast<TerminalElement *>(element)) {
+		if (auto strip_ = terminal_->parentTerminalStrip()) {
+			strip_->terminalDataChanged();
+		}
+	}
+}
+}
+
+/**
+	@brief Element::storeInformation
+	Write this symbol's information to its project's store, once it is
+	placed: every change of a placed
+	symbol's information comes through here.
+*/
+void Element::storeInformation()
+{
+	if (diagram() && diagram()->project() && diagram()->project()->dataBase()
+		&& diagram()->project()->dataBase()->hasElementInformation(m_uuid))
+		diagram()->project()->dataBase()->elementInformationChanged(this, m_data.m_informations);
 }
 
 void Element::setElementInformations(DiagramContext dc)
@@ -1811,7 +2132,9 @@ void Element::setElementInformations(DiagramContext dc)
 	if (!actual_label.isEmpty()) {
 		m_data.m_informations.addValue(QStringLiteral("label"), actual_label); //Update the label if there is a formula
 	}
+	storeInformation();
 	emit elementInfoChange(old_info, m_data.m_informations);
+	notifyTerminalStrip(this);
 
 	// Propagate label change to linked PLC slaves (label is changed via
 	// setElementInformations through the undo stack, not via setElementData)
@@ -1841,7 +2164,41 @@ void Element::setElementInformations(DiagramContext dc)
  */
 ElementData Element::elementData() const
 {
+	if (projectDataBase *store = placedStore()) {
+		ElementData data = m_data;
+		data.m_informations = store->elementInformation(m_uuid);
+		return data;
+	}
 	return m_data;
+}
+
+/**
+	@brief Element::elementInformations
+	@return this symbol's information: for a placed symbol the project's
+	store holds it, for one not placed
+	(a preview, the symbol editor) its own copy.
+*/
+DiagramContext Element::elementInformations() const
+{
+	if (projectDataBase *store = placedStore())
+		return store->elementInformation(m_uuid);
+	return m_data.m_informations;
+}
+
+/**
+	@brief Element::placedStore
+	@return the project database holding this symbol's information, or
+	nullptr if it is not placed in a project
+*/
+projectDataBase *Element::placedStore() const
+{
+	Diagram *d = diagram();
+	QETProject *project = d ? d->project() : nullptr;
+	projectDataBase *store = project ? project->dataBase() : nullptr;
+		//A uuid other placed symbols share (F100) names no single symbol's
+		//information: this one answers from its own copy.
+	return store && store->hasElementInformation(m_uuid)
+			&& store->placedElementCount(m_uuid) == 1 ? store : nullptr;
 }
 
 /**
@@ -1860,11 +2217,14 @@ void Element::setElementData(ElementData data)
 
 	if (old_info != m_data.m_informations) {
 		m_data.m_informations.addValue(QStringLiteral("label"), actualLabel()); //Update the label if there is a formula
+		storeInformation();
 		if (diagram()) {
 			diagram()->project()->dataBase()->elementInfoChanged(this);
 		}
 		emit elementInfoChange(old_info, m_data.m_informations);
 	}
+		//Type, function, led... of a terminal are not informations
+	notifyTerminalStrip(this);
 
 	// Propagate PLC master data changes to linked slaves
 	if (m_data.m_type == ElementData::Master && m_data.m_master_type == ElementData::PLC)
@@ -2078,6 +2438,7 @@ void Element::setUpFormula(bool code_letter, QUndoCommand *parent_undo)
 				->elementAutoNumCurrentFormula();
 
 		m_data.m_informations.addValue(QStringLiteral("formula"), formula);
+		storeInformation();
 
 		QString element_currentAutoNum = diagram()
 				->project()
@@ -2146,6 +2507,7 @@ void Element::setUpFormula(bool code_letter, QUndoCommand *parent_undo)
 		{
 			DiagramContext dc = m_data.m_informations;
 			m_data.m_informations.addValue(QStringLiteral("label"), actualLabel());
+			storeInformation();
 			emit elementInfoChange(dc, m_data.m_informations);
 		}
 	}
@@ -2199,6 +2561,8 @@ void Element::freezeNewAddedElement()
 */
 QString Element::actualLabel()
 {
+		//The symbol's own copy, not the store: this runs while the
+		//information is being changed, before the store has the change.
 	if (m_data.m_informations.value(QStringLiteral("formula")).toString().isEmpty()) {
 		return m_data.m_informations.value(QStringLiteral("label")).toString();
 	} else {

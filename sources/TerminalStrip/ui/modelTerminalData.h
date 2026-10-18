@@ -18,6 +18,7 @@
 #ifndef MODELTERMINALDATA_H
 #define MODELTERMINALDATA_H
 
+#include <QColor>
 #include <QString>
 #include "../../qetgraphicsitem/element.h"
 #include "../realterminal.h"
@@ -37,11 +38,18 @@ struct modelRealTerminalData
 				mrtd.conductor_ = real_t->conductor();
 				mrtd.led_ = real_t->isLed();
 				mrtd.shield_ = real_t->isShield();
+				mrtd.separator_ = real_t->hasSeparatorAfter();
+				mrtd.color_ = real_t->color();
+				mrtd.stripe_color_ = real_t->stripeColor();
+				mrtd.section_ = real_t->section();
+				mrtd.width_mm_ = real_t->widthMm();
+				mrtd.catalog_entry_ = real_t->catalogEntry();
 				mrtd.type_ = real_t->type();
 				mrtd.function_ = real_t->function();
 				mrtd.element_ = real_t->element();
 				mrtd.real_terminal = real_t.toWeakRef();
 				mrtd.bridged_ = real_t->isBridged();
+				mrtd.spare_ = real_t->isSpare();
 			}
 
 			return mrtd;
@@ -55,7 +63,14 @@ struct modelRealTerminalData
 		QString conductor_;
 		bool led_ = false;
 		bool shield_ = false;
+		bool separator_ = false;	//A separator plate is mounted after the terminal
+		QColor color_;		//Invalid = no color set by the user
+		QColor stripe_color_;	//Second color of a two-tone color, invalid if plain
+		qreal section_ = 0;	//In mm2, 0 = no section set by the user
+		qreal width_mm_ = 0;	//In mm, 0 = no width set by the user
+		QString catalog_entry_;	//Terminal chosen in the catalog, empty if the width was typed
 		bool bridged_ = false;
+		bool spare_ = false;	//Spare terminal, on no folio (RealTerminal::isSpare())
 
 		ElementData::TerminalType type_ = ElementData::TerminalType::TTGeneric;
 		ElementData::TerminalFunction function_ = ElementData::TerminalFunction::TFGeneric;

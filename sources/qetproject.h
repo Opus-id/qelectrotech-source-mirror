@@ -18,6 +18,7 @@
 #ifndef QET_PROJECT_H
 #define QET_PROJECT_H
 
+#include <functional>
 #include "ElementsCollection/elementslocation.h"
 #include "NameList/nameslist.h"
 #include "project/projectpropertieshandler.h"
@@ -31,12 +32,16 @@
 #include "wirehops.h"
 #include "wiringrules.h"
 #include "diagram.h"
+#include "autoNum/assignvariables.h"
+#include "container/qetcontainerdb.h"
+#include "projectlock.h"
 #ifdef BUILD_WITHOUT_KF
 #	include "ui/nokde/kautosavefile.h"
 #else
 #	include <KAutoSaveFile>
 #endif
 
+#include <QDateTime>
 #include <QHash>
 #include <QSet>
 #include <QUuid>
@@ -44,6 +49,8 @@
 #include <QFuture>
 
 #include <array>
+#include <memory>
+#include <optional>
 
 class Diagram;
 class Element;
@@ -117,8 +124,35 @@ class QETProject : public QObject
 		projectDataBase *dataBase();
 		QUuid uuid() const;
 		QUuid derivedItemUuid(const QString &kind, const QString &key);
+		QUuid renewedSharedUuid(int folio_index, int ordinal, const QUuid &uuid,
+								const QUuid &folio_uuid);
+		QByteArray containerPicture(const QString &file) const;
 		ProjectState state() const;
+		QString openError() const;
 		QList<Diagram *> diagrams() const;
+			//The folios whether their items are built or not
+			//(lazy folios); diagrams() builds them
+		QList<Diagram *> folios() const;
+		bool deferringFolios() const {return m_deferring_folios;}
+		int unloadedFolioCount() const;
+		QList<Diagram *> builtFolios() const;
+		QList<Diagram *> cableLabelFolios();
+		QList<Diagram *> foliosWithWiresNotReconnected();
+		void buildFolioToShow(Diagram *folio);
+		void buildPartnerSymbols(const QList<Diagram *> &folios, const QSet<QUuid> &partners);
+		void buildFoliosHolding(ElementData::Types kinds, bool free_only);
+		void buildFoliosHoldingSymbols(const QSet<QUuid> &symbols);
+		void buildFoliosHoldingTables();
+		QSet<QUuid> symbolsOnUnbuiltFolios() const;
+			/// While saving: the symbols on folios not built a built symbol
+			/// may be saved linked to (Element::toXml())
+		QSet<QUuid> waitingLinkTargets() const {return m_waiting_link_targets;}
+		QDomDocument folioXml(Diagram *folio);
+		QSet<Diagram *> tableChainFolios(Diagram *folio) const;
+		void loadFolios() const;
+		void buildFolios(const QList<Diagram *> &folios) const;
+		void setFolioBuildObserver(std::function<void(int, int)> observer);
+		void folioLoaded(Diagram *folio);
 		int folioIndex(const Diagram *) const;
 		XmlElementCollection *embeddedElementCollection()const;
 		TitleBlockTemplatesProjectCollection *embeddedTitleBlockTemplatesCollection();
@@ -135,6 +169,12 @@ class QETProject : public QObject
 		/// background thread referencing the project, and a short-lived CLI
 		/// process can destroy the project before the write finishes (crash).
 		static void setBackupEnabled(bool enabled);
+
+			/// Whether a folio is built only when it is needed, not all on
+			/// opening (stage D6): yes, unless the
+			/// environment variable QET_EAGER_FOLIOS=1 asks for every folio
+			/// built on opening, as QElectroTech did before
+		static bool lazyFolios();
 
 		/// Number of crash-recovery snapshots kept per project, written in
 		/// turn by writeBackup(), so one bad write cannot replace the only copy
@@ -240,6 +280,18 @@ class QETProject : public QObject
 										const QString &ignored_title = QString()) const;
 		static QString normalizedAutoNumName(const QString &name);
 		QVector<Element *> elementsUsingElementAutoNum(const QString &title) const;
+			/// A placed symbol's numbering, whether its folio is built or
+			/// not (lazy folios): what is asked of every symbol of the
+			/// project when one is numbered
+		struct SymbolNumbering {
+			const Element *element = nullptr; ///< null on a folio not built
+			QString label;
+			QString formula;
+			QUuid scheme;   ///< the element numbering scheme it follows
+			autonum::sequentialNumbers sequence;
+			bool numbered = false; ///< neither a slave nor a report
+		};
+		QList<SymbolNumbering> symbolNumbering() const;
 
 		/**
 		 * @brief Renumber existing elements by element autonumbering scheme.
@@ -283,16 +335,30 @@ class QETProject : public QObject
 		void autoFolioNumberingNewFolios ();
 		void autoFolioNumberingSelectedFolios(int, int, const QString&);
 
-		QDomDocument toXml();
+		QDomDocument toXml(QHash<int, QByteArray> *kept_folios = nullptr,
+						   QStringList *kept_parts = nullptr);
+		static QString spliceKeptFolios(QString text, const QHash<int, QByteArray> &kept_folios);
 		bool close();
-		QETResult write();
+		QETResult write(bool overwrite_changed = false);
+		QString writeTarget() const;
+		void rememberDiskState();
+		bool changedOnDisk(QDateTime *when = nullptr) const;
 		bool isReadOnly() const;
+			/// Opened from a .qetz of a later format (opened read-only)
+		bool isFromLaterVersion() const {return m_from_later_version;}
 		void setReadOnly(bool);
+			/// The lock sidecar this session holds on the project file, if any
+		ProjectLock *lock() const {return m_lock.get();}
+		void setLock(std::unique_ptr<ProjectLock> lock);
+		void setOpenedReadOnlyByLock(bool by_lock);
 		bool isEmpty() const;
 		ElementsLocation importElement(ElementsLocation &location);
 		QString integrateTitleBlockTemplate(const TitleBlockTemplateLocation &, MoveTitleBlockTemplatesHandler *handler);
 		bool usesElement(const ElementsLocation &) const;
 		QList <ElementsLocation> unusedElements() const;
+		QList<ElementsLocation> unbuiltFolioElements() const;
+		bool unbuiltFolioHasTables(Diagram *folio) const;
+		bool folioHoldsTablesOrSymbols(Diagram *folio) const;
 		bool usesTitleBlockTemplate(const TitleBlockTemplateLocation &);
 		bool projectWasModified();
 		bool projectOptionsWereModified();
@@ -379,6 +445,8 @@ class QETProject : public QObject
 		}
 
 	private:
+		void watchTerminalStrip(TerminalStrip *strip, bool watch = true);
+		bool stampSaved();
 		void readProjectXml(QDomDocument &xml_project);
 		void readDiagramsXml(QDomDocument &xml_project);
 		void readElementsCollectionXml(QDomDocument &xml_project);
@@ -402,6 +470,20 @@ class QETProject : public QObject
 		void writeBackup();
 		void init();
 		ProjectState openFile(QFile *file);
+	public:
+		static bool isContainerPath(const QString &path);
+		static QString openFileFilter();
+			/// Saving writes a .qetz: one read from a .qet is saved as
+			/// a .qetz beside it, the .qet left as it is
+			/// (stage D1)
+		bool savesBesideOpenedFile() const {return m_opened_from_qet;}
+		QString besideContainerPath() const;
+		QETResult writeCopyForOlderVersions(const QString &path);
+		static bool writeContainer(const QDomDocument &project, const QString &path,
+								   QString *error = nullptr,
+								   const QHash<QString, QByteArray> &kept_from = QHash<QString, QByteArray>());
+		bool writeContainerFile(const QString &path, QString *error = nullptr);
+	private:
 		static QUuid derivedUuid(const QByteArray &content);
 		void refresh();
 
@@ -411,6 +493,9 @@ class QETProject : public QObject
 		static bool m_backup_enabled;
 			/// Something changed since the last backup, see writeBackup()
 		bool m_backup_needed = true;
+			/// The pictures of the .qetz this project was opened from, see
+			/// containerPicture()
+		QHash<QString, QByteArray> m_container_pictures;
 			/// File path this project is saved to
 		QString m_file_path;
 			/// Current state of the project
@@ -425,6 +510,12 @@ class QETProject : public QObject
 		bool m_modified = false;
 			/// Whether the project is read only
 		bool m_read_only = false;
+		bool m_from_later_version = false;
+			/// The lock sidecar of the project file (see ProjectLock)
+		std::unique_ptr<ProjectLock> m_lock;
+			/// File this project was opened read-only for, because another
+			/// session holds its lock: write() does not write to it
+		QString m_locked_out_path;
 			/// Filepath for which this project is considered read only
 		QString read_only_file_path_;
 			/// Default dimensions and properties for new diagrams created within the project
@@ -469,6 +560,46 @@ class QETProject : public QObject
 			/// saved without an id (written before ids existed)
 		bool m_legacy_element_autonums = false;
 		void linkElementsToElementAutoNums();
+		void linkElementsToElementAutoNums(Diagram *folio);
+		QHash<QString, QStringList> elementAutoNumTitlesByFormula() const;
+		std::optional<QUuid> elementAutoNumIdToLink(
+				const DiagramContext &information,
+				const QHash<QString, QStringList> &titles_by_formula) const;
+		bool m_deferring_folios = false;
+			/// Opening with folios built only when needed: QET_LAZY_FOLIOS
+			/// is set and the database can be filled from the document
+		bool m_lazy_open = false;
+			/// Saving may write a folio not built as it was read
+			/// (writesKeptFolios()): the file is this version's, its
+			/// database rows came from it, and nothing project-wide that
+			/// a folio's saved items depend on has changed since
+		bool m_kept_folios_trusted = false;
+			/// Read from a .qet whose path nobody chose since: saved beside it
+		bool m_opened_from_qet = false;
+			/// The file the saved date and path were set for, and the undo
+			/// index then: an unchanged project keeps them (stampSaved())
+		QString m_stamped_path;
+		int m_stamped_undo_index = 0;
+			/// The project file as this QET last read or wrote it, to see
+			/// whether something else changed it since (changedOnDisk())
+		QString m_disk_path;
+		qint64 m_disk_size = -1;
+		QDateTime m_disk_mtime;
+			/// Saving a .qetz may copy the part of a folio not built
+			/// (toXml(), stage D4)
+		bool m_kept_parts_trusted = false;
+		QSet<QUuid> m_waiting_link_targets;
+			/// The entries of the .qetz opened, and the part each folio
+			/// was read from, in order
+		QHash<QString, QByteArray> m_container_files;
+		QStringList m_folio_parts;
+		bool m_kept_folios_stale = false;
+			/// Something was edited since the project was opened: a table
+			/// filled from the database may have changed
+		bool m_edited_since_open = false;
+		void markKeptFoliosStale() {m_kept_folios_stale = true;}
+			/// The file being read, for each folio's text (readDiagramsXml())
+		QByteArray m_opened_content;
 		bool m_auto_conductor = true;
 		WireHops::Mode m_wire_hops = WireHops::Mode::None;
 			/// Texts drawn in a turned symbol stay horizontal (on for a new
@@ -484,12 +615,20 @@ class QETProject : public QObject
 		QFuture<bool> m_backup_future;
 			/// Crash-recovery snapshots, written in turn by writeBackup()
 		std::array<KAutoSaveFile, BackupGenerations> m_backup_files;
+			/// Why the file could not be read, see openError()
+		QString m_open_error;
 		int m_next_backup_slot = 0;
 		QUuid m_uuid = QUuid::createUuid();
 		QHash<QString, int> m_derived_uuid_keys;
-		QSet<QUuid> m_saved_item_uuids;	//symbol and wire uuids the file carries, see derivedItemUuid()
+		QSet<QUuid> m_saved_item_uuids;
+			/// While opening: per uuid carried by several symbols, the copy
+			/// keeping it (folio index, ordinal on that folio), see
+			/// renewedSharedUuid()
+		QHash<QUuid, std::pair<int, int>> m_shared_uuid_keepers;	//symbol and wire uuids the file carries, see derivedItemUuid()
 		projectDataBase m_data_base;
 		QVector<TerminalStrip *> m_terminal_strip_vector;
+			//Called after each folio built, see setFolioBuildObserver()
+		std::function<void(int, int)> m_folio_build_observer;
 		QVector<Cable *> m_cables;
 
 		ProjectPropertiesHandler m_project_properties_handler;

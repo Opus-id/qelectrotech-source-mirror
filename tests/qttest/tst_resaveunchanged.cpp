@@ -8,6 +8,10 @@
 #include <QRegularExpression>
 #include <QTemporaryDir>
 
+#include "container/qetzip.h"
+
+#include <sqlite3.h>
+
 // Saving a project that was just saved must change nothing. Two things
 // made the second save differ from the first, both cleanup done on save
 // but not on load:
@@ -30,9 +34,12 @@ class tst_resaveunchanged : public QObject
 
 	// --resave @p in to a new file, in a sandbox of its own (so a running
 	// QElectroTech cannot answer instead); returns the new file's path.
-	QString resave(const QString &in)
+	QString resave(const QString &in, const QString &suffix = QStringLiteral(".qet"))
 	{
-		const QString out = m_dir.filePath(QStringLiteral("out%1.qet").arg(m_run));
+			//Always p.qet, in its own folder: an untitled project takes its
+			//file name as title, so two names would make two projects.
+		QDir().mkpath(m_dir.filePath(QStringLiteral("run%1").arg(m_run)));
+		const QString out = m_dir.filePath(QStringLiteral("run%1/p").arg(m_run) + suffix);
 		const QString home = m_dir.filePath(QStringLiteral("home%1").arg(m_run++));
 		QDir().mkpath(home);
 		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -227,6 +234,65 @@ private slots:
 		QVERIFY(references > 0);
 	}
 
+	// Deleting the folio that holds the first part of a split table, with
+	// folios opened lazily (the default), then saving: the next part keeps
+	// the table's query (F121). The first part holds it; the next part takes
+	// it over only if it was built when the folio went, and it used to be
+	// built later, from the file, naming a part that was gone and saving no
+	// query. industrial.qet's folio 41 (index 40) holds the first part of its
+	// 10-part parts list. It is resaved first: its folios have no saved uuid,
+	// and such a project opens with every folio built. Every table in the
+	// file must name a table that is in it, or have a query.
+	void deletedFirstPartKeepsTableQuery()
+	{
+#ifndef QET_HAS_SCRIPTING
+		QSKIP("needs --run: this QElectroTech is built without Qt Qml");
+#endif
+		const QString in = resave(QStringLiteral(QET_EXAMPLES_DIR "/industrial.qet"));
+		QVERIFY(!in.isEmpty());
+		const QString out = m_dir.filePath(QStringLiteral("deleted_first_part.qet"));
+		const QString script = m_dir.filePath(QStringLiteral("deleted_first_part.js"));
+		QFile js(script);
+		QVERIFY(js.open(QIODevice::WriteOnly));
+		js.write(QStringLiteral("qet.log('REMOVED ' + qet.removeFolio(40));\n"
+								"qet.log('SAVED ' + qet.save('%1'));\n").arg(out).toUtf8());
+		js.close();
+		const QString home = m_dir.filePath(QStringLiteral("home%1").arg(m_run++));
+		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+		env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+		env.insert(QStringLiteral("QET_ENABLE_SCRIPTING"), QStringLiteral("1"));
+		env.remove(QStringLiteral("QET_EAGER_FOLIOS"));
+		env.insert(QStringLiteral("HOME"), home);
+		env.insert(QStringLiteral("XDG_CONFIG_HOME"), home + QStringLiteral("/config"));
+		env.insert(QStringLiteral("XDG_DATA_HOME"), home + QStringLiteral("/data"));
+		QProcess proc;
+		proc.setProcessEnvironment(env);
+		proc.start(QStringLiteral(QET_TEST_BINARY_PATH),
+				   {QStringLiteral("--run"), script, in});
+		QVERIFY(proc.waitForFinished(180000));
+		const QString log = QString::fromUtf8(proc.readAllStandardOutput() + proc.readAllStandardError());
+		QVERIFY2(log.contains(QStringLiteral("REMOVED true")) && log.contains(QStringLiteral("SAVED true")),
+				 qPrintable(log.right(400)));
+
+		const QString saved = QString::fromUtf8(read(out));
+		const QRegularExpression table_re(
+					QStringLiteral("<graphics_table [^>]*uuid=\"([^\"]+)\"[^>]*>(.*?)</graphics_table>"),
+					QRegularExpression::DotMatchesEverythingOption);
+		QHash<QString, QString> tables;   // uuid -> what is inside the table
+		for (const auto &m : table_re.globalMatch(saved))
+			tables.insert(m.captured(1), m.captured(2));
+		QVERIFY(tables.size() >= 9);
+		const QRegularExpression previous_re(QStringLiteral("<previous_table uuid=\"([^\"]+)\""));
+		const QRegularExpression query_re(QStringLiteral("<query>\\s*\\S"));
+		for (auto it = tables.cbegin() ; it != tables.cend() ; ++it) {
+			const auto previous = previous_re.match(it.value());
+			QVERIFY2(query_re.match(it.value()).hasMatch()
+					 || (previous.hasMatch() && tables.contains(previous.captured(1))),
+					 qPrintable(QStringLiteral("table %1 has no query and names no table in the file")
+								.arg(it.key())));
+		}
+	}
+
 	// A folio report arrow linked to one that has no terminal -- such as
 	// ref_voyant_2_h.elmt from the collection -- crashed QElectroTech on
 	// opening: the arrow's text looked for a wire on the other arrow's
@@ -280,6 +346,293 @@ private slots:
 		const QString saved = resave(in);
 		QVERIFY2(!saved.isEmpty(), "--resave failed: QElectroTech crashed opening the project");
 		QVERIFY2(read(saved).contains(b), "the arrow without a terminal was not kept");
+	}
+
+	// Saved as a .qetz (the zipped project, #1440) and that saved again as a
+	// .qet, a project is what it is saved straight as a .qet: the same
+	// file but for when and where it was saved. The examples with pictures
+	// (weneedpolonez), tables and links (industrial) and several title
+	// blocks (m_000).
+	void containerSavesTheSameProject_data()
+	{
+		QTest::addColumn<QString>("project");
+		for (const char *name : {"Projet_vierge.qet", "industrial.qet", "m_000.qet",
+								 "weneedpolonez-Polonez_MR89_wiring_diagram.qet"})
+			QTest::newRow(name) << QStringLiteral(QET_EXAMPLES_DIR "/") + QLatin1String(name);
+	}
+	void containerSavesTheSameProject()
+	{
+		QFETCH(QString, project);
+		const QString straight = resave(project);
+		QVERIFY2(!straight.isEmpty(), "--resave as .qet failed");
+		const QString zipped = resave(project, QStringLiteral(".qetz"));
+		QVERIFY2(!zipped.isEmpty(), "--resave as .qetz failed");
+		QVERIFY2(read(zipped).startsWith("PK\x03\x04"), "the .qetz is not a zip");
+		QVERIFY2(read(zipped).size() < read(straight).size() / 2, "the .qetz is not smaller");
+		QCOMPARE(databaseTables(zipped), QStringList({
+			"conductor", "element", "element_info", "folio", "folio_property", "link", "meta",
+			"project_property", "strip_bridge", "strip_bridge_terminal", "strip_terminal",
+			"terminal_strip"}));
+		const QString back = resave(zipped);
+		QVERIFY2(!back.isEmpty(), "opening the .qetz failed");
+
+		auto without_save_stamps = [](QByteArray xml) {
+			static const QRegularExpression stamp(QStringLiteral(
+				"\\s*<property [^>]*name=\"saved(filename|filepath|filenamedir|date|date-us|date-eu|time)\"[^>]*>[^<]*</property>"));
+			return QString::fromUtf8(xml).remove(stamp);
+		};
+		QCOMPARE(without_save_stamps(read(back)), without_save_stamps(read(straight)));
+	}
+
+	// The tables of the database in the .qetz @p path: the document's
+	// engineering data only, each fact once -- not QElectroTech's own
+	// project database, built from it when the project opens
+	static QStringList databaseTables(const QString &path)
+	{
+		QList<QetZip::Entry> entries;
+		if (!QetZip::fromBytes(read(path), &entries)) return {QStringLiteral("not a zip")};
+		QByteArray database;
+		for (const QetZip::Entry &entry : std::as_const(entries))
+			if (entry.name == QLatin1String("project.sqlite")) database = entry.data;
+		sqlite3 *db = nullptr;
+		sqlite3_open(":memory:", &db);
+		unsigned char *copy = static_cast<unsigned char *>(sqlite3_malloc64(sqlite3_uint64(database.size())));
+		memcpy(copy, database.constData(), size_t(database.size()));
+		sqlite3_deserialize(db, "main", copy, database.size(), database.size(), SQLITE_DESERIALIZE_FREEONCLOSE);
+		sqlite3_stmt *list = nullptr;
+		QStringList tables;
+		sqlite3_prepare_v2(db, "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name", -1, &list, nullptr);
+		while (list && sqlite3_step(list) == SQLITE_ROW)
+			tables << QString::fromUtf8(reinterpret_cast<const char *>(sqlite3_column_text(list, 0)));
+		sqlite3_finalize(list);
+		sqlite3_close(db);
+		return tables;
+	}
+
+	// QElectroTech run in a sandbox of its own with @p args, the store
+	// check on (QET_CHECK_ELEMENT_INFO_STORE); its output
+	QString runChecked(const QStringList &args, bool eager = false,
+					   const char *check = "QET_CHECK_ELEMENT_INFO_STORE")
+	{
+		const QString home = m_dir.filePath(QStringLiteral("home%1").arg(m_run++));
+		QDir().mkpath(home);
+		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+		env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+		env.insert(QStringLiteral("QET_ENABLE_SCRIPTING"), QStringLiteral("1"));
+		env.insert(QString::fromLatin1(check), QStringLiteral("1"));
+		if (eager) {
+			env.insert(QStringLiteral("QET_EAGER_FOLIOS"), QStringLiteral("1")); //every folio built on opening
+		}
+		env.insert(QStringLiteral("HOME"), home);
+		env.insert(QStringLiteral("XDG_CONFIG_HOME"), home + QStringLiteral("/config"));
+		env.insert(QStringLiteral("XDG_DATA_HOME"), home + QStringLiteral("/data"));
+		QProcess proc;
+		proc.setProcessEnvironment(env);
+		proc.start(QStringLiteral(QET_TEST_BINARY_PATH), args);
+		if (!proc.waitForFinished(180000)) return {};
+		return QString::fromUtf8(proc.readAllStandardOutput() + proc.readAllStandardError());
+	}
+
+	// The stores of symbol information and folio title blocks agree with
+	// every placed symbol
+	// and folio once a project is open: every example.
+	void elementInfoStoreAgrees_data()
+	{
+		QTest::addColumn<QString>("project");
+		const QDir examples(QStringLiteral(QET_EXAMPLES_DIR));
+		for (const QString &f : examples.entryList({QStringLiteral("*.qet")}, QDir::Files, QDir::Name))
+			QTest::newRow(f.toUtf8().constData()) << examples.filePath(f);
+	}
+	void elementInfoStoreAgrees()
+	{
+		QFETCH(QString, project);
+		const QString out = runChecked({QStringLiteral("--resave"), project,
+										m_dir.filePath(QStringLiteral("store%1.qet").arg(m_run))});
+		QVERIFY2(out.contains(QStringLiteral("element information store: 0 differ")), qPrintable(out.right(600)));
+		QVERIFY2(out.contains(QStringLiteral("folio title block store: 0 differ")), qPrintable(out.right(600)));
+		QVERIFY2(out.contains(QStringLiteral("wire properties store: 0 differ")), qPrintable(out.right(600)));
+	}
+
+	// The link rows say what each symbol saves, in its order, also after
+	// an edit builds a partner's folio (lazy folios): m_000 as a .qetz
+	// saved with every folio built, a symbol of its middle folio moved. The rows used to follow the order
+	// the partners were built in (QETZ-DB-FIRST stage 2a).
+	void linkRowsAfterLazyEdit()
+	{
+#ifndef QET_HAS_SCRIPTING
+		QSKIP("needs --run: this QElectroTech is built without Qt Qml");
+#endif
+		const QString qetz = m_dir.filePath(QStringLiteral("links%1.qetz").arg(m_run));
+		QVERIFY(!runChecked({QStringLiteral("--resave"),
+							 QStringLiteral(QET_EXAMPLES_DIR "/m_000.qet"), qetz}, true).isEmpty());
+		const QString saved = m_dir.filePath(QStringLiteral("links-moved%1.qetz").arg(m_run));
+		const QString js = m_dir.filePath(QStringLiteral("links%1.js").arg(m_run));
+		QFile script(js);
+		QVERIFY(script.open(QIODevice::WriteOnly));
+		script.write(QStringLiteral(
+			"var f = Math.floor(qet.folioCount() / 2);\n"
+			"var u = qet.elementUuids(f).slice().sort()[0];\n"
+			"qet.log('MOVED ' + qet.moveElement(f, u, 0, 100));\n"
+			"qet.save('%1');\n").arg(saved).toUtf8());
+		script.close();
+		const QString out = runChecked({QStringLiteral("--run"), js, qetz}, false,
+									   "QET_CHECK_LINK_ROWS");
+		QVERIFY2(out.contains(QStringLiteral("MOVED true")), qPrintable(out.right(600)));
+		QVERIFY2(out.contains(QStringLiteral("link rows: 0 differ")), qPrintable(out.right(600)));
+	}
+
+	// The stores filled from the document before the folios are built
+	// hold what building them gives, for a
+	// project saved by this version (every symbol, folio and wire carries
+	// a uuid): nothing differs, nothing is left unplaced.
+	void storesFilledBeforeBuilding()
+	{
+		const QString saved = resave(QStringLiteral(QET_EXAMPLES_DIR "/industrial.qet"));
+		QVERIFY2(!saved.isEmpty(), "--resave failed");
+		const QString out = runChecked({QStringLiteral("--resave"), saved,
+										m_dir.filePath(QStringLiteral("prefilled.qet"))}, true);
+		const QRegularExpression line(QStringLiteral(
+				"filled before building: symbols (\\d+) agree, 0 differ, 0 not placed; "
+				"folios (\\d+) agree, 0 differ, 0 not placed; wires (\\d+) agree, 0 differ, 0 not placed"));
+		const QRegularExpressionMatch m = line.match(out);
+		QVERIFY2(m.hasMatch(), qPrintable(out.right(600)));
+		QVERIFY(m.captured(1).toInt() > 600 && m.captured(2).toInt() == 50 && m.captured(3).toInt() > 600);
+	}
+
+	// Title block fields stamped on every folio go through the store, and
+	// the saved folios carry them (a folio saves what the store holds).
+	void folioTitleBlockStoreAfterSetTitleBlock()
+	{
+		const QString saved = m_dir.filePath(QStringLiteral("stamped.qet"));
+		const QString out = runChecked({QStringLiteral("--set-titleblock"),
+										QStringLiteral(QET_EXAMPLES_DIR "/industrial.qet"), saved,
+										QStringLiteral("author=Ann"), QStringLiteral("extrafield=Hello")});
+		QVERIFY2(out.contains(QStringLiteral("folio title block store: 0 differ")), qPrintable(out.right(600)));
+		const QByteArray xml = read(saved);
+		QCOMPARE(xml.count("<diagram "), xml.count("author=\"Ann\"") - 1);
+		QCOMPARE(xml.count("<diagram "), xml.count("name=\"extrafield\"") - 1);
+	}
+
+	// ... and after a copy of a symbol, which briefly shares its original's
+	// uuid, and an undo: the original kept no row once (duplicateElements
+	// is the copy the paste and folio duplication make).
+	void elementInfoStoreAfterCopyAndUndo()
+	{
+#ifndef QET_HAS_SCRIPTING
+		QSKIP("needs --run: this QElectroTech is built without Qt Qml");
+#endif
+		const QString script = m_dir.filePath(QStringLiteral("copy.js"));
+		QFile js(script);
+		QVERIFY(js.open(QIODevice::WriteOnly));
+		js.write(QStringLiteral(
+				 "var f = 0; while (qet.elementUuids(f).length < 3) ++f;\n"
+				 "var e = qet.elementUuids(f);\n"
+				 "qet.log('COPY ' + qet.duplicateElements(f, [e[0], e[1]], f, 300, 300).length);\n"
+				 "qet.log('DELETE ' + qet.deleteElement(f, e[2]) + ' UNDO ' + qet.undo());\n"
+				 "qet.log('SAVED ' + qet.save('%1'));\n").arg(m_dir.filePath(QStringLiteral("copied.qet"))).toUtf8());
+		js.close();
+		const QString out = runChecked({QStringLiteral("--run"), script,
+										QStringLiteral(QET_EXAMPLES_DIR "/industrial.qet")});
+		QVERIFY2(out.contains(QStringLiteral("COPY 2")) && out.contains(QStringLiteral("UNDO true"))
+				 && out.contains(QStringLiteral("SAVED true")), qPrintable(out.right(600)));
+		QVERIFY2(out.contains(QStringLiteral("element information store: 0 differ")), qPrintable(out.right(600)));
+	}
+
+	// After copies of linked symbols, of wired symbols, and the undo of a
+	// folio's removal, the project database's symbol, link, wire and
+	// terminal rows are those a fresh open of the saved project builds
+	// (F106, F107): a copy is placed while it still carries its original's
+	// uuid, and an undone folio removal put back its symbols but not their
+	// rows.
+	void symbolRowsAfterCopyAndFolioUndo()
+	{
+#ifndef QET_HAS_SCRIPTING
+		QSKIP("needs --run: this QElectroTech is built without Qt Qml");
+#endif
+		const QString rows = QStringLiteral(
+				 "function rows() { return JSON.stringify(["
+				 "qet.query('SELECT uuid, diagram_uuid, type FROM element ORDER BY uuid'),"
+				 "qet.query('SELECT element_uuid, label, comment FROM element_info ORDER BY element_uuid'),"
+				 "qet.query('SELECT element_uuid, linked_uuid FROM link ORDER BY element_uuid, linked_uuid'),"
+				 "qet.query('SELECT uuid, terminal1_element_uuid, terminal2_element_uuid, text FROM conductor ORDER BY uuid'),"
+				 "qet.query('SELECT uuid, element_uuid FROM terminal ORDER BY uuid, element_uuid')]); }\n");
+		const QString edit = m_dir.filePath(QStringLiteral("rows_edit.js")),
+				dump = m_dir.filePath(QStringLiteral("rows_dump.js")),
+				saved = m_dir.filePath(QStringLiteral("rows.qet"));
+		QFile js(edit);
+		QVERIFY(js.open(QIODevice::WriteOnly));
+		js.write((rows + QStringLiteral(
+				 "var linked = -1;\n"
+				 "for (var f = 0; f < qet.folioCount() && linked < 0; ++f)\n"
+				 "  qet.elementUuids(f).forEach(function (u) { if (qet.linkedElements(f, u).length) linked = f; });\n"
+				 "qet.log('UNDONE ' + (qet.removeFolio(linked) && qet.undo()));\n"
+				 "var copied = 0;\n"
+				 "for (var f = 0; f < qet.folioCount() && copied < 3; ++f) {\n"
+				 "  var e = qet.elementUuids(f);\n"
+				 "  for (var i = 0; i < e.length && copied < 3; ++i)\n"
+				 "    if (qet.linkedElements(f, e[i]).length)\n"
+				 "      copied += qet.duplicateElements(f, [e[i]], f, 300, 300).length;\n"
+				 "}\n"
+				 "qet.log('COPIED ' + copied);\n"
+				 "var wf = 0; while (qet.elementUuids(wf).length < 6) ++wf;\n"
+				 "var wires = qet.conductorCount(wf), w = qet.elementUuids(wf);\n"
+				 "qet.log('WIRED ' + qet.duplicateElements(wf, w.slice(0, 6), wf, 300, 300).length"
+				 " + (qet.conductorCount(wf) > wires ? ' with wires' : ''));\n"
+				 "qet.log('ROWS ' + rows());\n"
+				 "qet.log('SAVED ' + qet.save('%1'));\n").arg(saved)).toUtf8());
+		js.close();
+		QFile js2(dump);
+		QVERIFY(js2.open(QIODevice::WriteOnly));
+		js2.write((rows + QStringLiteral("qet.log('ROWS ' + rows());\n")).toUtf8());
+		js2.close();
+
+		const QString edited = runChecked({QStringLiteral("--run"), edit,
+										   QStringLiteral(QET_EXAMPLES_DIR "/industrial.qet")});
+		QVERIFY2(edited.contains(QStringLiteral("COPIED 3")) && edited.contains(QStringLiteral("WIRED 6 with wires"))
+				 && edited.contains(QStringLiteral("UNDONE true"))
+				 && edited.contains(QStringLiteral("SAVED true")), qPrintable(edited.right(600)));
+		const QString reopened = runChecked({QStringLiteral("--run"), dump, saved});
+		auto rowsOf = [](const QString &log) {
+			const int at = log.indexOf(QStringLiteral("ROWS "));
+			return at < 0 ? QString() : log.mid(at + 5, log.indexOf(QLatin1Char('\n'), at) - at - 5);
+		};
+		QVERIFY(!rowsOf(reopened).isEmpty());
+		QCOMPARE(rowsOf(edited), rowsOf(reopened));
+	}
+
+	// A project read from a .qet and saved where it is, is saved as a .qetz
+	// beside it, and the .qet is left as it was (stage D1).
+	// What the .qetz holds is what a plain save of the .qet holds.
+	void qetSavedAsQetzBeside()
+	{
+#ifndef QET_HAS_SCRIPTING
+		QSKIP("needs --run: this QElectroTech is built without Qt Qml");
+#endif
+		const QString qet = m_dir.filePath(QStringLiteral("beside.qet"));
+		QFile::remove(qet);
+		QVERIFY(QFile::copy(QStringLiteral(QET_EXAMPLES_DIR "/industrial.qet"), qet));
+		const QByteArray before = read(qet);
+		const QString script = m_dir.filePath(QStringLiteral("beside.js"));
+		QFile js(script);
+		QVERIFY(js.open(QIODevice::WriteOnly));
+		js.write("qet.log('SAVED ' + qet.save(''));\n");
+		js.close();
+		const QString log = runChecked({QStringLiteral("--run"), script, qet});
+		QVERIFY2(log.contains(QStringLiteral("SAVED true")), qPrintable(log.right(400)));
+
+		QCOMPARE(read(qet), before);
+		const QString qetz = m_dir.filePath(QStringLiteral("beside.qetz"));
+		QVERIFY2(read(qetz).startsWith("PK\x03\x04"), "no .qetz beside the .qet");
+
+		auto without_save_stamps = [](QByteArray xml) {
+			static const QRegularExpression stamp(QStringLiteral(
+				"\\s*<property [^>]*name=\"saved(filename|filepath|filenamedir|date|date-us|date-eu|time)\"[^>]*>[^<]*</property>"));
+			return QString::fromUtf8(xml).remove(stamp);
+		};
+		const QString straight = resave(qet);
+		const QString back = resave(qetz);
+		QVERIFY(!straight.isEmpty() && !back.isEmpty());
+		QCOMPARE(without_save_stamps(read(back)), without_save_stamps(read(straight)));
 	}
 
 	// A title-block value that is a single space is kept through two saves

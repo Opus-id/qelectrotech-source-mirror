@@ -102,6 +102,13 @@ else()
     message(STATUS "Qt Qml module not available: JavaScript scripting (--run) disabled")
 endif()
 
+# The zip container of a .qetz project is read and written with the bundled
+# miniz (sources/container/miniz): in memory only, and without timestamps so
+# that saving the same project twice gives the same bytes. The names must not
+# clash with the zlib Qt links. Every target including miniz.h needs the same
+# three, hence directory-wide.
+add_compile_definitions(MINIZ_NO_TIME MINIZ_NO_STDIO MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
+
 # The crash handler writes a backtrace into the dump. Detecting this with
 # __has_include(<execinfo.h>) is not enough: the header is present on FreeBSD
 # too, but backtrace() lives in a separate libexecinfo there, so the compile
@@ -146,6 +153,25 @@ endif()
 # als laatse
 include(cmake/define_definitions.cmake)
 
+# The application's code, compiled once, as an object library: the
+# executable is main.cpp linked with it, and tests that need the real
+# classes (a folio, its view, the editor window) link it too.
+set(QET_MAIN_FILE ${QET_DIR}/sources/main.cpp)
+list(REMOVE_ITEM QET_SRC_FILES ${QET_MAIN_FILE})
+add_library(
+    ${PROJECT_NAME}_objects
+    OBJECT
+    ${QET_RES_FILES}
+    ${QET_SRC_FILES}
+    ${QET_DIR}/qelectrotech.qrc
+    ${QET_DIR}/ico/icon-themes.qrc
+)
+# The definitions above are set for this whole directory; a test target
+# lives in tests/ and gets them from here, through the library.
+get_directory_property(QET_DIRECTORY_DEFINITIONS COMPILE_DEFINITIONS)
+target_compile_definitions(${PROJECT_NAME}_objects
+    INTERFACE ${QET_DIRECTORY_DEFINITIONS})
+
 # On Windows, WIN32 sets /SUBSYSTEM:WINDOWS to suppress the console window.
 # Qt automatically links qtmain.lib which provides the WinMain entry point,
 # so no source code change is needed.
@@ -153,11 +179,8 @@ if(WIN32)
     add_executable(
         ${PROJECT_NAME}
         WIN32
-        ${QET_RES_FILES}
-        ${QET_SRC_FILES}
+        ${QET_MAIN_FILE}
         ${QM_FILES}
-        ${QET_DIR}/qelectrotech.qrc
-        ${QET_DIR}/ico/icon-themes.qrc
     )
     # Our own manifest (it declares longPathAware). MSVC merges a .manifest
     # listed as a source; MinGW needs it embedded through a resource file,
@@ -174,13 +197,11 @@ if(WIN32)
 else()
     add_executable(
         ${PROJECT_NAME}
-        ${QET_RES_FILES}
-        ${QET_SRC_FILES}
+        ${QET_MAIN_FILE}
         ${QM_FILES}
-        ${QET_DIR}/qelectrotech.qrc
-        ${QET_DIR}/ico/icon-themes.qrc
     )
 endif()
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_objects)
 
 if(QET_SPACEMOUSE_BACKEND_SPNAV_ENABLED)
     list(APPEND QET_SPACEMOUSE_LIBRARIES PkgConfig::SPNAV)
@@ -249,7 +270,7 @@ elseif(Qt6_VERSION VERSION_LESS "6.7")
 
     # Automatically creates the update_translations umbrella target.
     qt_add_lupdate(
-        ${PROJECT_NAME}
+        ${PROJECT_NAME}_objects
         TS_FILES ${TS_FILES}
     )
 
@@ -262,7 +283,7 @@ else()
     )
 
     qt_add_lupdate(
-        SOURCE_TARGETS ${PROJECT_NAME}
+        SOURCE_TARGETS ${PROJECT_NAME}_objects
         TS_FILES ${TS_FILES}
         LUPDATE_TARGET update_translations
         NO_GLOBAL_TARGET
@@ -288,7 +309,7 @@ if(QET_ENABLE_PCH)
             "QET_ENABLE_PCH needs CMake 3.16 or newer (found ${CMAKE_VERSION}); "
             "building without precompiled headers.")
     else()
-        target_precompile_headers(${PROJECT_NAME} PRIVATE
+        target_precompile_headers(${PROJECT_NAME}_objects PRIVATE
             "$<$<COMPILE_LANGUAGE:CXX>:<QtCore/QtCore$<ANGLE-R>>"
             "$<$<COMPILE_LANGUAGE:CXX>:<QtGui/QtGui$<ANGLE-R>>"
             "$<$<COMPILE_LANGUAGE:CXX>:<QtWidgets/QtWidgets$<ANGLE-R>>"
@@ -299,9 +320,8 @@ if(QET_ENABLE_PCH)
 endif()
 
 target_link_libraries(
-    ${PROJECT_NAME}
+    ${PROJECT_NAME}_objects
     PUBLIC
-    PRIVATE
     pugixml::pugixml
     SingleApplication::SingleApplication
     SQLite3::SQLite3
@@ -311,8 +331,8 @@ target_link_libraries(
 )
 
 target_include_directories(
-    ${PROJECT_NAME}
-    PRIVATE
+    ${PROJECT_NAME}_objects
+    PUBLIC
     ${QET_DIR}/sources/titleblock
     ${QET_DIR}/sources/ui
     ${QET_DIR}/sources/qetgraphicsitem
@@ -350,8 +370,8 @@ target_include_directories(
 
 if(NOT BUILD_WITH_KF)
     target_include_directories(
-        ${PROJECT_NAME}
-        PRIVATE
+        ${PROJECT_NAME}_objects
+        PUBLIC
         ${QET_DIR}/sources/ui/nokde
     )
 endif()

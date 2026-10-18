@@ -39,6 +39,7 @@ class SingleLineProperties {
 	bool isPen() const;
 	void draw(QPainter *, QET::ConductorSegmentType, const QRectF &);
 	void toXml(QDomElement &) const;
+	QList<QPair<QString, QString>> attributes() const;
 	void fromXml(QDomElement &);
 	void toSettings(QSettings &, const QString & = QString()) const;
 	void fromSettings(QSettings &, const QString & = QString());
@@ -130,6 +131,7 @@ class ConductorProperties
 
 		// methods
 		void toXml(QDomElement &) const;
+		QList<QPair<QString, QString>> attributes() const;
 		void fromXml(QDomElement &);
 		void toSettings(QSettings &, const QString & = QString()) const;
 		void fromSettings(QSettings &, const QString & = QString());
@@ -137,6 +139,8 @@ class ConductorProperties
 		void applyForEqualAttributes(QList<ConductorProperties> list);
 		void applyChanges(const ConductorProperties &before,
 				  const ConductorProperties &after);
+		void applyTensionProtocolChange(const ConductorProperties &before,
+					      const ConductorProperties &after);
 
 		static ConductorProperties defaultProperties();
 

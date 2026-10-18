@@ -29,7 +29,86 @@
 #include "terminalstripeditorwindow.h"
 #include "terminalstriptreedockwidget.h"
 
+#include <QApplication>
+#include <QElapsedTimer>
+#include <QProgressDialog>
+#include <QThread>
+#include <QWindow>
+
 QPointer<TerminalStripEditorWindow> TerminalStripEditorWindow::window_;
+
+/**
+ * @brief TerminalStripEditorWindow::instance
+ * @param project : the project to edit
+ * @param parent : parent widget of the window, when it is created
+ * @return the terminal block manager window, created the first time,
+ * showing the terminal strips of @a project.
+ * Opening it reads every terminal of the project (and builds the folios
+ * not built yet) : it can take a while on a big project. A message and a
+ * busy cursor say that it is opening, so that the user does not think
+ * that nothing happens.
+ */
+TerminalStripEditorWindow *TerminalStripEditorWindow::instance(QETProject *project, QWidget *parent)
+{
+	QProgressDialog busy_(tr("Opening the terminal block manager..."), QString(), 0, 0, parent);
+	busy_.setWindowTitle(tr("Terminal block manager"));
+		//Only a title : nothing to minimize, maximize or close
+	busy_.setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
+	busy_.setWindowModality(Qt::ApplicationModal);
+	busy_.setCancelButton(nullptr);
+	busy_.setMinimumDuration(0);
+	busy_.show();
+		//Paint the message before the long work starts. One pass of the
+		//event loop is not enough : the window is shown by the window system
+		//(Wayland compositor...) a bit later. Wait for it to be exposed,
+		//a short time at most, then paint it.
+	QElapsedTimer timer_;
+	timer_.start();
+	while (timer_.elapsed() < 500)
+	{
+		QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+		if (busy_.windowHandle() && busy_.windowHandle()->isExposed()) {
+			break;
+		}
+		QThread::msleep(5);
+	}
+	busy_.repaint();
+	QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+	QApplication::setOverrideCursor(Qt::WaitCursor);
+
+		//The folios not built yet (lazy folios) are built now : show the
+		//progress, and run the event loop between two folios, so that the
+		//window system still gets answers (else the message is said
+		//"not responding")
+	if (project)
+	{
+		project->setFolioBuildObserver([&busy_](int built, int total)
+		{
+			if (busy_.maximum() != total) {
+				busy_.setMaximum(total);
+			}
+			busy_.setLabelText(tr("Reading folio %1 of %2...").arg(built).arg(total));
+			busy_.setValue(built);
+			QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+		});
+	}
+
+	static QMutex mutex_;
+	if (!window_) {
+		mutex_.lock();
+		if (!window_)
+			window_ = new TerminalStripEditorWindow{project, parent};
+		mutex_.unlock();
+	} else {
+		window_->setProject(project);
+	}
+
+	if (project) {
+		project->setFolioBuildObserver({});
+	}
+	QApplication::restoreOverrideCursor();
+	return window_;
+}
 
 static const int EMPTY_PAGE = 0;
 static const int FREE_TERMINAL_PAGE = 1;

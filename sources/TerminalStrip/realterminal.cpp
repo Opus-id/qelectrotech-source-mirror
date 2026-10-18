@@ -19,7 +19,10 @@
 #include "terminalstrip.h"
 #include "../qetgraphicsitem/terminalelement.h"
 #include "physicalterminal.h"
+#include "terminalcolor.h"
+#include "terminalcatalog.h"
 #include "../qetgraphicsitem/conductor.h"
+#include "../qetinformation.h"
 
 /**
  * @brief RealTerminal
@@ -29,6 +32,118 @@
 RealTerminal::RealTerminal(Element *terminal) :
 	m_element(terminal)
 {}
+
+/**
+ * @brief RealTerminal::createSpare
+ * Create a spare terminal (a reserved terminal) : a terminal of a strip
+ * which is not drawn on any folio. Its data (label, type, section,
+ * width...) are its own, stored with the terminal strip.
+ * @param data : the data of the terminal, only the terminal type,
+ * function, led and the informations are used.
+ * @param uuid : the uuid of the spare terminal
+ * @return the new spare terminal, not yet added to a strip
+ */
+QSharedPointer<RealTerminal> RealTerminal::createSpare(const ElementData &data, const QUuid &uuid)
+{
+	auto raw_ = new RealTerminal(nullptr);
+	raw_->m_spare = true;
+	raw_->m_spare_uuid = uuid.isNull() ? QUuid::createUuid() : uuid;
+	raw_->m_spare_data.m_type = ElementData::Terminal;
+	raw_->m_spare_data.setTerminalType(data.terminalType());
+	raw_->m_spare_data.setTerminalFunction(data.terminalFunction());
+	raw_->m_spare_data.setTerminalLED(data.terminalLed());
+	raw_->m_spare_data.m_informations = data.m_informations;
+	return raw_->sharedRef();
+}
+
+/**
+ * @brief RealTerminal::spareFromXml
+ * @param xml_element : a real terminal saved by toXml()
+ * @return the spare terminal saved in @a xml_element,
+ * or a null pointer if @a xml_element is not a spare terminal.
+ */
+QSharedPointer<RealTerminal> RealTerminal::spareFromXml(const QDomElement &xml_element)
+{
+	if (xml_element.tagName() != xmlTagName() ||
+		!xml_element.hasAttribute(QStringLiteral("spare_uuid"))) {
+		return QSharedPointer<RealTerminal>();
+	}
+
+	ElementData data_;
+	data_.setTerminalType(ElementData::terminalTypeFromString(
+							  xml_element.attribute(QStringLiteral("type"))));
+	data_.setTerminalFunction(ElementData::terminalFunctionFromString(
+								  xml_element.attribute(QStringLiteral("function"))));
+	data_.setTerminalLED(QET::infoFlagIsTrue(xml_element.attribute(QStringLiteral("led"))));
+	data_.m_informations.fromXml(xml_element.firstChildElement(QStringLiteral("informations")),
+								 QStringLiteral("information"));
+
+	return createSpare(data_, QUuid(xml_element.attribute(QStringLiteral("spare_uuid"))));
+}
+
+/**
+ * @brief RealTerminal::isSpare
+ * @return true if this terminal is a spare terminal, not drawn on any folio
+ * @sa createSpare
+ */
+bool RealTerminal::isSpare() const {
+	return m_spare;
+}
+
+/**
+ * @brief RealTerminal::spareData
+ * @return the data of this spare terminal, an empty ElementData
+ * if this terminal is not a spare terminal.
+ */
+ElementData RealTerminal::spareData() const {
+	return m_spare_data;
+}
+
+/**
+ * @brief RealTerminal::setSpareData
+ * Set the data of this spare terminal (nothing is done if this terminal
+ * is not a spare terminal) and tell the strip, so that it is redrawn.
+ * @param data
+ */
+void RealTerminal::setSpareData(const ElementData &data)
+{
+	if (!m_spare) {
+		return;
+	}
+	m_spare_data.setTerminalType(data.terminalType());
+	m_spare_data.setTerminalFunction(data.terminalFunction());
+	m_spare_data.setTerminalLED(data.terminalLed());
+	m_spare_data.m_informations = data.m_informations;
+
+	if (auto strip_ = parentStrip()) {
+		strip_->terminalDataChanged();
+	}
+}
+
+/**
+ * @brief RealTerminal::hasData
+ * @return true if this terminal has data : it is linked to an element,
+ * or it is a spare terminal.
+ */
+bool RealTerminal::hasData() const {
+	return m_spare || !m_element.isNull();
+}
+
+/**
+ * @brief RealTerminal::terminalData
+ * @return the data of this terminal : the data of its element,
+ * or its own data if it is a spare terminal.
+ */
+ElementData RealTerminal::terminalData() const
+{
+	if (m_spare) {
+		return m_spare_data;
+	}
+	if (m_element) {
+		return m_element->elementData();
+	}
+	return ElementData();
+}
 
 RealTerminal::~RealTerminal()
 {
@@ -79,8 +194,22 @@ QWeakPointer<RealTerminal> RealTerminal::weakRef() {
 QDomElement RealTerminal::toXml(QDomDocument &parent_document) const
 {
 	auto root_elmt = parent_document.createElement(this->xmlTagName());
-	if (m_element)
+	if (m_spare)
+	{
+			//A spare terminal is on no folio : its data are saved here
+		root_elmt.setAttribute(QStringLiteral("spare_uuid"), m_spare_uuid.toString());
+		root_elmt.setAttribute(QStringLiteral("type"), ElementData::terminalTypeToString(m_spare_data.terminalType()));
+		root_elmt.setAttribute(QStringLiteral("function"), ElementData::terminalFunctionToString(m_spare_data.terminalFunction()));
+		if (m_spare_data.terminalLed()) {
+			root_elmt.setAttribute(QStringLiteral("led"), QStringLiteral("true"));
+		}
+		auto xml_info = parent_document.createElement(QStringLiteral("informations"));
+		m_spare_data.m_informations.toXml(xml_info, QStringLiteral("information"));
+		root_elmt.appendChild(xml_info);
+	}
+	else if (m_element) {
 		root_elmt.setAttribute(QStringLiteral("element_uuid"), m_element->uuid().toString());
+	}
 
 	return root_elmt;
 }
@@ -134,7 +263,9 @@ int RealTerminal::level() const
  * @return the label of this real terminal
  */
 QString RealTerminal::label() const {
-	if (!m_element.isNull()) {
+	if (m_spare) {
+		return m_spare_data.m_informations.value(QStringLiteral("label")).toString();
+	} else if (!m_element.isNull()) {
 		return m_element->actualLabel();
 	} else {
 		return QLatin1String();
@@ -161,8 +292,8 @@ QString RealTerminal::Xref() const
  * The value is stored in the informations of the element.
  */
 QString RealTerminal::cable() const {
-	if (m_element) {
-		return m_element->elementData().m_informations.value(cableInfoKey()).toString();
+	if (hasData()) {
+		return terminalData().m_informations.value(cableInfoKey()).toString();
 	}
 	return QString();
 }
@@ -172,8 +303,8 @@ QString RealTerminal::cable() const {
  * @return The color / number of the wire of the cable, connected to this terminal.
  */
 QString RealTerminal::cableWire() const {
-	if (m_element) {
-		return m_element->elementData().m_informations.value(cableWireInfoKey()).toString();
+	if (hasData()) {
+		return terminalData().m_informations.value(cableWireInfoKey()).toString();
 	}
 	return QString();
 }
@@ -184,9 +315,156 @@ QString RealTerminal::cableWire() const {
  * and not one of its wires.
  */
 bool RealTerminal::isShield() const {
-	if (m_element) {
+	if (hasData()) {
 		return QET::infoFlagIsTrue(
-			m_element->elementData().m_informations.value(shieldInfoKey()).toString());
+			terminalData().m_informations.value(shieldInfoKey()).toString());
+	}
+	return false;
+}
+
+/**
+ * @brief RealTerminal::color
+ * @return The color set by the user for this terminal, drawn in the
+ * terminal strip. An invalid color mean that the user did not set a color.
+ * The value is stored in the informations of the element.
+ * @sa stripeColor
+ */
+QColor RealTerminal::color() const
+{
+	QColor main_, stripe_;
+	if (hasData()) {
+		TerminalColor::parse(terminalData().m_informations.value(colorInfoKey()).toString(),
+							 &main_, &stripe_);
+	}
+	return main_;
+}
+
+/**
+ * @brief RealTerminal::stripeColor
+ * @return The second color of a two-tone color (green/yellow for example)
+ * or an invalid color if the color of this terminal is plain or not set.
+ */
+QColor RealTerminal::stripeColor() const
+{
+	QColor main_, stripe_;
+	if (hasData()) {
+		TerminalColor::parse(terminalData().m_informations.value(colorInfoKey()).toString(),
+							 &main_, &stripe_);
+	}
+	return stripe_;
+}
+
+/**
+ * @brief RealTerminal::section
+ * @return The section in mm2 set by the user for this terminal
+ * or 0 if no section was set.
+ * The value is stored in the informations of the element,
+ * with the dot as decimal separator, whatever the locale.
+ */
+qreal RealTerminal::section() const
+{
+	if (hasData())
+	{
+		bool ok_ = false;
+		const auto section_ = terminalData().m_informations.value(sectionInfoKey()).toString().toDouble(&ok_);
+		if (ok_ && section_ > 0) {
+			return section_;
+		}
+	}
+	return 0;
+}
+
+/**
+ * @brief RealTerminal::widthMm
+ * @return The width in mm of this terminal (the width of the terminal
+ * sold by the manufacturer), set by the user, or 0 if no width was set.
+ * The value is stored in the informations of the element,
+ * with the dot as decimal separator, whatever the locale.
+ */
+qreal RealTerminal::widthMm() const
+{
+	if (hasData())
+	{
+		bool ok_ = false;
+		const auto width_ = terminalData().m_informations.value(widthInfoKey()).toString().toDouble(&ok_);
+		if (ok_ && width_ > 0) {
+			return width_;
+		}
+	}
+	return 0;
+}
+
+/**
+ * @brief RealTerminal::catalogEntry
+ * @return the label of the terminal chosen in the catalog
+ * (TerminalCatalog::WidthEntry::label), for example "Phoenix Contact ST 4",
+ * or an empty string if the width was typed or not set.
+ * Several terminals of the catalog can have the same width,
+ * the width alone doesn't say which one was chosen.
+ */
+QString RealTerminal::catalogEntry() const
+{
+	if (hasData()) {
+		return terminalData().m_informations.value(catalogEntryInfoKey()).toString();
+	}
+	return QString();
+}
+
+/**
+ * @brief RealTerminal::applyCatalogEntry
+ * Store in @a informations the terminal chosen in the catalog,
+ * and write its manufacturer and its reference in the manufacturer and
+ * manufacturer reference informations (used by the bill of materials).
+ * These two informations are only written when they are empty,
+ * or when they still hold what the previous entry of the catalog wrote :
+ * a value typed by the user is never overwritten.
+ * @param informations : the informations of the element
+ * @param entry_label : label of an entry of the catalog,
+ * an empty string (or a label unknown by the catalog) removes the entry.
+ */
+void RealTerminal::applyCatalogEntry(DiagramContext &informations, const QString &entry_label)
+{
+	const auto *old_entry = TerminalCatalog::entryByLabel(
+				informations.value(catalogEntryInfoKey()).toString());
+	const auto *new_entry = TerminalCatalog::entryByLabel(entry_label);
+
+	if (new_entry) {
+		informations.addValue(catalogEntryInfoKey(), QString::fromUtf8(new_entry->label));
+	} else if (informations.contains(catalogEntryInfoKey())) {
+		informations.remove(catalogEntryInfoKey());
+	}
+
+	const auto update_ = [&informations](const QString &key, const QString &old_value, const QString &new_value)
+	{
+		const auto current_ = informations.value(key).toString();
+		if (!current_.isEmpty() && current_ != old_value) {
+			return;	//Typed by the user, keep it
+		}
+		if (!new_value.isEmpty()) {
+			informations.addValue(key, new_value);
+		} else if (!current_.isEmpty()) {
+			informations.addValue(key, QString());
+		}
+	};
+
+	update_(QETInformation::ELMT_MANUFACTURER,
+			old_entry ? QString::fromUtf8(old_entry->manufacturer) : QString(),
+			new_entry ? QString::fromUtf8(new_entry->manufacturer) : QString());
+	update_(QETInformation::ELMT_MANUFACTURER_REF,
+			old_entry ? TerminalCatalog::modelName(*old_entry) : QString(),
+			new_entry ? TerminalCatalog::modelName(*new_entry) : QString());
+}
+
+/**
+ * @brief RealTerminal::hasSeparatorAfter
+ * @return true if a separator plate (partition plate) is mounted
+ * after this terminal, between this terminal and the next one of the strip.
+ * Used to separate groups of terminals (voltages, functions...).
+ */
+bool RealTerminal::hasSeparatorAfter() const {
+	if (hasData()) {
+		return QET::infoFlagIsTrue(
+			terminalData().m_informations.value(separatorInfoKey()).toString());
 	}
 	return false;
 }
@@ -211,8 +489,8 @@ QString RealTerminal::conductor() const {
  * @return
  */
 ElementData::TerminalType RealTerminal::type() const {
-	if (m_element) {
-		return m_element->elementData().terminalType();
+	if (hasData()) {
+		return terminalData().terminalType();
 	} else {
 		return ElementData::TTGeneric;
 	}
@@ -223,8 +501,8 @@ ElementData::TerminalType RealTerminal::type() const {
  * @return
  */
 ElementData::TerminalFunction RealTerminal::function() const {
-	if (m_element) {
-		return m_element->elementData().terminalFunction();
+	if (hasData()) {
+		return terminalData().terminalFunction();
 	} else {
 		return ElementData::TFGeneric;
 	}
@@ -235,8 +513,8 @@ ElementData::TerminalFunction RealTerminal::function() const {
  * @return
  */
 bool RealTerminal::isLed() const {
-	if (m_element) {
-		return m_element->elementData().terminalLed();
+	if (hasData()) {
+		return terminalData().terminalLed();
 	} else {
 		return false;
 	}
@@ -293,6 +571,9 @@ Element *RealTerminal::element() const {
  * else return a null uuid.
  */
 QUuid RealTerminal::elementUuid() const {
+	if (m_spare) {
+		return m_spare_uuid;	//Used to find the terminal (bridges...) like an element uuid
+	}
 	if (!m_element.isNull()) {
 		return m_element->uuid();
 	} else {
