@@ -39,6 +39,9 @@ void PipeProperties::toXml(QDomElement &e) const
 	e.setAttribute("material", material);
 	e.setAttribute("fluid", fluid);
 	e.setAttribute("flow", flow);
+	e.setAttribute("line_number", line_number);
+	e.setAttribute("piping_class", piping_class);
+	e.setAttribute("nominal_pressure", nominal_pressure);
 }
 
 /**
@@ -56,6 +59,9 @@ void PipeProperties::fromXml(const QDomElement &e)
 	material = e.attribute("material");
 	fluid    = e.attribute("fluid");
 	flow     = e.attribute("flow");
+	line_number      = e.attribute("line_number");
+	piping_class     = e.attribute("piping_class");
+	nominal_pressure = e.attribute("nominal_pressure");
 }
 
 /**
@@ -86,7 +92,10 @@ bool PipeProperties::operator==(const PipeProperties &other) const
 	return nominal_diameter == other.nominal_diameter
 		&& material == other.material
 		&& fluid == other.fluid
-		&& flow == other.flow;
+		&& flow == other.flow
+		&& line_number == other.line_number
+		&& piping_class == other.piping_class
+		&& nominal_pressure == other.nominal_pressure;
 }
 
 /**

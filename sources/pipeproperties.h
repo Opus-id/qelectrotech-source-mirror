@@ -44,6 +44,14 @@ class PipeProperties
 		QString fluid;
 			/// Flow, free text so that the user keeps the unit (e.g. "120 m3/h")
 		QString flow;
+			/// Line number (pipeline number) of the line this pipe belongs to,
+			/// free text; the natural key of a line list
+		QString line_number;
+			/// Piping class code, free text (e.g. "75HB13")
+		QString piping_class;
+			/// Nominal pressure, free text so that the standard is not fixed
+			/// (e.g. "PN16")
+		QString nominal_pressure;
 
 		void toXml(QDomElement &) const;
 		void fromXml(const QDomElement &);

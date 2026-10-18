@@ -44,6 +44,9 @@ class tst_pipeproperties : public QObject
 		p.material = QStringLiteral("PVC");
 		p.fluid = QStringLiteral("Raw water");
 		p.flow = QStringLiteral("120 m3/h");
+		p.line_number = QStringLiteral("47121");
+		p.piping_class = QStringLiteral("75HB13");
+		p.nominal_pressure = QStringLiteral("PN16");
 		return p;
 	}
 
@@ -55,6 +58,9 @@ private slots:
 		QVERIFY(p.material.isEmpty());
 		QVERIFY(p.fluid.isEmpty());
 		QVERIFY(p.flow.isEmpty());
+		QVERIFY(p.line_number.isEmpty());
+		QVERIFY(p.piping_class.isEmpty());
+		QVERIFY(p.nominal_pressure.isEmpty());
 	}
 
 	void savedPropertiesComeBack()
@@ -95,6 +101,23 @@ private slots:
 		PipeProperties p = sample();
 		p.fromXml(pipe(QString()));
 		QCOMPARE(p, PipeProperties());
+	}
+
+	void elementWrittenBeforeLineFieldsStillLoads()
+	{
+			// Only the first four attributes: what the first version wrote.
+			// The three later fields must come back empty, not stale.
+		PipeProperties p;
+		p.line_number = QStringLiteral("stale");
+		p.piping_class = QStringLiteral("stale");
+		p.nominal_pressure = QStringLiteral("stale");
+		p.fromXml(pipe(QStringLiteral(
+			"dn=\"100\" material=\"PVC\" fluid=\"Raw water\" flow=\"120 m3/h\"")));
+		QCOMPARE(p.nominal_diameter, 100);
+		QCOMPARE(p.material, QStringLiteral("PVC"));
+		QVERIFY(p.line_number.isEmpty());
+		QVERIFY(p.piping_class.isEmpty());
+		QVERIFY(p.nominal_pressure.isEmpty());
 	}
 
 	void unreadableDiameterIsUnset_data()
@@ -143,6 +166,18 @@ private slots:
 
 		other = sample();
 		other.flow = QStringLiteral("80 m3/h");
+		QVERIFY(base != other);
+
+		other = sample();
+		other.line_number = QStringLiteral("47122");
+		QVERIFY(base != other);
+
+		other = sample();
+		other.piping_class = QStringLiteral("75HB14");
+		QVERIFY(base != other);
+
+		other = sample();
+		other.nominal_pressure = QStringLiteral("PN10");
 		QVERIFY(base != other);
 	}
 
