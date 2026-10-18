@@ -1352,6 +1352,20 @@ add_test(NAME tst_pipeproperties COMMAND tst_pipeproperties)
 target_include_directories(tst_pipeproperties PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_pipeproperties PRIVATE Qt::Test Qt::Xml)
 
+# PipeLine -- a pipe line of a P&ID: its orthogonal path between two ends,
+# its identity and its own properties. Uses the routing of the conductors
+# (ConductorRouter) but no conductor, terminal or diagram.
+add_executable(
+  tst_pipeline
+  tst_pipeline.cpp
+  ${QET_DIR}/sources/qetgraphicsitem/pipeline.cpp
+  ${QET_DIR}/sources/qetgraphicsitem/pipeline.h
+  ${QET_DIR}/sources/pipeproperties.cpp
+  ${QET_DIR}/sources/conductorrouter.cpp)
+add_test(NAME tst_pipeline COMMAND tst_pipeline)
+target_include_directories(tst_pipeline PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_pipeline PRIVATE Qt::Test Qt::Widgets Qt::Xml)
+
 # Picture files dropped on a folio: which files are taken, the size and
 # pixel limits before a picture is embedded, fitting into the view and the
 # cascade of several pictures.
