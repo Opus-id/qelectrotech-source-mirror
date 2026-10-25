@@ -48,7 +48,7 @@ class StyleEditor : public ElementItemEditor
 		QList <CustomElementGraphicPart *> m_part_list;
 		QList <CustomElementPart *> m_cep_list;
 		QCheckBox *antialiasing;
-		QComboBox *filling_color, *outline_color, *size_weight, *line_style;
+		QComboBox *filling_color, *outline_color, *size_weight, *line_style, *line_cap, *line_join;
 	
 		// methods
 	public:
@@ -65,6 +65,8 @@ class StyleEditor : public ElementItemEditor
 		void updatePartColor();
 		void updatePartLineStyle();
 		void updatePartLineWeight();
+		void updatePartLineCap();
+		void updatePartLineJoin();
 		void updatePartFilling();
 	
 	private:

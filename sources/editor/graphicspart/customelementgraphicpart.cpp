@@ -38,6 +38,8 @@ CustomElementGraphicPart::CustomElementGraphicPart(QETElementEditor *editor,
 	m_hovered (false),
 	_linestyle(NormalStyle),
 	_lineweight(NormalWeight),
+	_linecap(SquareLineCap),
+	_linejoin(DefaultLineJoin),
 	_filling(NoneFilling),
 	_color(BlackColor),
 	_antialiased(false),
@@ -104,6 +106,30 @@ void CustomElementGraphicPart::setLineWeight(const LineWeight lw)
 {
 	if (_lineweight == lw) return;
 	_lineweight = lw;
+	update();
+}
+
+/**
+	@brief CustomElementGraphicPart::setLineCap
+	Set the way the ends of the line are drawn to lc
+	@param lc
+*/
+void CustomElementGraphicPart::setLineCap(const LineCap lc)
+{
+	if (_linecap == lc) return;
+	_linecap = lc;
+	update();
+}
+
+/**
+	@brief CustomElementGraphicPart::setLineJoin
+	Set the way the corners of the part are drawn to lj
+	@param lj
+*/
+void CustomElementGraphicPart::setLineJoin(const LineJoin lj)
+{
+	if (_linejoin == lj) return;
+	_linejoin = lj;
 	update();
 }
 
@@ -506,6 +532,15 @@ void CustomElementGraphicPart::stylesToXml(QDomElement &qde) const
 	auto color = color_map.find(_color);
 	if (color != color_map.end()) { css_like_styles += color.value(); }
 
+		//Written only when it is not the default (square), so that an element
+		//which does not use it is saved as it always was, and an older QET,
+		//which ignores a style it does not know, still reads the others.
+	if      (_linecap == RoundLineCap) css_like_styles += ";line-cap:round";
+	else if (_linecap == FlatLineCap)  css_like_styles += ";line-cap:flat";
+	if      (_linejoin == MiterLineJoin) css_like_styles += ";line-join:miter";
+	else if (_linejoin == RoundLineJoin) css_like_styles += ";line-join:round";
+	else if (_linejoin == BevelLineJoin) css_like_styles += ";line-join:bevel";
+
 	qde.setAttribute("style", css_like_styles);
 		//Every graphic part writes and reads its styles through this pair,
 		//so its uuid is kept here rather than in six toXml()/fromXml().
@@ -559,6 +594,18 @@ void CustomElementGraphicPart::stylesFromXml(const QDomElement &qde)
 			else if (style_value == "normal") _lineweight = NormalWeight;
 			else if (style_value == "hight")  _lineweight = UltraWeight;
 			else if (style_value == "eleve")  _lineweight = BigWeight;
+		}
+		else if (style_name == "line-cap")
+		{
+			if      (style_value == "round")  _linecap = RoundLineCap;
+			else if (style_value == "flat")   _linecap = FlatLineCap;
+			else if (style_value == "square") _linecap = SquareLineCap;
+		}
+		else if (style_name == "line-join")
+		{
+			if      (style_value == "miter") _linejoin = MiterLineJoin;
+			else if (style_value == "round") _linejoin = RoundLineJoin;
+			else if (style_value == "bevel") _linejoin = BevelLineJoin;
 		}
 		else if (style_name == "filling")
 		{
@@ -901,6 +948,8 @@ void CustomElementGraphicPart::resetStyles()
 {
 	_linestyle = NormalStyle;
 	_lineweight = NormalWeight;
+	_linecap = SquareLineCap;
+	_linejoin = DefaultLineJoin;
 	_filling = NoneFilling;
 	_color = BlackColor;
 	_antialiased = false;
@@ -929,6 +978,15 @@ void CustomElementGraphicPart::applyStylesToQPainter(QPainter &painter) const
 	else if (_lineweight == NormalWeight) pen.setWidthF(1.0);
 	else if (_lineweight == UltraWeight)  pen.setWidthF(2.0);
 	else if (_lineweight == BigWeight)    pen.setWidthF(5.0);
+
+		//Apply the ends of the lines (square, the default of Qt, is left alone)
+	if      (_linecap == RoundLineCap) pen.setCapStyle(Qt::RoundCap);
+	else if (_linecap == FlatLineCap)  pen.setCapStyle(Qt::FlatCap);
+
+		//Apply the corners (a primitive with its own default keeps it unless asked)
+	if      (_linejoin == MiterLineJoin) pen.setJoinStyle(Qt::MiterJoin);
+	else if (_linejoin == RoundLineJoin) pen.setJoinStyle(Qt::RoundJoin);
+	else if (_linejoin == BevelLineJoin) pen.setJoinStyle(Qt::BevelJoin);
 
 		//Apply brush color
 	if (_filling == NoneFilling) brush.setStyle(Qt::NoBrush);

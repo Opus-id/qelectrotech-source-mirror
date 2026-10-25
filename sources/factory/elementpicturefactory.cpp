@@ -569,7 +569,12 @@ void ElementPictureFactory::parseRect(const QDomElement &dom, QPainter &painter,
 	setPainterStyle(dom, painter);
 
 	QPen p = painter.pen();
-	p.setJoinStyle(Qt::MiterJoin);
+		//Sharp corners, unless the element asks for a known other one
+	const QString rect_style = dom.attribute("style");
+	if (!rect_style.contains("line-join:miter") &&
+	    !rect_style.contains("line-join:round") &&
+	    !rect_style.contains("line-join:bevel"))
+		p.setJoinStyle(Qt::MiterJoin);
 	painter.setPen(p);
 
 	painter.drawRoundedRect(QRectF(rect_x, rect_y, rect_w, rect_h), rect_rx, rect_ry);
@@ -833,6 +838,21 @@ void ElementPictureFactory::setPainterStyle(const QDomElement &dom, QPainter &pa
 				else if (style_value == "normal") pen.setWidthF(1.0);
 				else if (style_value == "hight") pen.setWidthF(2.0);
 				else if (style_value == "eleve") pen.setWidthF(5.0);
+
+			} else if (style_name == "line-cap") {
+					//How the ends of a line are drawn; square, set above,
+					//stays when the element does not say anything.
+				if (style_value == "round") pen.setCapStyle(Qt::RoundCap);
+				else if (style_value == "flat") pen.setCapStyle(Qt::FlatCap);
+				else if (style_value == "square") pen.setCapStyle(Qt::SquareCap);
+
+			} else if (style_name == "line-join") {
+					//How the corners are drawn; each primitive keeps its own
+					//default (bevel here, sharp for a rectangle) when the
+					//element does not say anything.
+				if (style_value == "miter") pen.setJoinStyle(Qt::MiterJoin);
+				else if (style_value == "round") pen.setJoinStyle(Qt::RoundJoin);
+				else if (style_value == "bevel") pen.setJoinStyle(Qt::BevelJoin);
 
 			} else if (style_name == "filling") {
 				static const QMap<QString, QPair<Qt::BrushStyle, QColor>>

@@ -41,6 +41,8 @@ class CustomElementGraphicPart : public QGraphicsObject, public CustomElementPar
 
 		Q_PROPERTY(LineStyle line_style   READ lineStyle   WRITE setLineStyle)
 		Q_PROPERTY(LineWeight line_weight READ lineWeight  WRITE setLineWeight)
+		Q_PROPERTY(LineCap line_cap       READ lineCap     WRITE setLineCap)
+		Q_PROPERTY(LineJoin line_join     READ lineJoin    WRITE setLineJoin)
 		Q_PROPERTY(Filling filling        READ filling     WRITE setFilling)
 		Q_PROPERTY(Color color            READ color       WRITE setColor)
 		Q_PROPERTY(bool antialias         READ antialiased WRITE setAntialiased)
@@ -60,6 +62,25 @@ class CustomElementGraphicPart : public QGraphicsObject, public CustomElementPar
 				 UltraWeight,
 				 BigWeight};
 		Q_ENUM (LineWeight)
+
+			//Line cap : how the two ends of a line are drawn. Square is what
+			//QET always did and is the default; it is not written in the
+			//definition of an element, so only the elements that ask for
+			//another one differ from before.
+		enum LineCap {SquareLineCap,
+			      RoundLineCap,
+			      FlatLineCap};
+		Q_ENUM (LineCap)
+
+			//Line join : how the corners of a polygon, a rectangle or a
+			//polyline are drawn. DefaultLineJoin leaves each primitive as it
+			//always was (sharp for a rectangle, bevelled for the others) and
+			//is not written in the definition of an element.
+		enum LineJoin {DefaultLineJoin,
+			       MiterLineJoin,
+			       RoundLineJoin,
+			       BevelLineJoin};
+		Q_ENUM (LineJoin)
 
 		//Filling color of the part : NoneFilling -> No filling (i.e. transparent)
 		enum Filling { NoneFilling, BlackFilling, WhiteFilling,
@@ -280,6 +301,11 @@ class CustomElementGraphicPart : public QGraphicsObject, public CustomElementPar
 		void       setLineWeight (const LineWeight lw);
 		qreal      penWeight     () const;
 
+		LineCap lineCap    () const {return _linecap;}
+		LineJoin lineJoin  () const {return _linejoin;}
+		void    setLineJoin(const LineJoin lj);
+		void    setLineCap (const LineCap lc);
+
 		Filling filling   () const {return _filling;}
 		void    setFilling(const Filling f);
 
@@ -333,6 +359,8 @@ class CustomElementGraphicPart : public QGraphicsObject, public CustomElementPar
 		QUuid m_uuid = QUuid::createUuid();
 		LineStyle _linestyle;
 		LineWeight _lineweight;
+		LineCap _linecap;
+		LineJoin _linejoin;
 		Filling _filling ;
 		Color _color;
 		bool _antialiased;

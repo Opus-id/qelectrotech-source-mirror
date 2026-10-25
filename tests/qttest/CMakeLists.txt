@@ -589,6 +589,9 @@ qet_add_app_test(tst_elementspanelprojectopen tst_elementspanelprojectopen.cpp)
 # The symbol of a placed element swapped for another of its family: place,
 # terminals, uuids and wires stay, and the swap undoes.
 qet_add_app_test(tst_elementchangetype tst_elementchangetype.cpp)
+# The optional "line-cap" style of element primitives (round or flat ends of
+# lines); square, the former behaviour, stays the default.
+qet_add_app_test(tst_elementlinecap tst_elementlinecap.cpp)
 
 # SVG export with smaller pictures (--svg-small-pictures, the export dialog's
 # option): a picture drawn at a tenth of its size is stored at four times
