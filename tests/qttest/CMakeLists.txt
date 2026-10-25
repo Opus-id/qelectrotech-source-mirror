@@ -1366,6 +1366,16 @@ add_test(NAME tst_pipeline COMMAND tst_pipeline)
 target_include_directories(tst_pipeline PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_pipeline PRIVATE Qt::Test Qt::Widgets Qt::Xml)
 
+# SignalProperties -- the data of a P&ID signal line (its type of signal):
+# XML round trip, the words of the file format, unknown values, comparison.
+add_executable(
+  tst_signalproperties
+  tst_signalproperties.cpp
+  ${QET_DIR}/sources/signalproperties.cpp)
+add_test(NAME tst_signalproperties COMMAND tst_signalproperties)
+target_include_directories(tst_signalproperties PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_signalproperties PRIVATE Qt::Test Qt::Xml)
+
 # Picture files dropped on a folio: which files are taken, the size and
 # pixel limits before a picture is embedded, fitting into the view and the
 # cascade of several pictures.

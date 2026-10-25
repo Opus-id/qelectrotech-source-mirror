@@ -202,6 +202,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductorproperties.h
   ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/pipeproperties.h
+  ${QET_DIR}/sources/signalproperties.cpp
+  ${QET_DIR}/sources/signalproperties.h
   ${QET_DIR}/sources/conductormultiedit.h
   ${QET_DIR}/sources/conductorsegment.cpp
   ${QET_DIR}/sources/conductorsegment.h
