@@ -211,6 +211,19 @@ StyleEditor::StyleEditor(QETElementEditor *editor, CustomElementGraphicPart *p, 
 	size_weight -> addItem(tr("Strong", "element part weight"),  CustomElementGraphicPart::UltraWeight);
 	size_weight -> addItem(tr("High", "element part weight"),  CustomElementGraphicPart::BigWeight);
 
+	// extremites
+	line_cap = new QComboBox(this);
+	line_cap -> addItem(tr("Square", "element part line cap"), CustomElementGraphicPart::SquareLineCap);
+	line_cap -> addItem(tr("Round", "element part line cap"), CustomElementGraphicPart::RoundLineCap);
+	line_cap -> addItem(tr("Flat", "element part line cap"), CustomElementGraphicPart::FlatLineCap);
+
+	// angles
+	line_join = new QComboBox(this);
+	line_join -> addItem(tr("Default", "element part line join"), CustomElementGraphicPart::DefaultLineJoin);
+	line_join -> addItem(tr("Sharp", "element part line join"), CustomElementGraphicPart::MiterLineJoin);
+	line_join -> addItem(tr("Round", "element part line join"), CustomElementGraphicPart::RoundLineJoin);
+	line_join -> addItem(tr("Bevel", "element part line join"), CustomElementGraphicPart::BevelLineJoin);
+
 	// remplissage
 	filling_color = new QComboBox (this);
 	filling_color -> addItem(tr("None", "element part filling"), CustomElementGraphicPart::NoneFilling);
@@ -395,6 +408,10 @@ StyleEditor::StyleEditor(QETElementEditor *editor, CustomElementGraphicPart *p, 
 	grid_layout->addWidget(line_style, 2, 1);
 	grid_layout->addWidget(new QLabel(tr("Thickness :")), 3, 0, Qt::AlignRight);
 	grid_layout->addWidget(size_weight, 3 ,1);
+	grid_layout->addWidget(new QLabel(tr("Line ends:")), 4, 0, Qt::AlignRight);
+	grid_layout->addWidget(line_cap, 4, 1);
+	grid_layout->addWidget(new QLabel(tr("Corners:")), 5, 0, Qt::AlignRight);
+	grid_layout->addWidget(line_join, 5, 1);
 	main_layout->addItem(grid_layout);
 
 	main_layout -> addWidget(antialiasing);
@@ -433,6 +450,18 @@ void StyleEditor::updatePartLineWeight()
 	makeUndo(tr("weight style"), "line_weight", size_weight->itemData(size_weight -> currentIndex()));
 }
 
+/// Update line ends with undo command
+void StyleEditor::updatePartLineCap()
+{
+	makeUndo(tr("line ends style"), "line_cap", line_cap->itemData(line_cap -> currentIndex()));
+}
+
+/// Update corners with undo command
+void StyleEditor::updatePartLineJoin()
+{
+	makeUndo(tr("corners style"), "line_join", line_join->itemData(line_join -> currentIndex()));
+}
+
 /// Update color filling with undo command
 void StyleEditor::updatePartFilling()
 {
@@ -456,6 +485,8 @@ void StyleEditor::updateForm()
 		outline_color ->insertSeparator(13);
 		line_style    ->setCurrentIndex(part -> lineStyle());
 		size_weight   ->setCurrentIndex(part -> lineWeight());
+		line_cap      ->setCurrentIndex(part -> lineCap());
+		line_join     ->setCurrentIndex(part -> lineJoin());
 		filling_color ->removeItem(14); //Remove the separator for set the good index at the line below
 		filling_color ->setCurrentIndex(part -> filling());
 		filling_color ->insertSeparator(14);
@@ -467,6 +498,8 @@ void StyleEditor::updateForm()
 		outline_color -> setCurrentIndex(first_part -> color());
 		line_style    -> setCurrentIndex(first_part -> lineStyle());
 		size_weight   -> setCurrentIndex(first_part -> lineWeight());
+		line_cap      -> setCurrentIndex(first_part -> lineCap());
+		line_join     -> setCurrentIndex(first_part -> lineJoin());
 		filling_color -> setCurrentIndex(first_part -> filling());
 
 		for (auto cegp : m_part_list)
@@ -475,6 +508,8 @@ void StyleEditor::updateForm()
 			if (first_part -> color()       != cegp -> color())      outline_color -> setCurrentIndex(-1);
 			if (first_part -> lineStyle()   != cegp -> lineStyle())  line_style    -> setCurrentIndex(-1);
 			if (first_part -> lineWeight()  != cegp -> lineWeight()) size_weight   -> setCurrentIndex(-1);
+			if (first_part -> lineCap()     != cegp -> lineCap())    line_cap      -> setCurrentIndex(-1);
+			if (first_part -> lineJoin()    != cegp -> lineJoin())   line_join     -> setCurrentIndex(-1);
 			if (first_part -> filling()     != cegp -> filling())    filling_color -> setCurrentIndex(-1);
 		}
 	}
@@ -585,6 +620,8 @@ void StyleEditor::activeConnections(bool active) {
 		connect(outline_color, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartColor);
 		connect(line_style, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartLineStyle);
 		connect(size_weight, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartLineWeight);
+		connect(line_cap, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartLineCap);
+		connect(line_join, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartLineJoin);
 		connect(filling_color, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartFilling);
 #if QT_VERSION < QT_VERSION_CHECK(6, 7, 0) // TODO Qt 6.7: remove, checkStateChanged() always available
 		connect(antialiasing, &QCheckBox::stateChanged, this, &StyleEditor::updatePartAntialiasing);
@@ -595,6 +632,8 @@ void StyleEditor::activeConnections(bool active) {
 		disconnect(outline_color, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartColor);
 		disconnect(line_style, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartLineStyle);
 		disconnect(size_weight, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartLineWeight);
+		disconnect(line_cap, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartLineCap);
+		disconnect(line_join, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartLineJoin);
 		disconnect(filling_color, qOverload<int>(&QComboBox::activated), this, &StyleEditor::updatePartFilling);
 #if QT_VERSION < QT_VERSION_CHECK(6, 7, 0) // TODO Qt 6.7: remove, checkStateChanged() always available
 		disconnect(antialiasing, &QCheckBox::stateChanged, this, &StyleEditor::updatePartAntialiasing);

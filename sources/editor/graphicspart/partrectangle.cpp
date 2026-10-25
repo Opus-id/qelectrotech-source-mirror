@@ -58,7 +58,8 @@ void PartRectangle::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
 	if (isSelected())
 		t.setColor(Qt::red);
 
-	t.setJoinStyle(Qt::MiterJoin);
+	if (lineJoin() == DefaultLineJoin)
+		t.setJoinStyle(Qt::MiterJoin);
 
 		//Force the pen to width 0 if one of dimension is null
 	if (!rect().width() || !rect().height())

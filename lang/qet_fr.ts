@@ -19656,6 +19656,68 @@ Les autres champs ne sont pas utilisés.</translation>
 <context>
     <name>StyleEditor</name>
     <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="215"/>
+        <source>Square</source>
+        <comment>element part line cap</comment>
+        <translation>Carré</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="216"/>
+        <source>Round</source>
+        <comment>element part line cap</comment>
+        <translation>Arrondi</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="217"/>
+        <source>Flat</source>
+        <comment>element part line cap</comment>
+        <translation>Plat</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="221"/>
+        <source>Default</source>
+        <comment>element part line join</comment>
+        <translation>Par défaut</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="222"/>
+        <source>Sharp</source>
+        <comment>element part line join</comment>
+        <translation>Vif</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="223"/>
+        <source>Round</source>
+        <comment>element part line join</comment>
+        <translation>Arrondi</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="224"/>
+        <source>Bevel</source>
+        <comment>element part line join</comment>
+        <translation>Coupé</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="410"/>
+        <source>Line ends:</source>
+        <translation>Extrémités :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="412"/>
+        <source>Corners:</source>
+        <translation>Angles :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="445"/>
+        <source>line ends style</source>
+        <translation>style extrémités</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/styleeditor.cpp" line="451"/>
+        <source>corners style</source>
+        <translation>style angles</translation>
+    </message>
+    <message>
         <location filename="../sources/editor/styleeditor.cpp" line="41"/>
         <source>Black</source>
         <comment>element part color</comment>
