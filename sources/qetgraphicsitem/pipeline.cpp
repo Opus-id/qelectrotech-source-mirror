@@ -25,10 +25,20 @@
 
 namespace
 {
-		/// Width of the line, in the units of the folio
-	constexpr qreal pen_width = 1.0;
-		/// Width of the area where a click selects the pipe line
+		/// Widths in the units of the folio. ISO 10628-1 asks for 1 mm
+		/// for the main flow lines and 0,5 mm for the others. A folio of
+		/// QET at its default size is about 3,5 units to the millimetre
+		/// (17 columns of 60 units on an A4 sheet): to be checked, and
+		/// changed here alone, if the scale of a folio turns out otherwise.
+	constexpr qreal main_width = 3.5;
+	constexpr qreal medium_width = 1.75;
+		/// Least width of the area where a click selects the pipe line
 	constexpr qreal click_width = 6.0;
+
+	qreal widthOf(PipeProperties::LineKind kind)
+	{
+		return kind == PipeProperties::Main ? main_width : medium_width;
+	}
 
 		/// Name of the element a pipe line is written as
 	const QString xml_tag = QStringLiteral("pipe");
@@ -129,6 +139,10 @@ PipeLine::PipeLine(const End &start, const End &end, QGraphicsItem *parent) :
 void PipeLine::setProperties(const PipeProperties &properties)
 {
 	if (m_properties == properties) return;
+		// A wider line is a larger area to draw
+	if (m_properties.line_kind != properties.line_kind) {
+		prepareGeometryChange();
+	}
 	m_properties = properties;
 	update();
 	emit propertiesChange();
@@ -257,8 +271,24 @@ void PipeLine::updatePath()
 */
 QRectF PipeLine::boundingRect() const
 {
-	const qreal margin = pen_width + 2;
+	const qreal margin = widthOf(m_properties.line_kind) + 2;
 	return m_path.boundingRect().adjusted(-margin, -margin, margin, margin);
+}
+
+/**
+	@brief PipeLine::penFor
+	@param kind the kind of line
+	@return the pen for this kind, in black: the main lines are the widest,
+	the others medium, and the auxiliary ones dashed
+*/
+QPen PipeLine::penFor(PipeProperties::LineKind kind)
+{
+	QPen pen(Qt::black);
+	pen.setWidthF(widthOf(kind));
+	pen.setStyle(kind == PipeProperties::Auxiliary ? Qt::DashLine : Qt::SolidLine);
+	pen.setJoinStyle(Qt::MiterJoin);
+	pen.setCapStyle(Qt::FlatCap);
+	return pen;
 }
 
 /**
@@ -268,7 +298,7 @@ QRectF PipeLine::boundingRect() const
 QPainterPath PipeLine::shape() const
 {
 	QPainterPathStroker stroker;
-	stroker.setWidth(click_width);
+	stroker.setWidth(qMax(click_width, widthOf(m_properties.line_kind) + 2));
 	return stroker.createStroke(m_path);
 }
 
@@ -285,10 +315,8 @@ void PipeLine::paint(QPainter *painter,
 	painter->save();
 	painter->setRenderHint(QPainter::Antialiasing, false);
 
-	QPen pen(isSelected() ? QColor(Qt::red) : QColor(Qt::black));
-	pen.setWidthF(pen_width);
-	pen.setJoinStyle(Qt::MiterJoin);
-	pen.setCapStyle(Qt::SquareCap);
+	QPen pen = penFor(m_properties.line_kind);
+	if (isSelected()) pen.setColor(Qt::red);
 	painter->setPen(pen);
 	painter->setBrush(Qt::NoBrush);
 	painter->drawPath(m_path);

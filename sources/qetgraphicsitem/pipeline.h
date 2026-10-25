@@ -26,6 +26,7 @@
 #include <QGraphicsObject>
 #include <QList>
 #include <QPainterPath>
+#include <QPen>
 #include <QPointF>
 #include <QUuid>
 
@@ -91,6 +92,11 @@ class PipeLine : public QGraphicsObject
 			/// Reads a <pipe> element. Returns false, and changes nothing,
 			/// when valideXml() refuses it.
 		bool fromXml(const QDomElement &element);
+
+			/// How a kind of line is drawn, apart from its color: the width
+			/// (strong, then medium, as in ISO 10628-1 5.3.1) and the style
+			/// (dashed for the auxiliary system lines, 5.3.5)
+		static QPen penFor(PipeProperties::LineKind kind);
 
 		QRectF boundingRect() const override;
 		QPainterPath shape() const override;

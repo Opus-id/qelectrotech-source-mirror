@@ -48,6 +48,7 @@ class tst_pipeline : public QObject
 		p.line_number = QStringLiteral("47121");
 		p.piping_class = QStringLiteral("75HB13");
 		p.nominal_pressure = QStringLiteral("PN16");
+		p.line_kind = PipeProperties::Secondary;
 		return p;
 	}
 
@@ -297,6 +298,76 @@ private slots:
 		QVERIFY2(offset >= 4000 && offset < 4100, "PipeLine is outside the P&ID block");
 	}
 
+		// ISO 10628-1 5.3: the main flow lines are drawn twice as wide as the
+		// others (1 mm and 0,5 mm); the auxiliary system lines are dashed.
+	void mainLinesAreTheWidestAndAuxiliaryOnesDashed()
+	{
+		const QPen main = PipeLine::penFor(PipeProperties::Main);
+		const QPen secondary = PipeLine::penFor(PipeProperties::Secondary);
+		const QPen auxiliary = PipeLine::penFor(PipeProperties::Auxiliary);
+
+		QCOMPARE(main.widthF(), 2 * secondary.widthF());
+		QCOMPARE(auxiliary.widthF(), secondary.widthF());
+		QCOMPARE(int(main.style()), int(Qt::SolidLine));
+		QCOMPARE(int(secondary.style()), int(Qt::SolidLine));
+		QCOMPARE(int(auxiliary.style()), int(Qt::DashLine));
+	}
+
+	void theKindOfLineChangesTheAreaItTakes()
+	{
+		PipeLine pipe(endAt(QPointF(0, 0), Qet::East), endAt(QPointF(100, 0), Qet::West));
+		PipeProperties properties;
+		properties.line_kind = PipeProperties::Secondary;
+		pipe.setProperties(properties);
+		const qreal thin = pipe.boundingRect().height();
+
+		properties.line_kind = PipeProperties::Main;
+		pipe.setProperties(properties);
+		QVERIFY(pipe.boundingRect().height() > thin);
+
+			// and it holds the whole width of what is drawn
+		const qreal half = PipeLine::penFor(PipeProperties::Main).widthF() / 2;
+		for (const QPointF &p : pipe.pathPoints()) {
+			QVERIFY(pipe.boundingRect().contains(p + QPointF(half, half)));
+			QVERIFY(pipe.boundingRect().contains(p - QPointF(half, half)));
+		}
+	}
+
+		// A click on the edge of a wide line still selects it
+	void clickAreaCoversTheWholeWidthOfEachKind()
+	{
+		const QList<PipeProperties::LineKind> kinds = {
+			PipeProperties::Main, PipeProperties::Secondary, PipeProperties::Auxiliary};
+		for (PipeProperties::LineKind kind : kinds) {
+			PipeLine pipe(endAt(QPointF(0, 0), Qet::East), endAt(QPointF(100, 0), Qet::West));
+			PipeProperties properties;
+			properties.line_kind = kind;
+			pipe.setProperties(properties);
+
+			const qreal half = PipeLine::penFor(kind).widthF() / 2;
+			QVERIFY(pipe.shape().contains(QPointF(50, half - 0.1)));
+			QVERIFY(pipe.shape().contains(QPointF(50, -(half - 0.1))));
+		}
+	}
+
+	void everyKindOfLineComesBackThroughThePipeLine()
+	{
+		const QList<PipeProperties::LineKind> kinds = {
+			PipeProperties::Main, PipeProperties::Secondary, PipeProperties::Auxiliary};
+		for (PipeProperties::LineKind kind : kinds) {
+			PipeLine saved(endAt(QPointF(0, 0), Qet::East), endAt(QPointF(100, 0), Qet::West));
+			PipeProperties properties;
+			properties.line_kind = kind;
+			saved.setProperties(properties);
+
+			QDomDocument doc;
+			const QDomElement element = saved.toXml(doc);
+			PipeLine loaded(endAt(QPointF(5, 5), Qet::North), endAt(QPointF(7, 7), Qet::North));
+			QVERIFY(loaded.fromXml(element));
+			QCOMPARE(int(loaded.properties().line_kind), int(kind));
+		}
+	}
+
 	void savedPipeLineComesBack()
 	{
 		PipeLine saved(endAt(QPointF(10, 20), Qet::East),
@@ -359,7 +430,8 @@ private slots:
 
 		QCOMPARE(text_a, QStringLiteral(
 			"<pipe dn=\"100\" end_direction=\"w\" end_x=\"110\" end_y=\"80\" "
-			"flow=\"120 m3/h\" fluid=\"Raw water\" line_number=\"47121\" "
+			"flow=\"120 m3/h\" fluid=\"Raw water\" line_kind=\"secondary\" "
+			"line_number=\"47121\" "
 			"material=\"PVC\" nominal_pressure=\"PN16\" piping_class=\"75HB13\" "
 			"start_direction=\"e\" start_x=\"10\" start_y=\"20\" "
 			"uuid=\"{11111111-2222-3333-4444-555555555555}\"/>"));

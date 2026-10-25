@@ -34,6 +34,12 @@
 class PipeProperties
 {
 	public:
+			/// The kind of line, which sets how it is drawn (ISO 10628-1,
+			/// 5.3.1): the main flow lines, the subsidiary flow lines, and the
+			/// energy carrier and auxiliary system lines. DEXPI knows a
+			/// primary and a secondary segment only.
+		enum LineKind { Main, Secondary, Auxiliary };
+
 		PipeProperties();
 
 			/// Nominal diameter (DN) in millimetres, 0 when not set
@@ -52,6 +58,8 @@ class PipeProperties
 			/// Nominal pressure, free text so that the standard is not fixed
 			/// (e.g. "PN16")
 		QString nominal_pressure;
+			/// Kind of line, main by default
+		LineKind line_kind;
 
 		void toXml(QDomElement &) const;
 		void fromXml(const QDomElement &);

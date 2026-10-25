@@ -47,6 +47,7 @@ class tst_pipeproperties : public QObject
 		p.line_number = QStringLiteral("47121");
 		p.piping_class = QStringLiteral("75HB13");
 		p.nominal_pressure = QStringLiteral("PN16");
+		p.line_kind = PipeProperties::Secondary;
 		return p;
 	}
 
@@ -61,6 +62,7 @@ private slots:
 		QVERIFY(p.line_number.isEmpty());
 		QVERIFY(p.piping_class.isEmpty());
 		QVERIFY(p.nominal_pressure.isEmpty());
+		QCOMPARE(int(p.line_kind), int(PipeProperties::Main));
 	}
 
 	void savedPropertiesComeBack()
@@ -111,13 +113,57 @@ private slots:
 		p.line_number = QStringLiteral("stale");
 		p.piping_class = QStringLiteral("stale");
 		p.nominal_pressure = QStringLiteral("stale");
+		p.line_kind = PipeProperties::Auxiliary;
 		p.fromXml(pipe(QStringLiteral(
 			"dn=\"100\" material=\"PVC\" fluid=\"Raw water\" flow=\"120 m3/h\"")));
 		QCOMPARE(p.nominal_diameter, 100);
 		QCOMPARE(p.material, QStringLiteral("PVC"));
+		QCOMPARE(int(p.line_kind), int(PipeProperties::Main));
 		QVERIFY(p.line_number.isEmpty());
 		QVERIFY(p.piping_class.isEmpty());
 		QVERIFY(p.nominal_pressure.isEmpty());
+	}
+
+	void everyKindOfLineComesBack_data()
+	{
+		QTest::addColumn<int>("kind");
+		QTest::newRow("main")      << int(PipeProperties::Main);
+		QTest::newRow("secondary") << int(PipeProperties::Secondary);
+		QTest::newRow("auxiliary") << int(PipeProperties::Auxiliary);
+	}
+
+	void everyKindOfLineComesBack()
+	{
+		QFETCH(int, kind);
+		PipeProperties saved;
+		saved.line_kind = PipeProperties::LineKind(kind);
+		QDomDocument doc;
+		QDomElement e = doc.createElement(QStringLiteral("pipe"));
+		saved.toXml(e);
+
+		PipeProperties loaded;
+		loaded.line_kind = PipeProperties::LineKind((kind + 1) % 3);
+		loaded.fromXml(e);
+		QCOMPARE(int(loaded.line_kind), kind);
+	}
+
+		// A kind this version does not know is a main line: the pipe loads
+	void unknownKindOfLineIsReadAsMain_data()
+	{
+		QTest::addColumn<QString>("value");
+		QTest::newRow("another word") << "dotted";
+		QTest::newRow("empty")        << "";
+		QTest::newRow("capitals")     << "SECONDARY";
+	}
+
+	void unknownKindOfLineIsReadAsMain()
+	{
+		QFETCH(QString, value);
+		PipeProperties p;
+		p.line_kind = PipeProperties::Auxiliary;
+		p.fromXml(pipe(QStringLiteral("dn=\"100\" line_kind=\"%1\"").arg(value)));
+		QCOMPARE(int(p.line_kind), int(PipeProperties::Main));
+		QCOMPARE(p.nominal_diameter, 100);
 	}
 
 	void unreadableDiameterIsUnset_data()
@@ -178,6 +224,10 @@ private slots:
 
 		other = sample();
 		other.nominal_pressure = QStringLiteral("PN10");
+		QVERIFY(base != other);
+
+		other = sample();
+		other.line_kind = PipeProperties::Auxiliary;
 		QVERIFY(base != other);
 	}
 

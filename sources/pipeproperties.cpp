@@ -24,8 +24,32 @@
 	Default constructor: nothing is set.
 */
 PipeProperties::PipeProperties() :
-	nominal_diameter(0)
+	nominal_diameter(0),
+	line_kind(Main)
 {
+}
+
+namespace
+{
+	QString lineKindToString(PipeProperties::LineKind kind)
+	{
+		switch (kind) {
+			case PipeProperties::Main:      return QStringLiteral("main");
+			case PipeProperties::Secondary: return QStringLiteral("secondary");
+			case PipeProperties::Auxiliary: return QStringLiteral("auxiliary");
+		}
+		return QStringLiteral("main");
+	}
+
+		/// A kind this version does not know is read as the main line,
+		/// the way a DN it cannot read is left unset: the pipe is still
+		/// loaded, and drawn like any other.
+	PipeProperties::LineKind lineKindFromString(const QString &s)
+	{
+		if (s == QLatin1String("secondary")) return PipeProperties::Secondary;
+		if (s == QLatin1String("auxiliary")) return PipeProperties::Auxiliary;
+		return PipeProperties::Main;
+	}
 }
 
 /**
@@ -42,6 +66,7 @@ void PipeProperties::toXml(QDomElement &e) const
 	e.setAttribute("line_number", line_number);
 	e.setAttribute("piping_class", piping_class);
 	e.setAttribute("nominal_pressure", nominal_pressure);
+	e.setAttribute("line_kind", lineKindToString(line_kind));
 }
 
 /**
@@ -62,6 +87,7 @@ void PipeProperties::fromXml(const QDomElement &e)
 	line_number      = e.attribute("line_number");
 	piping_class     = e.attribute("piping_class");
 	nominal_pressure = e.attribute("nominal_pressure");
+	line_kind        = lineKindFromString(e.attribute("line_kind"));
 }
 
 /**
@@ -95,7 +121,8 @@ bool PipeProperties::operator==(const PipeProperties &other) const
 		&& flow == other.flow
 		&& line_number == other.line_number
 		&& piping_class == other.piping_class
-		&& nominal_pressure == other.nominal_pressure;
+		&& nominal_pressure == other.nominal_pressure
+		&& line_kind == other.line_kind;
 }
 
 /**
