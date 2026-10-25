@@ -38,6 +38,29 @@ class tst_pipeline : public QObject
 		return e;
 	}
 
+	static PipeProperties sampleProperties()
+	{
+		PipeProperties p;
+		p.nominal_diameter = 100;
+		p.material = QStringLiteral("PVC");
+		p.fluid = QStringLiteral("Raw water");
+		p.flow = QStringLiteral("120 m3/h");
+		p.line_number = QStringLiteral("47121");
+		p.piping_class = QStringLiteral("75HB13");
+		p.nominal_pressure = QStringLiteral("PN16");
+		return p;
+	}
+
+		// The text an element is written as, on one line, without the line
+		// break QDom puts after it
+	static QString elementText(const QDomElement &element)
+	{
+		QString text;
+		QTextStream stream(&text);
+		element.save(stream, 0);
+		return text.trimmed();
+	}
+
 	static bool orthogonal(const QList<QPointF> &points)
 	{
 		for (int i = 0; i + 1 < points.size(); ++i) {
@@ -272,6 +295,178 @@ private slots:
 		const int offset = int(PipeLine::Type) - int(QGraphicsItem::UserType);
 		QVERIFY2(!used.contains(offset), "the type of PipeLine is used by another item");
 		QVERIFY2(offset >= 4000 && offset < 4100, "PipeLine is outside the P&ID block");
+	}
+
+	void savedPipeLineComesBack()
+	{
+		PipeLine saved(endAt(QPointF(10, 20), Qet::East),
+					   endAt(QPointF(110.5, 80), Qet::North));
+		saved.setProperties(sampleProperties());
+
+			// Through a real text, not only the DOM tree
+		QDomDocument doc;
+		doc.appendChild(saved.toXml(doc));
+		QDomDocument reread;
+		QVERIFY(reread.setContent(doc.toString()));
+
+		PipeLine loaded(endAt(QPointF(), Qet::South), endAt(QPointF(1, 1), Qet::South));
+		QVERIFY(loaded.fromXml(reread.documentElement()));
+		QCOMPARE(loaded.uuid(), saved.uuid());
+		QCOMPARE(loaded.properties(), saved.properties());
+		QCOMPARE(loaded.startEnd().point, saved.startEnd().point);
+		QCOMPARE(int(loaded.startEnd().direction), int(saved.startEnd().direction));
+		QCOMPARE(loaded.endEnd().point, saved.endEnd().point);
+		QCOMPARE(int(loaded.endEnd().direction), int(saved.endEnd().direction));
+			// The path is not in the file: it is worked out again, the same
+		QCOMPARE(loaded.pathPoints(), saved.pathPoints());
+	}
+
+	void allDirectionsComeBack()
+	{
+		const QList<Qet::Orientation> all = {Qet::North, Qet::East, Qet::South, Qet::West};
+		for (Qet::Orientation s : all) {
+			for (Qet::Orientation e : all) {
+				PipeLine saved(endAt(QPointF(0, 0), s), endAt(QPointF(100, 60), e));
+				QDomDocument doc;
+				const QDomElement element = saved.toXml(doc);
+				PipeLine loaded(endAt(QPointF(5, 5), Qet::North), endAt(QPointF(7, 7), Qet::North));
+				QVERIFY(loaded.fromXml(element));
+				QCOMPARE(int(loaded.startEnd().direction), int(s));
+				QCOMPARE(int(loaded.endEnd().direction), int(e));
+			}
+		}
+	}
+
+		// What is written depends on the data and nothing else, so that two
+		// saves of the same project are the same text and a file kept under
+		// git only shows what changed.
+	void outputIsStable()
+	{
+		const QUuid fixed(QStringLiteral("{11111111-2222-3333-4444-555555555555}"));
+		PipeLine a(endAt(QPointF(10, 20), Qet::East), endAt(QPointF(110, 80), Qet::West));
+		PipeLine b(endAt(QPointF(10, 20), Qet::East), endAt(QPointF(110, 80), Qet::West));
+		for (PipeLine *pipe : {&a, &b}) {
+			pipe->setUuid(fixed);
+			pipe->setProperties(sampleProperties());
+		}
+
+		QDomDocument da, db;
+		const QString text_a = elementText(a.toXml(da));
+		QCOMPARE(elementText(b.toXml(db)), text_a);
+			// and the same again from the same object
+		QDomDocument dc;
+		QCOMPARE(elementText(a.toXml(dc)), text_a);
+
+		QCOMPARE(text_a, QStringLiteral(
+			"<pipe dn=\"100\" end_direction=\"w\" end_x=\"110\" end_y=\"80\" "
+			"flow=\"120 m3/h\" fluid=\"Raw water\" line_number=\"47121\" "
+			"material=\"PVC\" nominal_pressure=\"PN16\" piping_class=\"75HB13\" "
+			"start_direction=\"e\" start_x=\"10\" start_y=\"20\" "
+			"uuid=\"{11111111-2222-3333-4444-555555555555}\"/>"));
+	}
+
+	void minimalElementIsRead()
+	{
+		QDomDocument doc;
+		QVERIFY(doc.setContent(QStringLiteral(
+			"<pipe start_x=\"0\" start_y=\"0\" start_direction=\"e\" "
+			"end_x=\"100\" end_y=\"0\" end_direction=\"w\"/>")));
+		PipeLine pipe(endAt(QPointF(5, 5), Qet::North), endAt(QPointF(7, 7), Qet::North));
+		QVERIFY(PipeLine::valideXml(doc.documentElement()));
+		QVERIFY(pipe.fromXml(doc.documentElement()));
+		QCOMPARE(pipe.startEnd().point, QPointF(0, 0));
+		QCOMPARE(int(pipe.startEnd().direction), int(Qet::East));
+		QCOMPARE(pipe.endEnd().point, QPointF(100, 0));
+		QCOMPARE(int(pipe.endEnd().direction), int(Qet::West));
+		QCOMPARE(pipe.properties(), PipeProperties());
+	}
+
+		// A file with no identifier gets one at run time, and it is not
+		// written back: every save of an unchanged file would otherwise
+		// differ by a new random number.
+	void missingOrMalformedIdentifierIsNotWrittenBack_data()
+	{
+		QTest::addColumn<QString>("uuidAttribute");
+		QTest::newRow("absent")    << "";
+		QTest::newRow("empty")     << "uuid=\"\"";
+		QTest::newRow("malformed") << "uuid=\"not-a-uuid\"";
+	}
+
+	void missingOrMalformedIdentifierIsNotWrittenBack()
+	{
+		QFETCH(QString, uuidAttribute);
+		QDomDocument doc;
+		QVERIFY(doc.setContent(QStringLiteral(
+			"<pipe %1 start_x=\"0\" start_y=\"0\" start_direction=\"e\" "
+			"end_x=\"100\" end_y=\"0\" end_direction=\"w\"/>").arg(uuidAttribute)));
+		PipeLine pipe(endAt(QPointF(5, 5), Qet::North), endAt(QPointF(7, 7), Qet::North));
+		QVERIFY(pipe.fromXml(doc.documentElement()));
+		QVERIFY(!pipe.uuid().isNull());
+
+		QDomDocument out;
+		QVERIFY(!pipe.toXml(out).hasAttribute(QStringLiteral("uuid")));
+	}
+
+	void unknownAttributesAreIgnored()
+	{
+		QDomDocument doc;
+		QVERIFY(doc.setContent(QStringLiteral(
+			"<pipe start_x=\"0\" start_y=\"0\" start_direction=\"e\" "
+			"end_x=\"100\" end_y=\"0\" end_direction=\"w\" later=\"1\"/>")));
+		PipeLine pipe(endAt(QPointF(5, 5), Qet::North), endAt(QPointF(7, 7), Qet::North));
+		QVERIFY(pipe.fromXml(doc.documentElement()));
+		QCOMPARE(pipe.endEnd().point, QPointF(100, 0));
+	}
+
+	void unreadableElementIsRefusedAndChangesNothing_data()
+	{
+		QTest::addColumn<QString>("xml");
+		const QString ends =
+			QStringLiteral("start_x=\"0\" start_y=\"0\" start_direction=\"e\" "
+						   "end_x=\"100\" end_y=\"0\" end_direction=\"w\"");
+		QTest::newRow("another element")
+			<< QStringLiteral("<conductor %1/>").arg(ends);
+		QTest::newRow("no attribute")
+			<< QStringLiteral("<pipe/>");
+		QTest::newRow("no end")
+			<< QStringLiteral("<pipe start_x=\"0\" start_y=\"0\" start_direction=\"e\"/>");
+		QTest::newRow("text coordinate")
+			<< QStringLiteral("<pipe start_x=\"left\" start_y=\"0\" start_direction=\"e\" "
+							  "end_x=\"100\" end_y=\"0\" end_direction=\"w\"/>");
+		QTest::newRow("nan")
+			<< QStringLiteral("<pipe start_x=\"nan\" start_y=\"0\" start_direction=\"e\" "
+							  "end_x=\"100\" end_y=\"0\" end_direction=\"w\"/>");
+		QTest::newRow("inf")
+			<< QStringLiteral("<pipe start_x=\"0\" start_y=\"0\" start_direction=\"e\" "
+							  "end_x=\"100\" end_y=\"inf\" end_direction=\"w\"/>");
+		QTest::newRow("direction not a letter")
+			<< QStringLiteral("<pipe start_x=\"0\" start_y=\"0\" start_direction=\"east\" "
+							  "end_x=\"100\" end_y=\"0\" end_direction=\"w\"/>");
+		QTest::newRow("empty direction")
+			<< QStringLiteral("<pipe start_x=\"0\" start_y=\"0\" start_direction=\"\" "
+							  "end_x=\"100\" end_y=\"0\" end_direction=\"w\"/>");
+		QTest::newRow("no direction")
+			<< QStringLiteral("<pipe start_x=\"0\" start_y=\"0\" "
+							  "end_x=\"100\" end_y=\"0\" end_direction=\"w\"/>");
+	}
+
+	void unreadableElementIsRefusedAndChangesNothing()
+	{
+		QFETCH(QString, xml);
+		QDomDocument doc;
+		QVERIFY(doc.setContent(xml));
+		PipeLine pipe(endAt(QPointF(5, 5), Qet::North), endAt(QPointF(7, 7), Qet::South));
+		pipe.setProperties(sampleProperties());
+		const QUuid uuid = pipe.uuid();
+		const QList<QPointF> path = pipe.pathPoints();
+
+		QVERIFY(!PipeLine::valideXml(doc.documentElement()));
+		QVERIFY(!pipe.fromXml(doc.documentElement()));
+		QCOMPARE(pipe.uuid(), uuid);
+		QCOMPARE(pipe.properties(), sampleProperties());
+		QCOMPARE(pipe.startEnd().point, QPointF(5, 5));
+		QCOMPARE(pipe.endEnd().point, QPointF(7, 7));
+		QCOMPARE(pipe.pathPoints(), path);
 	}
 };
 

@@ -30,6 +30,66 @@ namespace
 		/// Width of the area where a click selects the pipe line
 	constexpr qreal click_width = 6.0;
 
+		/// Name of the element a pipe line is written as
+	const QString xml_tag = QStringLiteral("pipe");
+
+		/// The letters the terminals use for their orientation in the files
+	QString directionToString(Qet::Orientation o)
+	{
+		switch (o) {
+			case Qet::North: return QStringLiteral("n");
+			case Qet::East:  return QStringLiteral("e");
+			case Qet::South: return QStringLiteral("s");
+			case Qet::West:  return QStringLiteral("w");
+		}
+		return QStringLiteral("n");
+	}
+
+		/// Unlike Qet::orientationFromString(), which takes anything for
+		/// north, only the four letters are accepted: a file with another
+		/// one is not a pipe line this class wrote
+	bool directionFromString(const QString &s, Qet::Orientation &o)
+	{
+		if (s == QLatin1String("n")) { o = Qet::North; return true; }
+		if (s == QLatin1String("e")) { o = Qet::East;  return true; }
+		if (s == QLatin1String("s")) { o = Qet::South; return true; }
+		if (s == QLatin1String("w")) { o = Qet::West;  return true; }
+		return false;
+	}
+
+		/// "nan" and "inf" read as numbers: a coordinate must be finite
+	bool readCoordinate(const QDomElement &e, const QString &name, qreal &value)
+	{
+		bool ok = false;
+		const qreal v = e.attribute(name).toDouble(&ok);
+		if (!ok || !qIsFinite(v)) return false;
+		value = v;
+		return true;
+	}
+
+	bool readEnd(const QDomElement &e, const QString &prefix, PipeLine::End &end)
+	{
+		qreal x = 0, y = 0;
+		Qet::Orientation direction = Qet::North;
+		if (!readCoordinate(e, prefix + QStringLiteral("_x"), x)
+			|| !readCoordinate(e, prefix + QStringLiteral("_y"), y)
+			|| !directionFromString(
+				e.attribute(prefix + QStringLiteral("_direction")), direction)) {
+			return false;
+		}
+		end.point = QPointF(x, y);
+		end.direction = direction;
+		return true;
+	}
+
+	void writeEnd(QDomElement &e, const QString &prefix, const PipeLine::End &end)
+	{
+		e.setAttribute(prefix + QStringLiteral("_x"), QString::number(end.point.x()));
+		e.setAttribute(prefix + QStringLiteral("_y"), QString::number(end.point.y()));
+		e.setAttribute(prefix + QStringLiteral("_direction"),
+					   directionToString(end.direction));
+	}
+
 	ConductorRouter::Direction routerDirection(Qet::Orientation o)
 	{
 		switch (o) {
@@ -85,6 +145,69 @@ void PipeLine::setEnds(const End &start, const End &end)
 	m_start = start;
 	m_end = end;
 	updatePath();
+}
+
+/**
+	@brief PipeLine::toXml
+	Write this pipe line as a <pipe> element: its identifier, its two ends
+	and its properties, all as attributes. Nothing else goes in: the path
+	is worked out again from the ends when the element is read, so a change
+	in the routing never makes a file out of date.
+	@param document the document the element is created in
+	@return the element
+*/
+QDomElement PipeLine::toXml(QDomDocument &document) const
+{
+	QDomElement element = document.createElement(xml_tag);
+	if (m_persist_uuid) {
+		element.setAttribute(QStringLiteral("uuid"), m_uuid.toString());
+	}
+	writeEnd(element, QStringLiteral("start"), m_start);
+	writeEnd(element, QStringLiteral("end"), m_end);
+	m_properties.toXml(element);
+	return element;
+}
+
+/**
+	@brief PipeLine::valideXml
+	@param element the element to check
+	@return true if it is a <pipe> with both ends readable. The identifier
+	and the properties are optional.
+*/
+bool PipeLine::valideXml(const QDomElement &element)
+{
+	if (element.tagName() != xml_tag) return false;
+	End start, end;
+	return readEnd(element, QStringLiteral("start"), start)
+		&& readEnd(element, QStringLiteral("end"), end);
+}
+
+/**
+	@brief PipeLine::fromXml
+	Read a <pipe> element. An attribute this class does not know is
+	ignored. A missing or malformed identifier is replaced by a new one
+	which is not written back by toXml().
+	@param element the element to read
+	@return true if it was read; false, with this pipe line unchanged,
+	if valideXml() refuses it
+*/
+bool PipeLine::fromXml(const QDomElement &element)
+{
+	if (!valideXml(element)) return false;
+
+	End start, end;
+	readEnd(element, QStringLiteral("start"), start);
+	readEnd(element, QStringLiteral("end"), end);
+
+	const QUuid uuid(element.attribute(QStringLiteral("uuid")));
+	m_persist_uuid = !uuid.isNull();
+	m_uuid = uuid.isNull() ? QUuid::createUuid() : uuid;
+
+	PipeProperties properties;
+	properties.fromXml(element);
+	setProperties(properties);
+	setEnds(start, end);
+	return true;
 }
 
 /**

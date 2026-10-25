@@ -21,6 +21,8 @@
 #include "../pipeproperties.h"
 #include "../qet.h"
 
+#include <QDomDocument>
+#include <QDomElement>
 #include <QGraphicsObject>
 #include <QList>
 #include <QPainterPath>
@@ -67,7 +69,7 @@ class PipeLine : public QGraphicsObject
 		int type() const override { return Type; }
 
 		QUuid uuid() const { return m_uuid; }
-		void setUuid(const QUuid &uuid) { m_uuid = uuid; }
+		void setUuid(const QUuid &uuid) { m_uuid = uuid; m_persist_uuid = true; }
 
 		PipeProperties properties() const { return m_properties; }
 		void setProperties(const PipeProperties &properties);
@@ -80,6 +82,15 @@ class PipeLine : public QGraphicsObject
 			/// included
 		QList<QPointF> pathPoints() const { return m_points; }
 		QPainterPath path() const { return m_path; }
+
+			/// Writes this pipe line as a <pipe> element. The output depends
+			/// on the data alone: no date, no identifier made up on the way.
+		QDomElement toXml(QDomDocument &document) const;
+			/// Whether @p element is a <pipe> this class can read
+		static bool valideXml(const QDomElement &element);
+			/// Reads a <pipe> element. Returns false, and changes nothing,
+			/// when valideXml() refuses it.
+		bool fromXml(const QDomElement &element);
 
 		QRectF boundingRect() const override;
 		QPainterPath shape() const override;
@@ -97,6 +108,10 @@ class PipeLine : public QGraphicsObject
 		End m_end;
 		PipeProperties m_properties;
 		QUuid m_uuid;
+			/// false when m_uuid was made up by fromXml() because the file
+			/// had none: toXml() must not write it, or every reload would
+			/// save a different one (same reason as for the conductors)
+		bool m_persist_uuid = true;
 		QList<QPointF> m_points;
 		QPainterPath m_path;
 };
