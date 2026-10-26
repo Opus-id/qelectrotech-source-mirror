@@ -43,6 +43,7 @@
 #include "ui/diagrampropertiesdialog.h"
 #include "ui/multielementinfowidget.h"
 #include "ui/multipastedialog.h"
+#include "undocommand/changeelementlocationcommand.h"
 #include "undocommand/changetitleblockcommand.h"
 #include "utils/conductorcreator.h"
 #include "undocommand/addgraphicsobjectcommand.h"
@@ -67,6 +68,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPointer>
+#include <QDir>
 #include <QSet>
 #include <QUuid>
 #include <algorithm>
@@ -153,6 +155,9 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 
 		//Filled each time the context menu opens, see updateFolioReportMenu()
 	m_folio_report_menu = new QMenu(tr("Sheet reference"), this);
+
+		//Filled each time the context menu opens, see updateChangeTypeMenu()
+	m_change_type_menu = new QMenu(tr("Change type", "context menu action"), this);
 
 		//setup three separators, to be use in context menu
 	for(int i=0 ; i<3 ; ++i)
@@ -2178,6 +2183,7 @@ QList<QAction *> DiagramView::contextMenuActions() const
 					return element && hasCabinetInfo(element->elementInformations());
 				}));
 			list << m_generate_cabinet_thumbnail;
+			list << m_change_type_menu->menuAction();
 			list << qde->m_conductor_reset;
 			list << m_separators.at(1);
 			list << qde->m_selection_actions_group.actions();
@@ -2353,6 +2359,10 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 		m_paste_here->setEnabled(Diagram::clipboardMayContainDiagram());
 		updateFolioReportMenu();
 	}
+	else
+	{
+		updateChangeTypeMenu();
+	}
 
 	QList <QAction *> list = contextMenuActions();
 	if(!list.isEmpty())
@@ -2434,6 +2444,136 @@ void DiagramView::updateFolioReportMenu()
 			startElementPlacement(location, mapToScene(m_paste_here_pos));
 		});
 	}
+}
+
+/**
+	@brief DiagramView::updateChangeTypeMenu
+	Fill the "Change type" submenu of the context menu of the selection: the
+	symbols which can replace the selected elements as they stand, that is
+	the other symbols of the same collection folder with the same size and
+	the same terminals (see Element::canChangeLocationTo()), such as the
+	valves of one family. Left empty, and so hidden, when the selection has
+	no such alternative, or when the diagram is read-only.
+*/
+void DiagramView::updateChangeTypeMenu()
+{
+	m_change_type_menu->clear();
+	if (m_diagram->isReadOnly()) {
+		return;
+	}
+
+	QList<Element *> elements;
+	for (QGraphicsItem *item : m_diagram->selectedItems()) {
+		if (auto *element = qgraphicsitem_cast<Element *>(item)) {
+			elements << element;
+		}
+	}
+	QETProject *project = m_diagram->project();
+	if (elements.isEmpty() || !project) {
+		return;
+	}
+
+		//The folder of the first element: its place in the embedded collection
+		//is the one it was taken from ("import/" in front of it)
+	QString folder = elements.first()->location().parent().collectionPath(false);
+	if (folder.startsWith(QLatin1String("import/"))) {
+		folder.remove(0, 7);
+	}
+	if (folder.isEmpty()) {
+		return;
+	}
+
+		//The library's own files first, then the project's copies: an element
+		//is listed once, by its uuid
+	QList<ElementsLocation> candidates;
+	const auto from_directory = [&candidates](const QString &protocol,
+						  const QString &base,
+						  const QString &dir) {
+		const QDir directory(base + dir);
+		const QStringList files = directory.entryList(
+					QStringList() << QStringLiteral("*.elmt"), QDir::Files);
+		for (const QString &file : files) {
+			candidates << ElementsLocation(protocol + dir + QLatin1Char('/') + file);
+		}
+	};
+	from_directory(QStringLiteral("custom://"), QETApp::customElementsDir(), folder);
+	from_directory(QStringLiteral("common://"), QETApp::commonElementsDir(), folder);
+	if (XmlElementCollection *collection = project->embeddedElementCollection())
+	{
+		const QDomElement dir = collection->directory(QStringLiteral("import/") + folder);
+		for (const QDomElement &dom : collection->elements(dir)) {
+			candidates << collection->domToLocation(dom);
+		}
+	}
+
+	QSet<QUuid> seen;
+	QList<ElementsLocation> usable;
+	for (const ElementsLocation &candidate : std::as_const(candidates))
+	{
+		if (!candidate.exist() || seen.contains(candidate.uuid())) {
+			continue;
+		}
+		seen.insert(candidate.uuid());
+		const bool all_accept = std::all_of(
+			elements.cbegin(), elements.cend(),
+			[&candidate](const Element *element) {
+				return element->canChangeLocationTo(candidate);
+			});
+		if (all_accept) {
+			usable << candidate;
+		}
+	}
+
+	std::sort(usable.begin(), usable.end(),
+		  [](const ElementsLocation &a, const ElementsLocation &b) {
+		return a.name().localeAwareCompare(b.name()) < 0;
+	});
+	for (const ElementsLocation &location : std::as_const(usable))
+	{
+		QAction *action = m_change_type_menu->addAction(location.icon(), location.name());
+		connect(action, &QAction::triggered, this, [this, location]() {
+			changeSelectedElementsType(location);
+		});
+	}
+}
+
+/**
+	@brief DiagramView::changeSelectedElementsType
+	Swap the symbol of the selected elements for the one at @p location,
+	through the undo stack: position, information and conductors stay.
+	@param location : the symbol to swap to (see updateChangeTypeMenu())
+*/
+void DiagramView::changeSelectedElementsType(const ElementsLocation &location)
+{
+	QETProject *project = m_diagram->project();
+	if (!project) {
+		return;
+	}
+
+		//The project must hold the new definition, like for a placed element
+	ElementsLocation source = location;
+	const ElementsLocation imported = project->importElement(source);
+	if (imported.isNull()) {
+		return;
+	}
+
+	QList<Element *> elements;
+	for (QGraphicsItem *item : m_diagram->selectedItems()) {
+		auto *element = qgraphicsitem_cast<Element *>(item);
+		if (element && element->canChangeLocationTo(imported)) {
+			elements << element;
+		}
+	}
+	if (elements.isEmpty()) {
+		return;
+	}
+
+	m_diagram->undoStack().beginMacro(
+		tr("Change the type of %n element(s)", "undo text", elements.size()));
+	for (Element *element : std::as_const(elements)) {
+		m_diagram->undoStack().push(new ChangeElementLocationCommand(element, imported));
+	}
+	m_diagram->undoStack().endMacro();
 }
 
 /**

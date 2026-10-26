@@ -2644,6 +2644,137 @@ Element::ReloadPictureResult Element::reloadPicture()
 }
 
 /**
+	@brief Element::canChangeLocationTo
+	Tell if the symbol of this element can be swapped for the one at
+	@p location without touching what is attached to it.
+
+	That is the case of symbols made to be interchangeable, such as the
+	valves of a family: same size, same hotspot, and the same terminals
+	(same names at the same places), so that conductors stay attached and
+	nothing has to be moved. Only a simple element, with no text of its own
+	and a definition with none either, can be swapped.
+	@param location : the definition to swap to
+	@return true if changeLocation() would accept @p location
+*/
+bool Element::canChangeLocationTo(const ElementsLocation &location) const
+{
+	if (m_data.m_type != ElementData::Simple
+		|| !dynamicTextItems().isEmpty()
+		|| location == m_location
+		|| !location.isElement()
+		|| !location.exist()) {
+		return false;
+	}
+
+	const QDomElement definition = location.xml();
+	if (definition.isNull()
+		|| definition.attribute(QStringLiteral("link_type"), QStringLiteral("simple"))
+			!= QLatin1String("simple")
+		|| !definitionGeometryMatches(definition)) {
+		return false;
+	}
+
+		//The names of the terminals must stay where they are as well
+	QHash<QPair<qreal, qreal>, QString> new_names;
+	for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
+		 !description.isNull() ;
+		 description = description.nextSiblingElement(QStringLiteral("description")))
+	{
+		for (QDomNode node = description.firstChild() ; !node.isNull() ; node = node.nextSibling())
+		{
+			const QDomElement part = node.toElement();
+			if (part.tagName() == QLatin1String("input")
+				|| part.tagName() == QLatin1String("dynamic_text")) {
+				return false;
+			}
+			qreal x = 0.0, y = 0.0;
+			if (part.tagName() == QLatin1String("terminal")
+				&& QET::attributeIsAReal(part, QStringLiteral("x"), &x)
+				&& QET::attributeIsAReal(part, QStringLiteral("y"), &y)) {
+				new_names.insert({x, y}, part.attribute(QStringLiteral("name")));
+			}
+		}
+	}
+
+	for (const Terminal *terminal : m_terminals)
+	{
+		const QPointF pos = mapFromScene(terminal->dockConductor());
+		const auto key = QPair<qreal, qreal>(pos.x(), pos.y());
+		if (!new_names.contains(key) || new_names.value(key) != terminal->name()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+	@brief Element::changeLocation
+	Swap the symbol of this element for the one at @p location (see
+	canChangeLocationTo() for what is accepted): its drawing, its name and
+	its definition change in place, while its position, orientation, labels,
+	information and the conductors attached to it stay as they are.
+
+	The new definition must be one the project can read: import it with
+	QETProject::importElement() first.
+	@param location : the definition to swap to
+	@return true if the element now uses @p location
+*/
+bool Element::changeLocation(const ElementsLocation &location)
+{
+	if (!canChangeLocationTo(location)) {
+		return false;
+	}
+
+	QPicture picture;
+	QPicture low_zoom_picture;
+	ElementPictureFactory::instance()->getPictures(location, picture, low_zoom_picture);
+	if (picture.isNull()) {
+		return false;
+	}
+
+	NamesList names;
+	names.fromXml(location.xml());
+	m_data.m_names_list = names;
+
+		//A saved conductor names the uuid of the terminal it ends on, and the
+		//project is read back from the new definition: the terminals take its
+		//uuids, found by where they are
+	const QDomElement definition = location.xml();
+	for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
+		 !description.isNull() ;
+		 description = description.nextSiblingElement(QStringLiteral("description")))
+	{
+		for (QDomElement part = description.firstChildElement(QStringLiteral("terminal")) ;
+			 !part.isNull() ;
+			 part = part.nextSiblingElement(QStringLiteral("terminal")))
+		{
+			const QUuid uuid(part.attribute(QStringLiteral("uuid")));
+			qreal x = 0.0, y = 0.0;
+			if (uuid.isNull()
+				|| !QET::attributeIsAReal(part, QStringLiteral("x"), &x)
+				|| !QET::attributeIsAReal(part, QStringLiteral("y"), &y)) {
+				continue;
+			}
+			for (Terminal *terminal : std::as_const(m_terminals))
+			{
+				const QPointF pos = mapFromScene(terminal->dockConductor());
+				if (qAbs(pos.x() - x) < 0.01 && qAbs(pos.y() - y) < 0.01) {
+					terminal->setUuid(uuid);
+				}
+			}
+		}
+	}
+
+	m_location = location;
+	m_picture = picture;
+	m_low_zoom_picture = low_zoom_picture;
+	setToolTip(name());
+	updateSymbolPictures(true);
+	update();
+	return true;
+}
+
+/**
 	@brief Element::definitionGeometryMatches
 	Compare the geometry described by @p definition with this live element:
 	size and hotspot (normalized the same way setSize()/setHotspot() do it)

@@ -3630,6 +3630,21 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <translation>Générer une vignette d&apos;armoire</translation>
     </message>
     <message>
+        <location filename="../sources/diagramview.cpp" line="157"/>
+        <source>Change type</source>
+        <comment>context menu action</comment>
+        <translation>Changer de type</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/diagramview.cpp" line="2530"/>
+        <source>Change the type of %n element(s)</source>
+        <comment>undo text</comment>
+        <translation>
+            <numerusform>Changer le type de %n élément</numerusform>
+            <numerusform>Changer le type de %n éléments</numerusform>
+        </translation>
+    </message>
+    <message>
         <location filename="../sources/diagramview.cpp" line="153"/>
         <source>Sheet reference</source>
         <translation>Renvoi de folio</translation>
@@ -16857,6 +16872,11 @@ Voulez-vous la remplacer ?</translation>
         <location filename="../sources/undocommand/changeelementdatacommand.cpp" line="27"/>
         <source>Modify the properties of an element</source>
         <translation>Modifier les propriétés d&apos;un élement</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/changeelementlocationcommand.cpp" line="31"/>
+        <source>Change the type of an element</source>
+        <translation>Changer le type d&apos;un élément</translation>
     </message>
     <message>
         <location filename="../sources/TerminalStrip/UndoCommand/bridgeterminalscommand.cpp" line="28"/>

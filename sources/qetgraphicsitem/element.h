@@ -175,6 +175,8 @@ class Element : public QetGraphicsItem
 			GeometryChanged    ///< size, hotspot or terminals changed, old drawing kept
 		};
 		ReloadPictureResult reloadPicture();
+		bool canChangeLocationTo(const ElementsLocation &location) const;
+		bool changeLocation(const ElementsLocation &location);
 		virtual void setHighlighted(bool);
 		void displayHelpLine(bool b = true);
 		QSize size() const;

@@ -917,6 +917,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/undocommand/addgraphicsobjectcommand.h
   ${QET_DIR}/sources/undocommand/changeelementdatacommand.cpp
   ${QET_DIR}/sources/undocommand/changeelementdatacommand.h
+  ${QET_DIR}/sources/undocommand/changeelementlocationcommand.cpp
+  ${QET_DIR}/sources/undocommand/changeelementlocationcommand.h
   ${QET_DIR}/sources/undocommand/changeelementinformationcommand.cpp
   ${QET_DIR}/sources/undocommand/changeelementinformationcommand.h
   ${QET_DIR}/sources/undocommand/changetitleblockcommand.cpp

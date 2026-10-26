@@ -911,6 +911,18 @@ QUuid Terminal::uuid() const
 }
 
 /**
+	@brief Terminal::setUuid
+	Give this terminal the uuid of the terminal that replaces it in another
+	definition of its symbol (see Element::changeLocation()), so that the
+	conductors saved against it find it again when the project is reopened.
+	@param uuid
+*/
+void Terminal::setUuid(const QUuid &uuid)
+{
+	d->m_uuid = uuid;
+}
+
+/**
 	@brief Terminal::stableUuid
 	An identity for this terminal that exists on every element, not only on
 	those saved by a uuid-aware element editor.
