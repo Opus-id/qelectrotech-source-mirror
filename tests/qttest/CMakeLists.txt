@@ -586,6 +586,10 @@ qet_add_app_test(tst_dockfitoff tst_dockfitoff.cpp)
 # (pre-existing since a82f6de23).
 qet_add_app_test(tst_elementspanelprojectopen tst_elementspanelprojectopen.cpp)
 
+# The symbol of a placed element swapped for another of its family: place,
+# terminals, uuids and wires stay, and the swap undoes.
+qet_add_app_test(tst_elementchangetype tst_elementchangetype.cpp)
+
 # SVG export with smaller pictures (--svg-small-pictures, the export dialog's
 # option): a picture drawn at a tenth of its size is stored at four times
 # that, a small one whole; without the option every picture is whole.

@@ -76,6 +76,7 @@ class Terminal : public QGraphicsObject
 		Element  *parentElement       () const;
 		QUuid     uuid                () const;
 		void      newUuid             ();
+		void      setUuid             (const QUuid &uuid);
 		QUuid     stableUuid          () const;
 		QUuid     derivedUuid         () const;
 		void      setPlaceRank        (int rank);

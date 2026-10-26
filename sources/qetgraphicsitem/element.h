@@ -209,6 +209,8 @@ class Element : public QetGraphicsItem
 			GeometryChanged    ///< size, hotspot or terminals changed, old drawing kept
 		};
 		ReloadPictureResult reloadPicture();
+		bool canChangeLocationTo(const ElementsLocation &location) const;
+		bool changeLocation(const ElementsLocation &location);
 		virtual void setHighlighted(bool);
 		void showAsJumpTarget();
 		bool isShownAsJumpTarget() const { return m_jump_highlight > 0; }
