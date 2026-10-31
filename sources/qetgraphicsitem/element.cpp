@@ -1930,11 +1930,13 @@ QList <QPair <Terminal *, Terminal *> > Element::AlignedFreeTerminals() const
 
 	foreach (Terminal *terminal, terminals())
 	{
-		if (terminal->conductors().isEmpty())
+			//A P&ID terminal is never wired automatically
+		if (terminal->conductors().isEmpty() && terminal->acceptsWires())
 		{
 			Terminal *other_terminal =
 					terminal -> alignedWithTerminal();
 			if (other_terminal
+				&& other_terminal->acceptsWires()
 				&& terminal->hasRoomForWire()
 				&& other_terminal->hasRoomForWire())
 				list << qMakePair(terminal, other_terminal);
@@ -3257,8 +3259,11 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 		return false;
 	}
 
-		//The names of the terminals must stay where they are as well
+		//The names of the terminals must stay where they are as well, and
+		//what may be connected to them: a nozzle does not become a wire
+		//terminal under a pipe line
 	QHash<QPair<qreal, qreal>, QString> new_names;
+	QHash<QPair<qreal, qreal>, TerminalData::ConnectionKind> new_connections;
 	for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
 		 !description.isNull() ;
 		 description = description.nextSiblingElement(QStringLiteral("description")))
@@ -3275,6 +3280,8 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 				&& QET::attributeIsAReal(part, QStringLiteral("x"), &x)
 				&& QET::attributeIsAReal(part, QStringLiteral("y"), &y)) {
 				new_names.insert({x, y}, part.attribute(QStringLiteral("name")));
+				new_connections.insert({x, y}, TerminalData::connectionFromString(
+								part.attribute(QStringLiteral("connection"))));
 			}
 		}
 	}
@@ -3283,7 +3290,9 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 	{
 		const QPointF pos = mapFromScene(terminal->dockConductor());
 		const auto key = QPair<qreal, qreal>(pos.x(), pos.y());
-		if (!new_names.contains(key) || new_names.value(key) != terminal->name()) {
+		if (!new_names.contains(key)
+			|| new_names.value(key) != terminal->name()
+			|| new_connections.value(key) != terminal->connectionKind()) {
 			return false;
 		}
 	}

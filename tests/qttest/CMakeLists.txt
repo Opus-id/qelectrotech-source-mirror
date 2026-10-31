@@ -454,6 +454,11 @@ qet_add_app_test(tst_elementlinecap tst_elementlinecap.cpp)
 # terminals, uuids and wires stay, and the swap undoes.
 qet_add_app_test(tst_elementchangetype tst_elementchangetype.cpp)
 
+# What may be connected to a terminal ("connection": pipe, signal, drive;
+# electrical when absent): written only for the P&ID kinds, and a terminal
+# that is not electrical takes no new wire.
+qet_add_app_test(tst_terminalconnection tst_terminalconnection.cpp)
+
 # The Auto numbering panel's Increment spin boxes get the width their style
 # asks for; a fixed 55 px cut the number off on Windows (#1566).
 qet_add_app_test(tst_autonumincrementwidth tst_autonumincrementwidth.cpp)

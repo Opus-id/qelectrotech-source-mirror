@@ -50,6 +50,20 @@ class TerminalData : public PropertiesInterface
 		};
 		Q_ENUM(Type)
 
+			/// What may be connected to the terminal. Electrical, the only
+			/// kind QET knew, is the default and is not written: an element
+			/// that does not say anything keeps its terminals as they were.
+			/// The others belong to P&ID symbols: a nozzle takes a pipe line,
+			/// an instrument a signal line, a machine shaft its drive. They do
+			/// not take electrical wires.
+		enum ConnectionKind {
+			Electrical,
+			Pipe,
+			Signal,
+			Drive
+		};
+		Q_ENUM(ConnectionKind)
+
 		TerminalData();
 		TerminalData(QGraphicsObject* parent);
 		~TerminalData() override;
@@ -66,6 +80,8 @@ class TerminalData : public PropertiesInterface
 
 		static QString typeToString(TerminalData::Type type);
 		static TerminalData::Type typeFromString(const QString &string);
+		static QString connectionToString(TerminalData::ConnectionKind kind);
+		static TerminalData::ConnectionKind connectionFromString(const QString &string);
 
 	// must be public, because this class is a private member
 	// of PartTerminal/Terminal and they must access this data
@@ -129,6 +145,11 @@ class TerminalData : public PropertiesInterface
 		QPointF m_pos;
 
 		TerminalData::Type m_type = TerminalData::Generic;
+
+			/// What may be connected to the terminal, see ConnectionKind.
+			/// Kept apart from m_type, which tells terminal blocks and
+			/// contacts apart and means nothing for a pipe.
+		TerminalData::ConnectionKind m_connection = TerminalData::Electrical;
 
 		/// Whether to display the terminal name as a text label
 		bool m_show_name = false;

@@ -115,6 +115,11 @@ QDomElement TerminalData::toXml(QDomDocument &xml_document) const
 
 	xml_element.setAttribute("type", typeToString(m_type));
 
+		//Written only for the P&ID kinds: an electrical terminal is saved
+		//as it always was
+	if (m_connection != Electrical)
+		xml_element.setAttribute("connection", connectionToString(m_connection));
+
 	if (m_show_name) {
 		xml_element.setAttribute("show_name", "true");
 		xml_element.setAttribute("label_x", QString::number(m_label_pos.x()));
@@ -184,6 +189,7 @@ bool TerminalData::fromXml (const QDomElement &xml_element)
 				xml_element.attribute("orientation"));
 
 	m_type = typeFromString(xml_element.attribute("type"));
+	m_connection = connectionFromString(xml_element.attribute("connection"));
 
 	m_show_name = (xml_element.attribute("show_name") == QLatin1String("true"));
 	if (m_show_name) {
@@ -241,6 +247,38 @@ QString TerminalData::typeToString(TerminalData::Type type)
 			return QString("Common");
 	}
 	return QString("Generic");
+}
+
+/**
+	@brief TerminalData::connectionToString
+	@param kind
+	@return the word the files use for @p kind
+*/
+QString TerminalData::connectionToString(TerminalData::ConnectionKind kind)
+{
+	switch (kind) {
+		case Electrical: return QStringLiteral("electrical");
+		case Pipe:       return QStringLiteral("pipe");
+		case Signal:     return QStringLiteral("signal");
+		case Drive:      return QStringLiteral("drive");
+	}
+	return QStringLiteral("electrical");
+}
+
+/**
+	@brief TerminalData::connectionFromString
+	@param string
+	@return the kind of connection @p string names. Anything else, the
+	absence of the attribute included, is an electrical terminal: what QET
+	always made of it, and what it keeps doing with a word written by a
+	later version that it does not know.
+*/
+TerminalData::ConnectionKind TerminalData::connectionFromString(const QString &string)
+{
+	if (string == QLatin1String("pipe"))   return Pipe;
+	if (string == QLatin1String("signal")) return Signal;
+	if (string == QLatin1String("drive"))  return Drive;
+	return Electrical;
 }
 
 /**

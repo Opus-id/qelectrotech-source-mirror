@@ -550,6 +550,10 @@ void Terminal::hoverLeaveEvent(QGraphicsSceneHoverEvent *)
 */
 void Terminal::mousePressEvent(QGraphicsSceneMouseEvent *e)
 {
+		//No wire is drawn from a terminal that takes none
+	if (!acceptsWires()) {
+		return;
+	}
 	if (Diagram *diag = diagram()) {
 		diag -> setConductorStart(mapToScene(QPointF(d->m_pos)));
 		diag -> setConductorStop(e -> scenePos());
@@ -740,6 +744,8 @@ bool Terminal::isLinkedTo(Terminal *other_terminal) {
 	 - \p other_terminal is this terminal
 	 - this terminal is already connected to \p other_terminal
 	 - either terminal already has as many wires as the project allows
+	 - either terminal does not take wires (a P&ID terminal, see
+	   acceptsWires())
 	@param other_terminal
 	@return true if this terminal can be linked to other_terminal,
 	otherwise false
@@ -747,6 +753,9 @@ bool Terminal::isLinkedTo(Terminal *other_terminal) {
 bool Terminal::canBeLinkedTo(Terminal *other_terminal)
 {
 	if (other_terminal == this || isLinkedTo(other_terminal))
+		return false;
+
+	if (!acceptsWires() || !other_terminal->acceptsWires())
 		return false;
 
 	if (!hasRoomForWire() || !other_terminal->hasRoomForWire())
@@ -1050,6 +1059,28 @@ QString Terminal::baseName() const
 TerminalData::Type Terminal::terminalType() const
 {
 	return d->m_type;
+}
+
+/**
+	@brief Terminal::connectionKind
+	@return what may be connected to this terminal: an electrical wire, or
+	for a P&ID symbol a pipe line, a signal line or a drive
+*/
+TerminalData::ConnectionKind Terminal::connectionKind() const
+{
+	return d->m_connection;
+}
+
+/**
+	@brief Terminal::acceptsWires
+	@return true if a new electrical wire may be connected to this terminal.
+	A P&ID terminal does not take one: a nozzle is for a pipe line, a shaft
+	for a drive. A wire already saved on such a terminal is still read back
+	with the project, as it was saved: only new ones are refused.
+*/
+bool Terminal::acceptsWires() const
+{
+	return d->m_connection == TerminalData::Electrical;
 }
 
 /**

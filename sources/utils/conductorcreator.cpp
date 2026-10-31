@@ -56,6 +56,10 @@ ConductorCreator::ConductorCreator(Diagram *d, QList<Terminal *> terminals_list)
 	QList<Conductor *> c_list;
 	for (const auto &pair : terminalPairs(chain))
 	{
+			//A P&ID terminal takes no wire
+		if (!pair.first->acceptsWires() || !pair.second->acceptsWires()) {
+			continue;
+		}
 			//Checked as the chain is built: the wire before this one may
 			//have just filled a terminal.
 		if (chain && !pair.first->canBeLinkedTo(pair.second)) {

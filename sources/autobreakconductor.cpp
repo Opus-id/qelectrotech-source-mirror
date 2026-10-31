@@ -82,7 +82,8 @@ QSet<Terminal *> autoBreakConductors(
 
 	foreach (Terminal *t, element->terminals())
 	{
-		if (used_terminals.contains(t))
+			//A wire is not broken onto a P&ID terminal
+		if (used_terminals.contains(t) || !t->acceptsWires())
 			continue;
 
 		QPointF t_dock = t->dockConductor();
@@ -199,7 +200,7 @@ QSet<Terminal *> autoBreakConductors(
 		qreal best_dist = std::numeric_limits<qreal>::max();
 		foreach (Terminal *ot, element->terminals())
 		{
-			if (used_terminals.contains(ot))
+			if (used_terminals.contains(ot) || !ot->acceptsWires())
 				continue;
 
 			QPointF ot_dock = ot->dockConductor();
