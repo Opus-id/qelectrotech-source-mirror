@@ -84,6 +84,7 @@ void TerminalEditor::updateForm()
 	ui->m_orientation_cb->setCurrentIndex(ui->m_orientation_cb->findData(m_part->property("orientation")));
 	ui->m_name_le->setText(m_part->terminalName());
 	ui->m_type_cb->setCurrentIndex(ui->m_type_cb->findData(m_part->terminalType()));
+	ui->m_connection_cb->setCurrentIndex(ui->m_connection_cb->findData(m_part->connectionKind()));
 	ui->m_potential_le->setText(m_part->potential());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());
@@ -186,6 +187,11 @@ void TerminalEditor::init()
 	ui->m_type_cb->addItem(tr("NO (contact SW)"),   TerminalData::No);
 	ui->m_type_cb->addItem(tr("NC (contact SW)"),   TerminalData::Nc);
 	ui->m_type_cb->addItem(tr("Common (contact SW)"), TerminalData::Common);
+
+	ui->m_connection_cb->addItem(tr("Electrical (wires)", "terminal connection"), TerminalData::Electrical);
+	ui->m_connection_cb->addItem(tr("Pipe line (nozzle)", "terminal connection"), TerminalData::Pipe);
+	ui->m_connection_cb->addItem(tr("Signal line", "terminal connection"),        TerminalData::Signal);
+	ui->m_connection_cb->addItem(tr("Drive (shaft)", "terminal connection"),      TerminalData::Drive);
 
 	ui->m_text_props_gb->setEnabled(false);
 
@@ -296,6 +302,28 @@ void TerminalEditor::typeEdited()
 	if (type != m_part->terminalType()) {
 		auto undo = new QPropertyUndoCommand(m_part, "terminal_type", m_part->terminalType(), type);
 		undo->setText(tr("Change the type of a terminal"));
+		undoStack().push(undo);
+	}
+	m_locked = false;
+}
+
+/**
+	@brief TerminalEditor::connectionEdited
+	What may be connected to the terminal: electrical wires, or for a P&ID
+	symbol a pipe line, a signal line or a drive
+*/
+void TerminalEditor::connectionEdited()
+{
+	if (m_locked) {
+		return;
+	}
+	m_locked = true;
+
+	const auto kind = ui->m_connection_cb->currentData();
+	if (kind != m_part->connectionKind()) {
+		auto undo = new QPropertyUndoCommand(m_part, "connection",
+						     m_part->connectionKind(), kind);
+		undo->setText(tr("Change what is connected to a terminal"));
 		undoStack().push(undo);
 	}
 	m_locked = false;
@@ -462,6 +490,8 @@ void TerminalEditor::activeConnections(bool active)
 										this, &TerminalEditor::nameEdited);
 		m_editor_connections << connect(ui->m_type_cb, QOverload<int>::of(&QComboBox::activated),
 										this, &TerminalEditor::typeEdited);
+		m_editor_connections << connect(ui->m_connection_cb, QOverload<int>::of(&QComboBox::activated),
+										this, &TerminalEditor::connectionEdited);
 		m_editor_connections << connect(ui->m_show_name_cb, &QCheckBox::toggled,
 										this, &TerminalEditor::showNameEdited);
 		m_editor_connections << connect(ui->m_label_x_dsb, QOverload<qreal>::of(&QDoubleSpinBox::valueChanged),
@@ -501,6 +531,7 @@ void TerminalEditor::activeChangeConnections(bool active)
 		m_change_connections << connect(m_part, &PartTerminal::orientationChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::nameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::terminalTypeChanged, this, &TerminalEditor::updateForm);
+		m_change_connections << connect(m_part, &PartTerminal::connectionKindChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::showNameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelPosChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelFontChanged, this, &TerminalEditor::updateForm);

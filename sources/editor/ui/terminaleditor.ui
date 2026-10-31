@@ -48,7 +48,7 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="1">
+   <item row="6" column="1">
     <widget class="QLineEdit" name="m_name_le"/>
    </item>
    <item row="2" column="1">
@@ -61,7 +61,7 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="0">
+   <item row="6" column="0">
     <widget class="QLabel" name="label_4">
      <property name="text">
       <string>Name:</string>
@@ -79,20 +79,34 @@
     <widget class="QComboBox" name="m_type_cb"/>
    </item>
    <item row="4" column="0">
+    <widget class="QLabel" name="label_connection">
+     <property name="text">
+      <string>Connection:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QComboBox" name="m_connection_cb">
+     <property name="toolTip">
+      <string>What may be connected to this terminal. An electrical terminal takes wires; the other kinds are for P&amp;ID symbols and take no wire: a nozzle takes one pipe line, an instrument a signal line, a machine shaft its drive.</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
     <widget class="QLabel" name="label_potential">
      <property name="text">
       <string>Potential:</string>
      </property>
     </widget>
    </item>
-   <item row="4" column="1">
+   <item row="5" column="1">
     <widget class="QLineEdit" name="m_potential_le">
      <property name="toolTip">
       <string>No effect unless "Function separation" is checked (all terminals of the block then stay connected). When it is checked, terminals sharing the same value stay connected to each other and the others are isolated.</string>
      </property>
     </widget>
    </item>
-   <item row="6" column="0" colspan="2">
+   <item row="7" column="0" colspan="2">
     <widget class="QGroupBox" name="m_label_gb">
      <property name="title">
       <string>Terminal name</string>
@@ -228,7 +242,7 @@
      </layout>
     </widget>
    </item>
-   <item row="7" column="0" colspan="2">
+   <item row="8" column="0" colspan="2">
     <widget class="QGroupBox" name="m_master_label_gb">
      <property name="title">
       <string>Master’s label</string>

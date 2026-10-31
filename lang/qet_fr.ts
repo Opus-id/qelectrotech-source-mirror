@@ -22578,6 +22578,45 @@ Les autres champs ne sont pas utilisés.</translation>
 <context>
     <name>TerminalEditor</name>
     <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="84"/>
+        <source>Connection:</source>
+        <translation>Raccordement :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="91"/>
+        <source>What may be connected to this terminal. An electrical terminal takes wires; the other kinds are for P&amp;ID symbols and take no wire: a nozzle takes one pipe line, an instrument a signal line, a machine shaft its drive.</source>
+        <translation>Ce qui peut se raccorder à cette borne. Une borne électrique reçoit des fils ; les autres natures servent aux symboles P&amp;ID et ne reçoivent aucun fil : un piquage reçoit une tuyauterie, un instrument une ligne de signal, l&apos;arbre d&apos;une machine son entraînement.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="190"/>
+        <source>Electrical (wires)</source>
+        <comment>terminal connection</comment>
+        <translation>Électrique (fils)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="191"/>
+        <source>Pipe line (nozzle)</source>
+        <comment>terminal connection</comment>
+        <translation>Tuyauterie (piquage)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="192"/>
+        <source>Signal line</source>
+        <comment>terminal connection</comment>
+        <translation>Ligne de signal</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="193"/>
+        <source>Drive (shaft)</source>
+        <comment>terminal connection</comment>
+        <translation>Entraînement (arbre)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="320"/>
+        <source>Change what is connected to a terminal</source>
+        <translation>Modifier le raccordement d&apos;une borne</translation>
+    </message>
+    <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="178"/>
         <source>North</source>
         <translation>Nord</translation>

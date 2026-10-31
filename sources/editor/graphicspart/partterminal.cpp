@@ -384,6 +384,21 @@ void PartTerminal::setTerminalType(TerminalData::Type type)
 	emit terminalTypeChanged(); // all terminal-signals call "updateForm"
 }
 
+/**
+	@brief PartTerminal::setConnectionKind
+	Set what may be connected to this terminal: electrical wires, or for a
+	P&ID symbol a pipe line, a signal line or a drive
+	@param kind
+*/
+void PartTerminal::setConnectionKind(TerminalData::ConnectionKind kind)
+{
+	if (d->m_connection == kind) {
+		return;
+	}
+	d->m_connection = kind;
+	emit connectionKindChanged();
+}
+
 void PartTerminal::setNewUuid()
 {
 	d -> m_uuid = QUuid::createUuid();

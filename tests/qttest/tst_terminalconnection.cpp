@@ -2,6 +2,7 @@
 #include "qetapptest.h"
 
 #include "diagram.h"
+#include "editor/graphicspart/partterminal.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "properties/terminaldata.h"
@@ -153,6 +154,35 @@ class tst_terminalconnection : public QObject
 			TerminalData back;
 			QVERIFY(back.fromXml(e));
 			QCOMPARE(int(back.m_connection), kind);
+		}
+
+			// ---- the terminal of the element editor ----
+		void theEditorKeepsTheConnection()
+		{
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<terminal name=\"E1\" x=\"0\" y=\"-15\" orientation=\"n\" "
+				"type=\"Generic\" connection=\"drive\"/>"));
+			PartTerminal part(nullptr);
+			part.fromXml(doc.documentElement());
+			QCOMPARE(part.connectionKind(), TerminalData::Drive);
+
+				// through the property of the QObject, as the undo command of
+				// the editor (QPropertyUndoCommand) sets it
+			QObject &object = part;
+			QVERIFY(object.setProperty("connection", int(TerminalData::Pipe)));
+			QCOMPARE(part.connectionKind(), TerminalData::Pipe);
+			QDomDocument out;
+			QCOMPARE(part.toXml(out).attribute(QStringLiteral("connection")),
+				 QStringLiteral("pipe"));
+
+				// back to electrical: nothing written, as before
+			QVERIFY(object.setProperty("connection", int(TerminalData::Electrical)));
+			QDomDocument out2;
+			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("connection")));
+				// the name and the type are untouched
+			QCOMPARE(part.terminalName(), QStringLiteral("E1"));
+			QCOMPARE(part.terminalType(), TerminalData::Generic);
 		}
 
 			// ---- wires ----
