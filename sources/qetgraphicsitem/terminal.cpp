@@ -27,6 +27,7 @@
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/element.h"
 #include "conductortextitem.h"
+#include "pipeline.h"
 #include "../wiringrules.h"
 
 #include <QToolTip>
@@ -92,6 +93,12 @@ Terminal::Terminal(TerminalData* data, Element* e) :
  * Destruction of the terminal, and also docked conductor
  */
 Terminal::~Terminal() {
+		// A pipe line is not deleted with the nozzle it is attached to:
+		// its end is left where it was, loose
+	const QList<PipeLine *> pipes_to_detach = m_pipes;
+	for (PipeLine *pipe : pipes_to_detach) {
+		pipe->detach(this);
+	}
 	// Each conductor's destructor calls removeConductor() on both its
 	// terminals, which mutates m_conductors_list while qDeleteAll() is
 	// still iterating it. Delete from a snapshot so the live list can
@@ -717,6 +724,9 @@ void Terminal::updateConductor()
 {
 	foreach (Conductor *conductor, m_conductors_list)
 		conductor->updatePath();
+		//and the pipe line of a nozzle
+	for (PipeLine *pipe : std::as_const(m_pipes))
+		pipe->updateFromTerminals();
 }
 
 /**
@@ -790,6 +800,54 @@ int Terminal::wireLimit() const
 bool Terminal::hasRoomForWire() const
 {
 	return WiringRules::hasRoom(wireLimit(), conductorsCount());
+}
+
+/**
+	@brief Terminal::addPipe
+	Register @p pipe as attached to this terminal. Called by
+	PipeLine::attach(), which has checked the rest.
+	@param pipe the pipe line
+	@return true if @p pipe is attached here; false if this terminal is not
+	a nozzle or already has another pipe line
+*/
+bool Terminal::addPipe(PipeLine *pipe)
+{
+	if (!pipe || connectionKind() != TerminalData::Pipe) return false;
+	if (m_pipes.contains(pipe)) return true;
+	if (!hasRoomForPipe()) return false;
+	m_pipes.append(pipe);
+	return true;
+}
+
+/**
+	@brief Terminal::removePipe
+	Forget @p pipe, which is no longer attached to this terminal. Called by
+	PipeLine::detach().
+	@param pipe the pipe line
+*/
+void Terminal::removePipe(PipeLine *pipe)
+{
+	m_pipes.removeAll(pipe);
+}
+
+/**
+	@brief Terminal::pipes
+	@return the pipe lines attached to this terminal
+*/
+QList<PipeLine *> Terminal::pipes() const
+{
+	return m_pipes;
+}
+
+/**
+	@brief Terminal::hasRoomForPipe
+	@return true if a pipe line may be attached to this terminal: it is a
+	nozzle, and has none yet -- a nozzle takes one pipe line, branches are
+	made on a pipe line, not on the nozzle
+*/
+bool Terminal::hasRoomForPipe() const
+{
+	return connectionKind() == TerminalData::Pipe && m_pipes.isEmpty();
 }
 
 /**

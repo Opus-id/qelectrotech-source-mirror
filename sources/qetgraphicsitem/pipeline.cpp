@@ -18,6 +18,7 @@
 #include "pipeline.h"
 
 #include "../conductorrouter.h"
+#include "terminal.h"
 
 #include <QPainter>
 #include <QPainterPathStroker>
@@ -128,6 +129,129 @@ PipeLine::PipeLine(const End &start, const End &end, QGraphicsItem *parent) :
 	setZValue(11);
 	setFlags(QGraphicsItem::ItemIsSelectable);
 	updatePath();
+}
+
+/**
+	@brief PipeLine::~PipeLine
+	Frees the nozzles the ends were attached to.
+*/
+PipeLine::~PipeLine()
+{
+	detach(Side::Start);
+	detach(Side::End);
+}
+
+/**
+	@brief PipeLine::canAttach
+	@param side the end to attach
+	@param terminal the terminal to attach it to
+	@return true if the end @p side may be attached to @p terminal: a nozzle
+	(connection kind TerminalData::Pipe) which has no other pipe line, and
+	which is not the one the other end is attached to. An end may be
+	"attached again" to the terminal it already is.
+*/
+bool PipeLine::canAttach(Side side, Terminal *terminal) const
+{
+	if (!terminal || terminal->connectionKind() != TerminalData::Pipe) {
+		return false;
+	}
+	if (this->terminal(side) == terminal) {
+		return true;
+	}
+	const Side other = side == Side::Start ? Side::End : Side::Start;
+	if (this->terminal(other) == terminal) {
+		return false;
+	}
+	return terminal->hasRoomForPipe();
+}
+
+/**
+	@brief PipeLine::attach
+	Attach the end @p side to the nozzle @p terminal: the end takes the
+	place and the direction of the terminal and follows it from now on.
+	@param side the end to attach
+	@param terminal the nozzle
+	@return true if the end is attached to @p terminal; false, with nothing
+	changed, if canAttach() refuses it
+*/
+bool PipeLine::attach(Side side, Terminal *terminal)
+{
+	if (!canAttach(side, terminal)) {
+		return false;
+	}
+	if (this->terminal(side) == terminal) {
+		return true;
+	}
+	detach(side);
+	if (!terminal->addPipe(this)) {
+		return false;
+	}
+	(side == Side::Start ? m_start_terminal : m_end_terminal) = terminal;
+	updateFromTerminals();
+	return true;
+}
+
+/**
+	@brief PipeLine::detach
+	Detach the end @p side from its nozzle. The end stays where it is.
+	@param side the end to detach
+*/
+void PipeLine::detach(Side side)
+{
+	QPointer<Terminal> &attached = side == Side::Start ? m_start_terminal
+							   : m_end_terminal;
+	if (Terminal *terminal = attached.data()) {
+		attached.clear();
+		terminal->removePipe(this);
+	}
+}
+
+/**
+	@brief PipeLine::detach
+	Detach whichever end is attached to @p terminal, which is going: the
+	end stays where it is.
+	@param terminal the terminal
+*/
+void PipeLine::detach(Terminal *terminal)
+{
+	if (!terminal) return;
+	if (m_start_terminal == terminal) detach(Side::Start);
+	if (m_end_terminal == terminal) detach(Side::End);
+}
+
+/**
+	@brief PipeLine::terminal
+	@param side the end
+	@return the nozzle the end @p side is attached to, or nullptr
+*/
+Terminal *PipeLine::terminal(Side side) const
+{
+	return side == Side::Start ? m_start_terminal.data() : m_end_terminal.data();
+}
+
+/**
+	@brief PipeLine::updateFromTerminals
+	Put each attached end back on its nozzle: the docking point of the
+	terminal, the way conductors dock, and the direction it points to on the
+	folio, which takes the turn and the mirror of the symbol into account.
+	A loose end does not move.
+*/
+void PipeLine::updateFromTerminals()
+{
+	if (!m_start_terminal && !m_end_terminal) {
+		return;
+	}
+	End start = m_start;
+	End end = m_end;
+	if (Terminal *t = m_start_terminal.data()) {
+		start.point = mapFromScene(t->dockConductor());
+		start.direction = t->orientation();
+	}
+	if (Terminal *t = m_end_terminal.data()) {
+		end.point = mapFromScene(t->dockConductor());
+		end.direction = t->orientation();
+	}
+	setEnds(start, end);
 }
 
 /**

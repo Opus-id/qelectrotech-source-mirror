@@ -27,8 +27,11 @@
 #include <QList>
 #include <QPainterPath>
 #include <QPen>
+#include <QPointer>
 #include <QPointF>
 #include <QUuid>
+
+class Terminal;
 
 /**
 	@brief The PipeLine class
@@ -38,10 +41,16 @@
 	the routing of the path: no potential, no cable, no formula. Its data
 	are those of PipeProperties and belong to this pipe line alone.
 
-	For now an end is a point and a direction rather than a Terminal, which
-	only knows Conductor objects: the pipe line can be built and tested
-	on its own. Nothing creates one yet and a diagram does not know about
-	this class.
+	An end is a point and a direction. It may also be attached to the
+	nozzle of a symbol, a Terminal whose connection kind is
+	TerminalData::Pipe: it then takes the place and the direction of the
+	terminal, and follows it when the symbol is moved, turned or mirrored.
+	A nozzle takes one pipe line. When the terminal goes, the end is left
+	where it was, loose; nothing else is changed.
+
+	Nothing creates a pipe line yet and a diagram does not know about this
+	class: neither the attachments nor the pipe line itself are saved with
+	a project.
 */
 class PipeLine : public QGraphicsObject
 {
@@ -57,8 +66,12 @@ class PipeLine : public QGraphicsObject
 			Qet::Orientation direction = Qet::North;
 		};
 
+			/// One of the two ends of a pipe line
+		enum class Side { Start, End };
+
 		PipeLine(const End &start, const End &end,
 				 QGraphicsItem *parent = nullptr);
+		~PipeLine() override;
 
 			/// Qt tells the kinds of items apart by an integer which must be
 			/// unique among the items of the application, and qgraphicsitem_cast
@@ -78,6 +91,22 @@ class PipeLine : public QGraphicsObject
 		End startEnd() const { return m_start; }
 		End endEnd() const { return m_end; }
 		void setEnds(const End &start, const End &end);
+
+			/// Attaches the end @p side to the nozzle @p terminal; see
+			/// canAttach() for what is refused, which leaves the end as it
+			/// was. An end already attached elsewhere is detached first.
+		bool attach(Side side, Terminal *terminal);
+			/// Whether attach(@p side, @p terminal) would accept it
+		bool canAttach(Side side, Terminal *terminal) const;
+			/// Detaches the end @p side, which stays where it is
+		void detach(Side side);
+			/// Detaches whichever end is attached to @p terminal
+		void detach(Terminal *terminal);
+			/// The terminal the end @p side is attached to, if any
+		Terminal *terminal(Side side) const;
+			/// Puts the attached ends back on their terminals, which have
+			/// moved: called by the terminals (Terminal::updateConductor())
+		void updateFromTerminals();
 
 			/// The corners of the path, from the start to the end, both
 			/// included
@@ -112,6 +141,11 @@ class PipeLine : public QGraphicsObject
 
 		End m_start;
 		End m_end;
+			/// The nozzles the ends are attached to. QPointer, as a terminal
+			/// goes with its symbol: it detaches itself first, this is only
+			/// a safety net.
+		QPointer<Terminal> m_start_terminal;
+		QPointer<Terminal> m_end_terminal;
 		PipeProperties m_properties;
 		QUuid m_uuid;
 			/// false when m_uuid was made up by fromXml() because the file

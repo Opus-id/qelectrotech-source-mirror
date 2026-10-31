@@ -459,6 +459,11 @@ qet_add_app_test(tst_elementchangetype tst_elementchangetype.cpp)
 # that is not electrical takes no new wire.
 qet_add_app_test(tst_terminalconnection tst_terminalconnection.cpp)
 
+# A pipe line attached to the nozzles of P&ID symbols: one pipe line per
+# nozzle, none on another kind of terminal, the ends follow the symbol when
+# it is moved, turned or mirrored, and are left loose when it goes.
+qet_add_app_test(tst_pipeterminal tst_pipeterminal.cpp)
+
 # The Auto numbering panel's Increment spin boxes get the width their style
 # asks for; a fixed 55 px cut the number off on Windows (#1566).
 qet_add_app_test(tst_autonumincrementwidth tst_autonumincrementwidth.cpp)
@@ -1793,17 +1798,14 @@ target_link_libraries(tst_pipeproperties PRIVATE Qt::Test Qt::Xml)
 
 # PipeLine -- a pipe line of a P&ID: its orthogonal path between two ends,
 # its identity and its own properties. Uses the routing of the conductors
-# (ConductorRouter) but no conductor, terminal or diagram.
-add_executable(
-  tst_pipeline
-  tst_pipeline.cpp
-  ${QET_DIR}/sources/qetgraphicsitem/pipeline.cpp
-  ${QET_DIR}/sources/qetgraphicsitem/pipeline.h
-  ${QET_DIR}/sources/pipeproperties.cpp
-  ${QET_DIR}/sources/conductorrouter.cpp)
+# (ConductorRouter) but no conductor or diagram. Linked to the application's
+# code since a pipe line end may be attached to a Terminal; the attachment
+# itself is tested by tst_pipeterminal.
+add_executable(tst_pipeline tst_pipeline.cpp)
 add_test(NAME tst_pipeline COMMAND tst_pipeline)
+set_tests_properties(tst_pipeline PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 target_include_directories(tst_pipeline PRIVATE ${QET_DIR}/sources)
-target_link_libraries(tst_pipeline PRIVATE Qt::Test Qt::Widgets Qt::Xml)
+target_link_libraries(tst_pipeline PRIVATE qelectrotech_objects Qt::Test)
 
 # SignalProperties -- the data of a P&ID signal line (its type of signal):
 # XML round trip, the words of the file format, unknown values, comparison.

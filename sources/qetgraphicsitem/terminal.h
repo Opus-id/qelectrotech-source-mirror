@@ -25,6 +25,7 @@
 class Conductor;
 class Diagram;
 class Element;
+class PipeLine;
 
 
 /**
@@ -99,6 +100,13 @@ class Terminal : public QGraphicsObject
 		int wireLimit() const;
 		bool hasRoomForWire() const;
 
+			// pipe lines attached to a nozzle (see PipeLine::attach(), the
+			// only caller of addPipe() and removePipe())
+		bool addPipe(PipeLine *pipe);
+		void removePipe(PipeLine *pipe);
+		QList<PipeLine *> pipes() const;
+		bool hasRoomForPipe() const;
+
 		// methods related to XML import/export
 		static bool valideXml(QDomElement  &);
 		bool fromXml (QDomElement &);
@@ -145,6 +153,8 @@ class Terminal : public QGraphicsObject
 	private:
 		/// List of conductors attached to the terminal
 		QList<Conductor *> m_conductors_list;
+			/// Pipe lines attached to the terminal: one at most, on a nozzle
+		QList<PipeLine *> m_pipes;
 		QRectF m_br;
 			/// Last terminal seen through an attached conductor
 		Terminal *m_previous_terminal = nullptr;
