@@ -21,6 +21,7 @@
 #include "../utils/qetutils.h"
 
 #include <QGraphicsObject>
+#include <QRegularExpression>
 
 #include <QDebug>
 
@@ -279,6 +280,64 @@ TerminalData::ConnectionKind TerminalData::connectionFromString(const QString &s
 	if (string == QLatin1String("signal")) return Signal;
 	if (string == QLatin1String("drive"))  return Drive;
 	return Electrical;
+}
+
+/**
+	@brief TerminalData::namePrefix
+	@param kind
+	@return the letter the names of the terminals of @p kind begin with by
+	convention: N for a nozzle (N1, N2... as DEXPI numbers them), E for a
+	drive (entraînement), S for a signal line; none for an electrical
+	terminal, whose names are free (1, 2, A1, 13...)
+*/
+QString TerminalData::namePrefix(TerminalData::ConnectionKind kind)
+{
+	switch (kind) {
+		case Electrical: return QString();
+		case Pipe:       return QStringLiteral("N");
+		case Signal:     return QStringLiteral("S");
+		case Drive:      return QStringLiteral("E");
+	}
+	return QString();
+}
+
+/**
+	@brief TerminalData::suggestedName
+	The name a terminal gets when it becomes of the kind @p kind in the
+	element editor. A name that follows the convention of another P&ID kind
+	(a letter N, E or S then a number, like E1) or no name at all is replaced
+	by the first free name of the new kind, so that a drive E1 turned into a
+	nozzle is not left called E1. Any other name, chosen by the author of the
+	symbol ("Suction", "1"...), is kept; so is every name when the terminal
+	becomes electrical, as electrical names follow no convention.
+	@param kind the new kind of the terminal
+	@param current its name now
+	@param taken the names of the other terminals of the element
+	@return the name it should have
+*/
+QString TerminalData::suggestedName(TerminalData::ConnectionKind kind,
+				    const QString &current,
+				    const QStringList &taken)
+{
+	const QString prefix = namePrefix(kind);
+	if (prefix.isEmpty()) {
+		return current;
+	}
+
+	static const QRegularExpression conventional(QStringLiteral("^([NES])[0-9]+$"));
+	const QRegularExpressionMatch match = conventional.match(current);
+	const bool replaceable = current.isEmpty()
+			|| (match.hasMatch() && match.captured(1) != prefix);
+	if (!replaceable) {
+		return current;
+	}
+
+	for (int number = 1 ; ; ++number) {
+		const QString name = prefix + QString::number(number);
+		if (!taken.contains(name)) {
+			return name;
+		}
+	}
 }
 
 /**

@@ -43,6 +43,28 @@ const qreal Terminal::terminalSize = 4.0;
 const qreal Terminal::Z = 1000;
 
 /**
+	@brief Terminal::stemColor
+	The stem of a terminal, the short line to its docking point, tells what
+	may be connected to it, on the folio and in the element editor: red for
+	an electrical terminal, as it always was, and a color of its own for
+	each kind of P&ID terminal. None of them is green or orange, which tell
+	while a wire is drawn whether it may go to a terminal. The terminals are
+	not printed.
+	@param kind what may be connected to the terminal
+	@return the color of its stem
+*/
+QColor Terminal::stemColor(TerminalData::ConnectionKind kind)
+{
+	switch (kind) {
+		case TerminalData::Electrical: return QColor(Qt::red);
+		case TerminalData::Pipe:       return QColor(0x00, 0x80, 0x80); // teal
+		case TerminalData::Signal:     return QColor(0xc0, 0x00, 0xc0); // magenta
+		case TerminalData::Drive:      return QColor(0x8b, 0x45, 0x13); // brown
+	}
+	return QColor(Qt::red);
+}
+
+/**
 	@brief Terminal::init
 	Methode privee pour initialiser la borne.
 	Private method to initialize the terminal.
@@ -224,9 +246,9 @@ void Terminal::paint(
 	}
 
 	// dessin de la borne en rouge
-	// draw the terminal in red
+	// draw the terminal in red, or in the color of its P&ID kind
 	if (!diagram() || diagram()->drawTerminals()) {
-		t.setColor(Qt::red);
+		t.setColor(stemColor(d->m_connection));
 		painter -> setPen(t);
 		painter -> drawLine(c, e);
 
@@ -255,7 +277,9 @@ void Terminal::paint(
 
 			QLineF line(HelpLine());
 
-			if (diagram() -> project() -> autoConductor())
+				//No wire is made automatically from a P&ID terminal: its
+				//help line does not show the terminal it would go to
+			if (diagram() -> project() -> autoConductor() && acceptsWires())
 			{
 				Terminal *t = alignedWithTerminal();
 				if (t)

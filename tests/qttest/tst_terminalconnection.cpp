@@ -185,6 +185,67 @@ class tst_terminalconnection : public QObject
 			QCOMPARE(part.terminalType(), TerminalData::Generic);
 		}
 
+			// ---- the name a terminal gets with its kind ----
+		void suggestsAName_data()
+		{
+			QTest::addColumn<int>("kind");
+			QTest::addColumn<QString>("current");
+			QTest::addColumn<QStringList>("taken");
+			QTest::addColumn<QString>("expected");
+			const int e = TerminalData::Electrical, p = TerminalData::Pipe,
+				  s = TerminalData::Signal, d = TerminalData::Drive;
+			QTest::newRow("drive E1 becomes a nozzle")
+					<< p << "E1" << QStringList{"N1", "N2"} << "N3";
+			QTest::newRow("no name, nozzle")       << p << "" << QStringList{} << "N1";
+			QTest::newRow("no name, drive")        << d << "" << QStringList{"N1"} << "E1";
+			QTest::newRow("no name, signal")       << s << "" << QStringList{} << "S1";
+			QTest::newRow("nozzle N2 becomes a drive")
+					<< d << "N2" << QStringList{"N1", "E1"} << "E2";
+			QTest::newRow("nozzle becomes a signal")
+					<< s << "N1" << QStringList{"N2"} << "S1";
+				// already following the new convention: kept
+			QTest::newRow("N1 stays a nozzle")     << p << "N1" << QStringList{"N2"} << "N1";
+				// chosen by the author: kept
+			QTest::newRow("free name kept")        << p << "Suction" << QStringList{} << "Suction";
+			QTest::newRow("number kept")           << p << "1" << QStringList{} << "1";
+			QTest::newRow("lower case kept")       << p << "e1" << QStringList{} << "e1";
+				// electrical names follow no convention: nothing is renamed
+			QTest::newRow("back to electrical")    << e << "N1" << QStringList{} << "N1";
+			QTest::newRow("no name, electrical")   << e << "" << QStringList{} << "";
+		}
+
+		void suggestsAName()
+		{
+			QFETCH(int, kind);
+			QFETCH(QString, current);
+			QFETCH(QStringList, taken);
+			QFETCH(QString, expected);
+			QCOMPARE(TerminalData::suggestedName(TerminalData::ConnectionKind(kind),
+							     current, taken),
+				 expected);
+		}
+
+			// ---- how a terminal looks ----
+		void eachKindHasItsOwnStem()
+		{
+				// an electrical terminal looks as it always did
+			QCOMPARE(Terminal::stemColor(TerminalData::Electrical), QColor(Qt::red));
+			const QList<QColor> colors{
+				Terminal::stemColor(TerminalData::Electrical),
+				Terminal::stemColor(TerminalData::Pipe),
+				Terminal::stemColor(TerminalData::Signal),
+				Terminal::stemColor(TerminalData::Drive)};
+			for (int i = 0; i < colors.size(); ++i) {
+				for (int j = i + 1; j < colors.size(); ++j)
+					QVERIFY2(colors.at(i) != colors.at(j), "two kinds share a color");
+					// nor the colors the hover gives while a wire is drawn,
+					// nor the blue of the docking point
+				QVERIFY(colors.at(i) != Terminal::allowedColor);
+				QVERIFY(colors.at(i) != Terminal::warningColor);
+				QVERIFY(colors.at(i) != Terminal::neutralColor);
+			}
+		}
+
 			// ---- wires ----
 		void onlyElectricalTerminalsTakeWires_data()
 		{

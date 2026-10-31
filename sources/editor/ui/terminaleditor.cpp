@@ -85,6 +85,14 @@ void TerminalEditor::updateForm()
 	ui->m_name_le->setText(m_part->terminalName());
 	ui->m_type_cb->setCurrentIndex(ui->m_type_cb->findData(m_part->terminalType()));
 	ui->m_connection_cb->setCurrentIndex(ui->m_connection_cb->findData(m_part->connectionKind()));
+		//The type (terminal blocks, contacts) and the potential (function
+		//separation of a terminal block) mean nothing for a P&ID terminal:
+		//hidden, and kept, until it is electrical again
+	const bool electrical = m_part->connectionKind() == TerminalData::Electrical;
+	ui->label_5->setVisible(electrical);
+	ui->m_type_cb->setVisible(electrical);
+	ui->label_potential->setVisible(electrical);
+	ui->m_potential_le->setVisible(electrical);
 	ui->m_potential_le->setText(m_part->potential());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());
@@ -320,11 +328,32 @@ void TerminalEditor::connectionEdited()
 	m_locked = true;
 
 	const auto kind = ui->m_connection_cb->currentData();
-	if (kind != m_part->connectionKind()) {
-		auto undo = new QPropertyUndoCommand(m_part, "connection",
-						     m_part->connectionKind(), kind);
-		undo->setText(tr("Change what is connected to a terminal"));
-		undoStack().push(undo);
+	if (kind != m_part->connectionKind())
+	{
+			//A name that follows the convention of another kind (E1 for a
+			//drive turned into a nozzle) or no name takes the first free
+			//name of the new kind, in the same undo step
+		QStringList taken;
+		if (elementEditor() && elementEditor()->elementScene()) {
+			for (QGraphicsItem *item : elementEditor()->elementScene()->items()) {
+				auto *other = qgraphicsitem_cast<PartTerminal *>(item);
+				if (other && other != m_part) {
+					taken << other->terminalName();
+				}
+			}
+		}
+		const QString name = TerminalData::suggestedName(
+					TerminalData::ConnectionKind(kind.toInt()),
+					m_part->terminalName(), taken);
+
+		undoStack().beginMacro(tr("Change what is connected to a terminal"));
+		undoStack().push(new QPropertyUndoCommand(m_part, "connection",
+							  m_part->connectionKind(), kind));
+		if (name != m_part->terminalName()) {
+			undoStack().push(new QPropertyUndoCommand(m_part, "terminal_name",
+								  m_part->terminalName(), name));
+		}
+		undoStack().endMacro();
 	}
 	m_locked = false;
 }

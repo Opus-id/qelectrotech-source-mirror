@@ -136,6 +136,8 @@ class Terminal : public QGraphicsObject
 		static QColor warningColor;
 		/// color for forbidden actions
 		static QColor forbiddenColor;
+		/// color of the stem of a terminal, after what may be connected to it
+		static QColor stemColor(TerminalData::ConnectionKind kind);
 
 	private:
 		bool               m_draw_help_line{false};

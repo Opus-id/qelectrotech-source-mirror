@@ -24,6 +24,7 @@
 #include <QColor>
 #include <QFont>
 #include <QPointF>
+#include <QStringList>
 #include <QUuid>
 
 class QGraphicsObject;
@@ -82,6 +83,10 @@ class TerminalData : public PropertiesInterface
 		static TerminalData::Type typeFromString(const QString &string);
 		static QString connectionToString(TerminalData::ConnectionKind kind);
 		static TerminalData::ConnectionKind connectionFromString(const QString &string);
+		static QString namePrefix(TerminalData::ConnectionKind kind);
+		static QString suggestedName(TerminalData::ConnectionKind kind,
+					     const QString &current,
+					     const QStringList &taken);
 
 	// must be public, because this class is a private member
 	// of PartTerminal/Terminal and they must access this data

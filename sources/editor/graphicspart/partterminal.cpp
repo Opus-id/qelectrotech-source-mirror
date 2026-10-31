@@ -88,8 +88,12 @@ void PartTerminal::paint(
 
 	t.setCosmetic(options && options -> levelOfDetailFromTransform(painter->worldTransform()) < 1.0);
 
-	// dessin de la borne en rouge
-	t.setColor(isSelected() ? Terminal::neutralColor : Qt::red);
+	// dessin de la borne en rouge, ou de la couleur de sa nature P&ID.
+	// A selected electrical terminal swaps its colors, as it always did;
+	// a P&ID one keeps the color of its kind, which is what one looks at
+	// while choosing it, and shows the selection by its red docking point.
+	const bool swap_colors = isSelected() && d->m_connection == TerminalData::Electrical;
+	t.setColor(swap_colors ? Terminal::neutralColor : Terminal::stemColor(d->m_connection));
 	painter -> setPen(t);
 	painter -> drawLine(QPointF(0.0, 0.0), d -> m_second_point);
 
@@ -396,6 +400,8 @@ void PartTerminal::setConnectionKind(TerminalData::ConnectionKind kind)
 		return;
 	}
 	d->m_connection = kind;
+		//its stem takes the color of its kind
+	update();
 	emit connectionKindChanged();
 }
 
