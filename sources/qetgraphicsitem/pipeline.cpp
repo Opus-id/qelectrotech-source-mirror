@@ -255,6 +255,36 @@ void PipeLine::updateFromTerminals()
 }
 
 /**
+	@brief PipeLine::releaseTerminals
+	The pipe line leaves the folio, deleted with undo in view: its nozzles
+	are freed for another pipe line, but it remembers them, so that undoing
+	puts it back where it was (see claimTerminals()).
+*/
+void PipeLine::releaseTerminals()
+{
+	if (Terminal *t = m_start_terminal.data()) t->removePipe(this);
+	if (Terminal *t = m_end_terminal.data())   t->removePipe(this);
+}
+
+/**
+	@brief PipeLine::claimTerminals
+	The pipe line comes back on the folio: it takes back the nozzles it
+	remembers. An end whose nozzle has another pipe line by now is left
+	loose where it is: a nozzle takes one pipe line.
+*/
+void PipeLine::claimTerminals()
+{
+	for (QPointer<Terminal> *attached : {&m_start_terminal, &m_end_terminal}) {
+		if (Terminal *t = attached->data()) {
+			if (!t->addPipe(this)) {
+				attached->clear();
+			}
+		}
+	}
+	updateFromTerminals();
+}
+
+/**
 	@brief PipeLine::setProperties
 	Set the properties of this pipe line. Nothing is passed on to any other
 	pipe line, whatever it is connected to.

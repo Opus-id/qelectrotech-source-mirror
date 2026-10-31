@@ -21,9 +21,11 @@
 #include "../diagramcontent.h"
 
 #include <QHash>
+#include <QPointer>
 #include <QUndoCommand>
 
 class Diagram;
+class PipeLine;
 class ElementTextItemGroup;
 class Terminal;
 class QetGraphicsTableItem;
@@ -55,6 +57,14 @@ class DeleteQGraphicsItemCommand : public QUndoCommand
 		QList <std::pair<Terminal *, Terminal *>> m_connected_terminals;
 		QHash <QetGraphicsTableItem *, QPointer<QGraphicsScene>> m_table_scene_hash;
 		bool m_remove_linked_table = false;
+			/// A pipe line left on the folio, on a nozzle of a removed symbol:
+			/// detached by redo, attached again by undo
+		struct PipeAttachment {
+			QPointer<PipeLine> pipe;
+			QPointer<Terminal> terminal;
+			bool start;
+		};
+		QList<PipeAttachment> m_pipe_attachments;
 };
 
 #endif // DELETEQGRAPHICSITEMCOMMAND_H

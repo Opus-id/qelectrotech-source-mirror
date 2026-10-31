@@ -2,12 +2,14 @@
 #include "qetapptest.h"
 
 #include "diagram.h"
+#include "diagramcontent.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/pipeline.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "undocommand/deleteqgraphicsitemcommand.h"
 
 #include <QDomDocument>
 
@@ -234,6 +236,109 @@ class tst_pipeterminal : public QObject
 			a->setPos(QPointF(520, 320));
 			b->setRotation(180);
 			QVERIFY(nozzle(a, "N2")->hasRoomForPipe());
+		}
+
+			// ---- on the folio: selected, deleted, undone ----
+		void theSelectionHoldsThePipeLines()
+		{
+			Element *a = place(m_valve, QPointF(900, 100));
+			Element *b = place(m_valve, QPointF(1100, 100));
+			PipeLine *p = pipe();
+			QVERIFY(p->attach(PipeLine::Side::Start, nozzle(a, "N2")));
+			QVERIFY(p->attach(PipeLine::Side::End, nozzle(b, "N1")));
+
+			m_folio->clearSelection();
+			p->setSelected(true);
+			const DiagramContent dc(m_folio);
+			QCOMPARE(dc.m_pipes, QList<PipeLine *>{p});
+			QVERIFY(dc.hasDeletableItems());
+			QCOMPARE(dc.count(DiagramContent::Pipes), 1);
+			QVERIFY(dc.items(DiagramContent::All).contains(p));
+				// never moved with the other items
+			QVERIFY(!dc.items(DiagramContent::Elements | DiagramContent::Shapes
+					  | DiagramContent::TextFields | DiagramContent::Images).contains(p));
+			QVERIFY(dc.sentence(DiagramContent::All).contains(QStringLiteral("pipe line")));
+			m_folio->clearSelection();
+			delete p;
+		}
+
+		void deletingAPipeLineFreesItsNozzlesUntilUndone()
+		{
+			Element *a = place(m_valve, QPointF(900, 300));
+			Element *b = place(m_valve, QPointF(1100, 300));
+			PipeLine *p = pipe();
+			QVERIFY(p->attach(PipeLine::Side::Start, nozzle(a, "N2")));
+			QVERIFY(p->attach(PipeLine::Side::End, nozzle(b, "N1")));
+
+			m_folio->clearSelection();
+			p->setSelected(true);
+			m_folio->undoStack().push(new DeleteQGraphicsItemCommand(m_folio, DiagramContent(m_folio)));
+			QVERIFY(!p->scene());
+				// free for another pipe line while it is gone...
+			QVERIFY(nozzle(a, "N2")->hasRoomForPipe());
+			QVERIFY(nozzle(b, "N1")->hasRoomForPipe());
+
+				// ...and back on them when undone
+			m_folio->undoStack().undo();
+			QCOMPARE(p->scene(), m_folio);
+			QCOMPARE(nozzle(a, "N2")->pipes(), QList<PipeLine *>{p});
+			QCOMPARE(nozzle(b, "N1")->pipes(), QList<PipeLine *>{p});
+			QVERIFY(onNozzle(p, PipeLine::Side::Start, nozzle(a, "N2")));
+
+			m_folio->undoStack().redo();
+			QVERIFY(!p->scene());
+			QVERIFY(nozzle(a, "N2")->hasRoomForPipe());
+			m_folio->undoStack().undo();
+			QCOMPARE(p->terminal(PipeLine::Side::End), nozzle(b, "N1"));
+		}
+
+		void deletingASymbolLeavesItsPipeLineUntilUndone()
+		{
+			Element *a = place(m_valve, QPointF(900, 500));
+			Element *b = place(m_valve, QPointF(1100, 500));
+			PipeLine *p = pipe();
+			QVERIFY(p->attach(PipeLine::Side::Start, nozzle(a, "N2")));
+			QVERIFY(p->attach(PipeLine::Side::End, nozzle(b, "N1")));
+			const QPointF where = p->startEnd().point;
+
+			m_folio->clearSelection();
+			a->setSelected(true);
+			m_folio->undoStack().push(new DeleteQGraphicsItemCommand(m_folio, DiagramContent(m_folio)));
+			QVERIFY(!a->scene());
+				// the pipe line stays on the folio, loose at that end
+			QCOMPARE(p->scene(), m_folio);
+			QVERIFY(!p->terminal(PipeLine::Side::Start));
+			QCOMPARE(p->startEnd().point, where);
+			QVERIFY(nozzle(a, "N2")->pipes().isEmpty());
+			QCOMPARE(p->terminal(PipeLine::Side::End), nozzle(b, "N1"));
+
+			m_folio->undoStack().undo();
+			QCOMPARE(a->scene(), m_folio);
+			QCOMPARE(p->terminal(PipeLine::Side::Start), nozzle(a, "N2"));
+			QCOMPARE(nozzle(a, "N2")->pipes(), QList<PipeLine *>{p});
+				// and it follows the symbol again
+			a->setPos(QPointF(880, 540));
+			QVERIFY(onNozzle(p, PipeLine::Side::Start, nozzle(a, "N2")));
+		}
+
+		void aNozzleTakenMeanwhileLeavesTheEndLoose()
+		{
+			Element *a = place(m_valve, QPointF(900, 700));
+			PipeLine *p = pipe();
+			QVERIFY(p->attach(PipeLine::Side::Start, nozzle(a, "N2")));
+			m_folio->clearSelection();
+			p->setSelected(true);
+			m_folio->undoStack().push(new DeleteQGraphicsItemCommand(m_folio, DiagramContent(m_folio)));
+
+				// another pipe line takes the nozzle while the first is gone
+			PipeLine *q = pipe();
+			QVERIFY(q->attach(PipeLine::Side::Start, nozzle(a, "N2")));
+
+			m_folio->undoStack().undo();
+			QCOMPARE(p->scene(), m_folio);
+			QVERIFY(!p->terminal(PipeLine::Side::Start));
+			QCOMPARE(nozzle(a, "N2")->pipes(), QList<PipeLine *>{q});
+			delete q;
 		}
 };
 

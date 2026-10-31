@@ -40,6 +40,7 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/elementtextitemgroup.h"
 #include "qetgraphicsitem/independenttextitem.h"
+#include "qetgraphicsitem/pipeline.h"
 #include "qetgraphicsitem/qetshapeitem.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetxml.h"
@@ -2802,6 +2803,12 @@ void Diagram::addItem(QGraphicsItem *item)
 			m_project->dataBase()->addConductor(conductor);
 			break;
 		}
+		case PipeLine::Type:
+		{
+				//Back on its nozzles, as a conductor on its terminals
+			static_cast<PipeLine *>(item)->claimTerminals();
+			break;
+		}
 		case QetShapeItem::Type:
 		case IndependentTextItem::Type:
 		case DiagramImageItem::Type:
@@ -2842,6 +2849,12 @@ void Diagram::removeItem(QGraphicsItem *item)
 			conductor->terminal1->removeConductor(conductor);
 			conductor->terminal2->removeConductor(conductor);
 			m_project->dataBase()->removeConductor(conductor);
+			break;
+		}
+		case PipeLine::Type:
+		{
+				//Frees its nozzles, and remembers them for an undo
+			static_cast<PipeLine *>(item)->releaseTerminals();
 			break;
 		}
 		case QetShapeItem::Type:

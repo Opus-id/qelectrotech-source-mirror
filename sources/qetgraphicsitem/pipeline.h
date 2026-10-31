@@ -107,6 +107,14 @@ class PipeLine : public QGraphicsObject
 			/// Puts the attached ends back on their terminals, which have
 			/// moved: called by the terminals (Terminal::updateConductor())
 		void updateFromTerminals();
+			/// Frees the nozzles while the pipe line is off the folio, yet
+			/// remembers them, as a removed conductor remembers its terminals:
+			/// called by Diagram::removeItem()
+		void releaseTerminals();
+			/// Takes back the nozzles it remembers when it comes back on the
+			/// folio; an end whose nozzle was taken meanwhile is left loose:
+			/// called by Diagram::addItem()
+		void claimTerminals();
 
 			/// The corners of the path, from the start to the end, both
 			/// included

@@ -675,6 +675,9 @@ void DiagramView::cut()
 {
 	copy();
 	DiagramContent cut_content(m_diagram);
+		//A pipe line is not copied yet: cut, it would be lost on paste.
+		//It stays on the folio, left loose where it was on a cut symbol.
+	cut_content.m_pipes.clear();
 		//A cable line is not held by DiagramContent: it leaves with a
 		//command of its own, which takes the cable itself away too when
 		//no line of it is left on the folio.

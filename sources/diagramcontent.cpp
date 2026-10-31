@@ -27,6 +27,7 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/elementtextitemgroup.h"
 #include "qetgraphicsitem/independenttextitem.h"
+#include "qetgraphicsitem/pipeline.h"
 #include "qetgraphicsitem/qetshapeitem.h"
 #include "qetgraphicsitem/terminal.h"
 #include "TerminalStrip/GraphicsItem/terminalstripitem.h"
@@ -93,6 +94,7 @@ DiagramContent::DiagramContent(Diagram *diagram, bool selected) :
 			}
 			case QetGraphicsTableItem::Type: { m_tables << qgraphicsitem_cast<QetGraphicsTableItem *>(item); break;}
 			case TerminalStripItem::Type : {m_terminal_strip << qgraphicsitem_cast<TerminalStripItem *>(item); break;}
+			case PipeLine::Type:           { m_pipes << qgraphicsitem_cast<PipeLine *>(item); break;}
 		}
 	}
 		
@@ -206,7 +208,8 @@ bool DiagramContent::hasDeletableItems() const
 			|| qgi->type() == DiagramImageItem::Type
 			|| qgi->type() == DynamicElementTextItem::Type
 			|| qgi->type() == QetGraphicsTableItem::Type
-			|| qgi->type() == TerminalStripItem::Type)
+			|| qgi->type() == TerminalStripItem::Type
+			|| qgi->type() == PipeLine::Type)
 			return true;
 		if(qgi->type() == QGraphicsItemGroup::Type)
 			if(dynamic_cast<ElementTextItemGroup *>(qgi))
@@ -247,6 +250,7 @@ void DiagramContent::clear()
 	m_selected_items.clear();
 	m_tables.clear();
 	m_terminal_strip.clear();
+	m_pipes.clear();
 }
 
 /**
@@ -387,7 +391,11 @@ DiagramContent &DiagramContent::operator+=(const DiagramContent &other)
 	for (auto table : other.m_tables)
 		if (!m_tables.contains(table))
 			m_tables << table;
-	
+
+	for (PipeLine *pipe : other.m_pipes)
+		if (!m_pipes.contains(pipe))
+			m_pipes << pipe;
+
 	return *this;
 }
 
@@ -466,6 +474,7 @@ QList<QGraphicsItem *> DiagramContent::items(int filter) const
 	if (filter & TextGroup)			for(auto qgi : m_texts_groups)  items_list << qgi;
 	if (filter & Tables)            for(auto qgi : m_tables)        items_list << qgi;
 	if (filter & TerminalStrip)     for(const auto qgi : std::as_const(m_terminal_strip)) items_list << qgi;
+	if (filter & Pipes)             for(auto qgi : m_pipes)         items_list << qgi;
 
 	if (filter & SelectedOnly) {
 		for(const auto &qgi : std::as_const(items_list)) {
@@ -495,6 +504,7 @@ int DiagramContent::count(int filter) const
 		if (filter & TextGroup)          for(auto etig      : m_texts_groups)         { if (etig      -> isSelected()) ++ count; }
 		if (filter & Tables)             for(auto table     : m_tables)               { if (table     -> isSelected()) ++ count;  }
 		if (filter & TerminalStrip)      for(const auto &strip : std::as_const(m_terminal_strip)) {if (strip->isSelected()) ++ count;}
+		if (filter & Pipes)              for(auto pipe      : m_pipes)                { if (pipe      -> isSelected()) ++ count; }
 	}
 	else {
 		if (filter & Elements)           count += m_elements.count();
@@ -508,6 +518,7 @@ int DiagramContent::count(int filter) const
 		if (filter & TextGroup)			 count += m_texts_groups.count();
 		if (filter & Tables)             count += m_tables.count();
 		if (filter & TerminalStrip)      count += m_terminal_strip.count();
+		if (filter & Pipes)              count += m_pipes.count();
 	}
 	return(count);
 }
@@ -529,8 +540,7 @@ QString DiagramContent::sentence(int filter) const
 	int elmt_text_count  = (filter & ElementTextFields) ? m_element_texts.count() : 0;
 	int tables_count     = (filter & Tables) ? m_tables.count() : 0;
 	const int strip_count = (filter & TerminalStrip) ? m_terminal_strip.count() : 0;
-	return(
-		QET::ElementsAndConductorsSentence(
+	QString text = QET::ElementsAndConductorsSentence(
 			elements_count,
 			conductors_count,
 			textfields_count,
@@ -538,9 +548,17 @@ QString DiagramContent::sentence(int filter) const
 			shapes_count,
 			elmt_text_count,
 			tables_count,
-			strip_count
-		)
-	);
+			strip_count);
+
+		//The pipe lines of a P&ID, after the rest: not one of the words
+		//of QET::ElementsAndConductorsSentence(), shared with the electrical
+		//items and their translations
+	const int pipes_count = (filter & Pipes) ? m_pipes.count() : 0;
+	if (pipes_count) {
+		const QString pipes = QObject::tr("%n pipe line(s)", "part of a sentence listing some items of a diagram", pipes_count);
+		text = text.isEmpty() ? pipes : QObject::tr("%1 and %2", "items of a diagram, then pipe lines").arg(text, pipes);
+	}
+	return text;
 }
 
 /**

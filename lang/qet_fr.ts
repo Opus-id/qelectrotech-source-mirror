@@ -17635,6 +17635,21 @@ Voulez-vous la remplacer ?</translation>
         <source>Change the type of an element</source>
         <translation>Changer le type d&apos;un élément</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../sources/diagramcontent.cpp" line="560"/>
+        <source>%n pipe line(s)</source>
+        <comment>part of a sentence listing some items of a diagram</comment>
+        <translation>
+            <numerusform>%n tuyauterie</numerusform>
+            <numerusform>%n tuyauteries</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramcontent.cpp" line="561"/>
+        <source>%1 and %2</source>
+        <comment>items of a diagram, then pipe lines</comment>
+        <translation>%1 et %2</translation>
+    </message>
     <message>
         <location filename="../sources/TerminalStrip/UndoCommand/bridgeterminalscommand.cpp" line="28"/>
         <source>Bridging terminals together</source>

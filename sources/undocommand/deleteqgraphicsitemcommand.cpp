@@ -29,6 +29,7 @@
 #include "../qetgraphicsitem/dynamicelementtextitem.h"
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/elementtextitemgroup.h"
+#include "../qetgraphicsitem/pipeline.h"
 #include "../shownkinds.h"
 #include "../qetgraphicsitem/terminal.h"
 #include "addelementtextcommand.h"
@@ -330,6 +331,15 @@ void DeleteQGraphicsItemCommand::undo()
 	for(QGraphicsItem *item : m_removed_contents.items())
 		m_diagram->addItem(item);
 
+		//The pipe lines left loose by the removed symbols, back on their
+		//nozzles (a removed pipe line took back its own in addItem())
+	for (const PipeAttachment &a : std::as_const(m_pipe_attachments)) {
+		if (a.pipe && a.terminal) {
+			a.pipe->attach(a.start ? PipeLine::Side::Start : PipeLine::Side::End,
+				       a.terminal);
+		}
+	}
+
 		//We relink element after every element was added to diagram
 	for(Element *e : m_removed_contents.m_elements)
 		for(Element *elmt : m_link_hash[e])
@@ -411,6 +421,23 @@ void DeleteQGraphicsItemCommand::redo()
 		if (!m_table_scene_hash.value(table).isNull()) {
 			m_table_scene_hash.value(table)->removeItem(table);
 		}
+	}
+
+		//A pipe line is not removed with the symbol it is attached to, as
+		//its wires are: it stays on the folio with a loose end. One that is
+		//removed too keeps its nozzles itself (Diagram::removeItem()).
+	m_pipe_attachments.clear();
+	for (Element *e : m_removed_contents.m_elements) {
+		for (Terminal *t : e->terminals()) {
+			for (PipeLine *pipe : t->pipes()) {
+				if (m_removed_contents.m_pipes.contains(pipe)) continue;
+				m_pipe_attachments.append(
+					{pipe, t, pipe->terminal(PipeLine::Side::Start) == t});
+			}
+		}
+	}
+	for (const PipeAttachment &a : std::as_const(m_pipe_attachments)) {
+		a.pipe->detach(a.start ? PipeLine::Side::Start : PipeLine::Side::End);
 	}
 
 	for(QGraphicsItem *item : m_removed_contents.items())

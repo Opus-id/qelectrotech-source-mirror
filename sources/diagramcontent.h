@@ -36,6 +36,7 @@ class Diagram;
 class DiagramTextItem;
 class QetGraphicsTableItem;
 class TerminalStripItem;
+class PipeLine;
 
 /**
 	This class provides a container that makes the transmission of diagram content
@@ -67,8 +68,12 @@ class DiagramContent
 			TextGroup = 256,
 			Tables = 512,
 			TerminalStrip = 1024,
-			All = 2047,
-			SelectedOnly = 2048
+			SelectedOnly = 2048,
+				/// The pipe lines of a P&ID. Selected, deleted and undone
+				/// like the other items, but never moved: their ends follow
+				/// the nozzles they are attached to.
+			Pipes = 4096,
+			All = 2047 | Pipes
 		};
 		
 		QList<Element *> m_elements;
@@ -84,6 +89,7 @@ class DiagramContent
 		QVector<QetGraphicsTableItem *> m_tables;
 		QVector<TerminalStripItem *> m_terminal_strip;
 		QVector<QPointer<TerminalElement>> m_terminal_elements;
+		QList<PipeLine *> m_pipes;
 
 		
 		QList<DiagramTextItem *> selectedTexts() const;
