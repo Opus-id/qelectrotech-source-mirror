@@ -23,6 +23,7 @@
 #include "../ElementsCollection/elementslocation.h"
 #include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../cli_export.h"
+#include "../dataBase/qetdbfile.h"
 #include "../diagram.h"
 #include "../bomexport.h"
 #include "../cablelist/cablelistrows.h"
@@ -102,6 +103,10 @@
 #include <QDir>
 #include <QDomDocument>
 #include <QFileInfo>
+#include "../cable/addcablecommand.h"
+#include "../cable/cable.h"
+#include "../cable/cablemanager.h"
+#include "../cable/cablepart.h"
 #include <QFont>
 #include <QImage>
 #include <QPixmap>
@@ -396,6 +401,22 @@ bool QetScriptApi::setTitleBlock(const QString &output, const QStringList &assig
 }
 
 /**
+	@brief QetScriptApi::saveFromDatabase
+	Write @p output from the project database alone (QET-SQL-FORMAT S3z1).
+	@return false if the database could not be copied or the file written
+*/
+bool QetScriptApi::saveFromDatabase(const QString &output)
+{
+	if (!m_project || output.isEmpty()) return false;
+	QString error;
+	if (!m_project->dataBase()->writeProjectFromDatabase(output, &error)) {
+		log(QStringLiteral("qet.saveFromDatabase: %1").arg(error));
+		return false;
+	}
+	return true;
+}
+
+/**
 	@brief QetScriptApi::save
 	Write this project's own current in-memory state -- unlike every export
 	method above, this does NOT go through runFlag()/CLIExport::run(): that
@@ -417,6 +438,8 @@ bool QetScriptApi::setTitleBlock(const QString &output, const QStringList &assig
 	the project's own filePath() or read-only state, the same way "Save As"
 	targeting a writable location is allowed even for a project opened
 	read-only.
+	An output path ending in .qetdb is written as one, keeping the history
+	the project's file keeps (QETProject::writeDatabaseFile()).
 	@param output path to write to; the project's own file path if empty
 	@return false if there is no output path to use, or the write failed
 */
@@ -452,7 +475,9 @@ bool QetScriptApi::save(const QString &output)
 	}
 
 	QString error_message;
-	if (QETProject::isContainerPath(output)
+	if (QetDbFile::isDatabasePath(output)
+			? !m_project->writeDatabaseFile(output, &error_message)
+			: QETProject::isContainerPath(output)
 			? !m_project->writeContainerFile(output, &error_message)
 			: ![&]() { QDomDocument xml_doc(m_project->toXml());
 					   return QET::writeXmlFile(xml_doc, output, &error_message); }()) {
@@ -2262,6 +2287,108 @@ int QetScriptApi::addShape(int folioIndex, const QString &type,
 	return sortedShapes(folioIndex).indexOf(shape);
 }
 
+/**
+	@brief QetScriptApi::addCable
+	Draw a cable across conductors, as the cable tool does: the line from
+	(x1, y1) to (x2, y2) on the folio becomes the cable's trunk, every
+	conductor it crosses gets the next core, in order along the line, and
+	with it the colour @p coreColors lists at that place. The cable is a
+	new one, named @p designation (the next free name when empty), of
+	type @p type, as long as @p length says. One undo step, through the
+	same AddCableCommand the tool pushes.
+	A conductor another cable already holds is not taken away from it:
+	the call is refused instead, since a script cannot be asked, as the
+	tool's dialog asks, whether to move it.
+	@return the cable's uuid, or an empty string
+*/
+QString QetScriptApi::addCable(int folioIndex, const QString &designation,
+							   const QString &type, const QStringList &coreColors,
+							   const QString &length,
+							   double x1, double y1, double x2, double y2)
+{
+	if (!m_project) return QString();
+	if (m_project->isReadOnly()) {
+		log(QStringLiteral("qet.addCable: project is read-only"));
+		return QString();
+	}
+	const QList<Diagram *> diagrams = m_project->folios();
+	if (folioIndex < 0 || folioIndex >= diagrams.count()) return QString();
+	Diagram *diagram = built(diagrams.at(folioIndex));
+
+	const QLineF line(QPointF(x1, y1), QPointF(x2, y2));
+	const QList<CableCrossing> crossings = CableManager::crossedConductors(diagram, line);
+	if (crossings.isEmpty()) {
+		log(QStringLiteral("qet.addCable: the line crosses no conductor"));
+		return QString();
+	}
+	for (const CableCrossing &crossing : crossings) {
+		if (crossing.conductor && !crossing.conductor->properties().m_cable_uuid.isNull()) {
+			log(QStringLiteral("qet.addCable: a crossed conductor already belongs to a cable"));
+			return QString();
+		}
+	}
+
+	Cable *cable = m_project->newCable();
+	cable->setType(type);
+	cable->setCoreCount(qMax(int(coreColors.size()), int(crossings.size())));
+	cable->setCoreColors(coreColors);
+	cable->setLength(length);
+	if (designation.trimmed().isEmpty()) {
+		cable->setDesignation(CableManager::nextDesignation(m_project, diagram));
+	} else {
+		cable->setDesignation(designation.trimmed());
+		cable->setDesignationByHand(true);
+	}
+
+	CablePartData part;
+	part.uuid = QUuid::createUuid();
+	part.diagram = diagram->uuid();
+	part.p1 = line.p1();
+	part.p2 = line.p2();
+	cable->addPart(part);
+
+	int core_number = 0;
+	for (const CableCrossing &crossing : crossings)
+	{
+		Conductor *conductor = crossing.conductor;
+		if (!conductor) continue;
+		CableManager::claimConductor(m_project, conductor, cable);
+			//A cable binds a conductor by its identity (@see
+			//CableCreateDialog::assignCrossings)
+		conductor->setUuid(conductor->uuid());
+		CableCore core;
+		core.core = core_number++;
+		core.part = part.uuid;
+		core.conductor = conductor->uuid();
+		core.position = crossing.position;
+		cable->setCore(core);
+	}
+
+	auto *item = new CablePart(part);
+	item->setCable(cable);
+	diagram->addItem(item);
+	m_project->undoStack()->push(new AddCableCommand(cable, item, diagram, true));
+	return cable->uuid().toString();
+}
+
+/**
+	@brief QetScriptApi::cables
+	@return one line per cable of the project: designation, type, cores
+	used of cores, length and uuid
+*/
+QStringList QetScriptApi::cables() const
+{
+	QStringList out;
+	if (!m_project) return out;
+	for (Cable *cable : m_project->cables()) {
+		out << QStringLiteral("%1: %2, %3/%4 cores, %5 %6")
+				.arg(cable->designation(), cable->type())
+				.arg(cable->usedCoreCount()).arg(cable->coreCount())
+				.arg(cable->length(), cable->uuid().toString());
+	}
+	return out;
+}
+
 namespace {
 const QStringList &shapePropertyNames()
 {
@@ -3208,8 +3335,9 @@ bool QetScriptApi::bridgeTerminals(int stripIndex, const QVariantList &realTermi
 
 /**
 	@brief QetScriptApi::sortTerminalStrip
-	Reorder a strip's physical positions into the canonical order the
-	editor's own "sort" button computes, through SortTerminalStripCommand.
+	Reorder a strip's physical positions into the order the plan is
+	drawn in -- folio by folio, then left to right -- the same
+	SortTerminalStripCommand the editor's own "sort" button pushes.
 */
 bool QetScriptApi::sortTerminalStrip(int stripIndex)
 {
@@ -4254,8 +4382,9 @@ bool QetScriptApi::useElementAutoNum(const QString &name)
 	right after placing one.
 
 	Refused where setUpFormula() would do nothing, rather than reporting
-	success: a slave or a report takes its label from its master, and with no
-	current context there is no formula to apply.
+	success: a slave or a report takes its label from its master, a
+	conductor definition labels a wire rather than naming an item, and
+	with no current context there is no formula to apply.
 */
 bool QetScriptApi::numberElement(int folioIndex, const QString &elementUuid)
 {
@@ -4267,8 +4396,8 @@ bool QetScriptApi::numberElement(int folioIndex, const QString &elementUuid)
 	}
 	Element *element = findElement(folioIndex, elementUuid);
 	if (!element) return false;
-	if (element->linkType() == Element::Slave || (element->linkType() & Element::AllReport)) {
-		log(QStringLiteral("qet.%1: a slave or a report takes its label from its master").arg(caller));
+	if (!element->takesSchemeNumber()) {
+		log(QStringLiteral("qet.%1: a slave, a report or a conductor definition takes no number from a scheme").arg(caller));
 		return false;
 	}
 	if (m_project->elementAutoNumCurrentFormula().isEmpty()) {
@@ -4822,6 +4951,7 @@ bool QetScriptApi::setConductorDefault(int folioIndex, const QString &property, 
 		return true;
 	}
 	diagram->defaultConductorProperties = new_p;
+	diagram->queueValuesStore();
 	// Show or hide the conductor texts now, as the Folio properties dialog
 	// does (DiagramPropertiesDialog), or an export later in this run would
 	// draw them as they were.

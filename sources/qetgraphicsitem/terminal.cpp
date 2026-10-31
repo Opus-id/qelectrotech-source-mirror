@@ -19,6 +19,7 @@
 #include "../ElementsCollection/terminaluuids.h"
 #include "../qet.h"
 #include "../qetproject.h"
+#include "../dataBase/projectdatabase.h"
 #include "../conductorautonumerotation.h"
 #include "../diagram.h"
 #include "../undocommand/addgraphicsobjectcommand.h"
@@ -686,7 +687,7 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 	if (use_properties)
 	{
 		Conductor *other = conductors_list.values().first();
-		new_conductor->rSequenceNum() = other->sequenceNum();
+		new_conductor->replaceSequenceNum(other->sequenceNum());
 		new_conductor->setProperties(others_properties);
 	}
 	else
@@ -1116,8 +1117,10 @@ QList<Terminal *> relatedPotentialTerminal (
 			//folio is; not while folios are being read or built, which
 			//would build whole report chains
 		Element *report = terminal->parentElement();
-		const QSet<QUuid> waiting = report->pendingLinks();
 		QETProject *project = report->diagram() ? report->diagram()->project() : nullptr;
+		const QSet<QUuid> waiting = project && project->unloadedFolioCount()
+				? project->dataBase()->waitingPartners(report->uuid(), project->symbolsOnUnbuiltFolios())
+				: QSet<QUuid>();
 		if (!waiting.isEmpty() && project
 				&& project->state() != QETProject::ProjectParsingRunning) {
 			project->buildFoliosHoldingSymbols(waiting);

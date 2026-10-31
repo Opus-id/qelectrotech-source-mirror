@@ -173,6 +173,10 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/container/qetcontainer.h
   ${QET_DIR}/sources/container/qetzip.cpp
   ${QET_DIR}/sources/container/qetzip.h
+  ${QET_DIR}/sources/container/qetzreader.cpp
+  ${QET_DIR}/sources/container/qetzreader.h
+  ${QET_DIR}/sources/container/qetzwriter.cpp
+  ${QET_DIR}/sources/container/qetzwriter.h
   ${QET_DIR}/sources/borderproperties.cpp
   ${QET_DIR}/sources/borderproperties.h
   ${QET_DIR}/sources/bordertitleblock.cpp
@@ -196,6 +200,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductornumexport.h
   ${QET_DIR}/sources/bomexport.cpp
   ${QET_DIR}/sources/bomexport.h
+  ${QET_DIR}/sources/conductordashpattern.cpp
+  ${QET_DIR}/sources/conductordashpattern.h
   ${QET_DIR}/sources/conductorprofile.cpp
   ${QET_DIR}/sources/conductorprofile.h
   ${QET_DIR}/sources/conductorproperties.cpp
@@ -341,6 +347,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/titleblocktemplate.h
   ${QET_DIR}/sources/titleblocktemplaterenderer.cpp
   ${QET_DIR}/sources/titleblocktemplaterenderer.h
+  ${QET_DIR}/sources/projectorigin.cpp
+  ${QET_DIR}/sources/projectorigin.h
 
   ${QET_DIR}/sources/autoNum/assignvariables.cpp
   ${QET_DIR}/sources/autoNum/assignvariables.h
@@ -379,7 +387,18 @@ set(QET_SRC_FILES
 
   ${QET_DIR}/sources/dataBase/legacyelementtypes.h
   ${QET_DIR}/sources/dataBase/projectdatabase.cpp
+  ${QET_DIR}/sources/dataBase/projectdatabasewriter.cpp
   ${QET_DIR}/sources/dataBase/projectdatabase.h
+  ${QET_DIR}/sources/dataBase/workingcopyrecovery.cpp
+  ${QET_DIR}/sources/dataBase/workingcopyrecovery.h
+  ${QET_DIR}/sources/dataBase/qetdbfile.cpp
+  ${QET_DIR}/sources/dataBase/projectdatabaseadopt.cpp
+  ${QET_DIR}/sources/dataBase/qetdbfile.h
+  ${QET_DIR}/sources/dataBase/qetparity.cpp
+  ${QET_DIR}/sources/dataBase/qetparity.h
+  ${QET_DIR}/sources/dataBase/conductorlayout.h
+  ${QET_DIR}/sources/dataBase/conductorpath.h
+  ${QET_DIR}/sources/dataBase/elementplacement.h
   ${QET_DIR}/sources/dataBase/sqlreadonly.cpp
   ${QET_DIR}/sources/dataBase/sqlreadonly.h
 
@@ -390,6 +409,8 @@ set(QET_SRC_FILES
 
   ${QET_DIR}/sources/autobreakconductor.cpp
   ${QET_DIR}/sources/autobreakconductor.h
+  ${QET_DIR}/sources/symboltextplacement.cpp
+  ${QET_DIR}/sources/symboltextplacement.h
 
   ${QET_DIR}/sources/diagramevent/diagrameventaddelement.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddelement.h
@@ -591,6 +612,8 @@ set(QET_SRC_FILES
 
   ${QET_DIR}/sources/qetgraphicsitem/conductor.cpp
   ${QET_DIR}/sources/qetgraphicsitem/conductor.h
+  ${QET_DIR}/sources/qetgraphicsitem/conductordefinitionmark.cpp
+  ${QET_DIR}/sources/qetgraphicsitem/conductordefinitionmark.h
   ${QET_DIR}/sources/qetgraphicsitem/pipeline.cpp
   ${QET_DIR}/sources/qetgraphicsitem/pipeline.h
   ${QET_DIR}/sources/qetgraphicsitem/conductortextitem.cpp
@@ -690,6 +713,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/titleblock/qettemplateeditor.h
   ${QET_DIR}/sources/titleblock/splittedhelpercell.cpp
   ${QET_DIR}/sources/titleblock/splittedhelpercell.h
+  ${QET_DIR}/sources/titleblock/titleblockbulkformat.cpp
+  ${QET_DIR}/sources/titleblock/titleblockbulkformat.h
   ${QET_DIR}/sources/titleblock/templatecellsset.cpp
   ${QET_DIR}/sources/titleblock/templatecellsset.h
   ${QET_DIR}/sources/titleblock/templatecellwidget.cpp
@@ -722,6 +747,10 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/TerminalStrip/terminalstripbridge.h
   ${QET_DIR}/sources/TerminalStrip/terminalstrip.cpp
   ${QET_DIR}/sources/TerminalStrip/terminalstrip.h
+  ${QET_DIR}/sources/TerminalStrip/terminalstriplabels.cpp
+  ${QET_DIR}/sources/TerminalStrip/terminalstriplabels.h
+  ${QET_DIR}/sources/TerminalStrip/terminalstripautoimport.cpp
+  ${QET_DIR}/sources/TerminalStrip/terminalstripautoimport.h
   ${QET_DIR}/sources/TerminalStrip/terminalstripdata.cpp
   ${QET_DIR}/sources/TerminalStrip/terminalstripdata.h
   ${QET_DIR}/sources/TerminalStrip/ui/addterminalstripitemdialog.cpp
@@ -1111,6 +1140,7 @@ set(TS_FILES
   ${QET_DIR}/lang/qet_it.ts
   ${QET_DIR}/lang/qet_ja.ts
   ${QET_DIR}/lang/qet_ko.ts
+  ${QET_DIR}/lang/qet_lv.ts
   ${QET_DIR}/lang/qet_mn.ts
   ${QET_DIR}/lang/qet_nb.ts
   ${QET_DIR}/lang/qet_nl.ts

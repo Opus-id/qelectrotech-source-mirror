@@ -404,6 +404,10 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE bool exportInfo(const QString &output);
 		Q_INVOKABLE bool setTitleBlock(const QString &output, const QStringList &assignments);
 		Q_INVOKABLE bool save(const QString &output);
+			/// Write @p output from the project database alone, read back
+			/// from a copy of it (QET-SQL-FORMAT S3z1): a test of whether
+			/// the database holds the whole project
+		Q_INVOKABLE bool saveFromDatabase(const QString &output);
 
 		// -- edit geometry, through the real undo commands --
 		Q_INVOKABLE QString addElement(int folioIndex, const QString &locationPath, double x, double y);
@@ -489,6 +493,13 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE bool setTextColor(int folioIndex, int textIndex, const QString &color);
 		Q_INVOKABLE bool setTextRotation(int folioIndex, int textIndex, double angle);
 		Q_INVOKABLE bool deleteText(int folioIndex, int textIndex);
+
+		// -- cables --
+		Q_INVOKABLE QString addCable(int folioIndex, const QString &designation,
+									 const QString &type, const QStringList &coreColors,
+									 const QString &length,
+									 double x1, double y1, double x2, double y2);
+		Q_INVOKABLE QStringList cables() const;
 
 		Q_INVOKABLE QStringList shapes(int folioIndex) const;
 		Q_INVOKABLE int shapeIndex(int folioIndex, const QString &uuid) const;

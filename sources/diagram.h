@@ -30,6 +30,8 @@
 #include <QPointer>
 #include <QUuid>
 #include <QtWidgets>
+
+#include <functional>
 #include <QtXml>
 
 class Conductor;
@@ -39,6 +41,7 @@ class DiagramContent;
 class DiagramPosition;
 class DiagramTextItem;
 class Element;
+class Terminal;
 class ElementsLocation;
 class DiagramImageItem;
 class DiagramEventInterface;
@@ -162,9 +165,36 @@ class Diagram : public QGraphicsScene
 
 		bool uuidUsedByOtherDiagram(const QUuid &uuid) const;
 		QUuid derivedUuid(const QDomElement &root, const QString &reason) const;
+	public:
+		static QUuid derivedUuid(const QString &reason, const QString &project_title,
+								 int index, const QString &title,
+								 const std::function<bool(const QUuid &)> &used);
+	private:
 
 			//Wires of the loaded file whose ends could not be found
 		QStringList m_wires_not_reconnected;
+			//Symbols of the loaded file that could not be built
+		QStringList m_symbols_not_loaded;
+
+			//What the folio could not load, written back as it was read
+			//(F127, F128): symbols whose definition is missing, and wires
+			//to a terminal not found
+		struct KeptWire {
+			QDomElement xml;
+			QPointer<Terminal> end[2]; ///< an end found, null if not
+			bool found[2] = {false, false};
+			QUuid element[2];          ///< an end not found: its symbol
+			QUuid terminal[2];         ///< and its terminal
+			bool as_read = false;      ///< no end can be read: written unchanged
+		};
+		QDomDocument m_kept_document;
+		QList<QDomElement> m_kept_symbols;
+		QList<KeptWire> m_kept_wires;
+		QUuid derivedSymbolUuid(const QDomElement &element_xml) const;
+		void keepWire(const QDomElement &wire, Terminal *found1, Terminal *found2,
+					  const QList<QPair<QUuid, QDomElement>> &symbols);
+		void writeKept(QDomDocument &document, QDomElement &elements,
+					   QDomElement &conductors, const QHash<Terminal *, int> &table_adr_id) const;
 
 	// METHODS
 	protected:
@@ -189,6 +219,8 @@ class Diagram : public QGraphicsScene
 		void restoreText(Element* elmt);
 		QUuid uuid();
 		QStringList wiresNotReconnected() const;
+		QStringList symbolsNotLoaded() const;
+		QSet<QUuid> keptSymbolUuids() const;
 		void setEventInterface (DiagramEventInterface *event_interface);
 		void clearEventInterface();
 
@@ -213,6 +245,12 @@ class Diagram : public QGraphicsScene
 		// methods related to XML import/export
 		QDomDocument toXml(bool wholeContent = true, bool is_copy_command = false);
 		void writeHeader(QDomDocument &document, QDomElement &dom_root);
+		void appendValuesXml(QDomDocument &document, QDomElement &dom_root) const;
+			/// What this folio saves that no other table of the project
+			/// database holds, in a <diagram> made in @p document
+		QDomElement ownValuesXml(QDomDocument &document) const;
+		void queueValuesStore();
+		QList<QDomElement> keptXml(QDomDocument &document) const;
 		bool initFromXml(QDomElement &,
 				 QPointF = QPointF(),
 				 bool = true,
@@ -220,7 +258,7 @@ class Diagram : public QGraphicsScene
 			/// false while this folio's items wait in its XML to be
 			/// built (lazy folios)
 		bool isLoaded() const {return m_deferred.isNull();}
-		QDomElement deferredXml() const {return m_deferred;}
+		QDomElement deferredXml() const;
 			/// The part @p file of the .qetz the project was opened from
 			/// holds this folio as it is while not built: saving may copy it
 			/// (QETProject::toXml(), stage D4)
@@ -272,7 +310,9 @@ class Diagram : public QGraphicsScene
 					     const QString&,
 					     const QString&,
 					     const QString&,
-					     const QString&);
+					     const QString&,
+					     const QString &owner = QString(),
+					     const QString &level = QString());
 	
 		void refreshContents();
 	
@@ -296,6 +336,11 @@ class Diagram : public QGraphicsScene
 		BorderOptions borderOptions();
 		DiagramPosition convertPosition(const QPointF &);
 		static QPointF snapToGrid(const QPointF &p);
+			/// Snap to the grid on (the default) or off: off, snapToGrid()
+			/// gives the nearest point, as with Ctrl held. Kept in the
+			/// settings.
+		static bool gridSnap();
+		static void setGridSnap(bool snap);
 		static QPointF snapToTextGrid(const QPointF &p);
 	
 		bool drawTerminals() const;
@@ -351,7 +396,8 @@ class Diagram : public QGraphicsScene
 		void insertFolioSeqHash (QHash<QString, QStringList> *hash,
 					 const QString& title,
 					 const QString& seq,
-					 NumerotationContext *nc);
+					 NumerotationContext *nc,
+					 const QString &owner = QString());
 		void loadFolioSeqHash (QHash<QString, QStringList> *hash,
 				       const QString& title, const QString& seq,
 				       NumerotationContext *nc);

@@ -19,6 +19,7 @@
 #include "qetcontainerdb.h"
 
 #include <QCryptographicHash>
+#include <functional>
 #include <QHash>
 #include <QMap>
 #include <QSet>
@@ -243,6 +244,28 @@ bool QetContainer::ownUuids(const QDomElement &project)
 }
 
 /**
+	@brief QetContainer::embeddedDefinitions
+	@return the paths of the symbol definitions the project @p project
+	holds in its collection, as a symbol's type names them after embed://
+*/
+QSet<QString> QetContainer::embeddedDefinitions(const QDomElement &project)
+{
+	QSet<QString> paths;
+	std::function<void(const QDomElement &, const QString &)> walk =
+			[&](const QDomElement &category, const QString &path) {
+		for (QDomElement child = category.firstChildElement() ; !child.isNull() ;
+			 child = child.nextSiblingElement()) {
+			const QString name = path + child.attribute(QStringLiteral("name"));
+			if (child.tagName() == QLatin1String("category")) walk(child, name + QLatin1Char('/'));
+			else if (child.tagName() == QLatin1String("element")) paths.insert(name);
+		}
+	};
+	for (const QDomElement &collection : childElements(project, QStringLiteral("collection")))
+		walk(collection, QString());
+	return paths;
+}
+
+/**
 	@brief QetContainer::dropComputed
 	Take out of the folio @p diagram what QElectroTech computes when it
 	builds the folio (stage D3c): a wire's description of
@@ -253,19 +276,39 @@ bool QetContainer::ownUuids(const QDomElement &project)
 	list of its terminals. Checked on 342 projects: opened and saved, each
 	comes back as it was, but the terminal lists of a file whose symbols
 	share a uuid (F100), where wires find their ends by them.
+	Nothing is taken from a symbol whose definition is not among
+	@p defined (embeddedDefinitions()), nor from a wire ending on one:
+	QElectroTech cannot build that symbol, keeps it as read and saves it
+	back (F127), so nothing of it would be computed again.
 */
-void QetContainer::dropComputed(QDomElement diagram, bool terminal_lists)
+void QetContainer::dropComputed(QDomElement diagram, bool terminal_lists,
+								const QSet<QString> &defined)
 {
+	QSet<QString> undefined;
+	for (const QDomElement &list : childElements(diagram, QStringLiteral("elements")))
+		for (const QDomElement &element : childElements(list, QStringLiteral("element"))) {
+			const QString type = element.attribute(QStringLiteral("type"));
+			if (!type.startsWith(QLatin1String("embed://"))
+				|| !defined.contains(type.mid(int(qstrlen("embed://")))))
+				undefined.insert(element.attribute(QStringLiteral("uuid")));
+		}
 	for (QDomElement list : childElements(diagram, QStringLiteral("conductors")))
 		for (QDomElement wire : childElements(list, QStringLiteral("conductor")))
+		{
+			if (undefined.contains(wire.attribute(QStringLiteral("element1")))
+				|| undefined.contains(wire.attribute(QStringLiteral("element2"))))
+				continue;
 			for (const char *end : {"1", "2"})
 				for (const char *name : {"element%1_label", "element%1_name", "element%1_linked",
 										 "terminalname%1"})
 					wire.removeAttribute(QString::fromLatin1(name).arg(QLatin1String(end)));
+		}
 	for (QDomElement list : childElements(diagram, QStringLiteral("elements")))
 	{
 		for (QDomElement element : childElements(list, QStringLiteral("element")))
 		{
+			if (undefined.contains(element.attribute(QStringLiteral("uuid"))))
+				continue;
 			if (terminal_lists)
 				for (QDomElement terminals : childElements(element, QStringLiteral("terminals")))
 					removeElement(terminals);
@@ -341,37 +384,43 @@ QList<QetZip::Entry> QetContainer::split(const QDomDocument &project, const QStr
 	int folio = 0;
 		//Nothing QElectroTech computes is kept (format 4)
 	const bool own_uuids = ownUuids(root);
+	const QSet<QString> defined = embeddedDefinitions(root);
 	for (QDomElement diagram : childElements(root, QStringLiteral("diagram")))
-		dropComputed(diagram, own_uuids);
+		dropComputed(diagram, own_uuids, defined);
 
-		//The parts of the folios kept as they were, and their pictures
+		//The parts of the folios, in the order of the folios whether they
+		//were kept as they were or built: which folios were built must not
+		//change the file. The names of the parts kept are taken first, so a
+		//folio built cannot take one.
 	QMap<QString, QByteArray> pictures;   //name -> png, once each
-	for (QDomElement diagram : childElements(root, QStringLiteral("diagram")))
-	{
+	const QList<QDomElement> diagrams = childElements(root, QStringLiteral("diagram"));
+	for (const QDomElement &diagram : diagrams) {
 		const QString kept = diagram.attribute(QStringLiteral("qetz-kept-part"));
-		if (kept.isEmpty()) continue;
-		if (!kept_from.contains(kept)) {
-			setError(error, QStringLiteral("the part \"%1\" of a folio kept as it was is missing").arg(kept));
-			return {};
-		}
-		taken.insert(kept);
-		const QByteArray part = kept_from.value(kept);
-		static const QRegularExpression image_file(QStringLiteral("%1=\"(images/[^\"]+)\"").arg(ImageFileAttribute));
-		for (const auto &match : image_file.globalMatch(QString::fromUtf8(part))) {
-			const QString name = match.captured(1);
-			if (!kept_from.contains(name)) {
-				setError(error, QStringLiteral("the picture \"%1\" of a folio kept as it was is missing").arg(name));
-				return {};
-			}
-			pictures.insert(name, kept_from.value(name));
-		}
-		parts.append(QetZip::Entry{kept, part, true});
-		root.replaceChild(placeholder(document, kept), diagram);
+		if (!kept.isEmpty()) taken.insert(kept);
 	}
-
-	for (QDomElement diagram : childElements(root, QStringLiteral("diagram")))
+	for (QDomElement diagram : diagrams)
 	{
 		++folio;
+		const QString kept = diagram.attribute(QStringLiteral("qetz-kept-part"));
+		if (!kept.isEmpty()) {
+			if (!kept_from.contains(kept)) {
+				setError(error, QStringLiteral("the part \"%1\" of a folio kept as it was is missing").arg(kept));
+				return {};
+			}
+			const QByteArray part = kept_from.value(kept);
+			static const QRegularExpression image_file(QStringLiteral("%1=\"(images/[^\"]+)\"").arg(ImageFileAttribute));
+			for (const auto &match : image_file.globalMatch(QString::fromUtf8(part))) {
+				const QString name = match.captured(1);
+				if (!kept_from.contains(name)) {
+					setError(error, QStringLiteral("the picture \"%1\" of a folio kept as it was is missing").arg(name));
+					return {};
+				}
+				pictures.insert(name, kept_from.value(name));
+			}
+			parts.append(QetZip::Entry{kept, part, true});
+			root.replaceChild(placeholder(document, kept), diagram);
+			continue;
+		}
 		for (QDomElement images : childElements(diagram, QStringLiteral("images"))) {
 			for (QDomElement image : childElements(images, QStringLiteral("image"))) {
 				const QDomText text = image.firstChild().toText();
