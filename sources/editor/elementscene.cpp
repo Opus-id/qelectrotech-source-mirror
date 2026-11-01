@@ -517,6 +517,11 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 
 	QetVersion::toXmlAttribute(root);
 	root.setAttribute("link_type", m_element_data.typeToString(m_element_data.m_type));
+		//A symbol pipe lines run through, such as a valve (P&ID): kept as
+		//read, the editor does not change it yet
+	if (m_element_data.m_pipe_inline) {
+		root.setAttribute("pipe_inline", "true");
+	}
 
 	//Uuid used to compare two elements
 	QDomElement uuid = xml_document.createElement("uuid");

@@ -558,6 +558,26 @@ class tst_elementoptions : public QObject
 											  QStringLiteral("seal=double")}));
 		}
 
+		void theEditorKeepsASymbolInLine()
+		{
+			auto saved = [](const QString &extra) {
+				QDomDocument doc;
+				doc.setContent(QStringLiteral(
+					"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\"%1 "
+					"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+					"<names><name lang=\"en\">Valve</name></names><description>"
+					"<line x1=\"-10\" y1=\"0\" x2=\"10\" y2=\"0\" end1=\"none\" end2=\"none\" "
+					"length1=\"1.5\" length2=\"1.5\" style=\"line-weight:normal\" antialias=\"false\"/>"
+					"</description></definition>").arg(extra));
+				ElementScene scene(nullptr);
+				scene.fromXml(doc, QPointF(), true);
+				return scene.toXml().documentElement();
+			};
+			QCOMPARE(saved(QStringLiteral(" pipe_inline=\"true\"")).attribute(QStringLiteral("pipe_inline")),
+					 QStringLiteral("true"));
+			QVERIFY(!saved(QString()).hasAttribute(QStringLiteral("pipe_inline")));
+		}
+
 		void aSymbolWithoutOptionsIsSavedAsBefore()
 		{
 			QDomDocument doc;

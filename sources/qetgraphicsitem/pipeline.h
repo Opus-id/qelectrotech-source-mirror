@@ -132,6 +132,14 @@ class PipeLine : public QGraphicsObject
 			/// or detaching the end forgets it.
 		Attachment pendingAttachment(Side side) const;
 
+			/// The pipe lines of the line @p starts belong to: they and the
+			/// pipe lines reached from them through the in-line symbols
+			/// (ElementData::m_pipe_inline, two nozzles: valves, check
+			/// valves), up to an equipment, a loose end or anything else.
+			/// With @p same_diameter, the walk also stops where the next pipe
+			/// line has another nominal diameter. Nothing is changed.
+		static QList<PipeLine *> line(const QList<PipeLine *> &starts, bool same_diameter = false);
+
 			/// The corners of the path, from the start to the end, both
 			/// included
 		QList<QPointF> pathPoints() const { return m_points; }

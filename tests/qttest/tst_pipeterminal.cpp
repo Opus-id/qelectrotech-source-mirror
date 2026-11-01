@@ -16,6 +16,7 @@
 
 #include <QComboBox>
 #include <QLineEdit>
+#include <QSet>
 
 #include <QDomDocument>
 #include <QTemporaryDir>
@@ -32,13 +33,13 @@ class tst_pipeterminal : public QObject
 		// A valve 40 x 40, nozzles N1 (west) and N2 (east) of the kind
 		// @p connection ("" for an electrical symbol)
 	static QDomElement definition(QDomDocument &doc, const QString &uuid,
-				      const QString &connection)
+				      const QString &connection, bool pipe_inline = false)
 	{
 		const QString attr = connection.isEmpty()
 				? QString()
 				: QStringLiteral(" connection=\"%1\"").arg(connection);
 		doc.setContent(QStringLiteral(
-			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\"%3 "
 			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
 			"<uuid uuid=\"{%1}\"/><names><name lang=\"en\">V</name></names>"
 			"<description>"
@@ -47,13 +48,16 @@ class tst_pipeterminal : public QObject
 			"line-weight:normal;filling:none;color:black\" antialias=\"false\"/>"
 			"<terminal name=\"N1\" x=\"-10\" y=\"0\" orientation=\"w\" type=\"Generic\"%2/>"
 			"<terminal name=\"N2\" x=\"10\" y=\"0\" orientation=\"e\" type=\"Generic\"%2/>"
-			"</description></definition>").arg(uuid, attr));
+			"</description></definition>").arg(uuid, attr,
+				pipe_inline ? QStringLiteral(" pipe_inline=\"true\"") : QString()));
 		return doc.documentElement();
 	}
 
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_valve, m_wired;
+		// m_valve stands for an equipment (two nozzles, not in-line),
+		// m_inline for a valve pipe lines run through
+	ElementsLocation m_valve, m_wired, m_inline;
 
 	Element *place(const ElementsLocation &location, const QPointF &pos)
 	{
@@ -186,7 +190,12 @@ class tst_pipeterminal : public QObject
 						definition(b, "62222222-2222-2222-2222-222222222222", ""));
 			m_valve = ElementsLocation(QStringLiteral("embed://import/pipes/valve.elmt"), &m_project);
 			m_wired = ElementsLocation(QStringLiteral("embed://import/pipes/wired.elmt"), &m_project);
-			QVERIFY(m_valve.exist() && m_wired.exist());
+			QDomDocument c;
+			m_project.embeddedElementCollection()->addElementDefinition(
+						QStringLiteral("import/pipes"), QStringLiteral("inline.elmt"),
+						definition(c, "63333333-3333-3333-3333-333333333333", "pipe", true));
+			m_inline = ElementsLocation(QStringLiteral("embed://import/pipes/inline.elmt"), &m_project);
+			QVERIFY(m_valve.exist() && m_wired.exist() && m_inline.exist());
 			m_folio = m_project.addNewDiagram();
 		}
 
@@ -627,6 +636,48 @@ class tst_pipeterminal : public QObject
 				// detached, it forgets it
 			p->detach(PipeLine::Side::Start);
 			QVERIFY(p->pendingAttachment(PipeLine::Side::Start).isNull());
+		}
+
+			// ---- the whole line, through the valves ----
+		void theLineRunsThroughTheValvesUpToTheEquipment()
+		{
+				// equipment a - valve v - valve w - equipment b - equipment c
+			Element *a = place(m_valve, QPointF(100, 1000));
+			Element *v = place(m_inline, QPointF(300, 1000));
+			Element *w = place(m_inline, QPointF(500, 1000));
+			Element *b = place(m_valve, QPointF(700, 1000));
+			Element *c = place(m_valve, QPointF(900, 1000));
+			QVERIFY(a && v && w && b && c);
+			QVERIFY(v->elementData().m_pipe_inline);
+			QVERIFY(!a->elementData().m_pipe_inline);
+			PipeLine *p1 = nozzle(a, "N2")->drawPipeTo(nozzle(v, "N1"));
+			PipeLine *p2 = nozzle(v, "N2")->drawPipeTo(nozzle(w, "N1"));
+			PipeLine *p3 = nozzle(w, "N2")->drawPipeTo(nozzle(b, "N1"));
+			PipeLine *p4 = nozzle(b, "N2")->drawPipeTo(nozzle(c, "N1"));
+			QVERIFY(p1 && p2 && p3 && p4);
+
+			auto as_set = [](const QList<PipeLine *> &list) {
+				return QSet<PipeLine *>(list.cbegin(), list.cend());
+			};
+			const QSet<PipeLine *> line{p1, p2, p3};
+			QCOMPARE(as_set(PipeLine::line({p1})), line);
+			QCOMPARE(as_set(PipeLine::line({p2})), line);
+			QCOMPARE(PipeLine::line({p2}).first(), p2);
+				// the equipment b stops it
+			QCOMPARE(PipeLine::line({p4}), QList<PipeLine *>{p4});
+			QCOMPARE(as_set(PipeLine::line({p1, p4})), (QSet<PipeLine *>{p1, p2, p3, p4}));
+
+				// up to a change of diameter too
+			PipeProperties dn100, dn150;
+			dn100.nominal_diameter = 100;
+			dn150.nominal_diameter = 150;
+			p1->setProperties(dn100);
+			p2->setProperties(dn100);
+			p3->setProperties(dn150);
+			QCOMPARE(as_set(PipeLine::line({p1}, true)), (QSet<PipeLine *>{p1, p2}));
+			QCOMPARE(PipeLine::line({p3}, true), QList<PipeLine *>{p3});
+				// without it, the diameters do not matter
+			QCOMPARE(as_set(PipeLine::line({p3})), line);
 		}
 
 			// ---- the properties panel of the pipe lines ----

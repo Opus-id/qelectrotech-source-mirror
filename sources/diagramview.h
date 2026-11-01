@@ -65,6 +65,10 @@ class DiagramView : public PaletteGraphicsView
 		QAction          *m_generate_cabinet_thumbnail = nullptr;
 		QMenu            *m_folio_report_menu = nullptr;
 		QMenu            *m_change_type_menu = nullptr;
+			/// Select the whole line of the pipe lines selected (P&ID), up
+			/// to the equipment, or up to a change of nominal diameter too
+		QAction          *m_select_line = nullptr;
+		QAction          *m_select_line_same_dn = nullptr;
 		QPoint            m_paste_here_pos;
 		QPoint            m_press_pos;
 		DiagramContextToolbar *m_context_toolbar = nullptr;
@@ -203,6 +207,7 @@ class DiagramView : public PaletteGraphicsView
 		void updateFolioReportMenu();
 		void updateChangeTypeMenu();
 		void changeSelectedElementsType(const ElementsLocation &location);
+		void selectPipeLine(bool same_diameter);
 			/**
 				The menu of one single core: the right button coming down
 				on a colour label which stands on a line asks about that

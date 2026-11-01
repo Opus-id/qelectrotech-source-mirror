@@ -56,6 +56,7 @@ bool ElementData::fromXml(const QDomElement &xml_element)
 						   QStringLiteral("elementInformation"));
 	m_names_list.fromXml(xml_element);
 	m_options.fromXml(xml_element);
+	m_pipe_inline = xml_element.attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
 
 	auto xml_draw_info = xml_element.firstChildElement(QStringLiteral("informations"));
 	if(xml_draw_info.tagName() == QLatin1String("informations")) {
@@ -701,6 +702,10 @@ bool ElementData::operator==(const ElementData &data) const
 	}
 
 	if (data.m_options != m_options) {
+		return false;
+	}
+
+	if (data.m_pipe_inline != m_pipe_inline) {
 		return false;
 	}
 

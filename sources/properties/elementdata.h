@@ -339,6 +339,12 @@ class ElementData : public PropertiesInterface
 			/// What may vary on a placed element of this symbol, such as
 			/// the motor of a pump (see ElementOptions)
 		ElementOptions m_options;
+			/// A symbol a pipe line runs through, from one nozzle to the
+			/// other, such as a valve: the pipe lines on both sides are one
+			/// line (PipeLine::line()). False for an equipment, such as a
+			/// pump, which has two nozzles too. Written in the definition as
+			/// pipe_inline="true", only when set.
+		bool m_pipe_inline = false;
 
 	private:
 		ElementData::TerminalType m_override_terminal_type = ElementData::TTGeneric;

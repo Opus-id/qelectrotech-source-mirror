@@ -326,6 +326,72 @@ PipeLine::Attachment PipeLine::pendingAttachment(Side side) const
 }
 
 /**
+	@brief throughNozzle
+	@param nozzle : a nozzle a pipe line is attached to
+	@return the other nozzle of its symbol when a pipe line runs through
+	that symbol: an in-line symbol (a valve) with exactly two nozzles; else
+	nullptr
+*/
+static Terminal *throughNozzle(Terminal *nozzle)
+{
+	Element *element = nozzle ? nozzle->parentElement() : nullptr;
+	if (!element || !element->elementData().m_pipe_inline) {
+		return nullptr;
+	}
+	QList<Terminal *> nozzles;
+	for (Terminal *terminal : element->terminals()) {
+		if (terminal->connectionKind() == TerminalData::Pipe) {
+			nozzles << terminal;
+		}
+	}
+	if (nozzles.size() != 2) {
+		return nullptr;
+	}
+	return nozzles.at(0) == nozzle ? nozzles.at(1) : nozzles.at(0);
+}
+
+/**
+	@brief PipeLine::line
+	Walk from @p starts through the in-line symbols, see the declaration.
+	@param starts : the pipe lines to start from
+	@param same_diameter : stop where the nominal diameter changes too
+	@return the pipe lines found, @p starts first, each once
+*/
+QList<PipeLine *> PipeLine::line(const QList<PipeLine *> &starts, bool same_diameter)
+{
+	QList<PipeLine *> found;
+	QList<PipeLine *> to_visit;
+	for (PipeLine *pipe : starts) {
+		if (pipe && !found.contains(pipe)) {
+			found << pipe;
+			to_visit << pipe;
+		}
+	}
+	while (!to_visit.isEmpty())
+	{
+		PipeLine *pipe = to_visit.takeFirst();
+		for (Side side : {Side::Start, Side::End})
+		{
+			Terminal *other = throughNozzle(pipe->terminal(side));
+			if (!other) {
+				continue;
+			}
+			for (PipeLine *next : other->pipes())
+			{
+				if (found.contains(next)
+					|| (same_diameter && next->properties().nominal_diameter
+						!= pipe->properties().nominal_diameter)) {
+					continue;
+				}
+				found << next;
+				to_visit << next;
+			}
+		}
+	}
+	return found;
+}
+
+/**
 	@brief PipeLine::setProperties
 	Set the properties of this pipe line. Nothing is passed on to any other
 	pipe line, whatever it is connected to.

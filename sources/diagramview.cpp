@@ -70,6 +70,7 @@
 #include "genericdevice/genericdevicewizard.h"
 #include "qetapp.h"
 #include "qetgraphicsitem/element.h"
+#include "qetgraphicsitem/pipeline.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetinformation.h"
 #include "qetversion.h"
@@ -168,6 +169,13 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 
 		//Filled each time the context menu opens, see updateChangeTypeMenu()
 	m_change_type_menu = new QMenu(tr("Change type", "context menu action"), this);
+
+		//The pipe lines of a P&ID: the whole line of those selected, through
+		//the valves, for the properties panel to edit them at once
+	m_select_line = new QAction(tr("Select the line", "context menu action"), this);
+	connect(m_select_line, &QAction::triggered, this, [this]() { selectPipeLine(false); });
+	m_select_line_same_dn = new QAction(tr("Select the line (same DN)", "context menu action"), this);
+	connect(m_select_line_same_dn, &QAction::triggered, this, [this]() { selectPipeLine(true); });
 
 		//setup three separators, to be use in context menu
 	for(int i=0 ; i<3 ; ++i)
@@ -2867,6 +2875,14 @@ QList<QAction *> DiagramView::contextMenuActions() const
 				}));
 			list << m_generate_cabinet_thumbnail;
 			list << m_change_type_menu->menuAction();
+				//Disabled, and so left out below, unless a pipe line is selected
+			const bool pipe_selected = std::any_of(
+				selected_items.cbegin(), selected_items.cend(),
+				[](QGraphicsItem *qgi) { return qgi->type() == PipeLine::Type; });
+			m_select_line->setEnabled(pipe_selected);
+			m_select_line_same_dn->setEnabled(pipe_selected);
+			list << m_select_line;
+			list << m_select_line_same_dn;
 			list << qde->m_conductor_reset;
 			list << m_separators.at(1);
 			list << qde->m_selection_actions_group.actions();
@@ -3126,6 +3142,30 @@ void DiagramView::updateFolioReportMenu()
 		connect(action, &QAction::triggered, this, [this, location]() {
 			startElementPlacement(location, mapToScene(m_paste_here_pos));
 		});
+	}
+}
+
+/**
+	@brief DiagramView::selectPipeLine
+	Select the whole line of the pipe lines selected: those reached through
+	the valves, up to the equipment (PipeLine::line()), and nothing else.
+	@param same_diameter : stop where the nominal diameter changes too
+*/
+void DiagramView::selectPipeLine(bool same_diameter)
+{
+	QList<PipeLine *> starts;
+	for (QGraphicsItem *qgi : m_diagram->selectedItems()) {
+		if (auto *pipe = qgraphicsitem_cast<PipeLine *>(qgi)) {
+			starts << pipe;
+		}
+	}
+	if (starts.isEmpty()) {
+		return;
+	}
+	const QList<PipeLine *> line = PipeLine::line(starts, same_diameter);
+	m_diagram->clearSelection();
+	for (PipeLine *pipe : line) {
+		pipe->setSelected(true);
 	}
 }
 

@@ -4243,6 +4243,18 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <comment>context menu action</comment>
         <translation>Changer de type</translation>
     </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="175"/>
+        <source>Select the line</source>
+        <comment>context menu action</comment>
+        <translation>Sélectionner la ligne</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="177"/>
+        <source>Select the line (same DN)</source>
+        <comment>context menu action</comment>
+        <translation>Sélectionner la ligne (même DN)</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/diagramview.cpp" line="2530"/>
         <source>Change the type of %n element(s)</source>
