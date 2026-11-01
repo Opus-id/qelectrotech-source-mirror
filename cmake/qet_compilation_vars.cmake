@@ -906,6 +906,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/elementinfowidget.h
   ${QET_DIR}/sources/ui/elementoptionswidget.cpp
   ${QET_DIR}/sources/ui/elementoptionswidget.h
+  ${QET_DIR}/sources/ui/pipepropertieswidget.cpp
+  ${QET_DIR}/sources/ui/pipepropertieswidget.h
   ${QET_DIR}/sources/ui/multielementinfowidget.cpp
   ${QET_DIR}/sources/ui/multielementinfowidget.h
   ${QET_DIR}/sources/ui/terminalnumberingdialog.cpp
@@ -1000,6 +1002,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/undocommand/changeelementlocationcommand.h
   ${QET_DIR}/sources/undocommand/changeelementoptionscommand.cpp
   ${QET_DIR}/sources/undocommand/changeelementoptionscommand.h
+  ${QET_DIR}/sources/undocommand/changepipepropertiescommand.cpp
+  ${QET_DIR}/sources/undocommand/changepipepropertiescommand.h
   ${QET_DIR}/sources/undocommand/changeelementinformationcommand.cpp
   ${QET_DIR}/sources/undocommand/changeelementinformationcommand.h
   ${QET_DIR}/sources/undocommand/changetitleblockcommand.cpp

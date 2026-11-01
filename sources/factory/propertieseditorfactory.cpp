@@ -35,7 +35,9 @@
 #include "../qetgraphicsitem/independenttextitem.h"
 #include "../qetgraphicsitem/qetshapeitem.h"
 #include "../qetgraphicsitem/dimensionitem.h"
+#include "../qetgraphicsitem/pipeline.h"
 #include "../ui/dimensionpropertieswidget.h"
+#include "../ui/pipepropertieswidget.h"
 #include "../ui/dynamicelementtextitemeditor.h"
 #include "../ui/elementpropertieswidget.h"
 #include "../ui/conductorpropertieseditorwidget.h"
@@ -315,6 +317,19 @@ PropertiesEditorWidget *PropertiesEditorFactory::propertiesEditor(
 				return editor;
 			}
 			return new CablePropertiesEditorWidget(cable, part, parent);
+		}
+		case PipeLine::Type: //UserType + 4001, the P&ID items
+		{
+			QList<PipeLine *> pipes;
+			for (QGraphicsItem *qgi : std::as_const(items)) {
+				pipes << static_cast<PipeLine *>(qgi);
+			}
+			if (class_name == PipePropertiesWidget::staticMetaObject.className())
+			{
+				static_cast<PipePropertiesWidget *>(editor)->setPipes(pipes);
+				return editor;
+			}
+			return new PipePropertiesWidget(pipes, parent);
 		}
 		default:
 			return nullptr;

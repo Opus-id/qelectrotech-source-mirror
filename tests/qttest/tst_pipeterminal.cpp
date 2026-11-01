@@ -11,6 +11,11 @@
 #include "qetproject.h"
 #include "qetresult.h"
 #include "undocommand/deleteqgraphicsitemcommand.h"
+#include "factory/propertieseditorfactory.h"
+#include "ui/pipepropertieswidget.h"
+
+#include <QComboBox>
+#include <QLineEdit>
 
 #include <QDomDocument>
 #include <QTemporaryDir>
@@ -622,6 +627,110 @@ class tst_pipeterminal : public QObject
 				// detached, it forgets it
 			p->detach(PipeLine::Side::Start);
 			QVERIFY(p->pendingAttachment(PipeLine::Side::Start).isNull());
+		}
+
+			// ---- the properties panel of the pipe lines ----
+		void theSelectionOfPipeLinesIsEditedInThePanel()
+		{
+			PipeLine *p = pipe();
+			PipeLine *q = pipe();
+			PropertiesEditorWidget *editor = PropertiesEditorFactory::propertiesEditor(
+						QList<QGraphicsItem *>{p}, nullptr, nullptr);
+			auto *panel = qobject_cast<PipePropertiesWidget *>(editor);
+			QVERIFY(panel);
+			QCOMPARE(panel->pipes(), QList<PipeLine *>{p});
+				// another selection of pipe lines: the same panel
+			QCOMPARE(PropertiesEditorFactory::propertiesEditor(
+						 QList<QGraphicsItem *>{p, q}, editor, nullptr), editor);
+			QCOMPARE(panel->pipes(), (QList<PipeLine *>{p, q}));
+			delete editor;
+			delete p;
+			delete q;
+		}
+
+		void aFieldEditedChangesThePipeLineWithUndo()
+		{
+			PipeLine *p = pipe();
+			PipePropertiesWidget panel({p});
+			auto *line = panel.findChild<QLineEdit *>(QStringLiteral("line_number"));
+			QVERIFY(line);
+			const int step = m_folio->undoStack().index();
+
+			line->setText(QStringLiteral(" L-101 "));
+			line->setModified(true);
+			emit line->editingFinished();
+			QCOMPARE(p->properties().line_number, QStringLiteral("L-101"));
+			QCOMPARE(m_folio->undoStack().index(), step + 1);
+			QCOMPARE(m_folio->undoStack().undoText(), QStringLiteral("Change the properties of a pipe line"));
+
+				// the field follows undo and redo
+			m_folio->undoStack().undo();
+			QVERIFY(p->properties().line_number.isEmpty());
+			QVERIFY(line->text().isEmpty());
+			m_folio->undoStack().redo();
+			QCOMPARE(line->text(), QStringLiteral("L-101"));
+
+				// the diameter: a number, empty for none
+			auto *dn = panel.findChild<QLineEdit *>(QStringLiteral("nominal_diameter"));
+			QVERIFY(dn);
+			dn->setText(QStringLiteral("150"));
+			dn->setModified(true);
+			emit dn->editingFinished();
+			QCOMPARE(p->properties().nominal_diameter, 150);
+
+				// the kind of line and the fluid
+			auto *kind = panel.findChild<QComboBox *>(QStringLiteral("line_kind"));
+			QVERIFY(kind);
+			const int auxiliary = kind->findData(int(PipeProperties::Auxiliary));
+			kind->setCurrentIndex(auxiliary);
+			emit kind->activated(auxiliary);
+			QCOMPARE(p->properties().line_kind, PipeProperties::Auxiliary);
+			auto *fluid = panel.findChild<QComboBox *>(QStringLiteral("fluid"));
+			QVERIFY(fluid);
+			fluid->setCurrentIndex(1);
+			emit fluid->activated(1);
+			QCOMPARE(p->properties().fluid, PipeProperties::defaultFluids().at(1));
+
+				// leaving a field unchanged makes no step
+			const int unchanged = m_folio->undoStack().index();
+			emit line->editingFinished();
+			QCOMPARE(m_folio->undoStack().index(), unchanged);
+			delete p;
+		}
+
+		void severalPipeLinesChangeOnlyTheFieldEdited()
+		{
+			PipeLine *p = pipe();
+			PipeLine *q = pipe();
+			PipeProperties a, b;
+			a.nominal_diameter = 100;
+			b.nominal_diameter = 150;
+			p->setProperties(a);
+			q->setProperties(b);
+			PipePropertiesWidget panel({p, q});
+			auto *dn = panel.findChild<QLineEdit *>(QStringLiteral("nominal_diameter"));
+			auto *material = panel.findChild<QLineEdit *>(QStringLiteral("material"));
+			QVERIFY(dn && material);
+				// different values: none shown
+			QVERIFY(dn->text().isEmpty());
+			QVERIFY(!dn->placeholderText().isEmpty());
+
+			material->setText(QStringLiteral("PEHD"));
+			material->setModified(true);
+			emit material->editingFinished();
+			QCOMPARE(p->properties().material, QStringLiteral("PEHD"));
+			QCOMPARE(q->properties().material, QStringLiteral("PEHD"));
+				// the diameters stay as they were, and one undo step for both
+			QCOMPARE(p->properties().nominal_diameter, 100);
+			QCOMPARE(q->properties().nominal_diameter, 150);
+			m_folio->undoStack().undo();
+			QVERIFY(p->properties().material.isEmpty());
+			QVERIFY(q->properties().material.isEmpty());
+				// a field showing none, left without a change, changes nothing
+			emit dn->editingFinished();
+			QCOMPARE(p->properties().nominal_diameter, 100);
+			delete p;
+			delete q;
 		}
 
 			// a .qetdb is written from the project database, which has no
