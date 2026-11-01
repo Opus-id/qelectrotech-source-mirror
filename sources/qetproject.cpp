@@ -817,14 +817,17 @@ QList<Diagram *> QETProject::folios() const
 }
 
 /**
-	@brief QETProject::hasPipeLines
-	@return true if a folio of this project has pipe lines of a P&ID, built
-	or not; none is built to tell
+	@brief QETProject::hasPidData
+	@return true if a folio of this project has pipe lines of a P&ID, or a
+	symbol given a value of one of its options, built or not; none is built
+	to tell
 */
-bool QETProject::hasPipeLines() const
+bool QETProject::hasPidData() const
 {
 	return std::any_of(m_diagrams_list.cbegin(), m_diagrams_list.cend(),
-					   [](const Diagram *folio) { return folio->hasPipeLines(); });
+					   [](const Diagram *folio) {
+		return folio->hasPipeLines() || folio->hasOptionChoices();
+	});
 }
 
 /**
@@ -3285,11 +3288,12 @@ QETResult QETProject::write(bool overwrite_changed)
 	}
 
 		//A .qetdb is written from the project database, which has no place
-		//for the pipe lines of a P&ID: they would be lost without a word.
-		//Refused before anything is touched, the file included.
-	if (QetDbFile::isDatabasePath(m_file_path) && hasPipeLines())
-		return(failed(tr("this project has pipe lines of a P&ID, which a .qetdb file does not keep yet. "
-						 "Save it as a .qet or a .qetz file with Save As.")));
+		//for the pipe lines of a P&ID nor for the options chosen on its
+		//symbols: they would be lost without a word. Refused before
+		//anything is touched, the file included.
+	if (QetDbFile::isDatabasePath(m_file_path) && hasPidData())
+		return(failed(tr("this project has P&ID data (pipe lines, options of symbols), which a .qetdb "
+						 "file does not keep yet. Save it as a .qet or a .qetz file with Save As.")));
 
 		//QET_QETDB_SAVE_TIMES=1: how long each step of the save took, in ms
 	QElapsedTimer save_timer;

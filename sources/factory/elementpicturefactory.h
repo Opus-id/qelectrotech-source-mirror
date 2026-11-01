@@ -21,7 +21,10 @@
 #include <QMutex>
 #include <QSharedPointer>
 #include <QHash>
+#include <QMap>
+#include <QMultiHash>
 #include <QPair>
+#include <QString>
 #include <QTransform>
 
 class ElementsLocation;
@@ -84,13 +87,21 @@ class ElementPictureFactory
 			}
 		}
 
-		void getPictures(const ElementsLocation &location, QPicture &picture, QPicture &low_picture);
+			/// The choices of a placed element among the options of its
+			/// symbol (ElementOptions::Choices): none draws the defaults
+		using Choices = QMap<QString, QString>;
+
+		void getPictures(const ElementsLocation &location, QPicture &picture, QPicture &low_picture,
+						 const Choices &choices = Choices());
 		void getReadablePictures(const ElementsLocation &location, const QTransform &texts_transform,
-								 QPicture &picture, QPicture &low_picture);
+								 QPicture &picture, QPicture &low_picture,
+								 const Choices &choices = Choices());
 		QPixmap pixmap(const ElementsLocation &location);
-		ElementPictureFactory::primitives getPrimitives(const ElementsLocation &location);
+		ElementPictureFactory::primitives getPrimitives(const ElementsLocation &location,
+														const Choices &choices = Choices());
 		void dropCache(const ElementsLocation &location);
-		QPicture pictureFromDefinition(const QDomElement &definition) const;
+		QPicture pictureFromDefinition(const QDomElement &definition,
+									   const Choices &choices = Choices()) const;
 
 	private:
 		ElementPictureFactory() {}
@@ -98,10 +109,11 @@ class ElementPictureFactory
 		ElementPictureFactory operator= (const ElementPictureFactory &);
 		~ElementPictureFactory();
 
-		static QUuid cacheKey(const ElementsLocation &location);
+		static QUuid cacheKey(const ElementsLocation &location, const Choices &choices = Choices());
 		static int readableKey(const QTransform &texts_transform);
 		bool build(const ElementsLocation &location, QPicture *picture=nullptr, QPicture *low_picture=nullptr,
-				   const QTransform &texts_transform=QTransform());
+				   const QTransform &texts_transform=QTransform(), const Choices &choices = Choices());
+		void dropKey(const QUuid &uuid);
 		void parseElement(const QDomElement &dom, QPainter &painter, primitives &prim) const;
 		void parseLine   (const QDomElement &dom, QPainter &painter, primitives &prim) const;
 		void parseRect   (const QDomElement &dom, QPainter &painter, primitives &prim) const;
@@ -124,6 +136,10 @@ class ElementPictureFactory
 		QTransform m_build_texts_undo;
 		QHash<QUuid, QPixmap> m_pixmap_H;
 		QHash<QUuid, primitives> m_primitives_H;
+			/// The keys of the drawings of a symbol with options chosen
+			/// (cacheKey() with choices), by the key of its plain drawing,
+			/// for dropCache()
+		QMultiHash<QUuid, QUuid> m_option_keys;
 		static ElementPictureFactory* m_factory;
 };
 

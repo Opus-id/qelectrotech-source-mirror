@@ -211,6 +211,12 @@ class Element : public QetGraphicsItem
 		ReloadPictureResult reloadPicture();
 		bool canChangeLocationTo(const ElementsLocation &location) const;
 		bool changeLocation(const ElementsLocation &location);
+			/// The options of the symbol (ElementOptions) given a value on
+			/// this element; any other is at its default
+		ElementOptions::Choices optionChoices() const { return m_option_choices; }
+		void setOptionChoices(const ElementOptions::Choices &choices);
+			/// The value of every option of the symbol for this element
+		ElementOptions::Choices resolvedOptions() const;
 		virtual void setHighlighted(bool);
 		void showAsJumpTarget();
 		bool isShownAsJumpTarget() const { return m_jump_highlight > 0; }
@@ -400,6 +406,8 @@ class Element : public QetGraphicsItem
 	QPicture m_readable_low_zoom_picture;
 	QTransform m_readable_transform;
 	ElementData m_data;
+		/// See optionChoices()
+	ElementOptions::Choices m_option_choices;
 	QList<QPointF> m_plc_table_positions;  // Positions of plc_table parts in the element definition
 
 	void drawPlcTable(QPainter *painter);

@@ -929,6 +929,30 @@ bool Diagram::hasPipeLines() const
 }
 
 /**
+	@brief Diagram::hasOptionChoices
+	@return true if a symbol of this folio was given a value of one of its
+	options: among its elements, or in the <options> block of an element of
+	its XML while it is not built (lazy folios)
+*/
+bool Diagram::hasOptionChoices() const
+{
+	if (!isLoaded()) {
+		const QDomElement elements = m_deferred.firstChildElement(QStringLiteral("elements"));
+		for (QDomElement element = elements.firstChildElement(QStringLiteral("element")) ;
+			 !element.isNull() ; element = element.nextSiblingElement(QStringLiteral("element"))) {
+			if (!ElementOptions::choicesFromXml(element).isEmpty())
+				return true;
+		}
+		return false;
+	}
+	const QList<QGraphicsItem *> all = items();
+	return std::any_of(all.cbegin(), all.cend(), [](QGraphicsItem *item) {
+		const Element *element = qgraphicsitem_cast<Element *>(item);
+		return element && !element->optionChoices().isEmpty();
+	});
+}
+
+/**
 	@brief Diagram::deferredXml
 	The XML kept for building this folio later. A folio of a .qetdb opened
 	from its tables has its header only: its items are written into it

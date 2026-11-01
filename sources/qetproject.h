@@ -145,9 +145,10 @@ class QETProject : public QObject
 			//The folios whether their items are built or not
 			//(lazy folios); diagrams() builds them
 		QList<Diagram *> folios() const;
-			/// Whether a folio has pipe lines of a P&ID, which a .qetdb
-			/// does not keep yet (write())
-		bool hasPipeLines() const;
+			/// Whether a folio has pipe lines of a P&ID or symbols given a
+			/// value of their options, which a .qetdb does not keep yet
+			/// (write())
+		bool hasPidData() const;
 		bool deferringFolios() const {return m_deferring_folios;}
 		int unloadedFolioCount() const;
 		QList<Diagram *> builtFolios() const;

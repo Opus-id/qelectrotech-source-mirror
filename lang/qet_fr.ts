@@ -11712,17 +11712,17 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
     <name>ProjectView</name>
     <message>
         <location filename="../sources/projectview.cpp" line="402"/>
-        <source>Pipe lines not kept</source>
+        <source>P&amp;ID data not kept</source>
         <comment>message box title</comment>
-        <translation>Tuyauteries non enregistrées</translation>
+        <translation>Données de P&amp;ID non enregistrées</translation>
     </message>
     <message>
         <location filename="../sources/projectview.cpp" line="403"/>
-        <source>This project has pipe lines of a P&amp;ID, which a .qetdb file does not keep yet.
+        <source>This project has P&amp;ID data (pipe lines, options of symbols), which a .qetdb file does not keep yet.
 
 Save it as a .qet or a .qetz file.</source>
         <comment>message box content</comment>
-        <translation>Ce projet contient des tuyauteries de P&amp;ID, que le format .qetdb n&apos;enregistre pas encore.
+        <translation>Ce projet contient des données de P&amp;ID (tuyauteries, options de symboles), que le format .qetdb n&apos;enregistre pas encore.
 
 Enregistrez-le au format .qet ou .qetz.</translation>
     </message>
@@ -15554,8 +15554,8 @@ les conditions requises ne sont pas valides</translation>
     <name>QETProject</name>
     <message>
         <location filename="../sources/qetproject.cpp" line="3289"/>
-        <source>this project has pipe lines of a P&amp;ID, which a .qetdb file does not keep yet. Save it as a .qet or a .qetz file with Save As.</source>
-        <translation>ce projet contient des tuyauteries de P&amp;ID, que le format .qetdb n&apos;enregistre pas encore. Enregistrez-le au format .qet ou .qetz avec « Enregistrer sous ».</translation>
+        <source>this project has P&amp;ID data (pipe lines, options of symbols), which a .qetdb file does not keep yet. Save it as a .qet or a .qetz file with Save As.</source>
+        <translation>ce projet contient des données de P&amp;ID (tuyauteries, options de symboles), que le format .qetdb n&apos;enregistre pas encore. Enregistrez-le au format .qet ou .qetz avec « Enregistrer sous ».</translation>
     </message>
     <message>
         <source>Chained Folio Reports</source>

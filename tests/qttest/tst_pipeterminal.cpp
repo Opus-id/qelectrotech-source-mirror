@@ -637,7 +637,7 @@ class tst_pipeterminal : public QObject
 
 			QETProject back(qet);
 				// told before any folio is built
-			QVERIFY(back.hasPipeLines());
+			QVERIFY(back.hasPidData());
 			back.setFilePath(qetdb);
 			const QETResult refused = back.write();
 			QVERIFY(!refused.isOk());
@@ -648,7 +648,7 @@ class tst_pipeterminal : public QObject
 			const QList<PipeLine *> pipes = pipesOf(back.diagrams().first());
 			QCOMPARE(pipes.size(), 2);
 			qDeleteAll(pipes);
-			QVERIFY(!back.hasPipeLines());
+			QVERIFY(!back.hasPidData());
 			QVERIFY(back.write().isOk());
 			QVERIFY(QFile::exists(qetdb));
 		}

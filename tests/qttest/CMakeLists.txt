@@ -552,6 +552,11 @@ qet_add_app_test(tst_terminalconnection tst_terminalconnection.cpp)
 # it is moved, turned or mirrored, and are left loose when it goes.
 qet_add_app_test(tst_pipeterminal tst_pipeterminal.cpp)
 
+# The options of a symbol (a pump's motor): each placed element chooses a
+# value, the parts whose show-if it does not meet are not drawn, the choice
+# is saved with the project and the element editor keeps both.
+qet_add_app_test(tst_elementoptions tst_elementoptions.cpp)
+
 # The Auto numbering panel's Increment spin boxes get the width their style
 # asks for; a fixed 55 px cut the number off on Windows (#1566).
 qet_add_app_test(tst_autonumincrementwidth tst_autonumincrementwidth.cpp)

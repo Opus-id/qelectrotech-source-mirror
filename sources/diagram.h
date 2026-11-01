@@ -262,6 +262,9 @@ class Diagram : public QGraphicsScene
 			/// Whether this folio has pipe lines of a P&ID, built or still
 			/// in its XML (lazy folios)
 		bool hasPipeLines() const;
+			/// Whether a symbol of this folio was given a value of one of
+			/// its options (ElementOptions), built or still in its XML
+		bool hasOptionChoices() const;
 		QDomElement deferredXml() const;
 			/// The part @p file of the .qetz the project was opened from
 			/// holds this folio as it is while not built: saving may copy it

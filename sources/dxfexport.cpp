@@ -74,7 +74,8 @@ namespace {
 				: rotation_angle;
 		const qreal mirror_x = mirror_h ? -1 : 1;
 		const qreal mirror_y = mirror_v ? -1 : 1;
-		ElementPictureFactory::primitives primitives = ElementPictureFactory::instance()->getPrimitives(elmt->location());
+		ElementPictureFactory::primitives primitives = ElementPictureFactory::instance()->getPrimitives(
+					elmt->location(), elmt->resolvedOptions());
 
 		Createdxf::layer = Layer::SymbolTexts;
 		for(QGraphicsSimpleTextItem *text : primitives.m_texts)
@@ -274,7 +275,7 @@ namespace {
 	bool drawsNothing(Element *elmt, bool draw_terminals)
 	{
 		const ElementPictureFactory::primitives p =
-				ElementPictureFactory::instance()->getPrimitives(elmt->location());
+				ElementPictureFactory::instance()->getPrimitives(elmt->location(), elmt->resolvedOptions());
 		return p.m_lines.isEmpty() && p.m_rectangles.isEmpty()
 				&& p.m_circles.isEmpty() && p.m_polygons.isEmpty()
 				&& p.m_arcs.isEmpty() && p.m_texts.isEmpty()

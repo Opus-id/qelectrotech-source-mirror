@@ -20,6 +20,7 @@
 #include "../ElementsCollection/elementslocation.h"
 #include "../editor/graphicspart/partline.h"
 #include "../properties/elementdata.h"
+#include "../properties/elementoptions.h"
 #include "../qetapp.h"
 #include "../qetversion.h"
 #include "../utils/qetutils.h"
@@ -53,14 +54,21 @@ ElementPictureFactory* ElementPictureFactory::m_factory = nullptr;
 	the project that owns it, and project ids come from an ever-increasing
 	counter and are never reused, so the derived key cannot collide with an
 	element of another project.
+
+	A drawing with options chosen (@p choices, see ElementOptions) is kept
+	under a key derived from that one and the choices, so that each set of
+	choices has its drawing and the plain drawing keeps its key.
 */
-QUuid ElementPictureFactory::cacheKey(const ElementsLocation &location)
+QUuid ElementPictureFactory::cacheKey(const ElementsLocation &location, const Choices &choices)
 {
-	const QUuid uuid = location.uuid();
-	if (!uuid.isNull()) {
+	QUuid uuid = location.uuid();
+	if (uuid.isNull()) {
+		uuid = QUuid::createUuidV5(QUuid(), location.toString().toUtf8());
+	}
+	if (choices.isEmpty()) {
 		return uuid;
 	}
-	return QUuid::createUuidV5(QUuid(), location.toString().toUtf8());
+	return QUuid::createUuidV5(uuid, ElementOptions::key(choices));
 }
 
 /**
@@ -70,14 +78,17 @@ QUuid ElementPictureFactory::cacheKey(const ElementsLocation &location)
 	@param location
 	@param picture
 	@param low_picture
+	@param choices : the options chosen, see ElementOptions; none for the
+	defaults
 */
-void ElementPictureFactory::getPictures(const ElementsLocation &location, QPicture &picture, QPicture &low_picture)
+void ElementPictureFactory::getPictures(const ElementsLocation &location, QPicture &picture, QPicture &low_picture,
+										const Choices &choices)
 {
 	if(!location.exist()) {
 		return;
 	}
 
-	const QUuid uuid = cacheKey(location);
+	const QUuid uuid = cacheKey(location, choices);
 
 	if(m_pictures_H.contains(uuid))
 	{
@@ -86,7 +97,7 @@ void ElementPictureFactory::getPictures(const ElementsLocation &location, QPictu
 	}
 	else
 	{
-		if (build(location))
+		if (build(location, nullptr, nullptr, QTransform(), choices))
 		{
 			picture = m_pictures_H.value(uuid);
 			low_picture = m_low_pictures_H.value(uuid);
@@ -105,20 +116,22 @@ void ElementPictureFactory::getPictures(const ElementsLocation &location, QPictu
 	@param texts_transform : the mirrors, then the turn, of the element
 	@param picture
 	@param low_picture
+	@param choices : the options chosen, see getPictures()
 */
 void ElementPictureFactory::getReadablePictures(const ElementsLocation &location,
 												const QTransform &texts_transform,
 												QPicture &picture,
-												QPicture &low_picture)
+												QPicture &low_picture,
+												const Choices &choices)
 {
 	if(!location.exist() || texts_transform.isIdentity()) {
 		return;
 	}
 
-	const QPair<QUuid, int> key(cacheKey(location), readableKey(texts_transform));
+	const QPair<QUuid, int> key(cacheKey(location, choices), readableKey(texts_transform));
 
 	if(!m_readable_pictures_H.contains(key)
-	   && !build(location, nullptr, nullptr, texts_transform)) {
+	   && !build(location, nullptr, nullptr, texts_transform, choices)) {
 		return;
 	}
 	picture = m_readable_pictures_H.value(key);
@@ -154,6 +167,22 @@ int ElementPictureFactory::readableKey(const QTransform &texts_transform)
 void ElementPictureFactory::dropCache(const ElementsLocation &location)
 {
 	const QUuid uuid = cacheKey(location);
+		//The drawings of the same symbol with options chosen too
+	const QList<QUuid> option_keys = m_option_keys.values(uuid);
+	m_option_keys.remove(uuid);
+	for (const QUuid &key : option_keys) {
+		dropKey(key);
+	}
+	dropKey(uuid);
+}
+
+/**
+	@brief ElementPictureFactory::dropKey
+	Forget every drawing kept under @p uuid, see dropCache()
+	@param uuid
+*/
+void ElementPictureFactory::dropKey(const QUuid &uuid)
+{
 	m_pictures_H.remove(uuid);
 	m_low_pictures_H.remove(uuid);
 	const auto keys = m_readable_pictures_H.keys();
@@ -238,14 +267,15 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location)
 /**
 	@brief ElementPictureFactory::getPrimitives
 	@param location
+	@param choices : the options chosen, see getPictures()
 	@return The primtive used to draw the element at location
 */
 ElementPictureFactory::primitives ElementPictureFactory::getPrimitives(
-		const ElementsLocation &location)
+		const ElementsLocation &location, const Choices &choices)
 {
-	const QUuid uuid = cacheKey(location);
+	const QUuid uuid = cacheKey(location, choices);
 	if(!m_primitives_H.contains(uuid))
-		build(location);
+		build(location, nullptr, nullptr, QTransform(), choices);
 
 	return m_primitives_H.value(uuid);
 }
@@ -261,19 +291,26 @@ ElementPictureFactory::~ElementPictureFactory()
 	@brief ElementPictureFactory::pictureFromDefinition
 	@return the drawing of an element @a definition that is in no
 	collection yet, such as one being made by a dialog, drawn by the same
-	code as a placed element. Not cached.
+	code as a placed element, with the options @p choices (none for the
+	defaults). Not cached.
 */
-QPicture ElementPictureFactory::pictureFromDefinition(const QDomElement &definition) const
+QPicture ElementPictureFactory::pictureFromDefinition(const QDomElement &definition,
+													  const Choices &choices) const
 {
 	QPicture picture;
 	QPainter painter(&picture);
 	painter.setRenderHint(QPainter::Antialiasing, true);
 	painter.setRenderHint(QPainter::TextAntialiasing, true);
 	primitives primitives_;
+	ElementOptions options;
+	options.fromXml(definition);
+	const Choices resolved = options.resolved(choices);
 	const QDomElement description = definition.firstChildElement(QStringLiteral("description"));
 	for (QDomElement part = description.firstChildElement() ; !part.isNull() ;
 	     part = part.nextSiblingElement()) {
-		parseElement(part, painter, primitives_);
+		if (ElementOptions::isShown(part.attribute(QStringLiteral("show-if")), resolved)) {
+			parseElement(part, painter, primitives_);
+		}
 	}
 	painter.end();
 	qDeleteAll(primitives_.m_texts);
@@ -299,9 +336,14 @@ QPicture ElementPictureFactory::pictureFromDefinition(const QDomElement &definit
 bool ElementPictureFactory::build(const ElementsLocation &location,
 				  QPicture *picture,
 				  QPicture *low_picture,
-				  const QTransform &texts_transform)
+				  const QTransform &texts_transform,
+				  const Choices &choices)
 {
 	QDomElement dom = location.xml();
+		//The parts drawn for these options, the defaults where none is chosen
+	ElementOptions options;
+	options.fromXml(dom);
+	const Choices resolved = options.resolved(choices);
 
 		//Check if the current version can read the xml description
 	const auto elmt_version = QetVersion::fromXmlAttribute(dom);
@@ -402,6 +444,8 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 					// Rendering into the cached QPicture here causes
 					// intermittent crashes when drawPicture() replays
 					// complex font/text operations.
+				} else if (!ElementOptions::isShown(qde.attribute(QStringLiteral("show-if")), resolved)) {
+					// Hidden by the options chosen, see ElementOptions
 				} else {
 					parseElement(qde, painter, primitives_);
 					parseElement(qde, low_painter, low_primitives);
@@ -416,7 +460,10 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 	m_build_texts_undo = QTransform();
 	qDeleteAll(low_primitives.m_texts);
 
-	const auto uuid_ = cacheKey(location);
+	const auto uuid_ = cacheKey(location, choices);
+	if (!choices.isEmpty() && !m_option_keys.contains(cacheKey(location), uuid_)) {
+		m_option_keys.insert(cacheKey(location), uuid_);
+	}
 	if (!texts_transform.isIdentity()) {
 			//The primitives are those of the plain drawing, already kept
 			//by the build of that one

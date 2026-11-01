@@ -55,6 +55,7 @@ bool ElementData::fromXml(const QDomElement &xml_element)
 	m_informations.fromXml(xml_element.firstChildElement(QStringLiteral("elementInformations")),
 						   QStringLiteral("elementInformation"));
 	m_names_list.fromXml(xml_element);
+	m_options.fromXml(xml_element);
 
 	auto xml_draw_info = xml_element.firstChildElement(QStringLiteral("informations"));
 	if(xml_draw_info.tagName() == QLatin1String("informations")) {
@@ -696,6 +697,10 @@ bool ElementData::operator==(const ElementData &data) const
 	}
 
 	if (data.m_names_list != m_names_list) {
+		return false;
+	}
+
+	if (data.m_options != m_options) {
 		return false;
 	}
 
