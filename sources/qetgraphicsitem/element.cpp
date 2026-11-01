@@ -74,6 +74,21 @@ static const QString plcTerminalKeys[] = {
 #include <QtCore/qnumeric.h>
 #include <utility>
 
+/**
+	@brief drawnChoices
+	@param options : the options of a symbol
+	@param chosen : the values an element gave them
+	@return the choices to draw the symbol with: none when every option is
+	at its default, so that the element shares the plain drawing of its
+	symbol (ElementPictureFactory::cacheKey())
+*/
+static ElementOptions::Choices drawnChoices(const ElementOptions &options,
+											const ElementOptions::Choices &chosen)
+{
+	const ElementOptions::Choices resolved = options.resolved(chosen);
+	return resolved == options.defaults() ? ElementOptions::Choices() : resolved;
+}
+
 class ElementXmlRetroCompatibility
 {
 	friend class Element;
@@ -518,9 +533,46 @@ void Element::updateSymbolPictures(bool force)
 				m_location,
 				transform,
 				m_readable_picture,
-				m_readable_low_zoom_picture);
+				m_readable_low_zoom_picture,
+				drawnChoices(m_data.m_options, m_option_choices));
 	updateDrawnRect();
 	update();
+}
+
+/**
+	@brief Element::setOptionChoices
+	Give the options of the symbol the values @p choices, and draw the
+	symbol after them (ElementOptions). A choice for an option the symbol
+	does not offer is kept, without effect, so that it applies again once
+	the symbol is changed for one that offers it (changeLocation()).
+	@param choices
+*/
+void Element::setOptionChoices(const ElementOptions::Choices &choices)
+{
+	if (choices == m_option_choices) {
+		return;
+	}
+	m_option_choices = choices;
+	QPicture picture;
+	QPicture low_zoom_picture;
+	ElementPictureFactory::instance()->getPictures(m_location, picture, low_zoom_picture,
+												   drawnChoices(m_data.m_options, m_option_choices));
+	if (!picture.isNull()) {
+		m_picture = picture;
+		m_low_zoom_picture = low_zoom_picture;
+	}
+	updateSymbolPictures(true);
+	update();
+}
+
+/**
+	@brief Element::resolvedOptions
+	@return the value of every option of the symbol for this element: the
+	one chosen, else the default
+*/
+ElementOptions::Choices Element::resolvedOptions() const
+{
+	return m_data.m_options.resolved(m_option_choices);
 }
 
 /**
@@ -973,7 +1025,8 @@ bool Element::buildFromXml(const QDomElement &xml_def_elmt, int *state)
 	ElementPictureFactory *epf = ElementPictureFactory::instance();
 	epf->getPictures(m_location,
 			 m_picture,
-			 m_low_zoom_picture);
+			 m_low_zoom_picture,
+			 drawnChoices(m_data.m_options, m_option_choices));
 	updateDrawnRect();
 
 	if(!m_picture.isNull())
@@ -1548,6 +1601,9 @@ bool Element::fromXml(QDomElement &e,
 	for(DynamicElementTextItem *deti : m_dynamic_text_list)
 		deti->m_block_alignment = false;
 
+		//The options of the symbol chosen for this element, drawn after them
+	setOptionChoices(ElementOptions::choicesFromXml(e));
+
 		//Last, so that the texts and groups loaded above are kept readable
 	const QString mirror = e.attribute(QStringLiteral("mirror"));
 	setMirror(mirror == QLatin1String("horizontal") || mirror == QLatin1String("both"),
@@ -1681,6 +1737,12 @@ QDomElement Element::toXml(
 		if (infos.hasChildNodes())
 			element.appendChild(infos);
 	}
+
+		//The options of the symbol given a value on this element; none
+		//written for an element that gave none, which saves as before
+	const QDomElement options = ElementOptions::choicesToXml(document, m_option_choices);
+	if (!options.isNull())
+		element.appendChild(options);
 
 	appendDataXml(document, element);
 
@@ -3342,15 +3404,19 @@ Element::ReloadPictureResult Element::reloadPicture()
 		return ReloadPictureResult::GeometryChanged;
 	}
 
+	ElementOptions options;
+	options.fromXml(definition);
 	QPicture picture;
 	QPicture low_zoom_picture;
 	ElementPictureFactory::instance()->getPictures(m_location,
 												   picture,
-												   low_zoom_picture);
+												   low_zoom_picture,
+												   drawnChoices(options, m_option_choices));
 	if (picture.isNull()) {
 		return ReloadPictureResult::Unavailable;
 	}
 
+	m_data.m_options = options;
 	m_picture = picture;
 	m_low_zoom_picture = low_zoom_picture;
 	updateDrawnRect();
@@ -3448,9 +3514,14 @@ bool Element::changeLocation(const ElementsLocation &location)
 		return false;
 	}
 
+		//The options chosen stay: those the new symbol offers too apply to
+		//it, the others wait for a symbol that offers them
+	ElementOptions options;
+	options.fromXml(location.xml());
 	QPicture picture;
 	QPicture low_zoom_picture;
-	ElementPictureFactory::instance()->getPictures(location, picture, low_zoom_picture);
+	ElementPictureFactory::instance()->getPictures(location, picture, low_zoom_picture,
+												   drawnChoices(options, m_option_choices));
 	if (picture.isNull()) {
 		return false;
 	}
@@ -3458,6 +3529,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 	NamesList names;
 	names.fromXml(location.xml());
 	m_data.m_names_list = names;
+	m_data.m_options = options;
 
 		//A saved conductor names the uuid of the terminal it ends on, and the
 		//project is read back from the new definition: the terminals take its

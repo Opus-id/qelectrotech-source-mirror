@@ -556,6 +556,12 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 		informations_element.appendChild(xml_document.createTextNode(m_element_data.m_drawing_information.trimmed()));
 	}
 
+		//the options of the symbol, which the show-if of its parts refer to
+		//(ElementOptions): kept as read, the editor does not change them yet
+	if (!m_element_data.m_options.isEmpty()) {
+		root.appendChild(m_element_data.m_options.toXml(xml_document));
+	}
+
 	QDomElement description = xml_document.createElement("description");
 
 	//the graphic description of the element

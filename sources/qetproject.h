@@ -145,6 +145,9 @@ class QETProject : public QObject
 			//The folios whether their items are built or not
 			//(lazy folios); diagrams() builds them
 		QList<Diagram *> folios() const;
+			/// Whether a folio has symbols given a value of their options,
+			/// which a .qetdb does not keep yet (write())
+		bool hasOptionChoices() const;
 		bool deferringFolios() const {return m_deferring_folios;}
 		int unloadedFolioCount() const;
 		QList<Diagram *> builtFolios() const;

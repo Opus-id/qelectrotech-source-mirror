@@ -21,6 +21,7 @@
 #include "propertiesinterface.h"
 #include "../diagramcontext.h"
 #include "../NameList/nameslist.h"
+#include "elementoptions.h"
 
 #include <QStringList>
 #include <QVector>
@@ -335,6 +336,9 @@ class ElementData : public PropertiesInterface
 		DiagramContext m_informations;
 		NamesList m_names_list;
 		QString m_drawing_information;
+			/// What may vary on a placed element of this symbol, such as
+			/// the motor of a pump (see ElementOptions)
+		ElementOptions m_options;
 
 	private:
 		ElementData::TerminalType m_override_terminal_type = ElementData::TTGeneric;

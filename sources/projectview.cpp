@@ -395,6 +395,18 @@ QString ProjectView::askUserForFilePath(bool assign) {
 	}
 	filepath += database ? ".qetdb" : zipped ? ".qetz" : ".qet";
 
+		//A .qetdb would lose the options chosen on its symbols
+		//(QETProject::write() refuses it): said here, before the project
+		//takes that file path
+	if (database && m_project->hasOptionChoices()) {
+		QET::QetMessageBox::warning(
+			this,
+			tr("Options of symbols not kept", "message box title"),
+			tr("This project has symbols given a value of their options, which a .qetdb file "
+			   "does not keep yet.\n\nSave it as a .qet or a .qetz file.", "message box content"));
+		return(QString());
+	}
+
 		//Not onto a file someone else has open
 	if (!refuseIfLockedByOther(filepath)) return(QString());
 

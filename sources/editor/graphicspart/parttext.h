@@ -53,6 +53,10 @@ class PartText : public QGraphicsTextItem, public CustomElementPart {
 	public:
 		QUuid uuid() const {return m_uuid;}
 		void setNewUuid() {m_uuid = QUuid::createUuid();}
+			/// The options of the symbol this text is drawn for, as its
+			/// show-if attribute says them (ElementOptions); empty: always
+		QString showIf() const {return m_show_if;}
+		void setShowIf(const QString &show_if) {m_show_if = show_if;}
 
 		// methods
 	public:
@@ -105,6 +109,7 @@ class PartText : public QGraphicsTextItem, public CustomElementPart {
 
 	private:
 		QUuid m_uuid = QUuid::createUuid();
+		QString m_show_if;
 		QPointF margin() const;
 		void applyLineAlignment();
 		void prepareAlignment();

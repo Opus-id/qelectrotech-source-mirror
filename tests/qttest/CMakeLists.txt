@@ -564,6 +564,11 @@ qet_add_app_test(tst_folioimageload tst_folioimageload.cpp)
 # edit (#1566) and gets back the height the user gave it (#1439).
 qet_add_app_test(tst_selectionpanelheight tst_selectionpanelheight.cpp)
 
+# The options of a symbol (a pump's motor): each placed element chooses a
+# value, the parts whose show-if it does not meet are not drawn, the choice
+# is saved with the project and the element editor keeps both.
+qet_add_app_test(tst_elementoptions tst_elementoptions.cpp)
+
 # The Auto numbering panel's Increment spin boxes get the width their style
 # asks for; a fixed 55 px cut the number off on Windows (#1566).
 qet_add_app_test(tst_autonumincrementwidth tst_autonumincrementwidth.cpp)
