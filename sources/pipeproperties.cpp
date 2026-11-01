@@ -67,6 +67,12 @@ void PipeProperties::toXml(QDomElement &e) const
 	e.setAttribute("piping_class", piping_class);
 	e.setAttribute("nominal_pressure", nominal_pressure);
 	e.setAttribute("line_kind", lineKindToString(line_kind));
+		//Added later: written only when set, so that a pipe line without
+		//them is saved as it was
+	if (!spool.isEmpty())
+		e.setAttribute("spool", spool);
+	if (!external_finish.isEmpty())
+		e.setAttribute("external_finish", external_finish);
 }
 
 /**
@@ -88,6 +94,8 @@ void PipeProperties::fromXml(const QDomElement &e)
 	piping_class     = e.attribute("piping_class");
 	nominal_pressure = e.attribute("nominal_pressure");
 	line_kind        = lineKindFromString(e.attribute("line_kind"));
+	spool            = e.attribute("spool");
+	external_finish  = e.attribute("external_finish");
 }
 
 /**
@@ -122,7 +130,9 @@ bool PipeProperties::operator==(const PipeProperties &other) const
 		&& line_number == other.line_number
 		&& piping_class == other.piping_class
 		&& nominal_pressure == other.nominal_pressure
-		&& line_kind == other.line_kind;
+		&& line_kind == other.line_kind
+		&& spool == other.spool
+		&& external_finish == other.external_finish;
 }
 
 /**

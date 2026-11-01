@@ -1142,6 +1142,57 @@ void QETDiagramEditor::setUpActions()
 		if (dialog.exec() == QDialog::Accepted)
 			project->setLanguages(dialog.languages());
 	});
+		//The codification of the P&ID pipe lines of the project, read from a
+		//file kept by the company: none is shipped with QElectroTech
+	m_import_pid_codification = new QAction(tr("Import a P&ID codification..."), this);
+	m_import_pid_codification->setStatusTip(
+				tr("Read the codes of the fluids and materials of the pipe lines from a CSV file"));
+	connect(m_import_pid_codification, &QAction::triggered, this, [this]() {
+		ProjectView *view = currentProjectView();
+		if (!view || !view->project()) return;
+		QETProject *project = view->project();
+		if (project->isReadOnly()) return;
+		const QString path = QFileDialog::getOpenFileName(
+					this, tr("Import a P&ID codification"), QString(),
+					tr("CSV files (*.csv *.txt);;All files (*)"));
+		if (path.isEmpty()) return;
+		QFile file(path);
+		if (!file.open(QIODevice::ReadOnly)) {
+			QET::QetMessageBox::warning(this, tr("Import a P&ID codification"),
+										tr("The file %1 could not be read.").arg(path));
+			return;
+		}
+		const QByteArray bytes = file.readAll();
+			//A file saved by a spreadsheet may not be in UTF-8
+		QString text = QString::fromUtf8(bytes);
+		if (text.contains(QChar::ReplacementCharacter)) {
+			text = QString::fromLatin1(bytes);
+		}
+		int skipped = 0;
+		const PidCodification codification = PidCodification::fromCsv(text, &skipped);
+		if (codification.isEmpty()) {
+			QET::QetMessageBox::warning(this, tr("Import a P&ID codification"),
+										tr("No fluid and no material could be read from %1.\n\n"
+										   "Each line is expected as: kind;code;name;family, "
+										   "kind being \"fluid\" or \"material\".").arg(path));
+			return;
+		}
+		if (!project->pidCodification().isEmpty()
+			&& QET::QetMessageBox::question(
+				   this, tr("Import a P&ID codification"),
+				   tr("Replace the codification of the project with %1 fluids and %2 materials?")
+				   .arg(codification.fluids.size()).arg(codification.materials.size()),
+				   QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) {
+			return;
+		}
+		project->setPidCodification(codification);
+		QET::QetMessageBox::information(
+					this, tr("Import a P&ID codification"),
+					tr("%1 fluids and %2 materials imported.").arg(codification.fluids.size())
+					.arg(codification.materials.size())
+					+ (skipped ? QStringLiteral("\n") + tr("%n line(s) could not be read.", "", skipped)
+							   : QString()));
+	});
 		//The saves a .qetdb keeps, and keeping them or not (QETDB-S6-SCOPE.md)
 	m_project_history = new QAction(tr("History of saves..."), this);
 	ShortcutManager::instance().registerAction(m_project_history, "diagrameditor.project_history", tr("Diagram editors"), QKeySequence());
@@ -2174,6 +2225,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_clean_project);
 	menu_project->addAction(m_find_duplicate_labels);
 	menu_project->addAction(m_project_languages);
+	menu_project->addAction(m_import_pid_codification);
 	menu_project -> addSeparator();
 	menu_project -> addAction(m_csv_export);
 	menu_project -> addAction(m_export_cable_list);
@@ -3774,6 +3826,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_project_edit_properties     -> setEnabled(opened_project);
 	m_find_duplicate_labels->setEnabled(opened_project);
 	m_project_languages->setEnabled(opened_project);
+	m_import_pid_codification->setEnabled(opened_project);
 	m_project_history             -> setEnabled(opened_project);
 	m_export_delivery             -> setEnabled(opened_project);
 	m_project_add_diagram         -> setEnabled(editable_project);

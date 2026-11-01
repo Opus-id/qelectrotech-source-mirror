@@ -824,6 +824,9 @@ QList<Diagram *> QETProject::folios() const
 */
 bool QETProject::hasPidData() const
 {
+	if (!m_pid_codification.isEmpty()) {
+		return true;
+	}
 	return std::any_of(m_diagrams_list.cbegin(), m_diagrams_list.cend(),
 					   [](const Diagram *folio) {
 		return folio->hasPipeLines() || folio->hasOptionChoices();
@@ -2866,6 +2869,10 @@ QDomDocument QETProject::toXml(QHash<int, QByteArray> *kept_folios, QStringList 
 	writeWiringRulesXml(project_root);
 	writeChainedReportsXml(project_root);
 	writeOriginXml(project_root);
+		//The codification of the P&ID pipe lines, only when the project has one
+	const QDomElement pid_codification = m_pid_codification.toXml(xml_doc);
+	if (!pid_codification.isNull())
+		project_root.appendChild(pid_codification);
 
 	// Properties for news diagrams
 	QDomElement new_diagrams_properties = xml_doc.createElement("newdiagrams");
@@ -3960,6 +3967,7 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 	readWiringRulesXml(xml_project);
 	readChainedReportsXml(xml_project);
 	readOriginXml(xml_project);
+	readPidCodificationXml(xml_project);
 
 		//Load the default properties for the new diagrams
 	readDefaultPropertiesXml(xml_project);
@@ -4523,6 +4531,33 @@ void QETProject::readProjectPropertiesXml(QDomDocument &xml_project)
 {
 	for (const auto &dom_elmt : QET::findInDomElement(xml_project.documentElement(), QStringLiteral("properties")))
 		m_project_properties.fromXml(dom_elmt);
+}
+
+/**
+	@brief QETProject::readPidCodificationXml
+	Read the <pid_codification> block of the project, if any (PidCodification)
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readPidCodificationXml(QDomDocument &xml_project)
+{
+	m_pid_codification.fromXml(xml_project.documentElement());
+}
+
+/**
+	@brief QETProject::setPidCodification
+	Give the P&ID pipe lines of this project the codification @p
+	codification: their codes keep their values, only the names and families
+	the list gives them change. The project is modified.
+	@param codification
+*/
+void QETProject::setPidCodification(const PidCodification &codification)
+{
+	if (codification == m_pid_codification) {
+		return;
+	}
+	m_pid_codification = codification;
+	setModified(true);
+	emit pidCodificationChanged();
 }
 
 /**

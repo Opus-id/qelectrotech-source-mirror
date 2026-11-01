@@ -44,9 +44,11 @@ class PipeProperties
 
 			/// Nominal diameter (DN) in millimetres, 0 when not set
 		int nominal_diameter;
-			/// Pipe material, free text (steel, PVC, cast iron...)
+			/// Pipe material: a code of the codification of the project
+			/// (PidCodification), or free text (steel, PVC, cast iron...)
 		QString material;
-			/// Fluid carried by the pipe, free text; see defaultFluids()
+			/// Fluid carried by the pipe: a code of the codification of the
+			/// project (PidCodification), or free text; see defaultFluids()
 		QString fluid;
 			/// Flow, free text so that the user keeps the unit (e.g. "120 m3/h")
 		QString flow;
@@ -60,6 +62,11 @@ class PipeProperties
 		QString nominal_pressure;
 			/// Kind of line, main by default
 		LineKind line_kind;
+			/// Spool number: the prefabricated piece of the line this pipe
+			/// belongs to, free text
+		QString spool;
+			/// External finish of the pipe (paint, insulation...), free text
+		QString external_finish;
 
 		void toXml(QDomElement &) const;
 		void fromXml(const QDomElement &);

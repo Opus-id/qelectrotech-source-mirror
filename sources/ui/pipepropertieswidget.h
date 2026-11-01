@@ -26,6 +26,7 @@
 #include <functional>
 
 class PipeLine;
+class QETProject;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -58,13 +59,20 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QLineEdit *addTextField(const QString &name, const QString &label,
 								const std::function<QString(const PipeProperties &)> &get,
 								const std::function<void(PipeProperties &, const QString &)> &set);
+		QComboBox *addCodeField(const QString &name, const QString &label,
+								const std::function<void(PipeProperties &, const QString &)> &set);
 		void applyChange(const std::function<void(PipeProperties &)> &change);
 		void showText(QLineEdit *edit, const std::function<QString(const PipeProperties &)> &get);
+		void fillLists();
+		static QString codeOf(const QComboBox *list, const QString &text);
 
 		QList<QPointer<PipeLine>> m_pipes;
+			/// The project of the pipe lines, for its codification
+		QPointer<QETProject> m_project;
 			/// Each text field with what it shows of the properties
 		QList<QPair<QLineEdit *, std::function<QString(const PipeProperties &)>>> m_text_fields;
 		QComboBox *m_fluid = nullptr;
+		QComboBox *m_material = nullptr;
 		QComboBox *m_kind = nullptr;
 		QLabel *m_count = nullptr;
 };
