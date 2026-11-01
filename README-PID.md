@@ -51,6 +51,15 @@ cable, no wire number. It has a nominal diameter, a material, a fluid.
   terminals (name, position, kind). Position, information and connections are
   kept; it can be undone. Useful to place a generic valve or pump first and
   choose its exact type later.
+- **Symbols with options**: a symbol may declare options, such as the motor
+  of a pump (none, fixed speed, variable speed), in an `<options>` block of
+  its `.elmt`; a part of its drawing carries `show-if="motor=fixed,variable"`
+  and is drawn only for those values. Each placed element chooses its values
+  in the *Options* tab of its properties (with undo); the choice is saved
+  with the project, and kept by *Change type* when the new symbol offers the
+  same option. So one pump symbol per technology is enough, instead of one
+  per motor variant. The element editor keeps the options and conditions,
+  but cannot edit them yet.
 - Element editor: *Line ends:* (square, round, flat) and *Corners:* (miter,
   round, bevel) for the lines of a symbol, saved as `line-cap` and
   `line-join` in the `style` attribute.
@@ -68,16 +77,17 @@ data link, undefined). They cannot be drawn yet.
 - A library of P&ID symbols with nozzles. Symbols are drawn *inspired by*
   ISO 10628-2, never copied from it; none is published here yet.
 - A line list, an export to spreadsheets, an export to DEXPI.
-- Symbols with options (motor, kind of actuator) shown or hidden on a
-  placed symbol.
+- Declaring options in the element editor, a preview of each case there, and
+  options for the actuators of valves.
 
 ## Read this before using it on real work
 
-- **The official QElectroTech does not know the `<pipes>` block.** A project
-  opened and saved by it loses its pipe lines.
+- **The official QElectroTech does not know the `<pipes>` block nor the
+  options.** A project opened and saved by it loses its pipe lines and the
+  choices of its elements; it draws every part of a symbol with options.
 - **`.qetdb` files** (experimental database format of QElectroTech) cannot
-  keep pipe lines yet: saving a project with pipe lines as `.qetdb` is
-  refused, with a message. Use `.qet` or `.qetz`.
+  keep pipe lines nor the choices of options yet: saving such a project as
+  `.qetdb` is refused, with a message. Use `.qet` or `.qetz`.
 - The file format of these additions may still change, in particular with
   the work on the project file format
   ([Discussion #1512](https://github.com/qelectrotech/qelectrotech-source-mirror/discussions/1512)).
