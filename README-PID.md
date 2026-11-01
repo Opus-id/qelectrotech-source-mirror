@@ -37,10 +37,25 @@ cable, no wire number. It has a nominal diameter, a material, a fluid.
   symbol leaves its pipe lines in place, detached (undo attaches them again).
 - Three kinds of line, after ISO 10628-1: main (strong), secondary (medium),
   auxiliary (dashed).
-- Each pipe line carries its own data (`PipeProperties`): nominal diameter,
-  material, fluid, flow, line number, piping class, nominal pressure, kind of
-  line. Nothing is passed on to the pipe lines it is connected to. There is
-  **no panel to edit these data yet**.
+- Each pipe line carries its own data (`PipeProperties`): line number,
+  fluid, nominal diameter, material, flow, piping class, nominal pressure,
+  spool number, external finish, kind of line. Nothing is passed on to the
+  pipe lines it is connected to.
+- **Properties panel**: selecting pipe lines shows their data in the
+  properties dock, each field applied with undo. With several pipe lines
+  selected, a field that differs shows none, and editing a field changes that
+  field only, on all of them.
+- **Select the line** (right-click on a pipe line): selects the pipe lines
+  reached through the valves and check valves, up to the equipment; *Select
+  the line (same DN)* also stops where the nominal diameter changes. The panel
+  then edits the whole line at once. A symbol a pipe line runs through says
+  so with `pipe_inline="true"` in its `.elmt` (a pump has two nozzles too,
+  but stops the walk).
+- **Codification of the project**: *Project > Import a P&ID codification*
+  reads the codes of the fluids and materials from a CSV file
+  (`kind;code;name;family`, kind being `fluid` or `material`), kept by the
+  company: none is shipped. The project saves it in a `<pid_codification>`
+  block; the panel then offers these codes, and a pipe line keeps the code.
 - Saved with each folio in a `<pipes>` block of `.qet` and `.qetz` files,
   with the symbol and nozzle each end is attached to. The output is stable
   (sorted by uuid), and a folio without pipe lines is saved exactly as before.
@@ -70,7 +85,10 @@ data link, undefined). They cannot be drawn yet.
 
 ## What is missing
 
-- A properties panel for pipe lines (and an editable list of fluids).
+- The line designation shown along the pipe line, from a template set per
+  project, and a line style per family of fluids (with an editor).
+- Data of the nozzles (kind of connection, DN, PN), the connections drawn
+  from them, and a list of the connection points.
 - Branches (tees) on a pipe line, valves dropped on a pipe line.
 - Drawing signal lines and drive links (motor to pump).
 - Copy and paste of pipe lines (a copy leaves them out for now).
@@ -82,12 +100,12 @@ data link, undefined). They cannot be drawn yet.
 
 ## Read this before using it on real work
 
-- **The official QElectroTech does not know the `<pipes>` block nor the
-  options.** A project opened and saved by it loses its pipe lines and the
-  choices of its elements; it draws every part of a symbol with options.
+- **The official QElectroTech does not know these additions.** A project
+  opened and saved by it loses its pipe lines, the choices of its elements and
+  its codification; it draws every part of a symbol with options.
 - **`.qetdb` files** (experimental database format of QElectroTech) cannot
-  keep pipe lines nor the choices of options yet: saving such a project as
-  `.qetdb` is refused, with a message. Use `.qet` or `.qetz`.
+  keep them yet: saving such a project as `.qetdb` is refused, with a
+  message. Use `.qet` or `.qetz`.
 - The file format of these additions may still change, in particular with
   the work on the project file format
   ([Discussion #1512](https://github.com/qelectrotech/qelectrotech-source-mirror/discussions/1512)).
