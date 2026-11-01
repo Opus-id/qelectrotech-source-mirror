@@ -9,9 +9,11 @@
 #include "qetgraphicsitem/pipeline.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "qetresult.h"
 #include "undocommand/deleteqgraphicsitemcommand.h"
 
 #include <QDomDocument>
+#include <QTemporaryDir>
 
 // A pipe line attached to the nozzles of P&ID symbols (terminals whose
 // "connection" is "pipe"): it takes the place and direction of a nozzle,
@@ -71,6 +73,88 @@ class tst_pipeterminal : public QObject
 		auto *p = new PipeLine({QPointF(0, 0), Qet::East}, {QPointF(50, 0), Qet::West});
 		m_folio->addItem(p);
 		return p;
+	}
+
+		// The valve in the collection of a project of its own
+	static ElementsLocation addValve(QETProject &project)
+	{
+		project.embeddedElementCollection()->createDir(
+					QStringLiteral("import"), QStringLiteral("pipes"), NamesList());
+		QDomDocument doc;
+		project.embeddedElementCollection()->addElementDefinition(
+					QStringLiteral("import/pipes"), QStringLiteral("valve.elmt"),
+					definition(doc, "61111111-1111-1111-1111-111111111111", "pipe"));
+		return ElementsLocation(QStringLiteral("embed://import/pipes/valve.elmt"), &project);
+	}
+
+	static Element *placeOn(Diagram *folio, const ElementsLocation &location, const QPointF &pos)
+	{
+		int state = 0;
+		Element *element = ElementFactory::Instance()->createElement(location, nullptr, &state);
+		if (!element || state) return nullptr;
+		folio->addItem(element);
+		element->setPos(pos);
+		return element;
+	}
+
+	static QList<PipeLine *> pipesOf(Diagram *folio)
+	{
+		folio->ensureLoaded();
+		QList<PipeLine *> pipes;
+		for (QGraphicsItem *item : folio->items())
+			if (auto *p = qgraphicsitem_cast<PipeLine *>(item)) pipes << p;
+		return pipes;
+	}
+
+	static Element *elementNamed(Diagram *folio, const QUuid &uuid)
+	{
+		for (QGraphicsItem *item : folio->items())
+			if (auto *e = qgraphicsitem_cast<Element *>(item))
+				if (e->uuid() == uuid) return e;
+		return nullptr;
+	}
+
+		// The <pipes> block of the first folio of the file at @p path, as text
+	static QString pipesBlock(const QString &path)
+	{
+		QFile file(path);
+		if (!file.open(QIODevice::ReadOnly)) return QString();
+		QDomDocument doc;
+		doc.setContent(&file);
+		const QDomElement folio = doc.documentElement().firstChildElement(QStringLiteral("diagram"));
+		QString text;
+		QTextStream stream(&text);
+		folio.firstChildElement(QStringLiteral("pipes")).save(stream, 1);
+		return text;
+	}
+
+		// A folio with two valves joined by a pipe line drawn from N2 to N1,
+		// and a loose pipe line, saved at @p path
+	static bool saveTwoValves(const QString &path, QUuid *a_uuid, QUuid *b_uuid,
+							  QUuid *drawn, QUuid *loose)
+	{
+		QETProject project;
+		const ElementsLocation valve = addValve(project);
+		Diagram *folio = project.addNewDiagram();
+		Element *a = placeOn(folio, valve, QPointF(100, 100));
+		Element *b = placeOn(folio, valve, QPointF(300, 160));
+		if (!a || !b) return false;
+		b->setRotation(90);
+		PipeLine *p = nozzle(a, "N2")->drawPipeTo(nozzle(b, "N1"));
+		if (!p) return false;
+		PipeProperties properties;
+		properties.line_number = QStringLiteral("L-101");
+		properties.nominal_diameter = 100;
+		properties.fluid = QStringLiteral("eau brute");
+		p->setProperties(properties);
+		auto *l = new PipeLine({QPointF(0, 400), Qet::East}, {QPointF(200, 440), Qet::West});
+		folio->addItem(l);
+		*a_uuid = a->uuid();
+		*b_uuid = b->uuid();
+		*drawn = p->uuid();
+		*loose = l->uuid();
+		project.setFilePath(path);
+		return project.write().isOk();
 	}
 
 		// Whether the end @p side of @p p sits on @p t, facing its way
@@ -398,6 +482,146 @@ class tst_pipeterminal : public QObject
 			QVERIFY(!p->terminal(PipeLine::Side::Start));
 			QCOMPARE(nozzle(a, "N2")->pipes(), QList<PipeLine *>{q});
 			delete q;
+		}
+
+			// ---- saved with the folio, in a <pipes> block ----
+		void aSavedPipeLineComesBackOnItsNozzles_data()
+		{
+			QTest::addColumn<QString>("suffix");
+			QTest::newRow(".qet") << QStringLiteral(".qet");
+			QTest::newRow(".qetz") << QStringLiteral(".qetz");
+		}
+
+		void aSavedPipeLineComesBackOnItsNozzles()
+		{
+			QFETCH(QString, suffix);
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString path = dir.filePath(QStringLiteral("pipes") + suffix);
+			QUuid a_uuid, b_uuid, drawn, loose;
+			QVERIFY(saveTwoValves(path, &a_uuid, &b_uuid, &drawn, &loose));
+
+			QETProject back(path);
+			QCOMPARE(back.diagrams().size(), 1);
+			Diagram *folio = back.diagrams().first();
+			const QList<PipeLine *> pipes = pipesOf(folio);
+			QCOMPARE(pipes.size(), 2);
+			Element *a = elementNamed(folio, a_uuid);
+			Element *b = elementNamed(folio, b_uuid);
+			QVERIFY(a && b);
+			PipeLine *p = pipes.at(0)->uuid() == drawn ? pipes.at(0) : pipes.at(1);
+			PipeLine *l = p == pipes.at(0) ? pipes.at(1) : pipes.at(0);
+			QCOMPARE(p->uuid(), drawn);
+			QCOMPARE(l->uuid(), loose);
+
+				// back on its nozzles, with its data
+			QCOMPARE(p->terminal(PipeLine::Side::Start), nozzle(a, "N2"));
+			QCOMPARE(p->terminal(PipeLine::Side::End), nozzle(b, "N1"));
+			QVERIFY(onNozzle(p, PipeLine::Side::End, nozzle(b, "N1")));
+			QCOMPARE(p->endEnd().direction, Qet::North);
+			QCOMPARE(nozzle(b, "N1")->pipes(), QList<PipeLine *>{p});
+			QCOMPARE(p->properties().line_number, QStringLiteral("L-101"));
+			QCOMPARE(p->properties().nominal_diameter, 100);
+			QCOMPARE(p->properties().fluid, QStringLiteral("eau brute"));
+				// and following them again
+			b->setPos(QPointF(340, 220));
+			QVERIFY(onNozzle(p, PipeLine::Side::End, nozzle(b, "N1")));
+
+				// the loose one where it was
+			QVERIFY(!l->terminal(PipeLine::Side::Start));
+			QVERIFY(!l->terminal(PipeLine::Side::End));
+			QCOMPARE(l->startEnd().point, QPointF(0, 400));
+			QCOMPARE(l->endEnd().point, QPointF(200, 440));
+		}
+
+		void anUnchangedFolioSavesTheSamePipeLines()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString first = dir.filePath(QStringLiteral("first.qet"));
+			const QString second = dir.filePath(QStringLiteral("second.qet"));
+			QUuid a_uuid, b_uuid, drawn, loose;
+			QVERIFY(saveTwoValves(first, &a_uuid, &b_uuid, &drawn, &loose));
+			{
+				QETProject back(first);
+				pipesOf(back.diagrams().first());
+				back.setFilePath(second);
+				QVERIFY(back.write().isOk());
+			}
+			const QString block = pipesBlock(first);
+			QVERIFY(block.contains(QStringLiteral("start_element=\"%1\"").arg(a_uuid.toString())));
+			QVERIFY(block.contains(QStringLiteral("end_element=\"%1\"").arg(b_uuid.toString())));
+			QCOMPARE(pipesBlock(second), block);
+		}
+
+		void aFolioWithoutPipeLinesSavesNoBlock()
+		{
+			QETProject project;
+			const ElementsLocation valve = addValve(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = placeOn(folio, valve, QPointF(100, 100));
+			Element *b = placeOn(folio, valve, QPointF(300, 100));
+			QVERIFY(a && b);
+			QVERIFY(folio->toXml().documentElement()
+					.firstChildElement(QStringLiteral("pipes")).isNull());
+
+				// nor does a copy, even of joined symbols
+			QVERIFY(nozzle(a, "N2")->drawPipeTo(nozzle(b, "N1")));
+			QVERIFY(!folio->toXml().documentElement()
+					.firstChildElement(QStringLiteral("pipes")).isNull());
+			folio->selectAll();
+			QVERIFY(folio->toXml(false, true).documentElement()
+					.firstChildElement(QStringLiteral("pipes")).isNull());
+		}
+
+		void aNozzleNotFoundIsKeptForTheNextSave()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString path = dir.filePath(QStringLiteral("missing.qet"));
+			QUuid a_uuid, b_uuid, drawn, loose;
+			QVERIFY(saveTwoValves(path, &a_uuid, &b_uuid, &drawn, &loose));
+
+				// the start now names a symbol the folio does not have
+			const QUuid gone = QUuid::createUuid();
+			QFile file(path);
+			QVERIFY(file.open(QIODevice::ReadOnly));
+			QString text = QString::fromUtf8(file.readAll());
+			file.close();
+			const QString start = QStringLiteral("start_element=\"%1\"").arg(a_uuid.toString());
+			QCOMPARE(text.count(start), 1);
+			text.replace(start, QStringLiteral("start_element=\"%1\"").arg(gone.toString()));
+			QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+			file.write(text.toUtf8());
+			file.close();
+
+			QETProject back(path);
+			Diagram *folio = back.diagrams().first();
+			PipeLine *p = nullptr;
+			for (PipeLine *pipe : pipesOf(folio))
+				if (pipe->uuid() == drawn) p = pipe;
+			QVERIFY(p);
+			Element *a = elementNamed(folio, a_uuid);
+			Element *b = elementNamed(folio, b_uuid);
+			QVERIFY(a && b);
+			QVERIFY(!p->terminal(PipeLine::Side::Start));
+			QCOMPARE(p->pendingAttachment(PipeLine::Side::Start).element, gone);
+			QCOMPARE(p->terminal(PipeLine::Side::End), nozzle(b, "N1"));
+				// the nozzle it was on is free
+			QVERIFY(nozzle(a, "N2")->hasRoomForPipe());
+				// written back as read
+			const QDomDocument saved = folio->toXml();
+			QDomElement pipe_xml = saved.documentElement()
+					.firstChildElement(QStringLiteral("pipes")).firstChildElement();
+			while (!pipe_xml.isNull() && QUuid(pipe_xml.attribute(QStringLiteral("uuid"))) != drawn)
+				pipe_xml = pipe_xml.nextSiblingElement();
+			QVERIFY(!pipe_xml.isNull());
+			QCOMPARE(QUuid(pipe_xml.attribute(QStringLiteral("start_element"))), gone);
+			QCOMPARE(QUuid(pipe_xml.attribute(QStringLiteral("end_element"))), b_uuid);
+
+				// detached, it forgets it
+			p->detach(PipeLine::Side::Start);
+			QVERIFY(p->pendingAttachment(PipeLine::Side::Start).isNull());
 		}
 };
 

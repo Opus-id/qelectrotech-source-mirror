@@ -18,6 +18,7 @@
 #include "pipeline.h"
 
 #include "../conductorrouter.h"
+#include "element.h"
 #include "terminal.h"
 
 #include <QPainter>
@@ -99,6 +100,31 @@ namespace
 		e.setAttribute(prefix + QStringLiteral("_y"), QString::number(end.point.y()));
 		e.setAttribute(prefix + QStringLiteral("_direction"),
 					   directionToString(end.direction));
+	}
+
+		/// Both uuids, or nothing: half a nozzle names none
+	PipeLine::Attachment readAttachment(const QDomElement &e, const QString &prefix)
+	{
+		PipeLine::Attachment a;
+		a.element = QUuid(e.attribute(prefix + QStringLiteral("_element")));
+		a.terminal = QUuid(e.attribute(prefix + QStringLiteral("_terminal")));
+		return a.isNull() ? PipeLine::Attachment() : a;
+	}
+
+	void writeAttachment(QDomElement &e, const QString &prefix,
+						 const PipeLine::Attachment &a)
+	{
+		if (a.isNull()) return;
+		e.setAttribute(prefix + QStringLiteral("_element"), a.element.toString());
+		e.setAttribute(prefix + QStringLiteral("_terminal"), a.terminal.toString());
+	}
+
+		/// The nozzle @p terminal as a file names it, as a conductor names
+		/// its terminals (Conductor::toXml())
+	PipeLine::Attachment attachmentOf(const Terminal *terminal)
+	{
+		if (!terminal || !terminal->parentElement()) return {};
+		return {terminal->parentElement()->uuid(), terminal->stableUuid()};
 	}
 
 	ConductorRouter::Direction routerDirection(Qet::Orientation o)
@@ -187,17 +213,20 @@ bool PipeLine::attach(Side side, Terminal *terminal)
 		return false;
 	}
 	(side == Side::Start ? m_start_terminal : m_end_terminal) = terminal;
+	(side == Side::Start ? m_start_pending : m_end_pending) = Attachment();
 	updateFromTerminals();
 	return true;
 }
 
 /**
 	@brief PipeLine::detach
-	Detach the end @p side from its nozzle. The end stays where it is.
+	Detach the end @p side from its nozzle, or from the one a file named for
+	it (pendingAttachment()). The end stays where it is.
 	@param side the end to detach
 */
 void PipeLine::detach(Side side)
 {
+	(side == Side::Start ? m_start_pending : m_end_pending) = Attachment();
 	QPointer<Terminal> &attached = side == Side::Start ? m_start_terminal
 							   : m_end_terminal;
 	if (Terminal *terminal = attached.data()) {
@@ -285,6 +314,18 @@ void PipeLine::claimTerminals()
 }
 
 /**
+	@brief PipeLine::pendingAttachment
+	@param side the end
+	@return the nozzle fromXml() read for the end @p side and which it is
+	not attached to; a null one if the file named none, or once the end is
+	attached or detached
+*/
+PipeLine::Attachment PipeLine::pendingAttachment(Side side) const
+{
+	return side == Side::Start ? m_start_pending : m_end_pending;
+}
+
+/**
 	@brief PipeLine::setProperties
 	Set the properties of this pipe line. Nothing is passed on to any other
 	pipe line, whatever it is connected to.
@@ -317,10 +358,11 @@ void PipeLine::setEnds(const End &start, const End &end)
 
 /**
 	@brief PipeLine::toXml
-	Write this pipe line as a <pipe> element: its identifier, its two ends
-	and its properties, all as attributes. Nothing else goes in: the path
-	is worked out again from the ends when the element is read, so a change
-	in the routing never makes a file out of date.
+	Write this pipe line as a <pipe> element: its identifier, its two ends,
+	the nozzle each end docks to (start_element and start_terminal...) and
+	its properties, all as attributes. Nothing else goes in: the path is
+	worked out again from the ends when the element is read, so a change in
+	the routing never makes a file out of date.
 	@param document the document the element is created in
 	@return the element
 */
@@ -332,6 +374,10 @@ QDomElement PipeLine::toXml(QDomDocument &document) const
 	}
 	writeEnd(element, QStringLiteral("start"), m_start);
 	writeEnd(element, QStringLiteral("end"), m_end);
+	writeAttachment(element, QStringLiteral("start"),
+					m_start_terminal ? attachmentOf(m_start_terminal) : m_start_pending);
+	writeAttachment(element, QStringLiteral("end"),
+					m_end_terminal ? attachmentOf(m_end_terminal) : m_end_pending);
 	m_properties.toXml(element);
 	return element;
 }
@@ -354,7 +400,9 @@ bool PipeLine::valideXml(const QDomElement &element)
 	@brief PipeLine::fromXml
 	Read a <pipe> element. An attribute this class does not know is
 	ignored. A missing or malformed identifier is replaced by a new one
-	which is not written back by toXml().
+	which is not written back by toXml(). The ends are left loose: the
+	nozzles the element names are kept as pendingAttachment(), for the
+	folio to attach them (Diagram::fromXml()); attached ends are detached.
 	@param element the element to read
 	@return true if it was read; false, with this pipe line unchanged,
 	if valideXml() refuses it
@@ -370,6 +418,11 @@ bool PipeLine::fromXml(const QDomElement &element)
 	const QUuid uuid(element.attribute(QStringLiteral("uuid")));
 	m_persist_uuid = !uuid.isNull();
 	m_uuid = uuid.isNull() ? QUuid::createUuid() : uuid;
+
+	detach(Side::Start);
+	detach(Side::End);
+	m_start_pending = readAttachment(element, QStringLiteral("start"));
+	m_end_pending = readAttachment(element, QStringLiteral("end"));
 
 	PipeProperties properties;
 	properties.fromXml(element);

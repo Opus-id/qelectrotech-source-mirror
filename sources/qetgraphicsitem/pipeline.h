@@ -48,9 +48,10 @@ class Terminal;
 	A nozzle takes one pipe line. When the terminal goes, the end is left
 	where it was, loose; nothing else is changed.
 
-	Nothing creates a pipe line yet and a diagram does not know about this
-	class: neither the attachments nor the pipe line itself are saved with
-	a project.
+	A pipe line is drawn by dragging from a nozzle to another
+	(Terminal::drawPipeTo()) and saved with its folio, in a <pipes> block
+	(Diagram::toXml()): its <pipe> names the symbol and the terminal each
+	attached end docks to.
 */
 class PipeLine : public QGraphicsObject
 {
@@ -68,6 +69,15 @@ class PipeLine : public QGraphicsObject
 
 			/// One of the two ends of a pipe line
 		enum class Side { Start, End };
+
+			/// The nozzle an end docks to, as a file names it: the uuid of
+			/// the symbol and the uuid of its terminal
+		struct Attachment
+		{
+			QUuid element;
+			QUuid terminal;
+			bool isNull() const { return element.isNull() || terminal.isNull(); }
+		};
 
 		PipeLine(const End &start, const End &end,
 				 QGraphicsItem *parent = nullptr);
@@ -115,6 +125,12 @@ class PipeLine : public QGraphicsObject
 			/// folio; an end whose nozzle was taken meanwhile is left loose:
 			/// called by Diagram::addItem()
 		void claimTerminals();
+			/// The nozzle fromXml() read for the end @p side, which is not
+			/// attached to it (yet): the folio attaches it once its symbols
+			/// are read. One that cannot be found -- symbol not loaded, say --
+			/// is written back by toXml(), so a save loses nothing; attaching
+			/// or detaching the end forgets it.
+		Attachment pendingAttachment(Side side) const;
 
 			/// The corners of the path, from the start to the end, both
 			/// included
@@ -154,6 +170,9 @@ class PipeLine : public QGraphicsObject
 			/// a safety net.
 		QPointer<Terminal> m_start_terminal;
 		QPointer<Terminal> m_end_terminal;
+			/// See pendingAttachment()
+		Attachment m_start_pending;
+		Attachment m_end_pending;
 		PipeProperties m_properties;
 		QUuid m_uuid;
 			/// false when m_uuid was made up by fromXml() because the file

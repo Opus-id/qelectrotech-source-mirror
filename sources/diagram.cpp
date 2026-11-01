@@ -1476,6 +1476,7 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 	QVector<QetGraphicsTableItem *> table_vector;
 	QVector<TerminalStripItem *> strip_vector;
 	QVector<DimensionItem *> list_dimensions;
+	QVector<PipeLine *> list_pipes;
 
 	//Ckeck graphics item to "XMLise"
 	for(QGraphicsItem *qgi : items())
@@ -1543,6 +1544,13 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 				if (whole_content || strip->isSelected()) {
 					strip_vector << strip;
 				}
+				break;
+			}
+				//A copy carries no pipe line yet: pasted, it would need
+				//its nozzles renamed after the pasted symbols
+			case PipeLine::Type: {
+				if (whole_content && !is_copy_command)
+					list_pipes << static_cast<PipeLine *>(qgi);
 				break;
 			}
 		}
@@ -1614,6 +1622,18 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 		writeKept(document, dom_elements, dom_conductors, table_adr_id);
 		if (dom_conductors.hasChildNodes() && dom_conductors.parentNode().isNull())
 			dom_root.insertAfter(dom_conductors, dom_elements);
+	}
+
+		//The pipe lines of a P&ID, in the order of their uuids so that an
+		//unchanged folio saves the same text; no block on a folio without
+		//any, which saves as it did before pipe lines existed
+	if (!list_pipes.isEmpty()) {
+		std::sort(list_pipes.begin(), list_pipes.end(),
+				  [](PipeLine *a, PipeLine *b) { return a->uuid() < b->uuid(); });
+		auto dom_pipes = document.createElement(QStringLiteral("pipes"));
+		for (PipeLine *pipe : std::as_const(list_pipes))
+			dom_pipes.appendChild(pipe->toXml(document));
+		dom_root.appendChild(dom_pipes);
 	}
 
 		// A rect query, unlike items(), returns true stacking order (z, then
@@ -2111,6 +2131,36 @@ QList<Terminal *> findTerminals(int conductor_index,
 			found << table_adr_id.value(id_p1);
 	}
 	return found;
+}
+
+/**
+	@brief pipeNozzle
+	Find the nozzle an end of a pipe line read from a file docks to, the way
+	findTerminals() finds a terminal a wire names by uuids: the terminal's
+	uuid, then the one worked out from its place, then its old place.
+	@param attachment the symbol and the terminal the file names
+	@param added_elements Elements found in the xml file
+	@return the terminal, or nullptr if none is found
+*/
+static Terminal *pipeNozzle(const PipeLine::Attachment &attachment,
+							const QList<Element *> &added_elements)
+{
+	if (attachment.isNull())
+		return nullptr;
+	for (Element *element : added_elements) {
+		if (element->uuid() != attachment.element)
+			continue;
+		const QList<Terminal *> terminals = element->terminals();
+		for (Terminal *terminal : terminals)
+			if (terminal->uuid() == attachment.terminal)
+				return terminal;
+		for (Terminal *terminal : terminals)
+			if (terminal->derivedUuid() == attachment.terminal)
+				return terminal;
+		if (Terminal *terminal = element->terminalFromOldPlace(attachment.terminal))
+			return terminal;
+	}
+	return nullptr;
 }
 
 /**
@@ -2704,6 +2754,30 @@ bool Diagram::fromXml(QDomElement &document,
 						  << moved_ends
 						  << "wire end(s) on a terminal that moved since the project was saved,"
 						  << "matched to it by place";
+	}
+
+		//The pipe lines of a P&ID, read with their folio only: a copy
+		//carries none (toXml()). Each end goes back on the nozzle it
+		//names; one whose nozzle is not found stays loose and keeps the
+		//name, written back on the next save (PipeLine::pendingAttachment()).
+	if (consider_informations) {
+		int pipe_index = 0;
+		for (const QDomElement &pipe_xml : QET::findInDomElement(root,
+																 QStringLiteral("pipes"),
+																 QStringLiteral("pipe"))) {
+			if (!PipeLine::valideXml(pipe_xml)) {
+				qWarning() << "Diagram::fromXml(): a pipe line whose ends cannot be read is left out";
+				continue;
+			}
+			auto *pipe = new PipeLine(PipeLine::End(), PipeLine::End());
+			pipe->fromXml(pipe_xml);
+			settle_uuid(pipe, pipe_xml, QStringLiteral("pipe"), pipe_index++);
+			for (PipeLine::Side side : {PipeLine::Side::Start, PipeLine::Side::End}) {
+				if (Terminal *nozzle = pipeNozzle(pipe->pendingAttachment(side), added_elements))
+					pipe->attach(side, nozzle);
+			}
+			addItem(pipe);
+		}
 	}
 		//A copy of a symbol sharing its uuid with another (older versions'
 		//copies, F100) gets its own, now that its wires are connected to
