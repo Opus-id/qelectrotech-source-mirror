@@ -107,6 +107,8 @@ class Terminal : public QGraphicsObject
 		void removePipe(PipeLine *pipe);
 		QList<PipeLine *> pipes() const;
 		bool hasRoomForPipe() const;
+		bool canBePipedTo(Terminal *other) const;
+		PipeLine *drawPipeTo(Terminal *other);
 
 		// methods related to XML import/export
 		static bool valideXml(QDomElement  &);

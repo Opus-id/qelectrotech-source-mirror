@@ -321,6 +321,65 @@ class tst_pipeterminal : public QObject
 			QVERIFY(onNozzle(p, PipeLine::Side::Start, nozzle(a, "N2")));
 		}
 
+			// ---- drawn from nozzle to nozzle, as the mouse does ----
+		void drawingAPipeLineFromNozzleToNozzle()
+		{
+			Element *a = place(m_valve, QPointF(1300, 100));
+			Element *b = place(m_valve, QPointF(1500, 160));
+				// where the undo stack stands: the steps undone by the tests
+				// before are dropped by a new one
+			const int step = m_folio->undoStack().index();
+
+			PipeLine *p = nozzle(a, "N2")->drawPipeTo(nozzle(b, "N1"));
+			QVERIFY(p);
+			QCOMPARE(p->scene(), m_folio);
+			QCOMPARE(p->terminal(PipeLine::Side::Start), nozzle(a, "N2"));
+			QCOMPARE(p->terminal(PipeLine::Side::End), nozzle(b, "N1"));
+			QVERIFY(onNozzle(p, PipeLine::Side::Start, nozzle(a, "N2")));
+			QVERIFY(onNozzle(p, PipeLine::Side::End, nozzle(b, "N1")));
+				// one step of the undo stack, named after it
+			QCOMPARE(m_folio->undoStack().index(), step + 1);
+			QCOMPARE(m_folio->undoStack().undoText(), QStringLiteral("Add a pipe line"));
+
+			m_folio->undoStack().undo();
+			QVERIFY(!p->scene());
+			QVERIFY(nozzle(a, "N2")->hasRoomForPipe());
+			QVERIFY(nozzle(b, "N1")->hasRoomForPipe());
+
+			m_folio->undoStack().redo();
+			QCOMPARE(p->scene(), m_folio);
+			QCOMPARE(nozzle(a, "N2")->pipes(), QList<PipeLine *>{p});
+			QCOMPARE(nozzle(b, "N1")->pipes(), QList<PipeLine *>{p});
+				// and it follows the symbols
+			b->setPos(QPointF(1520, 220));
+			QVERIFY(onNozzle(p, PipeLine::Side::End, nozzle(b, "N1")));
+		}
+
+		void drawingAPipeLineIsRefusedWhereItCannotGo()
+		{
+			Element *a = place(m_valve, QPointF(1300, 400));
+			Element *b = place(m_valve, QPointF(1500, 400));
+			Element *wired = place(m_wired, QPointF(1300, 600));
+			QVERIFY(nozzle(a, "N2")->drawPipeTo(nozzle(b, "N1")));
+			const int step = m_folio->undoStack().index();
+
+			QVERIFY(!nozzle(a, "N1")->canBePipedTo(nullptr));
+			QVERIFY(!nozzle(a, "N1")->drawPipeTo(nullptr));
+				// the same nozzle at both ends
+			QVERIFY(!nozzle(a, "N1")->drawPipeTo(nozzle(a, "N1")));
+				// a nozzle that already has its pipe line, at either end
+			QVERIFY(!nozzle(a, "N2")->drawPipeTo(nozzle(b, "N2")));
+			QVERIFY(!nozzle(b, "N2")->drawPipeTo(nozzle(a, "N2")));
+				// a terminal that is not a nozzle, at either end
+			QVERIFY(!nozzle(a, "N1")->drawPipeTo(nozzle(wired, "N2")));
+			QVERIFY(!nozzle(wired, "N2")->drawPipeTo(nozzle(a, "N1")));
+				// nothing was done
+			QCOMPARE(m_folio->undoStack().index(), step);
+			QVERIFY(nozzle(a, "N1")->hasRoomForPipe());
+				// two free nozzles still may be joined
+			QVERIFY(nozzle(a, "N1")->canBePipedTo(nozzle(b, "N2")));
+		}
+
 		void aNozzleTakenMeanwhileLeavesTheEndLoose()
 		{
 			Element *a = place(m_valve, QPointF(900, 700));

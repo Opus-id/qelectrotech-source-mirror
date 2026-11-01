@@ -583,8 +583,9 @@ void Terminal::hoverLeaveEvent(QGraphicsSceneHoverEvent *)
 */
 void Terminal::mousePressEvent(QGraphicsSceneMouseEvent *e)
 {
-		//No wire is drawn from a terminal that takes none
-	if (!acceptsWires()) {
+		//A wire is drawn from an electrical terminal, a pipe line from a
+		//nozzle; nothing yet from a signal or drive terminal
+	if (!acceptsWires() && connectionKind() != TerminalData::Pipe) {
 		return;
 	}
 	if (Diagram *diag = diagram()) {
@@ -640,9 +641,12 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 	m_previous_terminal = other_terminal;
 
 	// s'il s'agit d'une borne, on lui applique l'effet hover approprie
-	if (!canBeLinkedTo(other_terminal)) {
+	// (a pipe line goes from a nozzle to a free nozzle, a wire from an
+	// electrical terminal to another one)
+	const bool drawing_pipe = connectionKind() == TerminalData::Pipe;
+	if (drawing_pipe ? !canBePipedTo(other_terminal) : !canBeLinkedTo(other_terminal)) {
 		other_terminal -> m_hovered_color = forbiddenColor;
-	} else if (other_terminal -> conductorsCount()) {
+	} else if (!drawing_pipe && other_terminal -> conductorsCount()) {
 		other_terminal -> m_hovered_color = warningColor;
 	} else {
 		other_terminal -> m_hovered_color = allowedColor;
@@ -677,6 +681,12 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 
 	other_terminal -> m_hovered_color = neutralColor;
 	other_terminal -> m_hovered       = false;
+
+		//From a nozzle, a pipe line rather than a wire
+	if (connectionKind() == TerminalData::Pipe) {
+		drawPipeTo(other_terminal);
+		return;
+	}
 
 	//We stop her if we can't link this terminal with other terminal
 	if (!canBeLinkedTo(other_terminal))
@@ -874,6 +884,50 @@ QList<PipeLine *> Terminal::pipes() const
 bool Terminal::hasRoomForPipe() const
 {
 	return connectionKind() == TerminalData::Pipe && m_pipes.isEmpty();
+}
+
+/**
+	@brief Terminal::canBePipedTo
+	@param other the terminal a pipe line would go to
+	@return true if a pipe line may be drawn from this terminal to @p other:
+	two distinct nozzles, both free (a nozzle takes one pipe line)
+*/
+bool Terminal::canBePipedTo(Terminal *other) const
+{
+	return other && other != this
+		&& hasRoomForPipe() && other->hasRoomForPipe();
+}
+
+/**
+	@brief Terminal::drawPipeTo
+	Draw a pipe line from this nozzle to the nozzle @p other, as dragging
+	from one to the other does: the pipe line is attached to both and added
+	to the folio through its undo stack ("Add a pipe line").
+	@param other the nozzle the pipe line goes to
+	@return the new pipe line, or nullptr when canBePipedTo() refuses it or
+	this terminal is on no folio
+*/
+PipeLine *Terminal::drawPipeTo(Terminal *other)
+{
+	Diagram *diag = diagram();
+	if (!diag || !canBePipedTo(other)) {
+		return nullptr;
+	}
+
+		//Docked as conductors dock, in the coordinates of the folio: a pipe
+		//line has no parent item
+	auto *pipe = new PipeLine({dockConductor(), orientation()},
+				  {other->dockConductor(), other->orientation()});
+	if (!pipe->attach(PipeLine::Side::Start, this)
+		|| !pipe->attach(PipeLine::Side::End, other)) {
+		delete pipe;
+		return nullptr;
+	}
+
+	auto *undo = new AddGraphicsObjectCommand(pipe, diag, QPointF());
+	undo->setText(tr("Add a pipe line"));
+	diag->undoStack().push(undo);
+	return pipe;
 }
 
 /**
