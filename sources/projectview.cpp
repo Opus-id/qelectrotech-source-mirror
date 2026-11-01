@@ -395,6 +395,17 @@ QString ProjectView::askUserForFilePath(bool assign) {
 	}
 	filepath += database ? ".qetdb" : zipped ? ".qetz" : ".qet";
 
+		//A .qetdb would lose the pipe lines of a P&ID (QETProject::write()
+		//refuses it): said here, before the project takes that file path
+	if (database && m_project->hasPipeLines()) {
+		QET::QetMessageBox::warning(
+			this,
+			tr("Pipe lines not kept", "message box title"),
+			tr("This project has pipe lines of a P&ID, which a .qetdb file does not keep yet.\n\n"
+			   "Save it as a .qet or a .qetz file.", "message box content"));
+		return(QString());
+	}
+
 		//Not onto a file someone else has open
 	if (!refuseIfLockedByOther(filepath)) return(QString());
 
@@ -854,9 +865,12 @@ QETResult ProjectView::doSave()
 	if (cancelled) return(QETResult());
 	updateWindowTitle();
 	// This marks the stack's current index as the new "saved" point (so isClean()/cleanChanged() correctly
-	// resume tracking unsaved changes from here) without discarding the undo history. Edits made before this save 
+	// resume tracking unsaved changes from here) without discarding the undo history. Edits made before this save
 	// stay undoable for the rest of the session.
-	project()->undoStack()->setClean();
+	// Only when the file was written: after a failed save the changes are
+	// still unsaved, and closing must still ask about them.
+	if (result.isOk())
+		project()->undoStack()->setClean();
 	return(result);
 }
 

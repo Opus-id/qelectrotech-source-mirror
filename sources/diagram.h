@@ -259,6 +259,9 @@ class Diagram : public QGraphicsScene
 			/// false while this folio's items wait in its XML to be
 			/// built (lazy folios)
 		bool isLoaded() const {return m_deferred.isNull();}
+			/// Whether this folio has pipe lines of a P&ID, built or still
+			/// in its XML (lazy folios)
+		bool hasPipeLines() const;
 		QDomElement deferredXml() const;
 			/// The part @p file of the .qetz the project was opened from
 			/// holds this folio as it is while not built: saving may copy it

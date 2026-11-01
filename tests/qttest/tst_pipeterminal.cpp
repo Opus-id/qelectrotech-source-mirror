@@ -623,6 +623,35 @@ class tst_pipeterminal : public QObject
 			p->detach(PipeLine::Side::Start);
 			QVERIFY(p->pendingAttachment(PipeLine::Side::Start).isNull());
 		}
+
+			// a .qetdb is written from the project database, which has no
+			// place for them: refused rather than lost without a word
+		void aQetdbFileIsRefusedWhileThereArePipeLines()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString qet = dir.filePath(QStringLiteral("pid.qet"));
+			const QString qetdb = dir.filePath(QStringLiteral("pid.qetdb"));
+			QUuid a_uuid, b_uuid, drawn, loose;
+			QVERIFY(saveTwoValves(qet, &a_uuid, &b_uuid, &drawn, &loose));
+
+			QETProject back(qet);
+				// told before any folio is built
+			QVERIFY(back.hasPipeLines());
+			back.setFilePath(qetdb);
+			const QETResult refused = back.write();
+			QVERIFY(!refused.isOk());
+			QVERIFY(refused.errorMessage().contains(QStringLiteral(".qetdb")));
+			QVERIFY(!QFile::exists(qetdb));
+
+				// without pipe lines, saved as before
+			const QList<PipeLine *> pipes = pipesOf(back.diagrams().first());
+			QCOMPARE(pipes.size(), 2);
+			qDeleteAll(pipes);
+			QVERIFY(!back.hasPipeLines());
+			QVERIFY(back.write().isOk());
+			QVERIFY(QFile::exists(qetdb));
+		}
 };
 
 QET_APP_TEST_MAIN(tst_pipeterminal)

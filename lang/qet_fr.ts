@@ -11711,6 +11711,22 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
 <context>
     <name>ProjectView</name>
     <message>
+        <location filename="../sources/projectview.cpp" line="402"/>
+        <source>Pipe lines not kept</source>
+        <comment>message box title</comment>
+        <translation>Tuyauteries non enregistrées</translation>
+    </message>
+    <message>
+        <location filename="../sources/projectview.cpp" line="403"/>
+        <source>This project has pipe lines of a P&amp;ID, which a .qetdb file does not keep yet.
+
+Save it as a .qet or a .qetz file.</source>
+        <comment>message box content</comment>
+        <translation>Ce projet contient des tuyauteries de P&amp;ID, que le format .qetdb n&apos;enregistre pas encore.
+
+Enregistrez-le au format .qet ou .qetz.</translation>
+    </message>
+    <message>
         <location filename="../sources/projectview.cpp" line="326"/>
         <source>The project was modified.
 Do you want to save changes?</source>
@@ -15536,6 +15552,11 @@ les conditions requises ne sont pas valides</translation>
 </context>
 <context>
     <name>QETProject</name>
+    <message>
+        <location filename="../sources/qetproject.cpp" line="3289"/>
+        <source>this project has pipe lines of a P&amp;ID, which a .qetdb file does not keep yet. Save it as a .qet or a .qetz file with Save As.</source>
+        <translation>ce projet contient des tuyauteries de P&amp;ID, que le format .qetdb n&apos;enregistre pas encore. Enregistrez-le au format .qet ou .qetz avec « Enregistrer sous ».</translation>
+    </message>
     <message>
         <source>Chained Folio Reports</source>
         <comment>message box title</comment>

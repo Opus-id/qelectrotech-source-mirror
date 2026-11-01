@@ -817,6 +817,17 @@ QList<Diagram *> QETProject::folios() const
 }
 
 /**
+	@brief QETProject::hasPipeLines
+	@return true if a folio of this project has pipe lines of a P&ID, built
+	or not; none is built to tell
+*/
+bool QETProject::hasPipeLines() const
+{
+	return std::any_of(m_diagrams_list.cbegin(), m_diagrams_list.cend(),
+					   [](const Diagram *folio) { return folio->hasPipeLines(); });
+}
+
+/**
 	@brief QETProject::cableLabelFolios
 	@return the folios CableManager::refreshLabels() works on, built: every
 	folio when the project has cables (a core is followed through folio
@@ -3272,6 +3283,13 @@ QETResult QETProject::write(bool overwrite_changed)
 		if (!can_write)
 			return(QString("the file %1 was opened read-only and thus will not be written").arg(m_file_path));
 	}
+
+		//A .qetdb is written from the project database, which has no place
+		//for the pipe lines of a P&ID: they would be lost without a word.
+		//Refused before anything is touched, the file included.
+	if (QetDbFile::isDatabasePath(m_file_path) && hasPipeLines())
+		return(failed(tr("this project has pipe lines of a P&ID, which a .qetdb file does not keep yet. "
+						 "Save it as a .qet or a .qetz file with Save As.")));
 
 		//QET_QETDB_SAVE_TIMES=1: how long each step of the save took, in ms
 	QElapsedTimer save_timer;

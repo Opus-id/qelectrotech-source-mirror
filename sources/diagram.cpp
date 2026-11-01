@@ -912,6 +912,23 @@ QDomElement Diagram::deferredXmlWithHeader(QDomDocument &document)
 }
 
 /**
+	@brief Diagram::hasPipeLines
+	@return true if this folio has pipe lines of a P&ID: among its items, or
+	in the <pipes> block of its XML while it is not built (lazy folios)
+*/
+bool Diagram::hasPipeLines() const
+{
+	if (!isLoaded()) {
+		return !m_deferred.firstChildElement(QStringLiteral("pipes"))
+				.firstChildElement(QStringLiteral("pipe")).isNull();
+	}
+	const QList<QGraphicsItem *> all = items();
+	return std::any_of(all.cbegin(), all.cend(), [](QGraphicsItem *item) {
+		return item->type() == PipeLine::Type;
+	});
+}
+
+/**
 	@brief Diagram::deferredXml
 	The XML kept for building this folio later. A folio of a .qetdb opened
 	from its tables has its header only: its items are written into it
