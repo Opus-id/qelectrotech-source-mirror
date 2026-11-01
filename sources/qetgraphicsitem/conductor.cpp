@@ -602,7 +602,9 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		//the red and light blue conductors around them
 	const QET::Palette::SheetInk sheet_ink = PaletteGraphicsView::paintingInk(qw);
 	QColor final_conductor_color(m_properties.color);
-	if (must_highlight_ == Normal) {
+	if (m_preview) {
+		final_conductor_color = QColor(160, 160, 160);
+	} else if (must_highlight_ == Normal) {
 		final_conductor_color = QET::Palette::highlightColor(sheet_ink);
 	} else if (must_highlight_ == Alert) {
 		final_conductor_color =QColor::fromRgb(255, 69, 0, 255);
@@ -1172,6 +1174,7 @@ bool Conductor::fromXml(QDomElement &dom_element)
 		m_autoNum_seq.fromXml(dom_element.firstChildElement("sequentialNumbers"));
 
 	m_freeze_label = dom_element.attribute("freezeLabel") == "true" ? true : false;
+	m_automatic = dom_element.attribute(QStringLiteral("automatic")) == QLatin1String("true");
 
 		//Changed through the project database while its folio was not
 		//built (lazy folios): the change, not what the file says
@@ -1225,7 +1228,7 @@ QDomElement Conductor::toXml(QDomDocument &dom_document,
 		} else {
 			dom_element.setAttribute("element1_linked", terminal1->parentElement()->linkedElements().last()->actualLabel());
 		}
-		dom_element.setAttribute("element1_name", terminal1->parentElement()->name());
+		dom_element.setAttribute("element1_name", terminal1->parentElement()->englishName());
 		dom_element.setAttribute("terminal1", terminal1->uuid().toString());
 		dom_element.setAttribute("terminalname1", terminal1->name());
 	}
@@ -1242,11 +1245,13 @@ QDomElement Conductor::toXml(QDomDocument &dom_document,
 		} else {
 			dom_element.setAttribute("element2_linked", terminal2->parentElement()->linkedElements().last()->actualLabel());
 		}
-		dom_element.setAttribute("element2_name", terminal2->parentElement()->name());
+		dom_element.setAttribute("element2_name", terminal2->parentElement()->englishName());
 		dom_element.setAttribute("terminal2", terminal2->uuid().toString());
 		dom_element.setAttribute("terminalname2", terminal2->name());
 	}
 	dom_element.setAttribute("freezeLabel", m_freeze_label? "true" : "false");
+	if (m_automatic)
+		dom_element.setAttribute(QStringLiteral("automatic"), QStringLiteral("true"));
 
 	// on n'exporte les segments du conducteur que si ceux-ci ont
 	// ete modifies par l'utilisateur
@@ -1573,6 +1578,7 @@ void Conductor::updateTextVisibility()
 	ShownKinds::setVisible(m_text_item,
 						   m_properties.type == ConductorProperties::Multi
 						   && m_properties.m_show_text
+						   && !hidesPlaceholder()
 						   && !markReplacesText());
 }
 
@@ -1584,6 +1590,21 @@ void Conductor::updateTextVisibility()
 bool Conductor::markReplacesText() const
 {
 	return m_properties.m_definition_mark && m_properties.m_definition_mark_hides_text;
+}
+
+/**
+	@brief Conductor::hidesPlaceholder
+	@return true for an automatic wire whose text is only QElectroTech's
+	placeholder "_" or nothing: it would stand beside every bridge and
+	corner the automatic connections make (as a "|" on an upright wire).
+	Such a wire shows no text; one given a text of its own shows it.
+*/
+bool Conductor::hidesPlaceholder() const
+{
+	if (!m_automatic)
+		return false;
+	const QString text = m_text_item->toPlainText().trimmed();
+	return text.isEmpty() || text == QLatin1String("_");
 }
 
 /**
@@ -1618,7 +1639,7 @@ void Conductor::calculateTextItemPosition()
 		}
 			//Make sure text item is visible, unless wire numbers are hidden
 			//(View > Show)
-		ShownKinds::setVisible(m_text_item, !markReplacesText());
+		ShownKinds::setVisible(m_text_item, !hidesPlaceholder() && !markReplacesText());
 	}
 
 		//position

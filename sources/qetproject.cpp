@@ -31,6 +31,8 @@
 #include "cable/cable.h"
 #include "cable/cablemanager.h"
 #include "cable/cablepart.h"
+#include "bridge/bridge.h"
+#include "bridge/bridgepart.h"
 #include "autoNum/elementautonumschemecommand.h"
 #include "diagram.h"
 #include "qetgraphicsitem/element.h"
@@ -641,7 +643,9 @@ QETProject::ProjectState QETProject::openFile(QFile *file)
 		const QString chosen = qEnvironmentVariable("QET_QETDB_OUTSIDE_EDIT");
 		if (chosen == QLatin1String("back")) outside = QetDbFile::OutsideEdit::BackToSave;
 		else if (chosen == QLatin1String("keep")) outside = QetDbFile::OutsideEdit::KeepChanges;
-		if (!QetDbFile::read(fi.absoluteFilePath(), &xml_project, &error, adopt, &m_qetdb_repair, outside)) {
+		QHash<QString, QByteArray> table_digests;
+		if (!QetDbFile::read(fi.absoluteFilePath(), &xml_project, &error, adopt, &m_qetdb_repair, outside,
+							 &table_digests)) {
 			qWarning().noquote() << "Unable to read" << fi.fileName() << ":" << error;
 			m_open_error = error;
 			if (opened_here) {
@@ -649,6 +653,8 @@ QETProject::ProjectState QETProject::openFile(QFile *file)
 			}
 			return XmlParsingFailed;
 		}
+			//The first save hashes again only the tables written since
+		m_data_base.openedDigests(table_digests);
 	}
 	if (database) {
 		const QByteArray hash = database_hash.result();
@@ -2587,6 +2593,25 @@ void QETProject::setAutoBreakConductor(bool abc)
 }
 
 /**
+	@brief QETProject::liveAutoConnect
+	@return true if the project keeps automatic connections up to date,
+	see AutoConnect. Chosen when the project is created.
+*/
+bool QETProject::liveAutoConnect() const
+{
+	return m_data_base.numberingFlag(QStringLiteral("live_auto_connect"), false);
+}
+
+/**
+	@brief QETProject::setLiveAutoConnect
+	@param on
+*/
+void QETProject::setLiveAutoConnect(bool on)
+{
+	m_data_base.setNumberingFlag(QStringLiteral("live_auto_connect"), on);
+}
+
+/**
 	@brief QETProject::setTerminalStripLabelsShown
 	Show the label of each terminal strip at its first terminal on every
 	folio, or not; the folios built so far show it at once.
@@ -2822,6 +2847,7 @@ QDomDocument QETProject::toXml(QHash<int, QByteArray> *kept_folios, QStringList 
 	writeUsageXml(project_root);
 	writeWireHopsXml(project_root);
 	writeSymbolTextsXml(project_root);
+	writeLanguagesXml(project_root);
 	writeTerminalLabelSplitXml(project_root);
 	writeWiringRulesXml(project_root);
 	writeChainedReportsXml(project_root);
@@ -2939,6 +2965,18 @@ QDomDocument QETProject::toXml(QHash<int, QByteArray> *kept_folios, QStringList 
 			xml_cables.appendChild(cable->toXml(xml_doc));
 		}
 		project_root.appendChild(xml_cables);
+	}
+
+		//Write the bridges to xml, the same way: their sections are
+		//written here too, so a bridge and everything drawn for it are
+		//read back together.
+	if (m_bridges.count())
+	{
+		auto xml_bridges = xml_doc.createElement(QStringLiteral("bridges"));
+		for (auto &bridge : m_bridges) {
+			xml_bridges.appendChild(bridge->toXml(xml_doc));
+		}
+		project_root.appendChild(xml_bridges);
 	}
 
 	// Write the elements collection.
@@ -3895,6 +3933,7 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 	readUsageXml(xml_project);
 	readWireHopsXml(xml_project);
 	readSymbolTextsXml(xml_project);
+	readLanguagesXml(xml_project);
 	readTerminalLabelSplitXml(xml_project);
 	readWiringRulesXml(xml_project);
 	readChainedReportsXml(xml_project);
@@ -3961,6 +4000,8 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 
 		//Load the cables, after the diagrams their sections are drawn on
 	readCableXml(xml_project);
+		//The bridges the same way: their sections are drawn on the folios
+	readBridgeXml(xml_project);
 	const qint64 cables_ms = phase_timer.restart();
 
 		//Now that all are loaded we refresh content of the project.
@@ -4631,6 +4672,7 @@ void QETProject::readDefaultPropertiesXml(QDomDocument &xml_project)
 	numbering.freeze_new_conductors = isFreezeNewConductors();
 	numbering.freeze_new_elements = isFreezeNewElements();
 	numbering.auto_break_conductors = autoBreakConductor();
+	numbering.live_auto_connect = liveAutoConnect();
 	numbering.cable_x_axis_first = cableXAxisFirst();
 	numbering.cable_ask_numbering = cableAskNumbering();
 	auto element_title = [&element_autonum_id](const QUuid &id) {
@@ -4642,6 +4684,7 @@ void QETProject::readDefaultPropertiesXml(QDomDocument &xml_project)
 		numbering.current_conductor = conds_autonums.attribute(QStringLiteral("current_autonum"));
 		numbering.freeze_new_conductors = conds_autonums.attribute(QStringLiteral("freeze_new_conductors")) == QLatin1String("true");
 		numbering.auto_break_conductors = conds_autonums.attribute(QStringLiteral("auto_break_conductors")) == QLatin1String("true");
+		numbering.live_auto_connect = conds_autonums.attribute(QStringLiteral("live_auto_connect")) == QLatin1String("true");
 		for (auto elmt : QET::findInDomElement(conds_autonums, QStringLiteral("conductor_autonum")))
 		{
 			NumerotationContext nc;
@@ -4818,6 +4861,46 @@ void QETProject::readCableXml(const QDomDocument &xml_project)
 }
 
 /**
+ * @brief QETProject::readBridgeXml
+ * Read the bridges of the project, and draw a section for each of them
+ * on the folio it belongs to -- the same rule as the cables: a folio is
+ * identified by its uuid, so reordering or renumbering pages never
+ * moves a bridge onto the wrong one.
+ * @param xml_project
+ */
+void QETProject::readBridgeXml(const QDomDocument &xml_project)
+{
+	auto xml_elmt = xml_project.documentElement();
+	auto xml_bridges = xml_elmt.firstChildElement(QStringLiteral("bridges"));
+	if (xml_bridges.isNull()) return;
+
+	for (auto xml_bridge = xml_bridges.firstChildElement(Bridge::xmlTagName());
+		 !xml_bridge.isNull();
+		 xml_bridge = xml_bridge.nextSiblingElement(Bridge::xmlTagName()))
+	{
+		auto bridge = new Bridge(this);
+		bridge->fromXml(xml_bridge);
+		addBridge(bridge);
+
+		for (const BridgePartData &part_data : bridge->parts())
+		{
+			Diagram *diagram = diagramByUuid(part_data.diagram);
+			if (!diagram)
+			{
+					//The folio this section was drawn on has been removed:
+					//the section goes with it.
+				bridge->removePart(part_data.uuid);
+				continue;
+			}
+
+			auto part = new BridgePart(part_data);
+			part->setBridge(bridge);
+			diagram->addItem(part);
+		}
+	}
+}
+
+/**
 	Export project properties under the \a xml_element XML element.
 */
 void QETProject::writeProjectPropertiesXml(QDomElement &xml_element) {
@@ -4869,6 +4952,79 @@ void QETProject::writeOriginXml(QDomElement& xml_element)
 		QStringLiteral("origin"),
 		ProjectOrigin::toString(m_origin));
 	xml_element.appendChild(style);
+}
+
+/**
+	@brief QETProject::setLanguages
+	Set the texts in other languages and the language the folios are shown
+	in, and redraw the folios built.
+	@param languages
+*/
+void QETProject::setLanguages(const ProjectLanguages &languages)
+{
+	if (languages == m_languages) {
+		return;
+	}
+	m_languages = languages;
+	storeSettings();
+	setModified(true);
+	for (Diagram *diagram : folios()) {
+		diagram->update();
+	}
+}
+
+/**
+	@brief QETProject::translatableTexts
+	@return the texts drawn in the project that are words (not references or
+	values), read from the project database
+*/
+QStringList QETProject::translatableTexts()
+{
+		//Independent texts, the texts typed into a symbol's text, and the
+		//words symbols carry (comment, function, description)
+	static const QString sql = QStringLiteral(
+			"SELECT text FROM independent_text "
+			"UNION SELECT value FROM element_text_value "
+			"WHERE name = '#text' AND section LIKE 'dynamic_texts/dynamic_elmt_text%/text' "
+			"UNION SELECT value FROM element_information "
+			"WHERE name IN ('comment', 'function', 'description', 'designation')");
+	QSet<QString> found;
+	QSqlQuery query = m_data_base.newQuery(sql);
+	while (query.next()) {
+		const QString text = query.value(0).toString();
+		if (ProjectLanguages::isTranslatable(text)) {
+			found.insert(text);
+		}
+	}
+	QStringList result(found.cbegin(), found.cend());
+	result.sort();
+	return result;
+}
+
+/**
+	@brief QETProject::readLanguagesXml
+	Read the <languages> element of the project, if any. A project without
+	it is shown as drawn.
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readLanguagesXml(QDomDocument &xml_project)
+{
+	m_languages = ProjectLanguages::fromXml(xml_project.documentElement()
+			.firstChildElement(QStringLiteral("languages")));
+}
+
+/**
+	@brief QETProject::writeLanguagesXml
+	Write the <languages> element, only when the project has any.
+	@param xml_element : the <project> element
+*/
+void QETProject::writeLanguagesXml(QDomElement &xml_element)
+{
+	if (m_languages.isEmpty()) {
+		return;
+	}
+	QDomDocument document = xml_element.ownerDocument();
+	xml_element.appendChild(m_languages.toXml(document));
 }
 
 /**
@@ -5073,6 +5229,7 @@ void QETProject::storeSettings()
 	root.appendChild(properties);
 	writeWireHopsXml(root);
 	writeSymbolTextsXml(root);
+	writeLanguagesXml(root);
 	writeTerminalLabelSplitXml(root);
 	writeWiringRulesXml(root);
 	writeChainedReportsXml(root);
@@ -5126,6 +5283,8 @@ void QETProject::writeNumberingXml(const projectDataBase::Numbering &numbering,
 	conductor_autonums.setAttribute("current_autonum", numbering.current_conductor);
 	conductor_autonums.setAttribute("freeze_new_conductors", numbering.freeze_new_conductors ? "true" : "false");
 	conductor_autonums.setAttribute("auto_break_conductors", numbering.auto_break_conductors ? "true" : "false");
+	if (numbering.live_auto_connect)
+		conductor_autonums.setAttribute(QStringLiteral("live_auto_connect"), QStringLiteral("true"));
 	for (auto scheme : schemes(QStringLiteral("conductor"))) {
 	QDomElement conductor_autonum = scheme.context.toXml(xml_document, "conductor_autonum");
 		if (scheme.title != "" && formula(scheme) != "") {
@@ -5512,6 +5671,65 @@ bool QETProject::removeCable(Cable *cable) {
 	CableManager::refreshLabels(this);
 	setModified(true);
 	emit cableRemoved(cable);
+	return true;
+}
+
+/**
+ * @brief QETProject::bridges
+ * @return every bridge of this project
+ */
+QVector<Bridge *> QETProject::bridges() const {
+	return m_bridges;
+}
+
+/**
+ * @brief QETProject::newBridge
+ * Create a bridge owned by this project.
+ * @return the new bridge
+ */
+Bridge *QETProject::newBridge()
+{
+	auto bridge = new Bridge(this);
+	addBridge(bridge);
+	return bridge;
+}
+
+/**
+ * @brief QETProject::addBridge
+ * @param bridge
+ * @return true when the bridge is now held by this project
+ */
+bool QETProject::addBridge(Bridge *bridge)
+{
+	if (!bridge || bridge->parent() != this)
+		return false;
+
+	if (m_bridges.contains(bridge))
+		return true;
+
+	m_bridges.append(bridge);
+	connect(bridge, &Bridge::changed, this, [this]() {
+		setModified(true);
+	});
+	emit bridgeAdded(bridge);
+	return true;
+}
+
+/**
+ * @brief QETProject::removeBridge
+ * Bridge is removed from the list but not deleted, so an undo command
+ * can put it back.
+ * @param bridge
+ * @return true when the bridge was in the list
+ */
+bool QETProject::removeBridge(Bridge *bridge)
+{
+	if (!m_bridges.removeOne(bridge))
+		return false;
+
+	disconnect(bridge, nullptr, this, nullptr);
+	setModified(true);
+	emit bridgeRemoved(bridge);
 	return true;
 }
 

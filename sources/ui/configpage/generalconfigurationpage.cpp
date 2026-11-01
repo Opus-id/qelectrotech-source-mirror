@@ -15,14 +15,18 @@
 	You should have received a copy of the GNU General Public License
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include "../../bordercelllabels.h"
 #include "generalconfigurationpage.h"
 
 #include "../../qetgraphicsitem/dynamicelementtextitem.h"
+#include "../../connectionsymbols.h"
 #include "../../scripting/liveserver.h"
 #include "../../scripting/assistantinfo.h"
 
 #include "../../qetapp.h"
 #include "../../diagramview.h"
+#include "../dockfold.h"
+#include "../dockfit.h"
 #include "../../qeticons.h"
 #include "ui_generalconfigurationpage.h"
 #include "../../materiallist/materiallist.h"
@@ -126,6 +130,10 @@ GeneralConfigurationPage::GeneralConfigurationPage(QWidget *parent) :
 	ui->m_mouse_gestures_cb->setChecked(settings.value("diagrameditor/mouse_gestures", true).toBool());
 	ui->m_pointer_aids_cb->setChecked(DiagramView::pointerAids());
 	ui->m_vertical_texts_from_bottom_cb->setChecked(DynamicElementTextItem::verticalFromBottom());
+	ui->m_junction_replaces_cb->setChecked(ConnectionSymbols::newJunctionReplacesOld());
+	ui->m_terminal_help_lines_cb->setChecked(DiagramView::terminalHelpLinesShown());
+	ui->m_dock_fold_cb->setChecked(DockFold::enabled());
+	ui->m_narrow_docks_cb->setChecked(DockFit::enabled());
 	ui->DiagramEditor_xGrid_sb->setValue(settings.value("diagrameditor/Xgrid", 10).toInt());
 	ui->DiagramEditor_yGrid_sb->setValue(settings.value("diagrameditor/Ygrid", 10).toInt());
 	for (const qreal divisor : TextGrid::divisors)
@@ -200,9 +208,11 @@ GeneralConfigurationPage::GeneralConfigurationPage(QWidget *parent) :
 	ui->m_live_assistant->setEnabled(false);
 #endif
 	ui->m_use_folio_label->setChecked(settings.value("genericpanel/folio", true).toBool());
-	ui->m_border_0->setChecked(settings.value("border-columns_0", false).toBool());
+	ui->m_border_0->setChecked(settings.value("border-columns_0", BorderCellLabels::defaultColumnsFromZero).toBool());
 	ui->m_autosave_sb->setValue(settings.value("diagrameditor/autosave-interval", 0).toInt());
 	ui->m_project_lock->setChecked(settings.value("projectlock/enabled", true).toBool());
+	ui->m_reopen_projects->setChecked(settings.value("projects/reopen_at_start", false).toBool());
+	ui->m_offer_backups->setChecked(settings.value("projects/offer_backups", true).toBool());
 	ui->m_working_copy_recovery->setChecked(QetSettings::workingCopyRecovery());
 	ui->m_qetdb_enabled->setChecked(QetSettings::qetdbEnabled());
 	ui->m_previous_versions_sb->setValue(PreviousVersions::count());
@@ -432,6 +442,8 @@ void GeneralConfigurationPage::applyConf()
 	}
 	settings.setValue("diagrameditor/autosave-interval", ui->m_autosave_sb->value());
 	settings.setValue("projectlock/enabled", ui->m_project_lock->isChecked());
+	settings.setValue("projects/reopen_at_start", ui->m_reopen_projects->isChecked());
+	settings.setValue("projects/offer_backups", ui->m_offer_backups->isChecked());
 	QetSettings::setWorkingCopyRecovery(ui->m_working_copy_recovery->isChecked());
 	QetSettings::setQetdbEnabled(ui->m_qetdb_enabled->isChecked());
 	PreviousVersions::setCount(ui->m_previous_versions_sb->value());
@@ -444,8 +456,12 @@ void GeneralConfigurationPage::applyConf()
 	settings.setValue("diagrameditor/context_toolbar", ui->m_context_toolbar_cb->isChecked());
 	settings.setValue("diagrameditor/mouse_gestures", ui->m_mouse_gestures_cb->isChecked());
 	DiagramView::setPointerAids(ui->m_pointer_aids_cb->isChecked());
+	ConnectionSymbols::setNewJunctionReplacesOld(ui->m_junction_replaces_cb->isChecked());
 	if (ui->m_vertical_texts_from_bottom_cb->isChecked() != DynamicElementTextItem::verticalFromBottom())
 		DynamicElementTextItem::setVerticalFromBottom(ui->m_vertical_texts_from_bottom_cb->isChecked());
+	DiagramView::setTerminalHelpLinesShown(ui->m_terminal_help_lines_cb->isChecked());
+	DockFold::setEnabled(ui->m_dock_fold_cb->isChecked());
+	DockFit::setEnabled(ui->m_narrow_docks_cb->isChecked());
 		//Grid step and key navigation
 	settings.setValue("diagrameditor/Xgrid", ui->DiagramEditor_xGrid_sb->value());
 	settings.setValue("diagrameditor/Ygrid", ui->DiagramEditor_yGrid_sb->value());

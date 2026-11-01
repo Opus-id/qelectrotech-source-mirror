@@ -36,6 +36,7 @@ class Diagram;
 class DiagramTextItem;
 class QetGraphicsTableItem;
 class TerminalStripItem;
+class DimensionItem;
 class PipeLine;
 
 /**
@@ -68,18 +69,21 @@ class DiagramContent
 			TextGroup = 256,
 			Tables = 512,
 			TerminalStrip = 1024,
-			SelectedOnly = 2048,
+			Dimensions = 2048,
+			SelectedOnly = 4096,
 				/// The pipe lines of a P&ID. Selected, deleted and undone
 				/// like the other items, but never moved: their ends follow
-				/// the nozzles they are attached to.
-			Pipes = 4096,
-			All = 2047 | Pipes
+				/// the nozzles they are attached to. Its bit comes after
+				/// SelectedOnly, which is not a kind of item.
+			Pipes = 8192,
+			All = 4095 | Pipes
 		};
 		
 		QList<Element *> m_elements;
 		QSet<IndependentTextItem *> m_text_fields;
 		QSet<DiagramImageItem *> m_images;
 		QSet<QetShapeItem *> m_shapes;
+		QSet<DimensionItem *> m_dimensions;
 		QList<Conductor *> m_conductors_to_update;
 		QList<Conductor *> m_conductors_to_move;
 		QList<Conductor *> m_other_conductors;

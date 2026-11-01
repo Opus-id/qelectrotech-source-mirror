@@ -14540,6 +14540,11 @@ Déponter et/ou supprimer les niveaux des bornes concerné afin de pouvoir les s
         <source>Grid %1 × %2</source>
         <translation>Grille %1 × %2</translation>
     </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="785"/>
+        <source>Find duplicate signals and components...</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>QETElementEditor</name>
@@ -25442,6 +25447,291 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
         <location filename="../sources/SearchAndReplace/ui/replaceadvanceddialog.ui" line="92"/>
         <source>What:</source>
         <translation>Quoi :</translation>
+    </message>
+</context>
+<context>
+    <name>QETDiagramEditor</name>
+    <message>
+        <source>Tape measure</source>
+        <translation>Mètre à ruban</translation>
+    </message>
+    <message>
+        <source>Add linear dimension</source>
+        <translation>Cotation linéaire</translation>
+    </message>
+    <message>
+        <source>Add chain dimension</source>
+        <translation>Cotation en continu</translation>
+    </message>
+    <message>
+        <source>Adds a linear dimension to the current sheet</source>
+        <translation>Ajoute une cotation linéaire au folio courant</translation>
+    </message>
+    <message>
+        <source>Adds a chain dimension to the current sheet</source>
+        <translation>Ajoute une cotation en continu au folio courant</translation>
+    </message>
+</context>
+<context>
+    <name>DimensionPropertiesWidget</name>
+    <message>
+        <source>Dimension Properties</source>
+        <translation>Propriétés de la cotation</translation>
+    </message>
+    <message>
+        <source>Dimension</source>
+        <translation>Cotation</translation>
+    </message>
+    <message>
+        <source>Calculated:</source>
+        <translation>Calculé :</translation>
+    </message>
+    <message>
+        <source>Automatic calculation</source>
+        <translation>Calcul automatique (2px = 1mm)</translation>
+    </message>
+    <message>
+        <source>Custom label:</source>
+        <translation>Texte personnalisé :</translation>
+    </message>
+    <message>
+        <source>Offset:</source>
+        <translation>Décalage :</translation>
+    </message>
+    <message>
+        <source>Termination:</source>
+        <translation>Extrémités :</translation>
+    </message>
+    <message>
+        <source>Dimension Properties...</source>
+        <translation>Propriétés de la cotation...</translation>
+    </message>
+    <message>
+        <source>Arrows</source>
+        <translation>Flèches</translation>
+    </message>
+    <message>
+        <source>Architectural Slashes</source>
+        <translation>Barres obliques (CAD)</translation>
+    </message>
+    <message>
+        <source>Auto (parallel to line)</source>
+        <translation>Automatique (parallèle)</translation>
+    </message>
+    <message>
+        <source>Horizontal</source>
+        <translation>Horizontal</translation>
+    </message>
+</context>
+<context>
+    <name>DimensionPropertiesDialog</name>
+    <message>
+        <source>Edit dimension properties</source>
+        <translation>Éditer les propriétés de la cotation</translation>
+    </message>
+    <message>
+        <source>Arrows</source>
+        <translation>Flèches</translation>
+    </message>
+    <message>
+        <source>Architectural Slashes</source>
+        <translation>Barres obliques (CAD)</translation>
+    </message>
+</context>
+<context>
+    <name>DiagramEventAddDimension</name>
+    <message>
+        <source>Linear Dimension: Click to set the first reference point (P1)</source>
+        <translation>Cotation linéaire : Cliquez pour placer le premier point de référence (P1)</translation>
+    </message>
+    <message>
+        <source>Chain Dimension: Click to set the start reference point (P1)</source>
+        <translation>Cotation en continu : Cliquez pour placer le point de référence initial (P1)</translation>
+    </message>
+    <message>
+        <source>Dimension: Click to set the second reference point (P2) - Length: %1 mm</source>
+        <translation>Cotation : Cliquez pour placer le second point de référence (P2) - Longueur : %1 mm</translation>
+    </message>
+    <message>
+        <source>Dimension: Move mouse to set offset distance and side (%1 mm), click to fix</source>
+        <translation>Cotation : Déplacez la souris pour régler le décalage (%1 mm), cliquez pour valider</translation>
+    </message>
+    <message>
+        <source>Chain Dimension: Click to place next segment (%1 mm) | Press Enter to finish, Esc to exit</source>
+        <translation>Cotation en continu : Cliquez pour placer le segment suivant (%1 mm) | Entrée pour terminer, Échap pour quitter</translation>
+    </message>
+</context>
+<context>
+    <name>DimensionItem</name>
+    <message>
+        <source>Apply dimension format</source>
+        <translation>Appliquer le format de cotation</translation>
+    </message>
+    <message>
+        <source>Move dimension point</source>
+        <translation>Déplacer le point de cotation</translation>
+    </message>
+    <message>
+        <source>Change dimension offset</source>
+        <translation>Modifier le décalage de cotation</translation>
+    </message>
+</context>
+<context>
+    <name>QETElementEditor</name>
+    <message>
+        <source>Tape measure</source>
+        <translation>Mètre à ruban</translation>
+    </message>
+    <message>
+        <source>Measure distance and angle between points</source>
+        <translation>Mesurer la distance et l'angle entre deux points</translation>
+    </message>
+    <message>
+        <source>Clear measurements</source>
+        <translation>Effacer les mesures</translation>
+    </message>
+    <message>
+        <source>Clear all tape measurements from the editor</source>
+        <translation>Effacer toutes les mesures du mètre à ruban dans l'éditeur</translation>
+    </message>
+</context>
+<context>
+    <name>ESEventMeasure</name>
+    <message>
+        <source>Tape measure: Click to set the first reference point (P1), Esc to exit</source>
+        <translation>Mètre à ruban : Cliquez pour placer le premier point de référence (P1), Échap pour quitter</translation>
+    </message>
+    <message>
+        <source>Tape measure: Click to set the second reference point (P2)</source>
+        <translation>Mètre à ruban : Cliquez pour placer le second point de référence (P2)</translation>
+    </message>
+    <message>
+        <source>Tape measure: %1 mm (%2 px) | ΔX: %3 mm | ΔY: %4 mm | Angle: %5°</source>
+        <translation>Mètre à ruban : %1 mm (%2 px) | ΔX : %3 mm | ΔY : %4 mm | Angle : %5°</translation>
+    </message>
+    <message>
+        <source>Measurements cleared</source>
+        <translation>Mesures effacées</translation>
+    </message>
+    <message>
+        <source>Measurements cleared. Press Esc again to exit</source>
+        <translation>Mesures effacées. Appuyez à nouveau sur Échap pour quitter</translation>
+    </message>
+</context>
+<context>
+    <name>DuplicateLabelsDialog</name>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="48"/>
+        <source>Duplicate signals and components</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="55"/>
+        <source>Click an occurrence to select and show it on its sheet. Refresh after editing the project.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="61"/>
+        <source>Case-sensitive comparison</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="63"/>
+        <source>When unchecked, labels differing only in letter case, such as K1 and k1, are duplicates.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="78"/>
+        <source>Error / occurrence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="78"/>
+        <source>Sheet</source>
+        <translation type="unfinished">Folio</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="78"/>
+        <source>Position</source>
+        <translation type="unfinished">Position</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="99"/>
+        <source>Refresh</source>
+        <translation type="unfinished">Actualiser</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="120"/>
+        <source>Reading the folios...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="143"/>
+        <source>Reading folio %1 of %2...</source>
+        <translation>Lecture du folio %1 sur %2...</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="164"/>
+        <source>Duplicate signal: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="166"/>
+        <source>Duplicate component: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="171"/>
+        <source>Duplicate component: %1 in %2</source>
+        <extracomment>%2 is the plant and location, such as &quot;=P1+UV1&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="188"/>
+        <source>Group %1</source>
+        <extracomment>%1 numbers one electrical signal or one linked device among those sharing a label.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="191"/>
+        <source>Occurrences in the same group belong to one signal or linked device.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="203"/>
+        <source>%1 — %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="208"/>
+        <source>x: %1, y: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="218"/>
+        <source>%n occurrences</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="224"/>
+        <source>No duplicate signals or components found.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="230"/>
+        <source>%n duplicate labels found.</source>
+        <extracomment>%n counts conflicting identifiers, not wire segments or symbols.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/duplicatelabelsdialog.cpp" line="242"/>
+        <source>This occurrence no longer exists. Refresh the results.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

@@ -16,6 +16,9 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "diagram.h"
+#include "bridge/bridgecopy.h"
+#include "bridge/bridgemanager.h"
+#include "bridge/bridgepart.h"
 #include "dataBase/projectdatabase.h"
 #include "autoNum/elementautonumschemecommand.h"
 
@@ -27,6 +30,8 @@
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 #include "diagramcontent.h"
 #include "diagramevent/diagrameventaddcable.h"
+#include "diagramevent/diagrameventadddimension.h"
+#include "diagramevent/diagrameventaddelement.h"
 #include "diagramevent/diagrameventinterface.h"
 #include "diagramposition.h"
 #include "factory/elementfactory.h"
@@ -42,6 +47,7 @@
 #include "qetgraphicsitem/independenttextitem.h"
 #include "qetgraphicsitem/pipeline.h"
 #include "qetgraphicsitem/qetshapeitem.h"
+#include "qetgraphicsitem/dimensionitem.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetxml.h"
 #include "undocommand/addelementtextcommand.h"
@@ -816,6 +822,11 @@ QList<Element *> Diagram::buildSymbols(const QSet<QUuid> &uuids)
 	}
 	projectDataBase *db = m_project ? m_project->dataBase() : nullptr;
 	if (db) db->setBuildingFolio(true);
+		//A symbol read in carries the identities of the one it was
+		//copied from for as long as the reading lasts: nothing is hung
+		//differently while it does, or a copy would steal the ends of
+		//a bridge from the symbol it was made of
+	BridgeManager::ReadingGuard reading;
 	for (QDomElement element_xml :
 		 QET::findInDomElement(xml, QStringLiteral("elements"), QStringLiteral("element")))
 	{
@@ -1221,6 +1232,16 @@ bool Diagram::eventInterfaceIsRunning() const
 }
 
 /**
+	@brief Diagram::pendingElement
+	@return the symbol that follows the mouse while one is placed, else nullptr
+*/
+Element *Diagram::pendingElement() const
+{
+	auto *placing = qobject_cast<DiagramEventAddElement *>(m_event_interface);
+	return placing && placing->isRunning() ? placing->pendingElement() : nullptr;
+}
+
+/**
 	@brief Diagram::cableToolIsRunning
 	@return true while the cable drawing tool is the running tool.
 
@@ -1235,6 +1256,17 @@ bool Diagram::cableToolIsRunning() const
 	return m_event_interface
 	       && m_event_interface->isRunning()
 	       && qobject_cast<DiagramEventAddCable *>(m_event_interface);
+}
+
+/**
+	@brief Diagram::dimensionToolIsRunning
+	@return true while the CAD dimensioning tool is the running tool.
+*/
+bool Diagram::dimensionToolIsRunning() const
+{
+	return m_event_interface
+	       && m_event_interface->isRunning()
+	       && qobject_cast<DiagramEventAddDimension *>(m_event_interface);
 }
 
 /**
@@ -1443,6 +1475,7 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 	QVector<QetShapeItem *> list_shapes;
 	QVector<QetGraphicsTableItem *> table_vector;
 	QVector<TerminalStripItem *> strip_vector;
+	QVector<DimensionItem *> list_dimensions;
 
 	//Ckeck graphics item to "XMLise"
 	for(QGraphicsItem *qgi : items())
@@ -1496,6 +1529,13 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 				auto table = static_cast<QetGraphicsTableItem *>(qgi);
 				if (whole_content || table->isSelected())
 					table_vector << table;
+				break;
+			}
+			case DimensionItem::Type: {
+				auto dim = static_cast<DimensionItem *>(qgi);
+				if (whole_content || dim->isSelected()) {
+					list_dimensions << dim;
+				}
 				break;
 			}
 			case TerminalStripItem::Type: {
@@ -1590,6 +1630,7 @@ QDomDocument Diagram::toXml(bool whole_content, bool is_copy_command) {
 	appendInStackingOrder(document, dom_root, QStringLiteral("images"), list_images, stack_rank);
 	appendInStackingOrder(document, dom_root, QStringLiteral("shapes"), list_shapes, stack_rank);
 	appendInStackingOrder(document, dom_root, QStringLiteral("tables"), table_vector, stack_rank);
+	appendInStackingOrder(document, dom_root, QStringLiteral("dimensions"), list_dimensions, stack_rank);
 
 	if (!strip_vector.isEmpty()) {
 		dom_root.appendChild(TerminalStripItemXml::toXml(strip_vector, document));
@@ -1932,9 +1973,10 @@ bool Diagram::fromXml(QDomDocument &document,
 				QPointF position,
 				bool consider_informations,
 				DiagramContent *content_ptr,
-				QList<CablePart *> *cables_added) {
+				QList<CablePart *> *cables_added,
+			  QList<Bridge *> *bridges_added) {
 	QDomElement root = document.documentElement();
-	return(fromXml(root, position, consider_informations, content_ptr, cables_added));
+	return(fromXml(root, position, consider_informations, content_ptr, cables_added, bridges_added));
 }
 
 /**
@@ -2180,7 +2222,8 @@ bool Diagram::fromXml(QDomElement &document,
 				QPointF position,
 				bool consider_informations,
 				DiagramContent *content_ptr,
-				QList<CablePart *> *cables_added)
+				QList<CablePart *> *cables_added,
+			QList<Bridge *> *bridges_added)
 {
 	const QDomElement& root = document;
 		// The first element must be a diagram
@@ -2346,6 +2389,11 @@ bool Diagram::fromXml(QDomElement &document,
 		m_kept_wires.clear();
 		m_symbols_not_loaded.clear();
 	}
+		//A symbol read in carries the identities of the one it was
+		//copied from for as long as the reading lasts -- the loop here
+		//and everything the pasting below moves afterwards -- or a copy
+		//would steal the ends of a bridge from the symbol it was made of
+	BridgeManager::ReadingGuard reading;
 	for (auto element_xml :
 		 QET::findInDomElement(root, QStringLiteral("elements"), QStringLiteral("element")))
 	{
@@ -2469,6 +2517,19 @@ bool Diagram::fromXml(QDomElement &document,
 		added_shapes << dii;
 	}
 
+		// Load dimensions
+	QList<DimensionItem *> added_dimensions;
+	for (auto dim_xml : QET::findInDomElement(root,
+											   QStringLiteral("dimensions"),
+											   QStringLiteral("dimension"))) {
+		DimensionItem *dim = new DimensionItem();
+		dim->fromXml(dim_xml);
+		settle_uuid(dim, dim_xml, QStringLiteral("dimension"), added_dimensions.size());
+		ItemGroups::setGroup(dim, ItemGroups::read(dim_xml));
+		addItem(dim);
+		added_dimensions << dim;
+	}
+
 		//Load tables
 	QVector<QetGraphicsTableItem *> added_tables;
 	for (const auto &dom_table : QETXML::subChild(root,
@@ -2495,6 +2556,14 @@ bool Diagram::fromXml(QDomElement &document,
 		*cables_added = added_cables;
 	}
 
+		//The bridge lines of a copy come in the same way, and are put
+		//down with everything else
+	QList<Bridge *> added_bridges;
+	if (bridges_added) {
+		added_bridges = BridgeCopy::read(this, root);
+		*bridges_added = added_bridges;
+	}
+
 	//Translate items if a new position was given in parameter
 	if (position != QPointF())
 	{
@@ -2506,6 +2575,14 @@ bool Diagram::fromXml(QDomElement &document,
 		for (auto table   : std::as_const(added_tables     )) added_items << table;
 		for (const auto &strip : std::as_const(added_strips)) added_items << strip;
 		for (const auto &cable : std::as_const(added_cables)) added_items << cable;
+		for (auto dim     : std::as_const(added_dimensions )) added_items << dim;
+		for (Bridge *bridge : std::as_const(added_bridges)) {
+			for (BridgePart *part : BridgePart::allParts()) {
+				if (part && part->bridge() == bridge) {
+					added_items << part;
+				}
+			}
+		}
 
 		//Get the top left corner of the rectangle that contain all added items
 		QRectF items_rect;
@@ -2667,6 +2744,9 @@ bool Diagram::fromXml(QDomElement &document,
 					added_shapes.end());
 		content_ptr->m_terminal_strip.swap(added_strips);
 		content_ptr->m_tables.swap(added_tables);
+		content_ptr -> m_dimensions	= QSet<DimensionItem *>(
+					added_dimensions.begin(),
+					added_dimensions.end());
 	}
 
 	adjustSceneRect();
@@ -2810,6 +2890,7 @@ void Diagram::addItem(QGraphicsItem *item)
 			break;
 		}
 		case QetShapeItem::Type:
+		case DimensionItem::Type:
 		case IndependentTextItem::Type:
 		case DiagramImageItem::Type:
 		case QetGraphicsTableItem::Type:
@@ -2858,6 +2939,7 @@ void Diagram::removeItem(QGraphicsItem *item)
 			break;
 		}
 		case QetShapeItem::Type:
+		case DimensionItem::Type:
 		case IndependentTextItem::Type:
 		case DiagramImageItem::Type:
 		case QetGraphicsTableItem::Type:

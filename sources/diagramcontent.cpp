@@ -29,6 +29,7 @@
 #include "qetgraphicsitem/independenttextitem.h"
 #include "qetgraphicsitem/pipeline.h"
 #include "qetgraphicsitem/qetshapeitem.h"
+#include "qetgraphicsitem/dimensionitem.h"
 #include "qetgraphicsitem/terminal.h"
 #include "TerminalStrip/GraphicsItem/terminalstripitem.h"
 
@@ -85,6 +86,7 @@ DiagramContent::DiagramContent(Diagram *diagram, bool selected) :
 			}
 			case DiagramImageItem::Type:       { m_images        << qgraphicsitem_cast<DiagramImageItem *>(item);       break;}
 			case QetShapeItem::Type:           { m_shapes        << qgraphicsitem_cast<QetShapeItem *>(item);           break;}
+			case DimensionItem::Type:          { m_dimensions    << qgraphicsitem_cast<DimensionItem *>(item);          break;}
 			case DynamicElementTextItem::Type: { m_element_texts << qgraphicsitem_cast<DynamicElementTextItem *>(item); break;}
 			case QGraphicsItemGroup::Type: {
 				if (auto *group = dynamic_cast<ElementTextItemGroup *>(item)) {
@@ -205,6 +207,7 @@ bool DiagramContent::hasDeletableItems() const
 			|| qgi->type() == Conductor::Type
 			|| qgi->type() == IndependentTextItem::Type
 			|| qgi->type() == QetShapeItem::Type
+			|| qgi->type() == DimensionItem::Type
 			|| qgi->type() == DiagramImageItem::Type
 			|| qgi->type() == DynamicElementTextItem::Type
 			|| qgi->type() == QetGraphicsTableItem::Type
@@ -226,6 +229,7 @@ bool DiagramContent::hasCopiableItems() const
 {
 	if(!m_images.isEmpty())      return true;
 	if(!m_shapes.isEmpty())      return true;
+	if(!m_dimensions.isEmpty())  return true;
 	if(!m_elements.isEmpty())    return true;
 	if(!m_text_fields.isEmpty()) return true;
 	
@@ -242,6 +246,7 @@ void DiagramContent::clear()
 	m_text_fields.clear();
 	m_images.clear();
 	m_shapes.clear();
+	m_dimensions.clear();
 	m_conductors_to_update.clear();
 	m_conductors_to_move.clear();
 	m_other_conductors.clear();
@@ -282,6 +287,14 @@ int DiagramContent::removeNonMovableItems()
 	for(QetShapeItem *shape : shapes_set) {
 		if (!shape->isMovable()) {
 			m_shapes.remove(shape);
+			++count_;
+		}
+	}
+
+	const QSet<DimensionItem *> dimensions_set = m_dimensions;
+	for(DimensionItem *dim : dimensions_set) {
+		if (!dim->isMovable()) {
+			m_dimensions.remove(dim);
 			++count_;
 		}
 	}
@@ -352,6 +365,10 @@ DiagramContent &DiagramContent::operator+=(const DiagramContent &other)
 	for(QetShapeItem *qsi : other.m_shapes)
 		if(!m_shapes.contains(qsi))
 			m_shapes << qsi;
+
+	for(DimensionItem *di : other.m_dimensions)
+		if(!m_dimensions.contains(di))
+			m_dimensions << di;
 	
 	for(Conductor *c : other.m_conductors_to_update)
 		if(!m_conductors_to_update.contains(c))
@@ -474,6 +491,7 @@ QList<QGraphicsItem *> DiagramContent::items(int filter) const
 	if (filter & TextGroup)			for(auto qgi : m_texts_groups)  items_list << qgi;
 	if (filter & Tables)            for(auto qgi : m_tables)        items_list << qgi;
 	if (filter & TerminalStrip)     for(const auto qgi : std::as_const(m_terminal_strip)) items_list << qgi;
+	if (filter & Dimensions)        for(const auto qgi : std::as_const(m_dimensions))     items_list << qgi;
 	if (filter & Pipes)             for(auto qgi : m_pipes)         items_list << qgi;
 
 	if (filter & SelectedOnly) {
@@ -504,6 +522,7 @@ int DiagramContent::count(int filter) const
 		if (filter & TextGroup)          for(auto etig      : m_texts_groups)         { if (etig      -> isSelected()) ++ count; }
 		if (filter & Tables)             for(auto table     : m_tables)               { if (table     -> isSelected()) ++ count;  }
 		if (filter & TerminalStrip)      for(const auto &strip : std::as_const(m_terminal_strip)) {if (strip->isSelected()) ++ count;}
+		if (filter & Dimensions)         for(const auto &dim   : std::as_const(m_dimensions))     {if (dim->isSelected())   ++ count;}
 		if (filter & Pipes)              for(auto pipe      : m_pipes)                { if (pipe      -> isSelected()) ++ count; }
 	}
 	else {
@@ -518,6 +537,7 @@ int DiagramContent::count(int filter) const
 		if (filter & TextGroup)			 count += m_texts_groups.count();
 		if (filter & Tables)             count += m_tables.count();
 		if (filter & TerminalStrip)      count += m_terminal_strip.count();
+		if (filter & Dimensions)         count += m_dimensions.count();
 		if (filter & Pipes)              count += m_pipes.count();
 	}
 	return(count);

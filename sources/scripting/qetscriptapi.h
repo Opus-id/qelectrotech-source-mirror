@@ -550,6 +550,9 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE bool deleteTable(int folioIndex, int tableIndex);
 		Q_INVOKABLE bool setTablePosition(int folioIndex, int tableIndex, double x, double y);
 
+		// -- texts that sit on a wire --
+		Q_INVOKABLE int clearTextsFromWires(int folioIndex, double distance = 4, double maxMove = 30);
+
 		// -- auto-numbering contexts (conductor, element, folio) --
 		Q_INVOKABLE QStringList autoNums(const QString &kind) const;
 		Q_INVOKABLE bool addAutoNum(const QString &kind, const QString &name, const QStringList &parts);
@@ -591,6 +594,8 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE bool deleteElementText(int folioIndex, const QString &elementUuid, int textIndex);
 		Q_INVOKABLE QVariantMap elementTextGeometry(int folioIndex, const QString &elementUuid,
 													int textIndex) const;
+		Q_INVOKABLE bool placeElementTexts(int folioIndex, const QStringList &elementUuids,
+										   const QString &where);
 
 		// -- copy elements (with the conductors between them) to a position --
 		Q_INVOKABLE QStringList duplicateElements(int fromFolioIndex, const QStringList &elementUuids,

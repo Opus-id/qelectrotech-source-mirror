@@ -141,7 +141,7 @@ if(Python3_Interpreter_FOUND AND CMAKE_GENERATOR STREQUAL "Ninja")
       --build ${CMAKE_BINARY_DIR} --binary $<TARGET_FILE:qelectrotech>
       --source ${CMAKE_CURRENT_SOURCE_DIR}/strip_label_probe.cpp
       --fixture ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/strip_labels.qet)
-  set_tests_properties(tst_striplabelintegration PROPERTIES TIMEOUT 300 RUN_SERIAL TRUE
+  set_tests_properties(tst_striplabelintegration PROPERTIES TIMEOUT ${qet_probe_ctest_timeout} RUN_SERIAL TRUE
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
   # The pointer: a four-way arrow over what a drag moves; with the
   # crosshair, drawn on its grid point in place of the system's.
@@ -198,6 +198,25 @@ if(Python3_Interpreter_FOUND AND CMAKE_GENERATOR STREQUAL "Ninja")
       --fixture ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/unlinked_contact_label.qet)
   set_tests_properties(tst_textfixedsizeintegration PROPERTIES TIMEOUT ${qet_probe_ctest_timeout} RUN_SERIAL TRUE
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  # Automatic connections kept up to date: wires removed and found again
+  # as terminals move out of and back into line, interruption points,
+  # wires drawn by hand left alone, undo as one step.
+  add_test(NAME tst_autoconnectintegration
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run_auto_connect_probe.py
+      --build ${CMAKE_BINARY_DIR} --binary $<TARGET_FILE:qelectrotech>
+      --source ${CMAKE_CURRENT_SOURCE_DIR}/auto_connect_probe.cpp
+      --fixture ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/auto_connect.qet)
+  set_tests_properties(tst_autoconnectintegration PROPERTIES TIMEOUT 300 RUN_SERIAL TRUE
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  # Corners, T-junctions and folio reports placed along a drag, one on
+  # each line it crosses, joined automatically, in one undo step.
+  add_test(NAME tst_autoconnectdragintegration
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run_auto_connect_drag_probe.py
+      --build ${CMAKE_BINARY_DIR} --binary $<TARGET_FILE:qelectrotech>
+      --source ${CMAKE_CURRENT_SOURCE_DIR}/auto_connect_drag_probe.cpp
+      --fixture ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/auto_connect_drag.qet)
+  set_tests_properties(tst_autoconnectdragintegration PROPERTIES TIMEOUT 300 RUN_SERIAL TRUE
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 if(Python3_Interpreter_FOUND AND CMAKE_GENERATOR STREQUAL "Ninja")
   add_test(NAME tst_darkimageintegration
@@ -233,7 +252,7 @@ if(Python3_Interpreter_FOUND AND CMAKE_GENERATOR STREQUAL "Ninja")
       --build ${CMAKE_BINARY_DIR} --binary $<TARGET_FILE:qelectrotech>
       --source ${CMAKE_CURRENT_SOURCE_DIR}/sheet_tab_layout_probe.cpp
       --fixture ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/unlinked_contact_label.qet)
-  set_tests_properties(tst_sheettablayout PROPERTIES TIMEOUT 300 RUN_SERIAL TRUE
+  set_tests_properties(tst_sheettablayout PROPERTIES TIMEOUT ${qet_probe_ctest_timeout} RUN_SERIAL TRUE
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 
@@ -254,6 +273,11 @@ add_executable(tst_diagramsortkeys tst_diagramsortkeys.cpp)
 add_test(NAME tst_diagramsortkeys COMMAND tst_diagramsortkeys)
 target_include_directories(tst_diagramsortkeys PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_diagramsortkeys PRIVATE Qt::Test)
+
+add_executable(tst_dimensionitem tst_dimensionitem.cpp)
+add_test(NAME tst_dimensionitem COMMAND tst_dimensionitem)
+target_include_directories(tst_dimensionitem PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_dimensionitem PRIVATE qelectrotech_objects Qt::Test)
 
 # positionorder.h is header-only: the position comparisons behind element
 # renumbering and terminal numbering, as strict weak orderings for std::sort.
@@ -288,6 +312,45 @@ add_executable(tst_foliogrid tst_foliogrid.cpp)
 target_include_directories(tst_foliogrid PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_foliogrid PRIVATE Qt::Test Qt::Core)
 add_test(NAME tst_foliogrid COMMAND tst_foliogrid)
+
+# ProjectLanguages is the project's texts in other languages: what is shown
+# for a text, the XML it is saved as and the CSV a translator works with.
+add_executable(tst_projectlanguages tst_projectlanguages.cpp
+  ${QET_DIR}/sources/properties/projectlanguages.cpp)
+add_test(NAME tst_projectlanguages COMMAND tst_projectlanguages)
+target_include_directories(tst_projectlanguages PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_projectlanguages PRIVATE Qt::Test Qt::Core Qt::Xml)
+
+# The project's texts in other languages are saved as read, only when there
+# are any, and held by the project database (project_setting).
+if(QET_HAS_SCRIPTING)
+  add_executable(
+    tst_projectlanguagesfile
+    tst_projectlanguagesfile.cpp)
+  add_test(NAME tst_projectlanguagesfile COMMAND tst_projectlanguagesfile)
+  add_dependencies(tst_projectlanguagesfile qelectrotech)
+  target_link_libraries(tst_projectlanguagesfile PRIVATE Qt::Test Qt::Xml)
+  target_compile_definitions(tst_projectlanguagesfile PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
+  add_executable(
+    tst_tabletranslation
+    tst_tabletranslation.cpp)
+  add_test(NAME tst_tabletranslation COMMAND tst_tabletranslation)
+  add_dependencies(tst_tabletranslation qelectrotech)
+  target_link_libraries(tst_tabletranslation PRIVATE Qt::Test)
+  target_compile_definitions(tst_tabletranslation PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
+  add_executable(
+    tst_textclearance
+    tst_textclearance.cpp)
+  add_test(NAME tst_textclearance COMMAND tst_textclearance)
+  add_dependencies(tst_textclearance qelectrotech)
+  target_link_libraries(tst_textclearance PRIVATE Qt::Test)
+  target_compile_definitions(tst_textclearance PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+endif()
 
 # textlines.h is header-only: the lines of a text as they are laid out,
 # for the exports that write a text line by line.
@@ -389,10 +452,26 @@ function(qet_add_app_test name)
   target_link_libraries(${name} PRIVATE qelectrotech_objects Qt::Test)
 endfunction()
 
+# The Connections toolbar: a button per symbol on the wires, a click
+# places it, and the symbol of a button can be changed.
+qet_add_app_test(tst_connectionsymbols tst_connectionsymbols.cpp)
+target_compile_definitions(tst_connectionsymbols PRIVATE
+  QET_ELEMENTS_DIR="${QET_DIR}/elements")
+# Connectivity-aware duplicate labels and clickable occurrences, through the
+# real application.
+qet_add_app_test(tst_duplicatelabels tst_duplicatelabels.cpp)
+target_compile_definitions(tst_duplicatelabels PRIVATE
+  QET_TEST_TRANSLATIONS_DIR="${CMAKE_BINARY_DIR}/lang")
+add_dependencies(tst_duplicatelabels qelectrotech_lrelease)
 # A conductor's colour and section at a slanted stroke across it.
 qet_add_app_test(tst_conductordefinitionmark tst_conductordefinitionmark.cpp)
 target_compile_definitions(tst_conductordefinitionmark PRIVATE
   QET_ELEMENTS_DIR="${QET_DIR}/elements")
+# The projects of the last session are opened again at start, and the
+# ones open when the editor closes are kept for the next start.
+qet_add_app_test(tst_reopenprojects tst_reopenprojects.cpp)
+target_compile_definitions(tst_reopenprojects PRIVATE
+  QET_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/unlinked_contact_label.qet")
 
 # Space on a picture turns its own transform, which the file saves (#1413),
 # alone and with a group.
@@ -410,6 +489,9 @@ qet_add_app_test(tst_rotateselectionimage tst_rotateselectionimage.cpp)
 qet_add_app_test(tst_multielementinfo tst_multielementinfo.cpp)
 target_compile_definitions(tst_multielementinfo PRIVATE
   "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
+
+# An elements collection item set up after the application object is gone.
+qet_add_app_test(tst_collectionitemafterquit tst_collectionitemafterquit.cpp)
 
 # Accepting the settings dialog writes qet-assistant.json with the
 # collection paths just chosen, not the ones they replace.
@@ -433,6 +515,12 @@ qet_add_app_test(tst_terminalcableauto tst_terminalcableauto.cpp)
 # drawing changes; the stored label, the numbering and the exports keep
 # the whole label.
 qet_add_app_test(tst_terminallabeldisplay tst_terminallabeldisplay.cpp)
+
+# The bridge drawn over terminals: what a bridge holds (colour, how many
+# terminals it may take, its sections), which terminals a line about to be
+# drawn crosses, and which parallel track a new bridge takes at them --
+# the first free one, side by side with the bridges already there.
+qet_add_app_test(tst_bridgetool tst_bridgetool.cpp)
 
 # Escape during a picture's resize, rotate or pivot drag puts it back, keeps
 # it selected and records no undo step (#1414); the key goes to the view.
@@ -467,10 +555,19 @@ qet_add_app_test(tst_pipeterminal tst_pipeterminal.cpp)
 # The Auto numbering panel's Increment spin boxes get the width their style
 # asks for; a fixed 55 px cut the number off on Windows (#1566).
 qet_add_app_test(tst_autonumincrementwidth tst_autonumincrementwidth.cpp)
+# An arrow beside the drawing folds the docks of its side away and back.
+qet_add_app_test(tst_dockfold tst_dockfold.cpp)
 
 # View > Snap to the grid switches every snap off and on, as Ctrl held does;
 # View > Grid step sets a fine, medium or coarse step.
 qet_add_app_test(tst_gridsnap tst_gridsnap.cpp)
+
+# The docks of the right side could not be made narrower than about 310 px:
+# the Assistant's check box text never wraps, the Auto numbering fields
+# never shrink.
+qet_add_app_test(tst_dockminwidth tst_dockminwidth.cpp)
+# Without the setting "Narrow docks" (the default) they stay as before.
+qet_add_app_test(tst_dockfitoff tst_dockfitoff.cpp)
 
 # Opening a project before the elements panel's first reload() left its tree
 # item detached, and selecting the item's first child crashed in QTreeModel
@@ -1134,6 +1231,19 @@ if(QET_HAS_SCRIPTING)
   target_compile_definitions(tst_savedstamps PRIVATE
     "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 
+  # A .qet kept in git changes only where the project did (#1512): an
+  # unchanged project saved in another language, time zone or folder is
+  # the same file; a moved symbol changes its own lines, its wires' and
+  # the saved stamps only.
+  add_executable(
+    tst_stableqet
+    tst_stableqet.cpp)
+  add_test(NAME tst_stableqet COMMAND tst_stableqet)
+  add_dependencies(tst_stableqet qelectrotech)
+  target_link_libraries(tst_stableqet PRIVATE Qt::Test)
+  target_compile_definitions(tst_stableqet PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
   # Deleting a symbol whose terminal held several wires joins them with a
   # new wire; its uuid comes from its two ends, so the same deletion saves
   # the same file every time (F115): examples/affuteuse_250h.qet.
@@ -1408,6 +1518,19 @@ if(QET_HAS_SCRIPTING)
   target_compile_definitions(tst_elementplacementrows PRIVATE
     "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\""
     "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
+endif()
+
+# A master can show its contacts its own way (<xrefDisplay> on the element),
+# saved only when set and held by the project database.
+if(QET_HAS_SCRIPTING)
+  add_executable(
+    tst_xrefdisplay
+    tst_xrefdisplay.cpp)
+  add_test(NAME tst_xrefdisplay COMMAND tst_xrefdisplay)
+  add_dependencies(tst_xrefdisplay qelectrotech)
+  target_link_libraries(tst_xrefdisplay PRIVATE Qt::Test Qt::Xml)
+  target_compile_definitions(tst_xrefdisplay PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 endif()
 
 # The texts of a placed symbol and their groups are in the project database
@@ -1957,6 +2080,13 @@ target_compile_definitions(tst_workingcopypoll PRIVATE
 # zoom with fixed ones.
 qet_add_app_test(tst_statusgridzoom tst_statusgridzoom.cpp)
 
+# The shaded lines from a dragged symbol's terminals: on by default, none
+# with the setting off.
+qet_add_app_test(tst_terminalhelplines tst_terminalhelplines.cpp)
+# While placing, the folio knows the symbol that follows the mouse: the
+# crosshair leaves it out, so a corner turned by Space stays visible.
+qet_add_app_test(tst_pendingelement tst_pendingelement.cpp)
+
 # Which working copies a QElectroTech that did not close normally left are
 # offered at the next start, and which are deleted. QET-SQL-FORMAT S3z3.
 add_executable(
@@ -2034,12 +2164,21 @@ target_compile_definitions(tst_qetdbrobust PRIVATE
   "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\""
   "QET_ELEMENTS_DIR=\"${QET_DIR}/elements\"")
 
+# A project is of one kind for good: File > New without automatic
+# connections, File > New project with automatic connections with them.
+qet_add_app_test(tst_newprojectkind tst_newprojectkind.cpp)
 # Upright symbol texts read from bottom to top, when the setting asks.
 qet_add_app_test(tst_uprighttexts tst_uprighttexts.cpp)
 target_compile_definitions(tst_uprighttexts PRIVATE
   QET_ELEMENTS_DIR="${QET_DIR}/elements")
 
 # New tests go above this line: the blocks below apply to the tests above them.
+# What the status bar says an item of a folio is: a symbol with its label
+# and name, a text of a symbol, a free text, a wire, a shape...
+qet_add_app_test(tst_itemdescription tst_itemdescription.cpp)
+# The selection properties dock scrolls its editors in a low window rather
+# than its smallest height pushing the dock below over its last rows.
+qet_add_app_test(tst_propertiesdockscroll tst_propertiesdockscroll.cpp)
 
 # MSVC: the tests need Qt's DLLs, and a Visual Studio build does not put
 # Qt's bin folder on PATH. ENVIRONMENT_MODIFICATION puts it in front of
@@ -2099,3 +2238,17 @@ if(qet_test_timeout_scale GREATER 1 AND NOT CMAKE_VERSION VERSION_LESS 3.22)
     endif()
   endforeach()
 endif()
+
+# The folio properties dialog's paper size: choosing A4, A3 and A4 again
+# must give the first A4 back (issue 1662). QETApp and the title block
+# are stubbed in the test.
+add_executable(
+  tst_borderpropertiespaper
+  tst_borderpropertiespaper.cpp
+  ${QET_DIR}/sources/ui/borderpropertieswidget.cpp
+  ${QET_DIR}/sources/ui/borderpropertieswidget.h
+  ${QET_DIR}/sources/borderproperties.cpp)
+add_test(NAME tst_borderpropertiespaper COMMAND tst_borderpropertiespaper)
+set_tests_properties(tst_borderpropertiespaper PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(tst_borderpropertiespaper PRIVATE ${QET_DIR}/sources ${QET_DIR}/sources/ui)
+target_link_libraries(tst_borderpropertiespaper PRIVATE Qt::Test Qt::Widgets Qt::Xml Qt::Svg Qt::Sql Qt::PrintSupport Qt::Concurrent pugixml::pugixml)

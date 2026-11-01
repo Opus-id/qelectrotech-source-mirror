@@ -101,6 +101,7 @@ class projectDataBase : public QObject
 			/// was saved, with each table's (QETDB-S6-SCOPE.md §8 H5)
 		QHash<QString, QByteArray> unchangedDigests() const {return m_copy_reuse;}
 		void savedDigests(const QHash<QString, QByteArray> &digests);
+		void openedDigests(const QHash<QString, QByteArray> &digests);
 		QString workingCopyPath() const {return m_working_copy_path;}
 			/// The project is open: first commit, the copy is ready
 		void workingCopyOpened();
@@ -354,6 +355,7 @@ class projectDataBase : public QObject
 			bool freeze_new_conductors = false;
 			bool freeze_new_elements = false;
 			bool auto_break_conductors = false;
+			bool live_auto_connect = false;    ///< see AutoConnect
 			bool cable_x_axis_first = true;
 			bool cable_ask_numbering = true;
 		};
@@ -501,6 +503,7 @@ class projectDataBase : public QObject
 		void endTransaction();
 		void beginTransaction();
 		void markCopy(QSqlQuery &query);
+		void trackWrites(QSqlQuery &query);
 		qint64 totalChanges() const;
 			//What the save of the file copyTo() wrote may reuse, and the
 			//write generation it was copied at (markCopy())
