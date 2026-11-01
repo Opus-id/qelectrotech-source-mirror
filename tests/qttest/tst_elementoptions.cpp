@@ -28,8 +28,11 @@
 #include "qetgraphicsitem/element.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "ui/elementoptionswidget.h"
 
+#include <QComboBox>
 #include <QDomDocument>
+#include <QUndoStack>
 #include <QImage>
 #include <QPainter>
 #include <QPicture>
@@ -422,6 +425,78 @@ class tst_elementoptions : public QObject
 			QVERIFY(!back.hasOptionChoices());
 			QVERIFY(back.write().isOk());
 			QVERIFY(QFile::exists(qetdb));
+		}
+
+			// ---- the Options tab of the properties of an element ----
+		void theOptionsTabChoosesWithUndo()
+		{
+			QETProject project;
+			const ElementsLocation location = addPump(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *pump = place(folio, location);
+			QVERIFY(pump);
+			QVERIFY(ElementOptionsWidget::hasOptions(pump));
+			QVERIFY(!ElementOptionsWidget::hasOptions(nullptr));
+
+			ElementOptionsWidget tab(pump);
+			tab.setLiveEdit(true);
+			QComboBox *motor = tab.comboFor(QStringLiteral("motor"));
+			QVERIFY(motor);
+			QVERIFY(!tab.comboFor(QStringLiteral("seal")));
+				// the values in their order, their names shown, the default chosen
+			QCOMPARE(motor->count(), 3);
+			QCOMPARE(motor->itemText(1), QStringLiteral("Fixed speed"));
+			QCOMPARE(motor->currentData().toString(), QStringLiteral("none"));
+
+			const int step = folio->undoStack().index();
+			motor->setCurrentIndex(motor->findData(QStringLiteral("variable")));
+			const ElementOptions::Choices variable{{QStringLiteral("motor"), QStringLiteral("variable")}};
+			QCOMPARE(pump->optionChoices(), variable);
+			QCOMPARE(motorOf(render(pump)), QStringLiteral("variable"));
+			QCOMPARE(folio->undoStack().index(), step + 1);
+			QCOMPARE(folio->undoStack().undoText(), QStringLiteral("Change the options of an element"));
+
+			folio->undoStack().undo();
+			QVERIFY(pump->optionChoices().isEmpty());
+			QCOMPARE(motorOf(render(pump)), QStringLiteral("none"));
+				// the list follows the undo, and makes no step of its own
+			QCOMPARE(motor->currentData().toString(), QStringLiteral("none"));
+			QCOMPARE(folio->undoStack().index(), step);
+			folio->undoStack().redo();
+			QCOMPARE(pump->optionChoices(), variable);
+			QCOMPARE(motor->currentData().toString(), QStringLiteral("variable"));
+
+				// the default chosen is no choice: saved as before
+			motor->setCurrentIndex(motor->findData(QStringLiteral("none")));
+			QVERIFY(pump->optionChoices().isEmpty());
+
+				// showing the element's value makes no step
+			const int shown = folio->undoStack().index();
+			tab.updateUi();
+			QCOMPARE(folio->undoStack().index(), shown);
+		}
+
+		void theOptionsTabKeepsTheChoicesOfOtherOptions()
+		{
+			QETProject project;
+			const ElementsLocation location = addPump(project);
+			Element *pump = place(project.addNewDiagram(), location);
+			QVERIFY(pump);
+				// a choice for an option this symbol does not offer
+			pump->setOptionChoices({{QStringLiteral("seal"), QStringLiteral("double")}});
+			ElementOptionsWidget tab(pump);
+			QComboBox *motor = tab.comboFor(QStringLiteral("motor"));
+			QVERIFY(motor);
+			motor->setCurrentIndex(motor->findData(QStringLiteral("fixed")));
+			const ElementOptions::Choices both{{QStringLiteral("motor"), QStringLiteral("fixed")},
+											   {QStringLiteral("seal"), QStringLiteral("double")}};
+			QCOMPARE(tab.chosen(), both);
+				// not live: the panel's own apply pushes the step
+			QVERIFY(pump->optionChoices() != both);
+			QUndoCommand *undo = tab.associatedUndo();
+			QVERIFY(undo);
+			pump->diagram()->undoStack().push(undo);
+			QCOMPARE(pump->optionChoices(), both);
 		}
 
 			// ---- the element editor ----
