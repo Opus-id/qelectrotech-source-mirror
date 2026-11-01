@@ -304,6 +304,7 @@ class Element : public QetGraphicsItem
 
 		int groupIndexForElement(Element *elmt) const;
 		void setGroupIndexForElement(Element *elmt, int index);
+		void applyContactGroupLabels(Element *slave, int index) const;
 
 		/**
 		 * @brief linkType

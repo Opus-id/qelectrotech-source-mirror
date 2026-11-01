@@ -463,6 +463,8 @@ qet_add_app_test(tst_duplicatelabels tst_duplicatelabels.cpp)
 target_compile_definitions(tst_duplicatelabels PRIVATE
   QET_TEST_TRANSLATIONS_DIR="${CMAKE_BINARY_DIR}/lang")
 add_dependencies(tst_duplicatelabels qelectrotech_lrelease)
+# The labels file behind a symbol's prefix is read once, and again only when it changes.
+qet_add_app_test(tst_labelsfilecache tst_labelsfilecache.cpp)
 # A conductor's colour and section at a slanted stroke across it.
 qet_add_app_test(tst_conductordefinitionmark tst_conductordefinitionmark.cpp)
 target_compile_definitions(tst_conductordefinitionmark PRIVATE
@@ -687,6 +689,16 @@ add_executable(
 add_test(NAME tst_groupedbom COMMAND tst_groupedbom)
 target_include_directories(tst_groupedbom PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_groupedbom PRIVATE Qt::Test Qt::Sql)
+
+# The formulas of a table column compile to SQLite expressions.
+add_executable(
+  tst_formulabuilder
+  tst_formulabuilder.cpp
+  ${QET_DIR}/sources/formulabuilder.cpp
+  ${QET_DIR}/sources/formulabuilder.h)
+add_test(NAME tst_formulabuilder COMMAND tst_formulabuilder)
+target_include_directories(tst_formulabuilder PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_formulabuilder PRIVATE Qt::Test Qt::Sql)
 
 # qet.cpp carries the SingleApplication argument wire format
 # (joinWithSpaces/splitWithSpaces); it pulls in qeticons and shortcutmanager,
@@ -1535,6 +1547,18 @@ if(QET_HAS_SCRIPTING)
   add_dependencies(tst_xrefdisplay qelectrotech)
   target_link_libraries(tst_xrefdisplay PRIVATE Qt::Test Qt::Xml)
   target_compile_definitions(tst_xrefdisplay PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+endif()
+
+# A free text can lead to a folio: saved, in the project database, and a PDF link.
+if(QET_HAS_SCRIPTING)
+  add_executable(
+    tst_textdestination
+    tst_textdestination.cpp)
+  add_test(NAME tst_textdestination COMMAND tst_textdestination)
+  add_dependencies(tst_textdestination qelectrotech)
+  target_link_libraries(tst_textdestination PRIVATE Qt::Test Qt::Xml)
+  target_compile_definitions(tst_textdestination PRIVATE
     "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 endif()
 
