@@ -119,6 +119,9 @@ class Element : public QetGraphicsItem
 				DynamicElementTextItem *text,
 				ElementTextItemGroup *group);
 		void mirrorChanged();
+			/// The options of the symbol were given other values
+			/// (setOptionChoices())
+		void optionChoicesChanged();
 
 	public slots:
 		void updateConductorTexts();

@@ -5731,6 +5731,20 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
 </context>
 <context>
+    <name>ElementOptionsWidget</name>
+    <message>
+        <location filename="../sources/ui/elementoptionswidget.cpp" line="86"/>
+        <source>%1:</source>
+        <comment>label of the list of an option</comment>
+        <translation>%1 :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementoptionswidget.cpp" line="187"/>
+        <source>Options</source>
+        <translation>Options</translation>
+    </message>
+</context>
+<context>
     <name>ElementInfoWidget</name>
     <message>
         <location filename="../sources/ui/elementinfowidget.ui" line="26"/>
@@ -19868,6 +19882,11 @@ Voulez-vous la remplacer ?</translation>
         <location filename="../sources/undocommand/changeelementlocationcommand.cpp" line="31"/>
         <source>Change the type of an element</source>
         <translation>Changer le type d&apos;un élément</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/changeelementoptionscommand.cpp" line="31"/>
+        <source>Change the options of an element</source>
+        <translation>Modifier les options d&apos;un élément</translation>
     </message>
     <message numerus="yes">
         <location filename="../sources/diagramcontent.cpp" line="560"/>

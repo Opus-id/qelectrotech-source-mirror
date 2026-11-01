@@ -29,6 +29,7 @@
 #include "../qeticons.h"
 #include "dynamicelementtextitemeditor.h"
 #include "elementinfowidget.h"
+#include "elementoptionswidget.h"
 #include "linksingleelementwidget.h"
 #include "masterpropertieswidget.h"
 #include "plclinkwidget.h"
@@ -131,7 +132,10 @@ void ElementPropertiesWidget::setElement(Element *element)
 	if (previous_element)
 	{
 			//If previous element is same type as new element we just call setElement for each editor
-		if(previous_element->linkType() == m_element->linkType())
+			//(and both have options, or neither: the Options tab comes and goes with them)
+		if(previous_element->linkType() == m_element->linkType()
+		   && ElementOptionsWidget::hasOptions(previous_element)
+				== ElementOptionsWidget::hasOptions(m_element))
 		{
 			bool chained_changed = false;
 			if (m_element->linkType() & Element::AllReport) {
@@ -373,6 +377,9 @@ void ElementPropertiesWidget::updateUi()
 		default:
 			break;
 	}
+		//The options of its symbol, such as the motor of a pump
+	if (ElementOptionsWidget::hasOptions(m_element))
+		m_list_editor << new ElementOptionsWidget(m_element, this);
 	m_list_editor << new DynamicElementTextItemEditor(m_element, this);
 
 		//Add each editors in tab widget

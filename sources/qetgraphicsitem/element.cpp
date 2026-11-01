@@ -561,6 +561,7 @@ void Element::setOptionChoices(const ElementOptions::Choices &choices)
 	}
 	updateSymbolPictures(true);
 	update();
+	emit optionChoicesChanged();
 }
 
 /**
