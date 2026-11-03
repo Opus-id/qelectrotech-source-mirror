@@ -13,7 +13,12 @@
 #include "qetproject.h"
 #include "utils/conductorcreator.h"
 
+#include <QDir>
 #include <QDomDocument>
+#include <QFile>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QTemporaryDir>
 
 // The medium a conductor carries: electrical, as every conductor was, or a
 // pipe, a signal, a drive, with the words of the terminals. A conductor
@@ -78,6 +83,23 @@ class tst_conductormedium : public QObject
 		Element *b = place(second, QPointF(200, m_next_y));
 		if (!a || !b) return {};
 		return {a->terminals().at(1), b->terminals().at(0)};
+	}
+
+		// The real binary's --resave from @p in to @p out, in a sandbox of
+		// its own (so a running QElectroTech cannot answer instead)
+	static bool resave(const QTemporaryDir &dir, const QString &in, const QString &out)
+	{
+		const QString home = dir.filePath(QStringLiteral("home"));
+		QDir().mkpath(home);
+		QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+		env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+		env.insert(QStringLiteral("HOME"), home);
+		env.insert(QStringLiteral("XDG_CONFIG_HOME"), home + QStringLiteral("/config"));
+		env.insert(QStringLiteral("XDG_DATA_HOME"), home + QStringLiteral("/data"));
+		QProcess proc;
+		proc.setProcessEnvironment(env);
+		proc.start(QStringLiteral(QET_TEST_BINARY_PATH), {QStringLiteral("--resave"), in, out});
+		return proc.waitForFinished(120000) && proc.exitCode() == 0 && QFile::exists(out);
 	}
 
 		// A conductor drawn from @p from to @p to, on the folio
@@ -433,6 +455,137 @@ class tst_conductormedium : public QObject
 			QCOMPARE(pipe->properties().text, QString());
 
 			m_folio->defaultConductorProperties = before;
+		}
+
+			// ---- the data of a pipe ----
+		static PipeProperties someData()
+		{
+			PipeProperties p;
+			p.nominal_diameter = 150;
+			p.fluid = QStringLiteral("W01");
+			p.material = QStringLiteral("M01");
+			p.flow = QStringLiteral("120 m3/h");
+			p.line_number = QStringLiteral("0110");
+			p.piping_class = QStringLiteral("75HB13");
+			p.nominal_pressure = QStringLiteral("PN16");
+			p.line_kind = PipeProperties::Secondary;
+			p.spool = QStringLiteral("1");
+			p.external_finish = QStringLiteral("EA");
+			return p;
+		}
+
+			// Only what is set is written, each attribute prefixed "pipe_";
+			// the words of the format are part of the files
+		void theDataOfAPipeAreItsPipeAttributes()
+		{
+			QVERIFY(PipeProperties().attributes().isEmpty());
+			QHash<QString, QString> a;
+			for (const auto &pair : someData().attributes()) a.insert(pair.first, pair.second);
+			QCOMPARE(a.size(), 10);
+			QCOMPARE(a.value("pipe_dn"), QStringLiteral("150"));
+			QCOMPARE(a.value("pipe_fluid"), QStringLiteral("W01"));
+			QCOMPARE(a.value("pipe_material"), QStringLiteral("M01"));
+			QCOMPARE(a.value("pipe_flow"), QStringLiteral("120 m3/h"));
+			QCOMPARE(a.value("pipe_line_number"), QStringLiteral("0110"));
+			QCOMPARE(a.value("pipe_piping_class"), QStringLiteral("75HB13"));
+			QCOMPARE(a.value("pipe_nominal_pressure"), QStringLiteral("PN16"));
+			QCOMPARE(a.value("pipe_line_kind"), QStringLiteral("secondary"));
+			QCOMPARE(a.value("pipe_spool"), QStringLiteral("1"));
+			QCOMPARE(a.value("pipe_external_finish"), QStringLiteral("EA"));
+			QCOMPARE(PipeProperties::lineKindToString(PipeProperties::Main), QStringLiteral("main"));
+			QCOMPARE(PipeProperties::lineKindToString(PipeProperties::Auxiliary), QStringLiteral("auxiliary"));
+
+				// a main line is not written: the default
+			PipeProperties main;
+			main.nominal_diameter = 80;
+			QCOMPARE(main.attributes().size(), 1);
+
+				// read back; what cannot be read is left unset
+			QDomDocument doc;
+			QDomElement e = doc.createElement(QStringLiteral("conductor"));
+			for (const auto &pair : someData().attributes()) e.setAttribute(pair.first, pair.second);
+			PipeProperties in;
+			in.fromXml(e);
+			QVERIFY(in == someData());
+			e.setAttribute(QStringLiteral("pipe_dn"), QStringLiteral("abc"));
+			e.setAttribute(QStringLiteral("pipe_line_kind"), QStringLiteral("steam"));
+			in.fromXml(e);
+			QCOMPARE(in.nominal_diameter, 0);
+			QCOMPARE(in.line_kind, PipeProperties::Main);
+		}
+
+			// A pipe keeps its data through a file; a wire never has any
+		void aPipeKeepsItsDataAWireHasNone()
+		{
+			const auto nozzles = pair(m_pipe, m_pipe);
+			Conductor *pipe = draw(nozzles.first, nozzles.second);
+			ConductorProperties p = pipe->properties();
+			p.m_pipe = someData();
+			pipe->setProperties(p);
+			QVERIFY(pipe->properties().m_pipe == someData());
+
+			QHash<Terminal *, int> ids;
+			QDomDocument doc;
+			QDomElement saved = pipe->toXml(doc, ids, {});
+			QCOMPARE(saved.attribute(QStringLiteral("pipe_dn")), QStringLiteral("150"));
+			QCOMPARE(saved.attribute(QStringLiteral("pipe_fluid")), QStringLiteral("W01"));
+			m_folio->removeItem(pipe);
+			delete pipe;
+			auto *again = new Conductor(nozzles.first, nozzles.second);
+			again->fromXml(saved);
+			QVERIFY(again->properties().m_pipe == someData());
+			delete again;
+
+			const auto wires = pair(m_electrical, m_electrical);
+			Conductor *wire = draw(wires.first, wires.second);
+			ConductorProperties w = wire->properties();
+			w.m_pipe = someData();
+			wire->setProperties(w);
+			QVERIFY(wire->properties().m_pipe.isDefault());
+			QHash<Terminal *, int> ids2;
+			QDomDocument doc2;
+			QVERIFY(!wire->toXml(doc2, ids2, {}).hasAttribute(QStringLiteral("pipe_dn")));
+		}
+
+			// The data of a pipe go through a .qetdb file and back, with the
+			// other attributes of the conductor: no code of their own
+		void theDataOfAPipeGoThroughAQetdbFile()
+		{
+			const auto nozzles = pair(m_pipe, m_pipe);
+			Conductor *pipe = draw(nozzles.first, nozzles.second);
+			ConductorProperties p = pipe->properties();
+			p.m_pipe = someData();
+			pipe->setProperties(p);
+
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString qet = dir.filePath(QStringLiteral("pipes.qet"));
+			{
+				QFile f(qet);
+				QVERIFY(f.open(QIODevice::WriteOnly));
+				f.write(m_project.toXml().toByteArray());
+			}
+			const QString qetdb = dir.filePath(QStringLiteral("pipes.qetdb"));
+			const QString back = dir.filePath(QStringLiteral("back.qet"));
+			QVERIFY(resave(dir, qet, qetdb));
+			QVERIFY(resave(dir, qetdb, back));
+
+			QFile f(back);
+			QVERIFY(f.open(QIODevice::ReadOnly));
+			QDomDocument doc;
+			QVERIFY(doc.setContent(&f));
+			bool found = false;
+			const QDomNodeList conductors = doc.elementsByTagName(QStringLiteral("conductor"));
+			for (int i = 0 ; i < conductors.size() ; ++i) {
+				const QDomElement c = conductors.at(i).toElement();
+				if (c.attribute(QStringLiteral("uuid")) != pipe->uuid().toString()) continue;
+				found = true;
+				QCOMPARE(c.attribute(QStringLiteral("medium")), QStringLiteral("pipe"));
+				PipeProperties read;
+				read.fromXml(c);
+				QVERIFY(read == someData());
+			}
+			QVERIFY2(found, "the pipe is not in the file read back from the .qetdb");
 		}
 
 			// An electrical conductor is saved exactly as before: no medium

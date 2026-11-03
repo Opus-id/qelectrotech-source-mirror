@@ -19,6 +19,7 @@
 #define CONDUCTOR_PROPERTIES_H
 
 #include "conductordashpattern.h"
+#include "pipeproperties.h"
 #include "properties/terminaldata.h"
 #include "qet.h"
 #include <QColor>
@@ -93,6 +94,10 @@ class ConductorProperties
 			/// medium a conductor has: other properties applied to it never
 			/// turn a wire into a pipe or back.
 		TerminalData::Medium m_medium = TerminalData::Electrical;
+			/// The data of a pipe (DN, fluid, material...): written, as
+			/// "pipe_" attributes, only for a conductor of the pipe medium;
+			/// Conductor::setProperties() clears it for any other.
+		PipeProperties m_pipe;
 
 		QColor
 		color,

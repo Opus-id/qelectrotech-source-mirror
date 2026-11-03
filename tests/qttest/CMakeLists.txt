@@ -473,6 +473,9 @@ qet_add_app_test(tst_terminalmedium tst_terminalmedium.cpp)
 # The medium of a conductor: taken from the terminal it starts from, kept
 # whatever properties are applied to it, saved only when not electrical.
 qet_add_app_test(tst_conductormedium tst_conductormedium.cpp)
+add_dependencies(tst_conductormedium qelectrotech)
+target_compile_definitions(tst_conductormedium PRIVATE
+  "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 # A conductor's colour and section at a slanted stroke across it.
 qet_add_app_test(tst_conductordefinitionmark tst_conductordefinitionmark.cpp)
 target_compile_definitions(tst_conductordefinitionmark PRIVATE
@@ -1842,6 +1845,7 @@ add_executable(
   tst_conductorapplychanges.cpp
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/conductorproperties.cpp
+  ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp
   ${QET_DIR}/sources/shortcutmanager.cpp)
@@ -1856,6 +1860,7 @@ add_executable(
   tst_conductordashpattern.cpp
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/conductorproperties.cpp
+  ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp
   ${QET_DIR}/sources/shortcutmanager.cpp)
@@ -1870,6 +1875,7 @@ add_executable(
   tst_conductorsizesetting.cpp
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/conductorproperties.cpp
+  ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp
   ${QET_DIR}/sources/shortcutmanager.cpp)
@@ -1885,6 +1891,7 @@ add_executable(
   tst_conductormultiedit.cpp
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/conductorproperties.cpp
+  ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/QPropertyUndoCommand/qpropertyundocommand.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp

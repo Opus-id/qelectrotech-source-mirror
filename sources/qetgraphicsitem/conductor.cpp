@@ -1965,6 +1965,9 @@ void Conductor::setProperties(const ConductorProperties &properties)
 		//(cable, definition mark, single-line symbols, wire color...)
 	if (property.m_medium != TerminalData::Electrical)
 		property = property.withoutElectricalFields();
+		//and only a pipe has the data of a pipe
+	if (property.m_medium != TerminalData::Pipe)
+		property.m_pipe = PipeProperties();
 	if (m_properties == property) return;
 
 		//The run this conductor was part of, which may part now
