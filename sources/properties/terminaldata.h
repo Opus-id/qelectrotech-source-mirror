@@ -81,8 +81,30 @@ class TerminalData : public PropertiesInterface
 
 		static QString typeToString(TerminalData::Type type);
 		static TerminalData::Type typeFromString(const QString &string);
-		static QString mediumToString(TerminalData::Medium medium);
-		static TerminalData::Medium mediumFromString(const QString &string);
+			/// The word the files use for @p medium, for a terminal and for a
+			/// conductor alike. Defined here, so that the conductor properties
+			/// can use it without the rest of the terminal code.
+		static QString mediumToString(TerminalData::Medium medium)
+		{
+			switch (medium) {
+				case Electrical: return QStringLiteral("electrical");
+				case Pipe:       return QStringLiteral("pipe");
+				case Signal:     return QStringLiteral("signal");
+				case Drive:      return QStringLiteral("drive");
+			}
+			return QStringLiteral("electrical");
+		}
+			/// The medium @p string names. Anything else, the absence of the
+			/// attribute included, is electrical: what QET always made of a
+			/// terminal or a wire, and what it keeps making of a word written
+			/// by a later version that it does not know.
+		static TerminalData::Medium mediumFromString(const QString &string)
+		{
+			if (string == QLatin1String("pipe"))   return Pipe;
+			if (string == QLatin1String("signal")) return Signal;
+			if (string == QLatin1String("drive"))  return Drive;
+			return Electrical;
+		}
 		static QString namePrefix(TerminalData::Medium medium);
 		static QString suggestedName(TerminalData::Medium medium,
 					     const QString &current,

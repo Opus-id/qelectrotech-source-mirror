@@ -158,6 +158,11 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	m_text_item = new ConductorTextItem(m_properties.text, this);
 	connect(m_text_item, &ConductorTextItem::textEdited, this, &Conductor::displayedTextChanged);
 
+		//The medium of its terminals: a conductor between two nozzles is a
+		//pipe. Between two media, the medium of the terminal it starts from
+		//(the one it was drawn from). Kept by setProperties() below.
+	m_properties.m_medium = p1->medium();
+
 		//Set the default conductor properties. The color, specifically, is
 		//overridden by the last one applied via the F2 color editor this
 		//session (#879), the same way LastUsedStyle already does for shapes.
@@ -1181,6 +1186,9 @@ bool Conductor::fromXml(QDomElement &dom_element)
 	if (diagram() && diagram()->project())
 		if (const auto edited = diagram()->project()->dataBase()->takeUnbuiltWireEdit(m_uuid))
 			pr = *edited;
+		//The medium the file says, not the one of the terminals: opening a
+		//file changes nothing, a wire saved between two nozzles stays a wire
+	m_properties.m_medium = pr.m_medium;
 	setProperties(pr);
 	storeLayout();
 	storePath();
@@ -1937,11 +1945,16 @@ void Conductor::setPropertyToPotential(const ConductorProperties &property,
 
 /**
 	@brief Conductor::setProperties
-	Set property as current property of conductor
-	@param property : properties
+	Set property as current property of conductor. The medium of the
+	conductor is kept: the defaults of the folio, the properties of a
+	potential or of another wire never turn a wire into a pipe or back
+	(setMedium() does).
+	@param properties : properties
 */
-void Conductor::setProperties(const ConductorProperties &property)
+void Conductor::setProperties(const ConductorProperties &properties)
 {
+	ConductorProperties property = properties;
+	property.m_medium = m_properties.m_medium;
 	if (m_properties == property) return;
 
 		//The run this conductor was part of, which may part now
@@ -1995,6 +2008,31 @@ ConductorProperties Conductor::properties() const
 	if (projectDataBase *store = placedStore())
 		return store->conductorProperties(m_uuid);
 	return(m_properties);
+}
+
+/**
+	@brief Conductor::medium
+	@return the medium this conductor carries: electrical, or a pipe, a
+	signal, a drive (ConductorProperties::m_medium)
+*/
+TerminalData::Medium Conductor::medium() const
+{
+	return properties().m_medium;
+}
+
+/**
+	@brief Conductor::setMedium
+	Set the medium this conductor carries. The only way to change it once
+	the conductor exists: setProperties() keeps it.
+	@param medium
+*/
+void Conductor::setMedium(TerminalData::Medium medium)
+{
+	if (m_properties.m_medium == medium) return;
+	m_properties.m_medium = medium;
+	update();
+	storeProperties();
+	emit propertiesChange();
 }
 
 /**

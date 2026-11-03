@@ -297,6 +297,11 @@ QList<QPair<QString, QString>> ConductorProperties::attributes() const
 	};
 	add("type", typeToString(type));
 
+		//Written only for a medium other than electrical: a wire is saved
+		//exactly as it always was
+	if (m_medium != TerminalData::Electrical)
+		add("medium", TerminalData::mediumToString(m_medium));
+
 	if (color != QColor(Qt::black))
 		add("color", color.name());
 
@@ -368,6 +373,8 @@ QList<QPair<QString, QString>> ConductorProperties::attributes() const
 */
 void ConductorProperties::fromXml(QDomElement &e)
 {
+	m_medium = TerminalData::mediumFromString(e.attribute("medium"));
+
 		// get conductor color
 	QColor xml_color= QColor(e.attribute("color"));
 	color = (xml_color.isValid()? xml_color : QColor(Qt::black));
@@ -1007,6 +1014,7 @@ bool ConductorProperties::operator==(const ConductorProperties &other) const
 {
 	return(
 		other.type == type &&\
+		other.m_medium == m_medium &&\
 		other.color == color &&\
 		other.m_bicolor == m_bicolor &&\
 		other.m_color_2 == m_color_2 &&\

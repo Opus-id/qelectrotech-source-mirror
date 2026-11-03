@@ -129,6 +129,8 @@ class Conductor : public QGraphicsObject
 				bool only_text = false);
 		void setProperties(const ConductorProperties &property);
 		ConductorProperties properties() const;
+		TerminalData::Medium medium() const;
+		void setMedium(TerminalData::Medium medium);
 			/// This wire's own copy of its properties, whatever the store holds
 		ConductorProperties ownProperties() const {return m_properties;}
 			/// Where this wire sits and how its text was placed, from its own

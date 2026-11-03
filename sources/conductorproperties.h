@@ -19,6 +19,7 @@
 #define CONDUCTOR_PROPERTIES_H
 
 #include "conductordashpattern.h"
+#include "properties/terminaldata.h"
 #include "qet.h"
 #include <QColor>
 #include <QSettings>
@@ -84,6 +85,14 @@ class ConductorProperties
 
 		//Attributes
 		ConductorType type;
+
+			/// The medium the conductor carries, with the same words as its
+			/// terminals (TerminalData::Medium): electrical, as every
+			/// conductor was, or a pipe, a signal, a drive. Written only when
+			/// it is not electrical. Conductor::setProperties() keeps the
+			/// medium a conductor has: other properties applied to it never
+			/// turn a wire into a pipe or back.
+		TerminalData::Medium m_medium = TerminalData::Electrical;
 
 		QColor
 		color,

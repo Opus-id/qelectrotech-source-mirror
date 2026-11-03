@@ -251,38 +251,6 @@ QString TerminalData::typeToString(TerminalData::Type type)
 }
 
 /**
-	@brief TerminalData::mediumToString
-	@param medium
-	@return the word the files use for @p medium
-*/
-QString TerminalData::mediumToString(TerminalData::Medium medium)
-{
-	switch (medium) {
-		case Electrical: return QStringLiteral("electrical");
-		case Pipe:       return QStringLiteral("pipe");
-		case Signal:     return QStringLiteral("signal");
-		case Drive:      return QStringLiteral("drive");
-	}
-	return QStringLiteral("electrical");
-}
-
-/**
-	@brief TerminalData::mediumFromString
-	@param string
-	@return the medium @p string names. Anything else, the absence of the
-	attribute included, is electrical: what QET always made of a terminal,
-	and what it keeps making of a word written by a later version that it
-	does not know.
-*/
-TerminalData::Medium TerminalData::mediumFromString(const QString &string)
-{
-	if (string == QLatin1String("pipe"))   return Pipe;
-	if (string == QLatin1String("signal")) return Signal;
-	if (string == QLatin1String("drive"))  return Drive;
-	return Electrical;
-}
-
-/**
 	@brief TerminalData::namePrefix
 	@param medium
 	@return the letter the names of the terminals of @p medium begin with by
