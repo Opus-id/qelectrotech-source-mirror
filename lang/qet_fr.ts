@@ -25750,6 +25750,12 @@ Les autres champs ne sont pas utilisés.</translation>
         <translation>Ces bornes raccordent des médiums différents (%1, %2).</translation>
     </message>
     <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="731"/>
+        <source>This nozzle is already connected: a nozzle takes one pipe. Draw a branch on the pipe instead.</source>
+        <comment>pipe refused by a nozzle already connected</comment>
+        <translation>Ce piquage est déjà raccordé : un piquage ne reçoit qu&apos;une tuyauterie. Dessinez plutôt une dérivation sur la tuyauterie.</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="75"/>
         <source>electrical</source>
         <comment>medium of a terminal, in a sentence</comment>

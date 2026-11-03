@@ -179,6 +179,12 @@ QSet<Terminal *> autoBreakConductors(
 
 		const QList<ConductorMatch> &matches = groups[best_other];
 
+			//A nozzle takes one pipe (Terminal::wireLimit()): one already
+			//connected, or dropped on several, breaks none
+		if (t->medium() == TerminalData::Pipe
+			&& (t->conductorsCount() > 0 || matches.size() > 1))
+			continue;
+
 		used_terminals.insert(t);
 
 		DiagramContent content;
@@ -204,7 +210,8 @@ QSet<Terminal *> autoBreakConductors(
 		qreal best_dist = std::numeric_limits<qreal>::max();
 		foreach (Terminal *ot, element->terminals())
 		{
-			if (used_terminals.contains(ot) || !best_other->sameMediumAs(ot))
+			if (used_terminals.contains(ot) || !best_other->sameMediumAs(ot)
+				|| (ot->medium() == TerminalData::Pipe && !ot->hasRoomForWire()))
 				continue;
 
 			QPointF ot_dock = ot->dockConductor();

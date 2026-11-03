@@ -728,7 +728,12 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 		const Terminal *full = !hasRoomForWire() ? this
 							 : !other_terminal->hasRoomForWire() ? other_terminal
 							 : nullptr;
-		if (full) {
+		if (full && full->medium() == TerminalData::Pipe) {
+			QToolTip::showText(e->screenPos(),
+							   tr("This nozzle is already connected: a nozzle takes one pipe. "
+								  "Draw a branch on the pipe instead.",
+								  "pipe refused by a nozzle already connected"));
+		} else if (full) {
 			QToolTip::showText(e->screenPos(),
 							   tr("This terminal already has %n conductors, the project's "
 								  "limit. Add a terminal to connect one more conductor.",
@@ -888,10 +893,15 @@ bool Terminal::refusesMediumOf(const Terminal *other) const
 /**
 	@brief Terminal::wireLimit
 	@return the most wires this terminal may take under its project's
-	wiring rules (discussion #1158), 0 for no limit.
+	wiring rules (discussion #1158), 0 for no limit. A nozzle (a terminal
+	of the pipe medium) takes one, whatever the rules: it is a single
+	flange, and a branch is drawn on the pipe, not on the nozzle.
 */
 int Terminal::wireLimit() const
 {
+	if (d->m_medium == TerminalData::Pipe) {
+		return 1;
+	}
 	const Diagram *parent_diagram = diagram();
 	if (!parent_diagram || !parent_diagram->project()) {
 		return 0;

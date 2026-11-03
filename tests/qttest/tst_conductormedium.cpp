@@ -204,7 +204,9 @@ class tst_conductormedium : public QObject
 		}
 
 			// ---- the potential ----
-			// A pipe has no potential: the pipes of a tee share nothing
+			// A pipe has no potential: the pipes of a tee share nothing.
+			// (Two pipes on one nozzle can no longer be drawn, see
+			// aNozzleTakesOnePipe(), but a file may still hold them.)
 		void pipesHaveNoPotential()
 		{
 			m_next_y += 100;
@@ -262,6 +264,40 @@ class tst_conductormedium : public QObject
 			const auto of_w3 = db->potentialWires(w3->uuid());
 			QVERIFY(of_w3.has_value());
 			QCOMPARE(*of_w3, QSet<QUuid>{w3->uuid()});
+		}
+
+			// ---- one pipe per nozzle ----
+			// A nozzle takes one pipe, whatever the wiring rules; an
+			// electrical terminal still takes as many wires as before
+		void aNozzleTakesOnePipe()
+		{
+			m_next_y += 100;
+			Element *a = place(m_pipe, QPointF(0, m_next_y));
+			Element *b = place(m_pipe, QPointF(200, m_next_y));
+			Element *c = place(m_pipe, QPointF(400, m_next_y));
+			QVERIFY(a && b && c);
+			Terminal *nozzle = b->terminals().at(0);
+			QCOMPARE(nozzle->wireLimit(), 1);
+			QVERIFY(nozzle->hasRoomForWire());
+			QVERIFY(a->terminals().at(1)->canBeLinkedTo(nozzle));
+			draw(a->terminals().at(1), nozzle);
+			QVERIFY(!nozzle->hasRoomForWire());
+			QVERIFY(!c->terminals().at(0)->canBeLinkedTo(nozzle));
+			QVERIFY(!nozzle->canBeLinkedTo(c->terminals().at(0)));
+				// nor is it wired automatically
+			for (const auto &pair : c->AlignedFreeTerminals())
+				QVERIFY(pair.second != nozzle);
+
+			m_next_y += 100;
+			Element *e1 = place(m_electrical, QPointF(0, m_next_y));
+			Element *e2 = place(m_electrical, QPointF(200, m_next_y));
+			Element *e3 = place(m_electrical, QPointF(400, m_next_y));
+			QVERIFY(e1 && e2 && e3);
+			Terminal *wire_end = e2->terminals().at(0);
+			QCOMPARE(wire_end->wireLimit(), 0);
+			draw(e1->terminals().at(1), wire_end);
+			QVERIFY(wire_end->hasRoomForWire());
+			QVERIFY(e3->terminals().at(0)->canBeLinkedTo(wire_end));
 		}
 
 			// ---- the defaults and the number of a new conductor ----
