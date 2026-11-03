@@ -1800,10 +1800,15 @@ QString projectDataBase::terminalName(const QUuid &terminal, const QUuid &elemen
 	report to the terminals of the first symbol it is linked to, and from a
 	terminal block's terminal to its others. Nothing when a terminal block
 	on the way isolates its terminals (their groups are in its definition,
-	not in the database) or @p wire has no row.
+	not in the database) or @p wire has no row. As there, a potential is
+	electrical: a wire of another medium (a pipe...) is alone at its
+	potential and is never gone through.
 */
 std::optional<QSet<QUuid>> projectDataBase::potentialWires(const QUuid &wire) const
 {
+	const auto electrical = [this](const QString &uuid) {
+		return m_conductor_properties.value(QUuid(uuid)).m_medium == TerminalData::Electrical;
+	};
 	using Node = std::pair<QString, QString>;   //element uuid, terminal uuid
 	QHash<QString, std::pair<Node, Node>> ends;
 	QHash<Node, QStringList> wires_at;
@@ -1827,6 +1832,9 @@ std::optional<QSet<QUuid>> projectDataBase::potentialWires(const QUuid &wire) co
 	if (start == ends.constEnd()) {
 		return std::nullopt;
 	}
+	if (!electrical(start.key())) {
+		return QSet<QUuid>{wire};
+	}
 	QHash<QString, ElementData::Type> kinds;
 	{
 		QSqlQuery query(m_data_base);
@@ -1842,7 +1850,7 @@ std::optional<QSet<QUuid>> projectDataBase::potentialWires(const QUuid &wire) co
 		if (seen.contains(node)) continue;
 		seen.insert(node);
 		for (const QString &w : wires_at.value(node)) {
-			if (wires.contains(QUuid(w))) continue;
+			if (wires.contains(QUuid(w)) || !electrical(w)) continue;
 			wires.insert(QUuid(w));
 			const auto e = ends.value(w);
 			todo << e.first << e.second;

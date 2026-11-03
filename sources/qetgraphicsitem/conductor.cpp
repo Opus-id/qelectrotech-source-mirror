@@ -2252,6 +2252,11 @@ void Conductor::displayedTextChanged()
 	function separation is enabled does not stop the search, and the
 	conductors of both its sides are returned as one potential. Only
 	functionSeparatedConductors() passes true.
+	A potential is electrical: a conductor of another medium (a pipe, a
+	signal, a drive) has none, and the search never goes through one, even
+	when it shares a terminal with an electrical wire. Every use of the
+	potential -- numbering, properties shared over a potential, cables,
+	bridges, search and replace... -- leaves such a conductor alone.
 	@sa functionSeparatedConductors
 	@return  a QSet of conductor at the same potential.
 */
@@ -2259,6 +2264,10 @@ QSet<Conductor *> Conductor::relatedPotentialConductors(const bool all_diagram,
 							QList <Terminal *> *t_list,
 							const bool ignore_function_separation)
 {
+	if (medium() != TerminalData::Electrical) {
+		return {};
+	}
+
 	bool declar_t_list = false;
 	if (t_list == nullptr)
 	{
@@ -2291,6 +2300,10 @@ QSet<Conductor *> Conductor::relatedPotentialConductors(const bool all_diagram,
 			}
 
 			other_conductors_list_t.removeAll(this);
+				//Only electrical conductors have a potential (see above)
+			other_conductors_list_t.removeIf([](Conductor *c) {
+				return c->medium() != TerminalData::Electrical;
+			});
 				//Get the conductors at the same potential for each conductors of other_conductors_list_t
 			for (Conductor *c : other_conductors_list_t) {
 				other_conductors += c->relatedPotentialConductors(all_diagram, t_list,

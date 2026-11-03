@@ -2,6 +2,7 @@
 #include "qetapptest.h"
 
 #include "conductorproperties.h"
+#include "dataBase/projectdatabase.h"
 #include "diagram.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
@@ -198,6 +199,67 @@ class tst_conductormedium : public QObject
 			old->fromXml(saved);
 			QCOMPARE(old->medium(), TerminalData::Electrical);
 			delete old;
+		}
+
+			// ---- the potential ----
+			// A pipe has no potential: the pipes of a tee share nothing
+		void pipesHaveNoPotential()
+		{
+			m_next_y += 100;
+			Element *a = place(m_pipe, QPointF(0, m_next_y));
+			Element *b = place(m_pipe, QPointF(200, m_next_y));
+			Element *c = place(m_pipe, QPointF(400, m_next_y));
+			QVERIFY(a && b && c);
+				// a tee on the west nozzle of b
+			Conductor *one = draw(a->terminals().at(1), b->terminals().at(0));
+			Conductor *two = draw(b->terminals().at(0), c->terminals().at(0));
+			QCOMPARE(one->medium(), TerminalData::Pipe);
+			QCOMPARE(two->medium(), TerminalData::Pipe);
+			QVERIFY(one->relatedPotentialConductors().isEmpty());
+			QVERIFY(one->relatedPotentialConductors(true).isEmpty());
+			QVERIFY(two->relatedPotentialConductors().isEmpty());
+			QVERIFY(one->functionSeparatedConductors().isEmpty());
+		}
+
+			// The potential of a wire never goes through a pipe, even one on
+			// the same terminal; it still goes from wire to wire as before
+		void aPotentialNeverGoesThroughAPipe()
+		{
+			m_next_y += 100;
+			Element *e1 = place(m_electrical, QPointF(0, m_next_y));
+			Element *e2 = place(m_electrical, QPointF(200, m_next_y));
+			Element *e3 = place(m_electrical, QPointF(400, m_next_y));
+			Element *p = place(m_pipe, QPointF(600, m_next_y));
+			Element *e4 = place(m_electrical, QPointF(800, m_next_y));
+			QVERIFY(e1 && e2 && e3 && p && e4);
+			Terminal *hub = e2->terminals().at(0);
+				// two wires meet on hub, a pipe drawn from a nozzle ends there
+				// too, and a fourth wire goes on from the far nozzle
+			Conductor *w1 = draw(e1->terminals().at(1), hub);
+			Conductor *w2 = draw(hub, e3->terminals().at(0));
+			Conductor *pipe = draw(p->terminals().at(0), hub);
+			Conductor *w3 = draw(e4->terminals().at(0), p->terminals().at(0));
+			QCOMPARE(w1->medium(), TerminalData::Electrical);
+			QCOMPARE(pipe->medium(), TerminalData::Pipe);
+			QCOMPARE(w3->medium(), TerminalData::Electrical);
+
+			QCOMPARE(w1->relatedPotentialConductors(true), QSet<Conductor *>{w2});
+			QCOMPARE(w2->relatedPotentialConductors(true), QSet<Conductor *>{w1});
+			QVERIFY(w3->relatedPotentialConductors(true).isEmpty());
+			QVERIFY(pipe->relatedPotentialConductors(true).isEmpty());
+
+				// the project database follows the potential the same way
+			projectDataBase *db = m_project.dataBase();
+			db->updateDB();
+			const auto of_w1 = db->potentialWires(w1->uuid());
+			QVERIFY(of_w1.has_value());
+			QCOMPARE(*of_w1, (QSet<QUuid>{w1->uuid(), w2->uuid()}));
+			const auto of_pipe = db->potentialWires(pipe->uuid());
+			QVERIFY(of_pipe.has_value());
+			QCOMPARE(*of_pipe, QSet<QUuid>{pipe->uuid()});
+			const auto of_w3 = db->potentialWires(w3->uuid());
+			QVERIFY(of_w3.has_value());
+			QCOMPARE(*of_w3, QSet<QUuid>{w3->uuid()});
 		}
 
 			// An electrical conductor is saved exactly as before: no medium
