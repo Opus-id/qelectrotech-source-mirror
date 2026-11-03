@@ -550,7 +550,8 @@ void ElementsMover::endMovement()
 					conductor->setProperties(others_properties);
 				else
 				{
-					conductor -> setProperties(m_diagram -> defaultConductorProperties);
+					conductor -> setProperties(ConductorProperties::defaultsFor(
+						conductor -> medium(), m_diagram -> defaultConductorProperties));
 					//Autonum the new conductor, the undo command associated for this, have for parent undo_object
 					ConductorAutoNumerotation can  (conductor, m_diagram, undo_object);
 					can.numerate();

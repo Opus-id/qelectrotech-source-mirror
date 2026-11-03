@@ -166,11 +166,15 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 		//Set the default conductor properties. The color, specifically, is
 		//overridden by the last one applied via the F2 color editor this
 		//session (#879), the same way LastUsedStyle already does for shapes.
+		//A conductor of another medium than electrical takes none of the
+		//wire defaults (ConductorProperties::defaultsFor()).
 	Diagram *dia = p1->diagram() ? p1->diagram() : p2->diagram();
 	if (dia)
 	{
-		ConductorProperties properties = dia->defaultConductorProperties;
-		if (LastUsedStyle::hasConductorColor())
+		ConductorProperties properties = ConductorProperties::defaultsFor(
+					m_properties.m_medium, dia->defaultConductorProperties);
+		if (m_properties.m_medium == TerminalData::Electrical
+			&& LastUsedStyle::hasConductorColor())
 			properties.color = LastUsedStyle::conductorColor();
 		setProperties(properties);
 	}

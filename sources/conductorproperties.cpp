@@ -1006,6 +1006,30 @@ ConductorProperties ConductorProperties::defaultProperties()
 }
 
 /**
+	@brief ConductorProperties::defaultsFor
+	The properties a new conductor of @p medium starts with. An electrical
+	conductor takes @p electrical, the defaults of its folio, as it always
+	did. A conductor of another medium (a pipe, a signal, a drive) takes
+	none of them: they are made for wires (a wire number, its color, its
+	section...). It is drawn as a plain black line, without text.
+	@param medium : the medium of the new conductor
+	@param electrical : the defaults of the folio, for a wire
+	@return the properties to give the conductor
+*/
+ConductorProperties ConductorProperties::defaultsFor(TerminalData::Medium medium,
+						     const ConductorProperties &electrical)
+{
+	if (medium == TerminalData::Electrical) {
+		return electrical;
+	}
+	ConductorProperties properties;
+	properties.m_medium = medium;
+	properties.text.clear();
+	properties.m_show_text = false;
+	return properties;
+}
+
+/**
 	@brief ConductorProperties::operator ==
 	@param other
 	@return true if other == this

@@ -62,8 +62,12 @@ ConductorCreator::ConductorCreator(Diagram *d, QList<Terminal *> terminals_list)
 			continue;
 		}
 		Conductor *cond = new Conductor(pair.first, pair.second);
-		cond->setProperties(m_properties);
-		cond->setSequenceNum(m_sequential_number);
+			//The wire properties and number are for wires: a conductor of
+			//another medium keeps the defaults of its medium
+		if (cond->medium() == TerminalData::Electrical) {
+			cond->setProperties(m_properties);
+			cond->setSequenceNum(m_sequential_number);
+		}
 		d->undoStack().push(new AddGraphicsObjectCommand(cond, d));
 		
 		c_list.append(cond);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "qetapptest.h"
 
+#include "conductorautonumerotation.h"
 #include "conductorproperties.h"
 #include "dataBase/projectdatabase.h"
 #include "diagram.h"
@@ -10,6 +11,7 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "utils/conductorcreator.h"
 
 #include <QDomDocument>
 
@@ -260,6 +262,60 @@ class tst_conductormedium : public QObject
 			const auto of_w3 = db->potentialWires(w3->uuid());
 			QVERIFY(of_w3.has_value());
 			QCOMPARE(*of_w3, QSet<QUuid>{w3->uuid()});
+		}
+
+			// ---- the defaults and the number of a new conductor ----
+			// A wire takes the defaults of its folio, as always; a pipe takes
+			// none of them (no wire number, color, size...)
+		void aPipeTakesNoneOfTheWireDefaults()
+		{
+			const ConductorProperties before = m_folio->defaultConductorProperties;
+			ConductorProperties defaults = before;
+			defaults.text = QStringLiteral("X1");
+			defaults.color = Qt::red;
+			defaults.cond_size = 2;
+			m_folio->defaultConductorProperties = defaults;
+
+			const auto wires = pair(m_electrical, m_electrical);
+			Conductor *wire = draw(wires.first, wires.second);
+			QCOMPARE(wire->properties().text, QStringLiteral("X1"));
+			QCOMPARE(wire->properties().color, QColor(Qt::red));
+			QCOMPARE(wire->properties().cond_size, 2.0);
+
+			const auto nozzles = pair(m_pipe, m_pipe);
+			Conductor *pipe = draw(nozzles.first, nozzles.second);
+			QCOMPARE(pipe->properties().text, QString());
+			QVERIFY(!pipe->properties().m_show_text);
+			QCOMPARE(pipe->properties().color, QColor(Qt::black));
+			QCOMPARE(pipe->properties().cond_size, 1.0);
+			QCOMPARE(pipe->medium(), TerminalData::Pipe);
+
+				// the numbering of a new conductor leaves a pipe alone
+			const ConductorProperties drawn = pipe->properties();
+			ConductorAutoNumerotation numbering(pipe, m_folio);
+			numbering.numerate();
+			QVERIFY(pipe->properties() == drawn);
+
+			m_folio->defaultConductorProperties = before;
+		}
+
+			// The creation of conductors between selected terminals gives a
+			// pipe the defaults of its medium, not the wire properties
+		void createdConductorsBetweenNozzlesArePipes()
+		{
+			const ConductorProperties before = m_folio->defaultConductorProperties;
+			ConductorProperties defaults = before;
+			defaults.text = QStringLiteral("X2");
+			m_folio->defaultConductorProperties = defaults;
+
+			const auto nozzles = pair(m_pipe, m_pipe);
+			ConductorCreator creator(m_folio, {nozzles.first, nozzles.second});
+			QCOMPARE(nozzles.first->conductors().size(), 1);
+			Conductor *pipe = nozzles.first->conductors().first();
+			QCOMPARE(pipe->medium(), TerminalData::Pipe);
+			QCOMPARE(pipe->properties().text, QString());
+
+			m_folio->defaultConductorProperties = before;
 		}
 
 			// An electrical conductor is saved exactly as before: no medium

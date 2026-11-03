@@ -207,7 +207,8 @@ void makeWire(State &s, Terminal *a, Terminal *b, QUndoCommand *parent)
 	if (same) {
 		conductor->setProperties(props);
 	} else {
-		conductor->setProperties(diagram->defaultConductorProperties);
+		conductor->setProperties(ConductorProperties::defaultsFor(
+			conductor->medium(), diagram->defaultConductorProperties));
 		ConductorAutoNumerotation can(conductor, diagram, parent);
 		can.numerate();
 	}
