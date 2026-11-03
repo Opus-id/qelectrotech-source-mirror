@@ -1722,7 +1722,7 @@ void Conductor::calculateTextItemPosition()
 /**
 	@brief Conductor::cornerChain
 	@return this conductor and those joined to it through corners only,
-	with the same colour and section: one run of wire, ending at a
+	with the same medium, colour and section: one run of wire, ending at a
 	terminal of anything else (a T-junction, a device) or where the wire
 	changes
 */
@@ -1739,6 +1739,7 @@ QList<Conductor *> Conductor::cornerChain()
 			for (Terminal *other : end->parentElement()->terminals())
 				for (Conductor *next : other->conductors())
 					if (!chain.contains(next)
+					    && next->m_properties.m_medium == c->m_properties.m_medium
 					    && next->m_properties.m_wire_color == c->m_properties.m_wire_color
 					    && next->m_properties.m_wire_section == c->m_properties.m_wire_section)
 						chain << next;
@@ -1767,7 +1768,8 @@ void Conductor::updateDefinitionMark()
 		return;
 	}
 	const auto wants = [](const Conductor *c) {
-		return c->m_properties.m_definition_mark
+		return c->m_properties.m_medium == TerminalData::Electrical
+			&& c->m_properties.m_definition_mark
 			&& c->m_properties.type == ConductorProperties::Multi;
 	};
 	Conductor *shown = nullptr;
@@ -1959,6 +1961,10 @@ void Conductor::setProperties(const ConductorProperties &properties)
 {
 	ConductorProperties property = properties;
 	property.m_medium = m_properties.m_medium;
+		//A conductor of another medium takes none of the wire fields
+		//(cable, definition mark, single-line symbols, wire color...)
+	if (property.m_medium != TerminalData::Electrical)
+		property = property.withoutElectricalFields();
 	if (m_properties == property) return;
 
 		//The run this conductor was part of, which may part now
@@ -2033,7 +2039,11 @@ TerminalData::Medium Conductor::medium() const
 void Conductor::setMedium(TerminalData::Medium medium)
 {
 	if (m_properties.m_medium == medium) return;
+	const ConductorProperties before = m_properties;
 	m_properties.m_medium = medium;
+		//applied again under the new medium: a conductor turned into a
+		//pipe loses its wire fields
+	setProperties(before);
 	update();
 	storeProperties();
 	emit propertiesChange();
@@ -2179,6 +2189,8 @@ void Conductor::setCableReference(const QString &label,
 								  const QUuid &cable_uuid,
 								  int slot)
 {
+		//A cable is made of wires: a pipe, a signal or a drive is no core
+	if (m_properties.m_medium != TerminalData::Electrical) return;
 	if (m_properties.m_cable == label
 		&& m_properties.m_cable_uuid == cable_uuid
 		&& m_properties.m_cable_slot == slot) {

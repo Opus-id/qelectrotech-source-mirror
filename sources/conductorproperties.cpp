@@ -1030,6 +1030,38 @@ ConductorProperties ConductorProperties::defaultsFor(TerminalData::Medium medium
 }
 
 /**
+	@brief ConductorProperties::withoutElectricalFields
+	These properties without the fields that only mean something for an
+	electrical wire: the single-line symbols (ground, neutral), the
+	definition mark, the cable, the wire color and section, the voltage /
+	protocol, the bus, the function and the second color of a bicolor wire.
+	What a pipe, a signal or a drive uses too -- the color and style of the
+	line, its width, its text and formula -- is kept.
+	@return the properties a conductor of another medium may have
+*/
+ConductorProperties ConductorProperties::withoutElectricalFields() const
+{
+	ConductorProperties properties = *this;
+	const ConductorProperties none;
+	properties.type = Multi;
+	properties.singleLineProperties = none.singleLineProperties;
+	properties.m_definition_mark = none.m_definition_mark;
+	properties.m_definition_mark_at = none.m_definition_mark_at;
+	properties.m_definition_mark_hides_text = none.m_definition_mark_hides_text;
+	properties.m_cable.clear();
+	properties.m_cable_uuid = QUuid();
+	properties.m_cable_slot = none.m_cable_slot;
+	properties.m_wire_color.clear();
+	properties.m_wire_section.clear();
+	properties.m_tension_protocol.clear();
+	properties.m_bus.clear();
+	properties.m_function.clear();
+	properties.m_bicolor = none.m_bicolor;
+	properties.m_color_2 = none.m_color_2;
+	return properties;
+}
+
+/**
 	@brief ConductorProperties::operator ==
 	@param other
 	@return true if other == this

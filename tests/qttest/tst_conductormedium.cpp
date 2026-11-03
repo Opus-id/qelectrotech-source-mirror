@@ -266,6 +266,87 @@ class tst_conductormedium : public QObject
 			QCOMPARE(*of_w3, QSet<QUuid>{w3->uuid()});
 		}
 
+			// ---- what is only for wires ----
+			// Properties with every wire field set
+		static ConductorProperties wireFields()
+		{
+			ConductorProperties p;
+			p.type = ConductorProperties::Single;
+			p.m_definition_mark = true;
+			p.m_cable = QStringLiteral("W1:bn");
+			p.m_cable_uuid = QUuid::createUuid();
+			p.m_cable_slot = 2;
+			p.m_wire_color = QStringLiteral("BN");
+			p.m_wire_section = QStringLiteral("1.5");
+			p.m_tension_protocol = QStringLiteral("400V");
+			p.m_bus = QStringLiteral("L1");
+			p.m_function = QStringLiteral("power");
+			p.m_bicolor = true;
+				// and fields a pipe uses too
+			p.color = Qt::blue;
+			p.text = QStringLiteral("W01");
+			p.cond_size = 2;
+			return p;
+		}
+
+		static void checkNoWireFields(const ConductorProperties &p)
+		{
+			QCOMPARE(p.type, ConductorProperties::Multi);
+			QVERIFY(!p.m_definition_mark);
+			QVERIFY(p.m_cable.isEmpty());
+			QVERIFY(p.m_cable_uuid.isNull());
+			QCOMPARE(p.m_cable_slot, -1);
+			QVERIFY(p.m_wire_color.isEmpty());
+			QVERIFY(p.m_wire_section.isEmpty());
+			QVERIFY(p.m_tension_protocol.isEmpty());
+			QVERIFY(p.m_bus.isEmpty());
+			QVERIFY(p.m_function.isEmpty());
+			QVERIFY(!p.m_bicolor);
+		}
+
+			// A pipe given the properties of a wire keeps only what a pipe
+			// uses; a wire keeps them all, as before
+		void aPipeTakesNoneOfTheWireFields()
+		{
+			const auto nozzles = pair(m_pipe, m_pipe);
+			Conductor *pipe = draw(nozzles.first, nozzles.second);
+			pipe->setProperties(wireFields());
+			checkNoWireFields(pipe->properties());
+			QCOMPARE(pipe->properties().color, QColor(Qt::blue));
+			QCOMPARE(pipe->properties().text, QStringLiteral("W01"));
+			QCOMPARE(pipe->properties().cond_size, 2.0);
+			QCOMPARE(pipe->medium(), TerminalData::Pipe);
+
+			const auto wires = pair(m_electrical, m_electrical);
+			Conductor *wire = draw(wires.first, wires.second);
+			wire->setProperties(wireFields());
+			QCOMPARE(wire->properties().type, ConductorProperties::Single);
+			QCOMPARE(wire->properties().m_wire_color, QStringLiteral("BN"));
+			QCOMPARE(wire->properties().m_cable, QStringLiteral("W1:bn"));
+			QVERIFY(wire->properties().m_definition_mark);
+
+				// a wire turned into a pipe loses them
+			wire->setMedium(TerminalData::Pipe);
+			checkNoWireFields(wire->properties());
+			QCOMPARE(wire->properties().text, QStringLiteral("W01"));
+		}
+
+			// A cable is made of wires: a pipe is never one of its cores
+		void aPipeIsNoCoreOfACable()
+		{
+			const auto nozzles = pair(m_pipe, m_pipe);
+			Conductor *pipe = draw(nozzles.first, nozzles.second);
+			const QUuid cable = QUuid::createUuid();
+			pipe->setCableReference(QStringLiteral("W2:bk"), cable, 1);
+			QVERIFY(pipe->properties().m_cable_uuid.isNull());
+			QVERIFY(pipe->properties().m_cable.isEmpty());
+
+			const auto wires = pair(m_electrical, m_electrical);
+			Conductor *wire = draw(wires.first, wires.second);
+			wire->setCableReference(QStringLiteral("W2:bk"), cable, 1);
+			QCOMPARE(wire->properties().m_cable_uuid, cable);
+		}
+
 			// ---- one pipe per nozzle ----
 			// A nozzle takes one pipe, whatever the wiring rules; an
 			// electrical terminal still takes as many wires as before

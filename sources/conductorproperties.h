@@ -168,6 +168,7 @@ class ConductorProperties
 		static ConductorProperties defaultProperties();
 		static ConductorProperties defaultsFor(TerminalData::Medium medium,
 						       const ConductorProperties &electrical);
+		ConductorProperties withoutElectricalFields() const;
 
 		// operators
 		bool operator==(const ConductorProperties &) const;
