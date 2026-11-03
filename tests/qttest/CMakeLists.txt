@@ -467,6 +467,9 @@ target_compile_definitions(tst_duplicatelabels PRIVATE
 add_dependencies(tst_duplicatelabels qelectrotech_lrelease)
 # The labels file behind a symbol's prefix is read once, and again only when it changes.
 qet_add_app_test(tst_labelsfilecache tst_labelsfilecache.cpp)
+# The medium of a terminal (electrical, pipe, signal, drive): read, written
+# only when not electrical, kept by a placed element and by the project.
+qet_add_app_test(tst_terminalmedium tst_terminalmedium.cpp)
 # A conductor's colour and section at a slanted stroke across it.
 qet_add_app_test(tst_conductordefinitionmark tst_conductordefinitionmark.cpp)
 target_compile_definitions(tst_conductordefinitionmark PRIVATE

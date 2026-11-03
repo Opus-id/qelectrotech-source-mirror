@@ -115,6 +115,11 @@ QDomElement TerminalData::toXml(QDomDocument &xml_document) const
 
 	xml_element.setAttribute("type", typeToString(m_type));
 
+		//Written only for a medium other than electrical: an electrical
+		//terminal is saved exactly as it always was
+	if (m_medium != Electrical)
+		xml_element.setAttribute("medium", mediumToString(m_medium));
+
 	if (m_show_name) {
 		xml_element.setAttribute("show_name", "true");
 		xml_element.setAttribute("label_x", QString::number(m_label_pos.x()));
@@ -184,6 +189,7 @@ bool TerminalData::fromXml (const QDomElement &xml_element)
 				xml_element.attribute("orientation"));
 
 	m_type = typeFromString(xml_element.attribute("type"));
+	m_medium = mediumFromString(xml_element.attribute("medium"));
 
 	m_show_name = (xml_element.attribute("show_name") == QLatin1String("true"));
 	if (m_show_name) {
@@ -241,6 +247,38 @@ QString TerminalData::typeToString(TerminalData::Type type)
 			return QString("Common");
 	}
 	return QString("Generic");
+}
+
+/**
+	@brief TerminalData::mediumToString
+	@param medium
+	@return the word the files use for @p medium
+*/
+QString TerminalData::mediumToString(TerminalData::Medium medium)
+{
+	switch (medium) {
+		case Electrical: return QStringLiteral("electrical");
+		case Pipe:       return QStringLiteral("pipe");
+		case Signal:     return QStringLiteral("signal");
+		case Drive:      return QStringLiteral("drive");
+	}
+	return QStringLiteral("electrical");
+}
+
+/**
+	@brief TerminalData::mediumFromString
+	@param string
+	@return the medium @p string names. Anything else, the absence of the
+	attribute included, is electrical: what QET always made of a terminal,
+	and what it keeps making of a word written by a later version that it
+	does not know.
+*/
+TerminalData::Medium TerminalData::mediumFromString(const QString &string)
+{
+	if (string == QLatin1String("pipe"))   return Pipe;
+	if (string == QLatin1String("signal")) return Signal;
+	if (string == QLatin1String("drive"))  return Drive;
+	return Electrical;
 }
 
 /**

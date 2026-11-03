@@ -50,6 +50,20 @@ class TerminalData : public PropertiesInterface
 		};
 		Q_ENUM(Type)
 
+			/// The medium a terminal connects: what flows through what is
+			/// connected to it. Electrical, the only medium QET knew, is the
+			/// default and is not written: a terminal that says nothing keeps
+			/// behaving as it always did. The others belong to process
+			/// symbols: a nozzle connects a pipe, an instrument a signal,
+			/// a machine shaft its drive.
+		enum Medium {
+			Electrical,
+			Pipe,
+			Signal,
+			Drive
+		};
+		Q_ENUM(Medium)
+
 		TerminalData();
 		TerminalData(QGraphicsObject* parent);
 		~TerminalData() override;
@@ -66,6 +80,8 @@ class TerminalData : public PropertiesInterface
 
 		static QString typeToString(TerminalData::Type type);
 		static TerminalData::Type typeFromString(const QString &string);
+		static QString mediumToString(TerminalData::Medium medium);
+		static TerminalData::Medium mediumFromString(const QString &string);
 
 	// must be public, because this class is a private member
 	// of PartTerminal/Terminal and they must access this data
@@ -129,6 +145,10 @@ class TerminalData : public PropertiesInterface
 		QPointF m_pos;
 
 		TerminalData::Type m_type = TerminalData::Generic;
+
+			/// The medium the terminal connects, see Medium. Kept apart from
+			/// m_type, which tells terminal blocks and contacts apart.
+		TerminalData::Medium m_medium = TerminalData::Electrical;
 
 		/// Whether to display the terminal name as a text label
 		bool m_show_name = false;

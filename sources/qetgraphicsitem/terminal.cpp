@@ -1091,6 +1091,16 @@ TerminalData::Type Terminal::terminalType() const
 }
 
 /**
+	@brief Terminal::medium
+	@return the medium this terminal connects (electrical, pipe, signal,
+	drive), as its symbol defines it
+*/
+TerminalData::Medium Terminal::medium() const
+{
+	return d->m_medium;
+}
+
+/**
 	@brief Terminal::potential
 	@return this terminal's own potential-group identifier (@see
 	TerminalData::m_potential).
