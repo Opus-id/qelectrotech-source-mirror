@@ -174,6 +174,9 @@ class ConductorProperties
 		static ConductorProperties defaultsFor(TerminalData::Medium medium,
 						       const ConductorProperties &electrical);
 		ConductorProperties withoutElectricalFields() const;
+		qreal lineWidth() const;
+		Qt::PenStyle lineStyle() const;
+		bool usesDashPattern() const;
 
 		// operators
 		bool operator==(const ConductorProperties &) const;

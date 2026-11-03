@@ -588,6 +588,37 @@ class tst_conductormedium : public QObject
 			QVERIFY2(found, "the pipe is not in the file read back from the .qetdb");
 		}
 
+			// ---- how a pipe is drawn ----
+			// A wire: its own width, style and pattern, as always. A pipe: its
+			// kind of line only (ISO 10628-1), a main line twice as wide as a
+			// secondary one, an auxiliary line dashed
+		void aPipeIsDrawnAfterItsKindOfLine()
+		{
+			ConductorProperties wire;
+			wire.cond_size = 3;
+			wire.style = Qt::DashDotLine;
+			wire.m_dash_pattern.enabled = true;
+			QCOMPARE(wire.lineWidth(), 3.0);
+			QCOMPARE(wire.lineStyle(), Qt::DashDotLine);
+			QVERIFY(wire.usesDashPattern());
+
+			ConductorProperties pipe = wire;
+			pipe.m_medium = TerminalData::Pipe;
+			QVERIFY(!pipe.usesDashPattern());
+
+			pipe.m_pipe.line_kind = PipeProperties::Main;
+			QCOMPARE(pipe.lineWidth(), 2.0);
+			QCOMPARE(pipe.lineStyle(), Qt::SolidLine);
+
+			pipe.m_pipe.line_kind = PipeProperties::Secondary;
+			QCOMPARE(pipe.lineWidth(), 1.0);
+			QCOMPARE(pipe.lineStyle(), Qt::SolidLine);
+
+			pipe.m_pipe.line_kind = PipeProperties::Auxiliary;
+			QCOMPARE(pipe.lineWidth(), 1.0);
+			QCOMPARE(pipe.lineStyle(), Qt::DashLine);
+		}
+
 			// An electrical conductor is saved exactly as before: no medium
 		void anElectricalConductorIsSavedAsBefore()
 		{

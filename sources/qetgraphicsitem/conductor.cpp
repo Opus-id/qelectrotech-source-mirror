@@ -628,7 +628,9 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	}
 
 		//Draw the conductor bigger when is hovered
-	conductor_pen.setWidthF(m_mouse_over? (m_properties.cond_size) +4 : (m_properties.cond_size));
+		//(lineWidth(): a wire's own width, or for a pipe its kind of line)
+	const qreal line_width = m_properties.lineWidth();
+	conductor_pen.setWidthF(m_mouse_over? line_width + 4 : line_width);
 
 		//Set the QPen and QBrush to the QPainter
 	painter -> setBrush(conductor_brush);
@@ -638,16 +640,19 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		//gaps too short to tell a dashed or a dash-dotted conductor from
 		//a solid one at a normal zoom, so these two get longer gaps
 	final_conductor_pen.setColor(final_conductor_color);
-	const bool custom_pattern = m_properties.m_dash_pattern.apply(
-				final_conductor_pen, m_properties.style);
+		//(lineStyle(): a wire's own style, or for a pipe its kind of line,
+		//which also never takes a pattern of its own)
+	const Qt::PenStyle line_style = m_properties.lineStyle();
+	const bool custom_pattern = m_properties.usesDashPattern()
+			&& m_properties.m_dash_pattern.apply(final_conductor_pen, line_style);
 	if (!custom_pattern)
 	{
-		if (m_properties.style == Qt::DashLine)
+		if (line_style == Qt::DashLine)
 			final_conductor_pen.setDashPattern({5, 4});
-		else if (m_properties.style == Qt::DashDotLine)
+		else if (line_style == Qt::DashDotLine)
 			final_conductor_pen.setDashPattern({6, 4, 1, 4});
 		else
-			final_conductor_pen.setStyle(m_properties.style);
+			final_conductor_pen.setStyle(line_style);
 	}
 	final_conductor_pen.setJoinStyle(Qt::SvgMiterJoin); // better rendering with dot
 
@@ -702,10 +707,10 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 			//
 			// Floored at the historic 3.0 so nothing changes for the default
 			// width of 1.0 or anything thinner -- only the wide conductors
-			// the report is about are affected. m_properties.cond_size is
-			// used rather than the pen, whose width is inflated by 4 while
-			// the mouse is over the conductor.
-		const qreal junction_diameter = qMax(3.0, 3.0 * m_properties.cond_size);
+			// the report is about are affected. The line width is used
+			// rather than the pen, whose width is inflated by 4 while the
+			// mouse is over the conductor.
+		const qreal junction_diameter = qMax(3.0, 3.0 * line_width);
 		const qreal junction_radius = junction_diameter / 2.0;
 		foreach(QPointF point, junctions_list) {
 			painter -> drawEllipse(QRectF(point.x() - junction_radius,

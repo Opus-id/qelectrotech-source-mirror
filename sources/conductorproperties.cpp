@@ -1035,6 +1035,55 @@ ConductorProperties ConductorProperties::defaultsFor(TerminalData::Medium medium
 	return properties;
 }
 
+namespace {
+		//The line widths of ISO 10628-1 (5.3.1), at two drawing units per
+		//millimetre (a folio grid step of 10 is 5 mm): 1 mm for the main
+		//flow lines, 0.5 mm for the subsidiary and auxiliary ones
+	constexpr qreal main_line_width = 2.0;
+	constexpr qreal medium_line_width = 1.0;
+}
+
+/**
+	@brief ConductorProperties::lineWidth
+	@return the width the conductor is drawn with. A wire: its own width
+	(cond_size), as always. A pipe: the width of its kind of line (ISO
+	10628-1), a main line twice as wide as a secondary or an auxiliary one;
+	its kind is the only setting of it.
+*/
+qreal ConductorProperties::lineWidth() const
+{
+	if (m_medium != TerminalData::Pipe) {
+		return cond_size;
+	}
+	return m_pipe.line_kind == PipeProperties::Main ? main_line_width
+													: medium_line_width;
+}
+
+/**
+	@brief ConductorProperties::lineStyle
+	@return the style the conductor is drawn with. A wire: its own style.
+	A pipe: dashed for an auxiliary line (ISO 10628-1), solid otherwise.
+*/
+Qt::PenStyle ConductorProperties::lineStyle() const
+{
+	if (m_medium != TerminalData::Pipe) {
+		return style;
+	}
+	return m_pipe.line_kind == PipeProperties::Auxiliary ? Qt::DashLine
+														 : Qt::SolidLine;
+}
+
+/**
+	@brief ConductorProperties::usesDashPattern
+	@return true if the conductor is drawn with its own pattern of dashes
+	(m_dash_pattern): a wire that sets one. A pipe is drawn after its kind
+	of line only.
+*/
+bool ConductorProperties::usesDashPattern() const
+{
+	return m_medium != TerminalData::Pipe && m_dash_pattern.enabled;
+}
+
 /**
 	@brief ConductorProperties::withoutElectricalFields
 	These properties without the fields that only mean something for an
