@@ -42,6 +42,44 @@ QColor Terminal::warningColor      = QColor("#ff8000");
 QColor Terminal::forbiddenColor    = QColor(Qt::red);
 const qreal Terminal::terminalSize = 4.0;
 
+/**
+	@brief Terminal::stemColor
+	The stem of a terminal, the short line to its docking point, tells the
+	medium it connects, on the folio and in the element editor: red for an
+	electrical terminal, as it always was, and a color of its own for each
+	other medium. None of them is green or orange, which tell while a wire
+	is drawn whether it may go to a terminal. The terminals are not printed.
+	@param medium the medium the terminal connects
+	@return the color of its stem
+*/
+QColor Terminal::stemColor(TerminalData::Medium medium)
+{
+	switch (medium) {
+		case TerminalData::Electrical: return QColor(Qt::red);
+		case TerminalData::Pipe:       return QColor(0x00, 0x80, 0x80); // teal
+		case TerminalData::Signal:     return QColor(0xc0, 0x00, 0xc0); // magenta
+		case TerminalData::Drive:      return QColor(0x8b, 0x45, 0x13); // brown
+	}
+	return QColor(Qt::red);
+}
+
+/**
+	@brief Terminal::mediumName
+	@param medium
+	@return the name of @p medium, to be read in a sentence ("electrical",
+	"pipe"...)
+*/
+QString Terminal::mediumName(TerminalData::Medium medium)
+{
+	switch (medium) {
+		case TerminalData::Electrical: return tr("electrical", "medium of a terminal, in a sentence");
+		case TerminalData::Pipe:       return tr("pipe", "medium of a terminal, in a sentence");
+		case TerminalData::Signal:     return tr("signal", "medium of a terminal, in a sentence");
+		case TerminalData::Drive:      return tr("drive", "medium of a terminal, in a sentence");
+	}
+	return tr("electrical", "medium of a terminal, in a sentence");
+}
+
 namespace {
 	/// See Terminal::takesConductorColor(); -1 until read from the settings
 	int s_takes_conductor_color = -1;
@@ -253,11 +291,11 @@ void Terminal::paint(
 	}
 
 	// dessin de la borne en rouge
-	// draw the terminal in red
+	// draw the terminal in red, or in the color of its medium
 	if (!diagram() || diagram()->drawTerminals()) {
 		t.setColor(takesConductorColor() && !m_conductors_list.isEmpty()
 				   ? m_conductors_list.first()->properties().color
-				   : QColor(Qt::red));
+				   : stemColor(d->m_medium));
 		painter -> setPen(t);
 		painter -> drawLine(c, e);
 
@@ -644,7 +682,9 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 	// s'il s'agit d'une borne, on lui applique l'effet hover approprie
 	if (!canBeLinkedTo(other_terminal)) {
 		other_terminal -> m_hovered_color = forbiddenColor;
-	} else if (other_terminal -> conductorsCount()) {
+	} else if (other_terminal -> conductorsCount() || !sameMediumAs(other_terminal)) {
+			//orange: allowed, but worth a look (the terminal is already
+			//wired, or it connects another medium)
 		other_terminal -> m_hovered_color = warningColor;
 	} else {
 		other_terminal -> m_hovered_color = allowedColor;
@@ -694,8 +734,23 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 								  "limit. Add a terminal to connect one more conductor.",
 								  "wire refused by the wires-per-terminal limit",
 								  full->wireLimit()));
+		} else if (refusesMediumOf(other_terminal)) {
+			QToolTip::showText(e->screenPos(),
+							   tr("These terminals connect different media (%1, %2): the "
+								  "project's wiring rules do not join them.",
+								  "connection refused between terminals of different media")
+							   .arg(mediumName(medium()), mediumName(other_terminal->medium())));
 		}
 		return;
+	}
+
+		//Different media, and the project does not refuse it: joined, but
+		//say so, since it is seldom meant
+	if (!sameMediumAs(other_terminal)) {
+		QToolTip::showText(e->screenPos(),
+						   tr("These terminals connect different media (%1, %2).",
+							  "connection between terminals of different media")
+						   .arg(mediumName(medium()), mediumName(other_terminal->medium())));
 	}
 
 	//Create conductor
@@ -779,6 +834,7 @@ bool Terminal::isLinkedTo(Terminal *other_terminal) {
 	 - \p other_terminal is this terminal
 	 - this terminal is already connected to \p other_terminal
 	 - either terminal already has as many wires as the project allows
+	 - the terminals connect different media and the project refuses it
 	@param other_terminal
 	@return true if this terminal can be linked to other_terminal,
 	otherwise false
@@ -791,7 +847,42 @@ bool Terminal::canBeLinkedTo(Terminal *other_terminal)
 	if (!hasRoomForWire() || !other_terminal->hasRoomForWire())
 		return false;
 
+	if (refusesMediumOf(other_terminal))
+		return false;
+
 	return true;
+}
+
+/**
+	@brief Terminal::sameMediumAs
+	@param other
+	@return true if this terminal and @p other connect the same medium
+	(TerminalData::Medium): two electrical terminals, two nozzles...
+*/
+bool Terminal::sameMediumAs(const Terminal *other) const
+{
+	return other && d->m_medium == other->d->m_medium;
+}
+
+/**
+	@brief Terminal::refusesMediumOf
+	@param other
+	@return true if this terminal may not be joined to @p other because they
+	connect different media and the project's wiring rules refuse it. Off by
+	default: two terminals of different media are then joined, and the user
+	is only told while drawing.
+*/
+bool Terminal::refusesMediumOf(const Terminal *other) const
+{
+	if (!other || sameMediumAs(other)) {
+		return false;
+	}
+	const Diagram *parent_diagram = diagram();
+	if (!parent_diagram || !parent_diagram->project()) {
+		return false;
+	}
+	return WiringRules::refusesMixedMedia(parent_diagram->project()->wiringRules(),
+										  WiringRules::masterEnabled());
 }
 
 /**

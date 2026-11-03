@@ -84,6 +84,15 @@ void TerminalEditor::updateForm()
 	ui->m_orientation_cb->setCurrentIndex(ui->m_orientation_cb->findData(m_part->property("orientation")));
 	ui->m_name_le->setText(m_part->terminalName());
 	ui->m_type_cb->setCurrentIndex(ui->m_type_cb->findData(m_part->terminalType()));
+	ui->m_medium_cb->setCurrentIndex(ui->m_medium_cb->findData(m_part->medium()));
+		//The type (terminal blocks, contacts) and the potential (function
+		//separation of a terminal block) mean nothing for a terminal of
+		//another medium: hidden, and kept, until it is electrical again
+	const bool electrical = m_part->medium() == TerminalData::Electrical;
+	ui->label_5->setVisible(electrical);
+	ui->m_type_cb->setVisible(electrical);
+	ui->label_potential->setVisible(electrical);
+	ui->m_potential_le->setVisible(electrical);
 	ui->m_potential_le->setText(m_part->potential());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());
@@ -186,6 +195,11 @@ void TerminalEditor::init()
 	ui->m_type_cb->addItem(tr("NO (contact SW)"),   TerminalData::No);
 	ui->m_type_cb->addItem(tr("NC (contact SW)"),   TerminalData::Nc);
 	ui->m_type_cb->addItem(tr("Common (contact SW)"), TerminalData::Common);
+
+	ui->m_medium_cb->addItem(tr("Electrical", "terminal medium"),      TerminalData::Electrical);
+	ui->m_medium_cb->addItem(tr("Pipe (nozzle)", "terminal medium"),   TerminalData::Pipe);
+	ui->m_medium_cb->addItem(tr("Signal", "terminal medium"),          TerminalData::Signal);
+	ui->m_medium_cb->addItem(tr("Drive (shaft)", "terminal medium"),   TerminalData::Drive);
 
 	ui->m_text_props_gb->setEnabled(false);
 
@@ -297,6 +311,49 @@ void TerminalEditor::typeEdited()
 		auto undo = new QPropertyUndoCommand(m_part, "terminal_type", m_part->terminalType(), type);
 		undo->setText(tr("Change the type of a terminal"));
 		undoStack().push(undo);
+	}
+	m_locked = false;
+}
+
+/**
+	@brief TerminalEditor::mediumEdited
+	The medium the terminal connects: electrical, or for a process symbol a
+	pipe, a signal or a drive
+*/
+void TerminalEditor::mediumEdited()
+{
+	if (m_locked) {
+		return;
+	}
+	m_locked = true;
+
+	const auto medium = ui->m_medium_cb->currentData();
+	if (medium != m_part->medium())
+	{
+			//A name that follows the convention of another medium (E1 for
+			//a drive turned into a nozzle) or no name takes the first free
+			//name of the new medium, in the same undo step
+		QStringList taken;
+		if (elementEditor() && elementEditor()->elementScene()) {
+			for (QGraphicsItem *item : elementEditor()->elementScene()->items()) {
+				auto *other = qgraphicsitem_cast<PartTerminal *>(item);
+				if (other && other != m_part) {
+					taken << other->terminalName();
+				}
+			}
+		}
+		const QString name = TerminalData::suggestedName(
+					TerminalData::Medium(medium.toInt()),
+					m_part->terminalName(), taken);
+
+		undoStack().beginMacro(tr("Change the medium of a terminal"));
+		undoStack().push(new QPropertyUndoCommand(m_part, "medium",
+							  m_part->medium(), medium));
+		if (name != m_part->terminalName()) {
+			undoStack().push(new QPropertyUndoCommand(m_part, "terminal_name",
+								  m_part->terminalName(), name));
+		}
+		undoStack().endMacro();
 	}
 	m_locked = false;
 }
@@ -462,6 +519,8 @@ void TerminalEditor::activeConnections(bool active)
 										this, &TerminalEditor::nameEdited);
 		m_editor_connections << connect(ui->m_type_cb, QOverload<int>::of(&QComboBox::activated),
 										this, &TerminalEditor::typeEdited);
+		m_editor_connections << connect(ui->m_medium_cb, QOverload<int>::of(&QComboBox::activated),
+										this, &TerminalEditor::mediumEdited);
 		m_editor_connections << connect(ui->m_show_name_cb, &QCheckBox::toggled,
 										this, &TerminalEditor::showNameEdited);
 		m_editor_connections << connect(ui->m_label_x_dsb, QOverload<qreal>::of(&QDoubleSpinBox::valueChanged),
@@ -501,6 +560,7 @@ void TerminalEditor::activeChangeConnections(bool active)
 		m_change_connections << connect(m_part, &PartTerminal::orientationChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::nameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::terminalTypeChanged, this, &TerminalEditor::updateForm);
+		m_change_connections << connect(m_part, &PartTerminal::mediumChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::showNameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelPosChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelFontChanged, this, &TerminalEditor::updateForm);

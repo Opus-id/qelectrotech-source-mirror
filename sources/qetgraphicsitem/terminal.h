@@ -97,6 +97,8 @@ class Terminal : public QGraphicsObject
 		bool canBeLinkedTo(Terminal *);
 		int wireLimit() const;
 		bool hasRoomForWire() const;
+		bool sameMediumAs(const Terminal *other) const;
+		bool refusesMediumOf(const Terminal *other) const;
 
 		// methods related to XML import/export
 		static bool valideXml(QDomElement  &);
@@ -127,6 +129,10 @@ class Terminal : public QGraphicsObject
 		static QColor warningColor;
 		/// color for forbidden actions
 		static QColor forbiddenColor;
+		/// color of the stem of a terminal, after the medium it connects
+		static QColor stemColor(TerminalData::Medium medium);
+		/// name of a medium, to be read in a sentence
+		static QString mediumName(TerminalData::Medium medium);
 
 		static bool takesConductorColor();
 		static void setTakesConductorColor(bool takes);

@@ -153,6 +153,11 @@ QSet<Terminal *> autoBreakConductors(
 				else { connect_to = c2; other = c1; }
 			}
 
+				//A wire of another medium is left whole: an automatic
+				//wire never joins two media
+			if (!t->sameMediumAs(connect_to))
+				continue;
+
 			all_matches.append({c, connect_to, other});
 		}
 
@@ -199,7 +204,7 @@ QSet<Terminal *> autoBreakConductors(
 		qreal best_dist = std::numeric_limits<qreal>::max();
 		foreach (Terminal *ot, element->terminals())
 		{
-			if (used_terminals.contains(ot))
+			if (used_terminals.contains(ot) || !best_other->sameMediumAs(ot))
 				continue;
 
 			QPointF ot_dock = ot->dockConductor();

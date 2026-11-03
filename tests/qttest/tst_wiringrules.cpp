@@ -318,6 +318,32 @@ private slots:
 		WiringRules::toXml(rules, root);
 		QCOMPARE(root.firstChildElement().tagName(), QStringLiteral("wiring_rules"));
 		QVERIFY(WiringRules::fromXml(root) == rules);
+			// written only when on: a project of before is saved as before
+		QVERIFY(!root.firstChildElement().hasAttribute(QStringLiteral("refuse_mixed_media")));
+		root.removeChild(root.firstChildElement());
+
+		WiringRules::Settings media;
+		media.own = true;
+		media.refuse_mixed_media = true;
+		WiringRules::toXml(media, root);
+		QCOMPARE(root.firstChildElement().attribute(QStringLiteral("refuse_mixed_media")),
+			 QStringLiteral("true"));
+		QVERIFY(WiringRules::fromXml(root) == media);
+	}
+
+		// Two terminals of different media: refused only when the project
+		// says so and the master switch is on; joined otherwise
+	void mixedMediaAreRefusedOnlyOnRequest()
+	{
+		WiringRules::Settings off;
+		WiringRules::Settings on;
+		on.refuse_mixed_media = true;
+		QVERIFY(!WiringRules::refusesMixedMedia(off, true));
+		QVERIFY(WiringRules::refusesMixedMedia(on, true));
+		QVERIFY(!WiringRules::refusesMixedMedia(on, false));
+			// turning it on warns that the rules are experimental
+		QVERIFY(WiringRules::turnsRuleOn(off, on));
+		QVERIFY(!WiringRules::turnsRuleOn(on, off));
 	}
 
 	void savedSettingSurvivesResave()

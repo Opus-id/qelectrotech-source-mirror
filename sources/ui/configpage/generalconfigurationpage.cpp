@@ -177,10 +177,12 @@ GeneralConfigurationPage::GeneralConfigurationPage(QWidget *parent) :
 		const WiringRules::Settings rules = WiringRules::applicationSettings();
 		ui->m_wiring_max_wires_sb->setValue(rules.max_wires);
 		ui->m_wiring_one_wire_per_report_cb->setChecked(rules.one_wire_per_report);
+		ui->m_wiring_refuse_mixed_media_cb->setChecked(rules.refuse_mixed_media);
 		auto enable = [this](bool on) {
 			ui->m_wiring_max_wires_label->setEnabled(on);
 			ui->m_wiring_max_wires_sb->setEnabled(on);
 			ui->m_wiring_one_wire_per_report_cb->setEnabled(on);
+			ui->m_wiring_refuse_mixed_media_cb->setEnabled(on);
 		};
 		enable(ui->m_wiring_rules_cb->isChecked());
 		connect(ui->m_wiring_rules_cb, &QCheckBox::toggled, this, enable);
@@ -449,6 +451,7 @@ void GeneralConfigurationPage::applyConf()
 		WiringRules::Settings rules = before;
 		rules.max_wires = ui->m_wiring_max_wires_sb->value();
 		rules.one_wire_per_report = ui->m_wiring_one_wire_per_report_cb->isChecked();
+		rules.refuse_mixed_media = ui->m_wiring_refuse_mixed_media_cb->isChecked();
 		WiringRules::setApplicationSettings(rules);
 		if (WiringRules::masterEnabled() && WiringRules::turnsRuleOn(before, rules)) {
 			WiringRulesWarning::show(this);

@@ -30,7 +30,8 @@ class QDomElement;
 	takes one or two wires, sometimes four with double ferrules; a folio
 	report is a virtual point that should carry one. When a project sets a
 	limit, a new wire that would go past it is refused. Wires already in
-	the drawing are never touched.
+	the drawing are never touched. A project may also refuse to join two
+	terminals that connect different media (TerminalData::Medium).
 
 	The rules are set once for the application (Settings > General,
 	applicationSettings()) and apply to every project; a project can set
@@ -47,6 +48,7 @@ namespace WiringRules
 		///The QSettings keys of the application's rules
 	constexpr const char *max_wires_key = "diagrameditor/wiring_rules_max_wires";
 	constexpr const char *one_wire_per_report_key = "diagrameditor/wiring_rules_one_wire_per_report";
+	constexpr const char *refuse_mixed_media_key = "diagrameditor/wiring_rules_refuse_mixed_media";
 
 		///A set of rules: the application's, or a project's. The default is
 		///"no rule".
@@ -59,12 +61,17 @@ namespace WiringRules
 		int max_wires = 0;
 			///A folio report takes one wire only
 		bool one_wire_per_report = false;
+			///Two terminals that connect different media (an electrical
+			///terminal and a nozzle...) are not joined. Without this rule
+			///they are, and the user is told.
+		bool refuse_mixed_media = false;
 
 		bool isDefault() const { return *this == Settings(); }
 		bool operator==(const Settings &other) const {
 			return own == other.own
 					&& max_wires == other.max_wires
-					&& one_wire_per_report == other.one_wire_per_report;
+					&& one_wire_per_report == other.one_wire_per_report
+					&& refuse_mixed_media == other.refuse_mixed_media;
 		}
 		bool operator!=(const Settings &other) const { return !(*this == other); }
 	};
@@ -82,6 +89,7 @@ namespace WiringRules
 
 	int limit(const Settings &settings, bool master_enabled, bool is_report);
 	bool hasRoom(int limit, int wires);
+	bool refusesMixedMedia(const Settings &settings, bool master_enabled);
 
 	bool chainsWires(const Settings &settings, bool master_enabled);
 	QList<int> chainOrder(const QList<QPointF> &points);

@@ -26,6 +26,7 @@ namespace {
 	const QString element_name = QStringLiteral("wiring_rules");
 	const QString max_wires_attribute = QStringLiteral("max_wires_per_terminal");
 	const QString report_attribute = QStringLiteral("one_wire_per_report");
+	const QString media_attribute = QStringLiteral("refuse_mixed_media");
 
 		//The master switch is read on every wire drawn, so it is read from
 		//the settings once and kept; setMasterEnabled() keeps both in step.
@@ -72,6 +73,7 @@ WiringRules::Settings WiringRules::applicationSettings()
 		application_cache = Settings();
 		application_cache.max_wires = qMax(0, settings.value(max_wires_key, 0).toInt());
 		application_cache.one_wire_per_report = settings.value(one_wire_per_report_key, false).toBool();
+		application_cache.refuse_mixed_media = settings.value(refuse_mixed_media_key, false).toBool();
 		application_cached = true;
 	}
 	return application_cache;
@@ -87,6 +89,7 @@ void WiringRules::setApplicationSettings(const Settings &settings)
 	QSettings qsettings;
 	qsettings.setValue(max_wires_key, qMax(0, settings.max_wires));
 	qsettings.setValue(one_wire_per_report_key, settings.one_wire_per_report);
+	qsettings.setValue(refuse_mixed_media_key, settings.refuse_mixed_media);
 	application_cache = settings;
 	application_cache.own = false;
 	application_cached = true;
@@ -121,6 +124,7 @@ WiringRules::Settings WiringRules::fromXml(const QDomElement &project_root)
 	settings.own = true;
 	settings.max_wires = qMax(0, rules.attribute(max_wires_attribute, QStringLiteral("0")).toInt());
 	settings.one_wire_per_report = rules.attribute(report_attribute) == QLatin1String("true");
+	settings.refuse_mixed_media = rules.attribute(media_attribute) == QLatin1String("true");
 	return settings;
 }
 
@@ -141,6 +145,9 @@ void WiringRules::toXml(const Settings &settings, QDomElement &project_root)
 	}
 	if (settings.one_wire_per_report) {
 		rules.setAttribute(report_attribute, QStringLiteral("true"));
+	}
+	if (settings.refuse_mixed_media) {
+		rules.setAttribute(media_attribute, QStringLiteral("true"));
 	}
 	project_root.appendChild(rules);
 }
@@ -172,6 +179,18 @@ int WiringRules::limit(const Settings &settings, bool master_enabled, bool is_re
 bool WiringRules::hasRoom(int limit, int wires)
 {
 	return limit <= 0 || wires < limit;
+}
+
+/**
+	@brief WiringRules::refusesMixedMedia
+	@param settings : the project's rules
+	@param master_enabled : the master switch, masterEnabled()
+	@return true if two terminals that connect different media may not be
+	joined; otherwise they may, and the user is only told.
+*/
+bool WiringRules::refusesMixedMedia(const Settings &settings, bool master_enabled)
+{
+	return master_enabled && settings.refuse_mixed_media;
 }
 
 /**
@@ -245,5 +264,6 @@ QList<int> WiringRules::chainOrder(const QList<QPointF> &points)
 bool WiringRules::turnsRuleOn(const Settings &before, const Settings &after)
 {
 	return (after.max_wires > 0 && before.max_wires <= 0)
-			|| (after.one_wire_per_report && !before.one_wire_per_report);
+			|| (after.one_wire_per_report && !before.one_wire_per_report)
+			|| (after.refuse_mixed_media && !before.refuse_mixed_media);
 }

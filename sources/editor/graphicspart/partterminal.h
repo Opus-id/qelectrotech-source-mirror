@@ -34,6 +34,7 @@ class PartTerminal : public CustomElementGraphicPart
 	Q_PROPERTY(Qet::Orientation orientation READ orientation WRITE setOrientation)
 	Q_PROPERTY(QString terminal_name READ terminalName WRITE setTerminalName)
 	Q_PROPERTY(TerminalData::Type terminal_type READ terminalType WRITE setTerminalType)
+	Q_PROPERTY(TerminalData::Medium medium READ medium WRITE setMedium)
 	Q_PROPERTY(bool show_name READ showName WRITE setShowName)
 	Q_PROPERTY(QPointF label_pos READ labelPos WRITE setLabelPos)
 	Q_PROPERTY(QFont label_font READ labelFont WRITE setLabelFont)
@@ -57,6 +58,7 @@ class PartTerminal : public CustomElementGraphicPart
 		void orientationChanged();
 		void nameChanged();
 		void terminalTypeChanged();
+		void mediumChanged();
 		void potentialChanged();
 		void showNameChanged();
 		void labelPosChanged();
@@ -111,6 +113,9 @@ class PartTerminal : public CustomElementGraphicPart
 
 		TerminalData::Type terminalType() const {return d->m_type;}
 		void setTerminalType(TerminalData::Type type);
+
+		TerminalData::Medium medium() const {return d->m_medium;}
+		void setMedium(TerminalData::Medium medium);
 
 		bool showName() const { return d->m_show_name; }
 		void setShowName(bool show);

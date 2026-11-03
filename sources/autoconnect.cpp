@@ -142,6 +142,9 @@ Terminal *findPartner(const State &s, const Terminal *from)
 		{
 			if (!Qet::isOpposed(from->orientation(), t->orientation()))
 				continue;
+				//an automatic wire never joins two media
+			if (!from->sameMediumAs(t))
+				continue;
 			const qreal d = ahead(from, t->dockConductor());
 			if (d >= 0)
 				found << qMakePair(d, t);

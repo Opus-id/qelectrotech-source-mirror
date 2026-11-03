@@ -2,15 +2,18 @@
 #include "qetapptest.h"
 
 #include "diagram.h"
+#include "editor/graphicspart/partterminal.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "properties/terminaldata.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "wiringrules.h"
 
 #include <QDomDocument>
 #include <QGraphicsObject>
+#include <QSignalSpy>
 
 // The medium a terminal connects: electrical, as QET always did, or for a
 // process symbol a pipe, a signal or a drive. The attribute "medium" of a
@@ -168,6 +171,98 @@ class tst_terminalmedium : public QObject
 			}
 		}
 
+			// ---- the terminal of the element editor ----
+		void theEditorKeepsTheMedium()
+		{
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<terminal name=\"E1\" x=\"0\" y=\"-15\" orientation=\"n\" "
+				"type=\"Generic\" medium=\"drive\"/>"));
+			PartTerminal part(nullptr);
+			part.fromXml(doc.documentElement());
+			QCOMPARE(part.medium(), TerminalData::Drive);
+
+				// through the property of the QObject, as the undo command of
+				// the editor (QPropertyUndoCommand) sets it
+			QObject &object = part;
+			QSignalSpy changed(&part, &PartTerminal::mediumChanged);
+			QVERIFY(object.setProperty("medium", int(TerminalData::Pipe)));
+			QCOMPARE(part.medium(), TerminalData::Pipe);
+			QCOMPARE(changed.count(), 1);
+			QDomDocument out;
+			QCOMPARE(part.toXml(out).attribute(QStringLiteral("medium")),
+				 QStringLiteral("pipe"));
+
+				// back to electrical: nothing written, as before
+			QVERIFY(object.setProperty("medium", int(TerminalData::Electrical)));
+			QDomDocument out2;
+			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("medium")));
+				// the name and the type are untouched
+			QCOMPARE(part.terminalName(), QStringLiteral("E1"));
+			QCOMPARE(part.terminalType(), TerminalData::Generic);
+		}
+
+			// ---- the name a terminal gets with its medium ----
+		void suggestsAName_data()
+		{
+			QTest::addColumn<int>("medium");
+			QTest::addColumn<QString>("current");
+			QTest::addColumn<QStringList>("taken");
+			QTest::addColumn<QString>("expected");
+			const int e = TerminalData::Electrical, p = TerminalData::Pipe,
+				  s = TerminalData::Signal, d = TerminalData::Drive;
+			QTest::newRow("drive E1 becomes a nozzle")
+					<< p << "E1" << QStringList{"N1", "N2"} << "N3";
+			QTest::newRow("no name, nozzle")       << p << "" << QStringList{} << "N1";
+			QTest::newRow("no name, drive")        << d << "" << QStringList{"N1"} << "E1";
+			QTest::newRow("no name, signal")       << s << "" << QStringList{} << "S1";
+			QTest::newRow("nozzle N2 becomes a drive")
+					<< d << "N2" << QStringList{"N1", "E1"} << "E2";
+			QTest::newRow("nozzle becomes a signal")
+					<< s << "N1" << QStringList{"N2"} << "S1";
+				// already following the new convention: kept
+			QTest::newRow("N1 stays a nozzle")     << p << "N1" << QStringList{"N2"} << "N1";
+				// chosen by the author: kept
+			QTest::newRow("free name kept")        << p << "Suction" << QStringList{} << "Suction";
+			QTest::newRow("number kept")           << p << "1" << QStringList{} << "1";
+			QTest::newRow("lower case kept")       << p << "e1" << QStringList{} << "e1";
+				// electrical names follow no convention: nothing is renamed
+			QTest::newRow("back to electrical")    << e << "N1" << QStringList{} << "N1";
+			QTest::newRow("no name, electrical")   << e << "" << QStringList{} << "";
+		}
+
+		void suggestsAName()
+		{
+			QFETCH(int, medium);
+			QFETCH(QString, current);
+			QFETCH(QStringList, taken);
+			QFETCH(QString, expected);
+			QCOMPARE(TerminalData::suggestedName(TerminalData::Medium(medium),
+							     current, taken),
+				 expected);
+		}
+
+			// ---- how a terminal looks ----
+		void eachMediumHasItsOwnStem()
+		{
+				// an electrical terminal looks as it always did
+			QCOMPARE(Terminal::stemColor(TerminalData::Electrical), QColor(Qt::red));
+			const QList<QColor> colors{
+				Terminal::stemColor(TerminalData::Electrical),
+				Terminal::stemColor(TerminalData::Pipe),
+				Terminal::stemColor(TerminalData::Signal),
+				Terminal::stemColor(TerminalData::Drive)};
+			for (int i = 0; i < colors.size(); ++i) {
+				for (int j = i + 1; j < colors.size(); ++j)
+					QVERIFY2(colors.at(i) != colors.at(j), "two media share a color");
+					// nor the colors the hover gives while a wire is drawn,
+					// nor the blue of the docking point
+				QVERIFY(colors.at(i) != Terminal::allowedColor);
+				QVERIFY(colors.at(i) != Terminal::warningColor);
+				QVERIFY(colors.at(i) != Terminal::neutralColor);
+			}
+		}
+
 			// ---- a placed element ----
 		void aPlacedElementKnowsTheMediumOfItsTerminals()
 		{
@@ -180,6 +275,68 @@ class tst_terminalmedium : public QObject
 				QCOMPARE(t->medium(), TerminalData::Electrical);
 			for (Terminal *t : pipe->terminals())
 				QCOMPARE(t->medium(), TerminalData::Pipe);
+		}
+
+			// ---- joining terminals of different media ----
+			// Joined, with a warning while drawing, unless the project's
+			// wiring rules refuse it; the master switch turns the rule off
+		void differentMediaAreJoinedUnlessTheProjectRefuses()
+		{
+			Element *electrical = place(m_electrical, QPointF(0, 200));
+			Element *pipe = place(m_pipe, QPointF(100, 200));
+			Element *pipe_too = place(m_pipe, QPointF(200, 200));
+			QVERIFY(electrical && pipe && pipe_too);
+			Terminal *wire_end = electrical->terminals().at(0);
+			Terminal *nozzle = pipe->terminals().at(0);
+			Terminal *other_nozzle = pipe_too->terminals().at(0);
+			QVERIFY(!wire_end->sameMediumAs(nozzle));
+			QVERIFY(nozzle->sameMediumAs(other_nozzle));
+
+				// by default: no rule, everything is joined as before
+			QVERIFY(m_project.wiringRules().isDefault());
+			QVERIFY(!wire_end->refusesMediumOf(nozzle));
+			QVERIFY(wire_end->canBeLinkedTo(nozzle));
+
+			WiringRules::Settings refuse;
+			refuse.own = true;
+			refuse.refuse_mixed_media = true;
+			m_project.setWiringRules(refuse);
+			QVERIFY(wire_end->refusesMediumOf(nozzle));
+			QVERIFY(nozzle->refusesMediumOf(wire_end));
+			QVERIFY(!wire_end->canBeLinkedTo(nozzle));
+				// the same medium is never refused
+			QVERIFY(!nozzle->refusesMediumOf(other_nozzle));
+			QVERIFY(nozzle->canBeLinkedTo(other_nozzle));
+
+				// the master switch turns every rule off
+			WiringRules::setMasterEnabled(false);
+			QVERIFY(wire_end->canBeLinkedTo(nozzle));
+			WiringRules::setMasterEnabled(true);
+
+			m_project.setWiringRules(WiringRules::Settings());
+			QVERIFY(wire_end->canBeLinkedTo(nozzle));
+		}
+
+			// The automatic wiring of aligned terminals never joins two
+			// media, rule or not; it still joins two terminals of the same
+			// medium, two electrical ones as always
+		void alignedTerminalsOfDifferentMediaAreNotWired()
+		{
+			Element *electrical = place(m_electrical, QPointF(0, 400));
+			Element *pipe = place(m_pipe, QPointF(100, 400));
+			Element *electrical_too = place(m_electrical, QPointF(0, 600));
+			Element *electrical_three = place(m_electrical, QPointF(100, 600));
+			QVERIFY(electrical && pipe && electrical_too && electrical_three);
+				// the east terminal of the first (x 10) faces the west one
+				// of the second (x 90)
+			const auto pairs = [](Element *from, Element *to) {
+				int n = 0;
+				for (const auto &pair : from->AlignedFreeTerminals())
+					if (pair.second->parentElement() == to) ++n;
+				return n;
+			};
+			QCOMPARE(pairs(electrical, pipe), 0);
+			QCOMPARE(pairs(electrical_too, electrical_three), 1);
 		}
 
 			// The project keeps the definition of the symbol as it is, the

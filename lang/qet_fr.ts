@@ -8408,6 +8408,16 @@ Vous pouvez spécifier ici la valeur par défaut de ce champ pour les éléments
         <translation>Un seul conducteur par renvoi de folio</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="194"/>
+        <source>A terminal connects a medium: electrical, or for a process symbol a pipe, a signal or a drive. Ticked, two terminals of different media are not joined; unticked, they are, and QElectroTech only says so.</source>
+        <translation>Une borne raccorde un médium : électrique, ou pour un symbole de procédé une tuyauterie, un signal ou un entraînement. Coché, deux bornes de médiums différents ne sont pas reliées ; décoché, elles le sont, et QElectroTech le signale seulement.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="197"/>
+        <source>Refuse to join terminals of different media</source>
+        <translation>Refuser de relier des bornes de médiums différents</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="196"/>
         <source>Show the default grid (applied the next time the programme is launched)</source>
         <translation>Afficher la grille par défaut (appliqué au prochain lancement)</translation>
@@ -13074,6 +13084,18 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <source>Only one conductor per sheet reference</source>
         <comment>checkbox label</comment>
         <translation>Un seul conducteur par renvoi de folio</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="341"/>
+        <source>Refuse to join terminals of different media</source>
+        <comment>checkbox label</comment>
+        <translation>Refuser de relier des bornes de médiums différents</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="342"/>
+        <source>A terminal connects a medium: electrical, or for a process symbol a pipe, a signal or a drive. Ticked, two terminals of different media are not joined; unticked, they are, and QElectroTech only says so.</source>
+        <comment>tooltip</comment>
+        <translation>Une borne raccorde un médium : électrique, ou pour un symbole de procédé une tuyauterie, un signal ou un entraînement. Coché, deux bornes de médiums différents ne sont pas reliées ; décoché, elles le sont, et QElectroTech le signale seulement.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="336"/>
@@ -25715,6 +25737,42 @@ Les autres champs ne sont pas utilisés.</translation>
             <numerusform>Cette borne a déjà %n conducteurs, la limite du projet. Ajoutez une borne pour raccorder un conducteur de plus.</numerusform>
         </translation>
     </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="760"/>
+        <source>These terminals connect different media (%1, %2): the project&apos;s wiring rules do not join them.</source>
+        <comment>connection refused between terminals of different media</comment>
+        <translation>Ces bornes raccordent des médiums différents (%1, %2) : les règles de câblage du projet ne les relient pas.</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="772"/>
+        <source>These terminals connect different media (%1, %2).</source>
+        <comment>connection between terminals of different media</comment>
+        <translation>Ces bornes raccordent des médiums différents (%1, %2).</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="75"/>
+        <source>electrical</source>
+        <comment>medium of a terminal, in a sentence</comment>
+        <translation>électrique</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="76"/>
+        <source>pipe</source>
+        <comment>medium of a terminal, in a sentence</comment>
+        <translation>tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="77"/>
+        <source>signal</source>
+        <comment>medium of a terminal, in a sentence</comment>
+        <translation>signal</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="78"/>
+        <source>drive</source>
+        <comment>medium of a terminal, in a sentence</comment>
+        <translation>entraînement</translation>
+    </message>
 </context>
 <context>
     <name>TerminalEditor</name>
@@ -25800,6 +25858,45 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="298"/>
         <source>Change the type of a terminal</source>
         <translation>Modifier le type d&apos;une borne</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="350"/>
+        <source>Change the medium of a terminal</source>
+        <translation>Modifier le médium d&apos;une borne</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="199"/>
+        <source>Electrical</source>
+        <comment>terminal medium</comment>
+        <translation>Électrique</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="200"/>
+        <source>Pipe (nozzle)</source>
+        <comment>terminal medium</comment>
+        <translation>Tuyauterie (piquage)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="201"/>
+        <source>Signal</source>
+        <comment>terminal medium</comment>
+        <translation>Signal</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="202"/>
+        <source>Drive (shaft)</source>
+        <comment>terminal medium</comment>
+        <translation>Entraînement (arbre)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="82"/>
+        <source>Medium:</source>
+        <translation>Médium :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="90"/>
+        <source>The medium this terminal connects. Electrical is the default; the other media are for process symbols: a nozzle connects a pipe, an instrument a signal, a machine shaft its drive.</source>
+        <translation>Le médium que raccorde cette borne. Électrique par défaut ; les autres médiums servent aux symboles de procédé : un piquage raccorde une tuyauterie, un instrument un signal, un arbre de machine son entraînement.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="319"/>

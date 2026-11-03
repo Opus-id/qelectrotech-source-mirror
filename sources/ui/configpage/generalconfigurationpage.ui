@@ -184,6 +184,23 @@
         </layout>
        </item>
        <item>
+        <layout class="QHBoxLayout" name="m_wiring_media_layout">
+         <property name="leftMargin">
+          <number>20</number>
+         </property>
+         <item>
+          <widget class="QCheckBox" name="m_wiring_refuse_mixed_media_cb">
+           <property name="toolTip">
+            <string>A terminal connects a medium: electrical, or for a process symbol a pipe, a signal or a drive. Ticked, two terminals of different media are not joined; unticked, they are, and QElectroTech only says so.</string>
+           </property>
+           <property name="text">
+            <string>Refuse to join terminals of different media</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
         <widget class="Line" name="line_2">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -1787,6 +1804,7 @@
   <tabstop>m_wiring_rules_cb</tabstop>
   <tabstop>m_wiring_max_wires_sb</tabstop>
   <tabstop>m_wiring_one_wire_per_report_cb</tabstop>
+  <tabstop>m_wiring_refuse_mixed_media_cb</tabstop>
   <tabstop>m_use_windows_mode_rb</tabstop>
   <tabstop>m_use_tab_mode_rb</tabstop>
   <tabstop>m_save_label_paste</tabstop>

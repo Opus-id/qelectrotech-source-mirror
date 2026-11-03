@@ -24,6 +24,7 @@
 #include <QColor>
 #include <QFont>
 #include <QPointF>
+#include <QStringList>
 #include <QUuid>
 
 class QGraphicsObject;
@@ -82,6 +83,10 @@ class TerminalData : public PropertiesInterface
 		static TerminalData::Type typeFromString(const QString &string);
 		static QString mediumToString(TerminalData::Medium medium);
 		static TerminalData::Medium mediumFromString(const QString &string);
+		static QString namePrefix(TerminalData::Medium medium);
+		static QString suggestedName(TerminalData::Medium medium,
+					     const QString &current,
+					     const QStringList &taken);
 
 	// must be public, because this class is a private member
 	// of PartTerminal/Terminal and they must access this data

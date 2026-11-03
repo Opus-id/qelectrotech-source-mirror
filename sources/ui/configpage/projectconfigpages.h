@@ -151,6 +151,7 @@ class ProjectMainConfigPage : public ProjectConfigPage {
 	QLabel *max_wires_label_;
 	QSpinBox *max_wires_sb_;
 	QCheckBox *one_wire_per_report_cb_;
+	QCheckBox *refuse_mixed_media_cb_;
 	QLabel *wiring_rules_off_label_;
 	QLabel *origin_label_;
 	QComboBox *origin_cb_;

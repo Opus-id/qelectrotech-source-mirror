@@ -215,6 +215,7 @@ void ProjectMainConfigPage::applyProjectConf()
 		wiring_rules.own = true;
 		wiring_rules.max_wires = max_wires_sb_ -> value();
 		wiring_rules.one_wire_per_report = one_wire_per_report_cb_ -> isChecked();
+		wiring_rules.refuse_mixed_media = refuse_mixed_media_cb_ -> isChecked();
 	}
 	if (m_project -> projectWiringRules() != wiring_rules) {
 		const WiringRules::Settings before = m_project -> wiringRules();
@@ -321,6 +322,7 @@ void ProjectMainConfigPage::initWidgets()
 			const WiringRules::Settings application = WiringRules::applicationSettings();
 			max_wires_sb_ -> setValue(application.max_wires);
 			one_wire_per_report_cb_ -> setChecked(application.one_wire_per_report);
+			refuse_mixed_media_cb_ -> setChecked(application.refuse_mixed_media);
 		}
 		updateWiringRulesWidgets();
 	});
@@ -336,6 +338,11 @@ void ProjectMainConfigPage::initWidgets()
 	one_wire_per_report_cb_ -> setToolTip(tr("A sheet reference is a virtual point: it takes only one conductor, the "
 											 "one that continues on the other sheet.",
 											 "tooltip"));
+	refuse_mixed_media_cb_ = new QCheckBox(tr("Refuse to join terminals of different media", "checkbox label"));
+	refuse_mixed_media_cb_ -> setToolTip(tr("A terminal connects a medium: electrical, or for a process symbol a "
+											"pipe, a signal or a drive. Ticked, two terminals of different media "
+											"are not joined; unticked, they are, and QElectroTech only says so.",
+											"tooltip"));
 	wiring_rules_off_label_ = new QLabel(tr("These rules are turned off for every project "
 											"(Configure QElectroTech > General).",
 											"informative label"));
@@ -411,6 +418,7 @@ void ProjectMainConfigPage::initLayout()
 	max_wires_layout -> addStretch();
 	wiring_rules_layout -> addLayout(max_wires_layout);
 	wiring_rules_layout -> addWidget(one_wire_per_report_cb_);
+	wiring_rules_layout -> addWidget(refuse_mixed_media_cb_);
 	wiring_rules_layout -> addWidget(wiring_rules_off_label_);
 	main_layout0 -> addWidget(wiring_rules_gb_);
 	main_layout0->addSpacing(10);
@@ -463,6 +471,7 @@ void ProjectMainConfigPage::readValuesFromProject()
 	}
 	max_wires_sb_ -> setValue(wiring_rules.max_wires);
 	one_wire_per_report_cb_ -> setChecked(wiring_rules.one_wire_per_report);
+	refuse_mixed_media_cb_ -> setChecked(wiring_rules.refuse_mixed_media);
 	updateWiringRulesWidgets();
 }
 
@@ -482,6 +491,7 @@ void ProjectMainConfigPage::updateWiringRulesWidgets()
 	max_wires_label_ -> setEnabled(own);
 	max_wires_sb_ -> setEnabled(own);
 	one_wire_per_report_cb_ -> setEnabled(own);
+	refuse_mixed_media_cb_ -> setEnabled(own);
 }
 
 /**

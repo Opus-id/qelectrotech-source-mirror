@@ -1969,7 +1969,9 @@ bool Element::removeTextFromGroup(DynamicElementTextItem *text,
 	this terminal haven't got any conductor docked.
 	The second Terminal of QPair is a Terminal owned by an other element,
 	which is aligned with the first Terminal. The second Terminal can have or not docked conductors,
-	but no more than the project's wires-per-terminal limit allows (discussion #1158).
+	but no more than the project's wires-per-terminal limit allows (discussion #1158), and the two
+	connect the same medium: an automatic wire never joins two media, which is seldom meant
+	(the user may still draw one by hand).
 */
 QList <QPair <Terminal *, Terminal *> > Element::AlignedFreeTerminals() const
 {
@@ -1983,7 +1985,8 @@ QList <QPair <Terminal *, Terminal *> > Element::AlignedFreeTerminals() const
 					terminal -> alignedWithTerminal();
 			if (other_terminal
 				&& terminal->hasRoomForWire()
-				&& other_terminal->hasRoomForWire())
+				&& other_terminal->hasRoomForWire()
+				&& terminal->sameMediumAs(other_terminal))
 				list << qMakePair(terminal, other_terminal);
 		}
 	}

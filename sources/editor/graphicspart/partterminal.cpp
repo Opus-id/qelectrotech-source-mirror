@@ -88,8 +88,13 @@ void PartTerminal::paint(
 
 	t.setCosmetic(options && options -> levelOfDetailFromTransform(painter->worldTransform()) < 1.0);
 
-	// dessin de la borne en rouge
-	t.setColor(isSelected() ? Terminal::neutralColor : Qt::red);
+	// dessin de la borne en rouge, ou de la couleur de son médium.
+	// A selected electrical terminal swaps its colors, as it always did;
+	// one of another medium keeps the color of its medium, which is what one
+	// looks at while choosing it, and shows the selection by its red
+	// docking point.
+	const bool swap_colors = isSelected() && d->m_medium == TerminalData::Electrical;
+	t.setColor(swap_colors ? Terminal::neutralColor : Terminal::stemColor(d->m_medium));
 	painter -> setPen(t);
 	painter -> drawLine(QPointF(0.0, 0.0), d -> m_second_point);
 
@@ -382,6 +387,23 @@ void PartTerminal::setTerminalType(TerminalData::Type type)
 	}
 	d->m_type = type;
 	emit terminalTypeChanged(); // all terminal-signals call "updateForm"
+}
+
+/**
+	@brief PartTerminal::setMedium
+	Set the medium this terminal connects: electrical, or for a process
+	symbol a pipe, a signal or a drive
+	@param medium
+*/
+void PartTerminal::setMedium(TerminalData::Medium medium)
+{
+	if (d->m_medium == medium) {
+		return;
+	}
+	d->m_medium = medium;
+		//its stem takes the color of its medium
+	update();
+	emit mediumChanged();
 }
 
 void PartTerminal::setNewUuid()
