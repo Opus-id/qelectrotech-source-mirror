@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "qetapptest.h"
 
+#include "autobreakconductor.h"
 #include "conductorautonumerotation.h"
 #include "conductorproperties.h"
 #include "dataBase/projectdatabase.h"
@@ -51,9 +52,27 @@ class tst_conductormedium : public QObject
 		return doc.documentElement();
 	}
 
+		// A tee: nozzles N1 (west), N2 (east) on the run, N3 (south) the branch
+	static QDomElement teeDefinition(QDomDocument &doc)
+	{
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+			"<uuid uuid=\"{73333333-3333-3333-3333-333333333333}\"/>"
+			"<names><name lang=\"en\">Tee</name></names><description>"
+			"<line x1=\"-10\" y1=\"0\" x2=\"10\" y2=\"0\" end1=\"none\" end2=\"none\" "
+			"length1=\"1.5\" length2=\"1.5\" style=\"line-style:normal;line-weight:normal;"
+			"filling:none;color:black\" antialias=\"false\"/>"
+			"<terminal name=\"N1\" x=\"-10\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
+			"<terminal name=\"N2\" x=\"10\" y=\"0\" orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>"
+			"<terminal name=\"N3\" x=\"0\" y=\"10\" orientation=\"s\" type=\"Generic\" medium=\"pipe\"/>"
+			"</description></definition>"));
+		return doc.documentElement();
+	}
+
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_electrical, m_pipe;
+	ElementsLocation m_electrical, m_pipe, m_tee;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -115,12 +134,13 @@ class tst_conductormedium : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("cmedium"), NamesList());
-			QDomDocument a, b;
+			QDomDocument a, b, c;
 			m_electrical = add("electrical.elmt",
 					   definition(a, "71111111-1111-1111-1111-111111111111", ""));
 			m_pipe = add("pipe.elmt",
 				     definition(b, "72222222-2222-2222-2222-222222222222", "pipe"));
-			QVERIFY(m_electrical.exist() && m_pipe.exist());
+			m_tee = add("tee.elmt", teeDefinition(c));
+			QVERIFY(m_electrical.exist() && m_pipe.exist() && m_tee.exist());
 			m_folio = m_project.addNewDiagram();
 		}
 
@@ -401,6 +421,46 @@ class tst_conductormedium : public QObject
 			draw(e1->terminals().at(1), wire_end);
 			QVERIFY(wire_end->hasRoomForWire());
 			QVERIFY(e3->terminals().at(0)->canBeLinkedTo(wire_end));
+		}
+
+			// A tee dropped on a pipe takes the pipe through its run, N1 then
+			// N2, never through its branch N3, even when the far end of the
+			// pipe lies nearer to N3 (further down than to the right)
+		void aTeeDroppedOnAPipeKeepsItsBranchFree()
+		{
+			m_next_y += 200;
+			const qreal y = m_next_y;
+			Element *a = place(m_pipe, QPointF(0, y));
+			Element *b = place(m_pipe, QPointF(200, y + 300));
+			QVERIFY(a && b);
+				// from a's east nozzle to b's west one: along y, down, along
+			Conductor *pipe = draw(a->terminals().at(1), b->terminals().at(0));
+			QCOMPARE(pipe->medium(), TerminalData::Pipe);
+
+			Element *tee = place(m_tee, QPointF(50, y));
+			QVERIFY(tee);
+			Terminal *n1 = nullptr, *n2 = nullptr, *n3 = nullptr;
+			for (Terminal *t : tee->terminals()) {
+				if (t->name() == QLatin1String("N1")) n1 = t;
+				if (t->name() == QLatin1String("N2")) n2 = t;
+				if (t->name() == QLatin1String("N3")) n3 = t;
+			}
+			QVERIFY(n1 && n2 && n3);
+
+			const bool was = m_project.autoBreakConductor();
+			m_project.setAutoBreakConductor(true);
+			QList<Conductor *> handled;
+			QSet<Terminal *> used;
+			auto *undo = new QUndoCommand();
+			autoBreakConductors(m_folio, tee, undo, handled, used);
+			m_folio->undoStack().push(undo);
+			m_project.setAutoBreakConductor(was);
+
+			QCOMPARE(n1->conductors().size(), 1);
+			QCOMPARE(n2->conductors().size(), 1);
+			QCOMPARE(n3->conductors().size(), 0);
+			QCOMPARE(n1->conductors().first()->medium(), TerminalData::Pipe);
+			QCOMPARE(n2->conductors().first()->medium(), TerminalData::Pipe);
 		}
 
 			// ---- the defaults and the number of a new conductor ----

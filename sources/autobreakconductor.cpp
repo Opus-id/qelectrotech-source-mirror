@@ -215,15 +215,23 @@ QSet<Terminal *> autoBreakConductors(
 				continue;
 
 			QPointF ot_dock = ot->dockConductor();
-			bool orientation_ok = false;
-			switch (ot->orientation()) {
-				case Qet::North: orientation_ok = other_dock.y() < ot_dock.y(); break;
-				case Qet::South: orientation_ok = other_dock.y() > ot_dock.y(); break;
-				case Qet::East:  orientation_ok = other_dock.x() > ot_dock.x(); break;
-				case Qet::West:  orientation_ok = other_dock.x() < ot_dock.x(); break;
+			if (t->medium() == TerminalData::Pipe) {
+					//A pipe goes on through the nozzle facing the one it came
+					//in by (N2 after N1): never through a branch (the N3 of a
+					//tee), however near it lies to the other end
+				if (!Qet::isOpposed(ot->orientation(), t->orientation()))
+					continue;
+			} else {
+				bool orientation_ok = false;
+				switch (ot->orientation()) {
+					case Qet::North: orientation_ok = other_dock.y() < ot_dock.y(); break;
+					case Qet::South: orientation_ok = other_dock.y() > ot_dock.y(); break;
+					case Qet::East:  orientation_ok = other_dock.x() > ot_dock.x(); break;
+					case Qet::West:  orientation_ok = other_dock.x() < ot_dock.x(); break;
+				}
+				if (!orientation_ok)
+					continue;
 			}
-			if (!orientation_ok)
-				continue;
 
 			qreal dist = QLineF(ot_dock, other_dock).length();
 			if (dist < best_dist) {
