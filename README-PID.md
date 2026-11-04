@@ -66,6 +66,25 @@ tag `pipe-connector-freeze-2026-11-03`.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
   through its run and keeps its branch free.
 
+**Symbols**
+- **Change type**: right-click a placed symbol, *Change type* lists the
+  symbols of the same collection folder that have the same size, hotspot
+  and terminals (name, place and medium). The symbol is swapped in place,
+  keeping its position, information and connections; undoable. A generic
+  symbol (a valve, a pump) can be placed first and made precise later.
+- **Ends and corners of lines**: the element editor can draw the ends of a
+  line round or flat and its corners round, mitred or bevelled (`line-cap`
+  and `line-join` in the style of a part; nothing written for the default).
+- **Symbols with options**: a symbol may declare options (an `<options>`
+  block, each option with named values and a default) and draw some parts
+  only for some values (`show-if` attribute). Example: one pump symbol
+  with a *motor* option (none, fixed speed, variable speed) instead of
+  three symbols. A placed symbol saves its choices in its `<element>`
+  block, only when it has some; they are chosen in an *Options* tab of its
+  properties panel (undoable) and kept by *Change type*. A `.qetdb` file
+  does not keep them yet: saving such a project as `.qetdb` is refused
+  with a message.
+
 **Checks**: every step has its tests, and the example projects of
 QElectroTech are saved byte for byte as by master.
 
@@ -78,6 +97,10 @@ QElectroTech are saved byte for byte as by master.
 - Placing a tee by dropping a pipe on another, flow direction, crossings
   as ISO 10628-1 draws them.
 - Signal lines, drive links, data of the nozzles, equipment data tables.
+- A drawing scale that matches the paper sizes of the *Format* list of the
+  folio properties, and text heights as ISO 10628-1 asks (planned).
+- Declaring options and conditions in the element editor (they are written
+  by hand or by script for now, and kept by the editor).
 - A library of P&ID symbols (symbols are drawn *inspired by* ISO 10628-2,
   never copied from it; none is published here).
 
