@@ -30,6 +30,8 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace {
 	constexpr int group_role = Qt::UserRole;
 	constexpr int key_role = Qt::UserRole + 1;
@@ -76,7 +78,7 @@ void PidConfigPage::initWidgets()
 	m_table = new QTableWidget(0, 3, this);
 	m_table->setHorizontalHeaderLabels({tr("Applies to"), tr("Name"), tr("Color")});
 	m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-	m_table->setSelectionMode(QAbstractItemView::SingleSelection);
+	m_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	m_table->verticalHeader()->hide();
 	m_table->horizontalHeader()->setStretchLastSection(true);
@@ -85,7 +87,7 @@ void PidConfigPage::initWidgets()
 	m_choose = new QPushButton(tr("Choose a color..."), this);
 	m_clear = new QPushButton(tr("No color"), this);
 	connect(m_choose, &QPushButton::clicked, this, &PidConfigPage::chooseColor);
-	connect(m_clear, &QPushButton::clicked, this, &PidConfigPage::clearColor);
+	connect(m_clear, &QPushButton::clicked, this, [this]() { setColorOfSelection(QColor()); });
 }
 
 void PidConfigPage::initLayout()
@@ -145,7 +147,7 @@ QMap<QString, QColor> &PidConfigPage::colors(Group group)
 */
 void PidConfigPage::fillTable()
 {
-	const int row_shown = m_table->currentRow();
+	const QList<int> rows_selected = selectedRows();
 	m_table->setRowCount(0);
 	auto add = [this](Group group, const QString &group_name, const QString &key, const QString &name) {
 		const int row = m_table->rowCount();
@@ -189,9 +191,25 @@ void PidConfigPage::fillTable()
 		add(Status, tr("Status of works"), status_keys.at(i), statuses.at(i));
 	}
 	m_table->resizeColumnsToContents();
-	if (row_shown >= 0) {
-		m_table->selectRow(row_shown);
+		//The lines keep their place: what was selected stays so
+	for (int row : rows_selected) {
+		for (int column = 0 ; column < m_table->columnCount() ; ++column) {
+			m_table->item(row, column)->setSelected(true);
+		}
 	}
+}
+
+/**
+	@return the lines selected, in order
+*/
+QList<int> PidConfigPage::selectedRows() const
+{
+	QList<int> rows;
+	for (const QModelIndex &index : m_table->selectionModel()->selectedRows()) {
+		rows << index.row();
+	}
+	std::sort(rows.begin(), rows.end());
+	return rows;
 }
 
 /**
@@ -210,31 +228,39 @@ void PidConfigPage::setColor(Group group, const QString &key, const QColor &colo
 
 /**
 	@brief PidConfigPage::chooseColor
-	Ask a colour for the line selected
+	Ask a colour for the lines selected, starting from that of the first
 */
 void PidConfigPage::chooseColor()
 {
-	const int row = m_table->currentRow();
-	if (row < 0) {
+	const QList<int> rows = selectedRows();
+	if (rows.isEmpty()) {
 		return;
 	}
-	const auto group = Group(m_table->item(row, 0)->data(group_role).toInt());
-	const QString key = m_table->item(row, 0)->data(key_role).toString();
-	const QColor color = QColorDialog::getColor(colors(group).value(key, Qt::black), this, title());
+	const QTableWidgetItem *first = m_table->item(rows.first(), 0);
+	const auto group = Group(first->data(group_role).toInt());
+	const QColor current = colors(group).value(first->data(key_role).toString(), Qt::black);
+	const QColor color = QColorDialog::getColor(current, this, title());
 	if (color.isValid()) {
-		setColor(group, key, color);
+		setColorOfSelection(color);
 	}
 }
 
 /**
-	@brief PidConfigPage::clearColor
-	Take the colour of the line selected away
+	@brief PidConfigPage::setColorOfSelection
+	See the declaration
 */
-void PidConfigPage::clearColor()
+void PidConfigPage::setColorOfSelection(const QColor &color)
 {
-	const int row = m_table->currentRow();
-	if (row >= 0) {
-		setColor(Group(m_table->item(row, 0)->data(group_role).toInt()),
-				 m_table->item(row, 0)->data(key_role).toString(), QColor());
+	for (int row : selectedRows())
+	{
+		const QTableWidgetItem *item = m_table->item(row, 0);
+		const auto group = Group(item->data(group_role).toInt());
+		const QString key = item->data(key_role).toString();
+		if (color.isValid()) {
+			colors(group).insert(key, color);
+		} else {
+			colors(group).remove(key);
+		}
 	}
+	fillTable();
 }

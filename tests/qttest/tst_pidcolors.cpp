@@ -271,6 +271,25 @@ class tst_pidcolors : public QObject
 					// nothing is applied before the page is validated
 				QVERIFY(!m_project.pidCodification().hasColors());
 				page.applyProjectConf();
+
+					// several lines at once, whatever their group
+				table->clearSelection();
+				table->selectRow(0);
+				table->setSelectionMode(QAbstractItemView::MultiSelection);
+				table->selectRow(1);
+				table->selectRow(8);
+				page.setColorOfSelection(QColor(3, 3, 3));
+				QCOMPARE(table->item(0, 2)->text(), QColor(3, 3, 3).name());
+				QCOMPARE(table->item(1, 2)->text(), QColor(3, 3, 3).name());
+				QCOMPARE(table->item(8, 2)->text(), QColor(3, 3, 3).name());
+					// the selection stays, for what comes next
+				QCOMPARE(table->selectionModel()->selectedRows().size(), 3);
+				page.setColorOfSelection(QColor());
+				QVERIFY(table->item(0, 2)->text().isEmpty());
+				QVERIFY(table->item(8, 2)->text().isEmpty());
+				page.setColor(PidConfigPage::FluidFamily, QStringLiteral("E"), QColor(0, 0, 255));
+				page.setColor(PidConfigPage::Status, QStringLiteral("existing"), QColor(2, 2, 2));
+				page.applyProjectConf();
 			}
 			const PidCodification c = m_project.pidCodification();
 			QCOMPARE(c.fluids.size(), 2);

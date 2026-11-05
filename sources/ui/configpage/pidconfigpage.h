@@ -47,6 +47,9 @@ class PidConfigPage : public ProjectConfigPage
 			/// Give the entry @p key of @p group the colour @p color, none
 			/// when it is invalid
 		void setColor(Group group, const QString &key, const QColor &color);
+			/// Give the lines selected the colour @p color, none when it is
+			/// invalid
+		void setColorOfSelection(const QColor &color);
 
 	protected:
 		void initWidgets() override;
@@ -57,7 +60,7 @@ class PidConfigPage : public ProjectConfigPage
 	private:
 		void fillTable();
 		void chooseColor();
-		void clearColor();
+		QList<int> selectedRows() const;
 		QMap<QString, QColor> &colors(Group group);
 
 		QTableWidget *m_table = nullptr;
