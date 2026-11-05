@@ -61,8 +61,8 @@ tag `pipe-connector-freeze-2026-11-03`.
   finish, saved as `pipe_…` attributes of the conductor, only those set.
   They go through `.qet`, `.qetz` and `.qetdb` files with no code of their
   own (checked by a round trip through a `.qetdb` file).
-- **Drawn after its kind of line** (ISO 10628-1): main line 1 mm, secondary
-  0.5 mm, auxiliary 0.5 mm dashed.
+- **Drawn after its kind of line** (ISO 10628-1): main line 1 mm (4 units),
+  secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
   through its run and keeps its branch free.
 
@@ -85,6 +85,13 @@ tag `pipe-connector-freeze-2026-11-03`.
   does not keep them yet: saving such a project as `.qetdb` is refused
   with a message.
 
+**Scale and paper sizes**
+- P&ID drawings use 4 drawing units per millimetre, close to the 3.78 of
+  the PDF export. Choose the paper size in the *Format* list of the folio
+  properties (A0 to A3 suit a P&ID): widths and symbols come out at about
+  106 % of their nominal size, and a P&ID is not drawn to scale anyway. The
+  default of a new folio is set in the project properties, *New sheet*.
+
 **Checks**: every step has its tests, and the example projects of
 QElectroTech are saved byte for byte as by master.
 
@@ -97,8 +104,8 @@ QElectroTech are saved byte for byte as by master.
 - Placing a tee by dropping a pipe on another, flow direction, crossings
   as ISO 10628-1 draws them.
 - Signal lines, drive links, data of the nozzles, equipment data tables.
-- A drawing scale that matches the paper sizes of the *Format* list of the
-  folio properties, and text heights as ISO 10628-1 asks (planned).
+- Text sizes per kind of text (equipment, valve and instrument tags, line
+  designations, nozzles), set in the project.
 - Declaring options and conditions in the element editor (they are written
   by hand or by script for now, and kept by the editor).
 - A library of P&ID symbols (symbols are drawn *inspired by* ISO 10628-2,
