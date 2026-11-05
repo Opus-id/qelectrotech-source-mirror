@@ -22,6 +22,7 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTemporaryDir>
+#include <QStyleOptionGraphicsItem>
 #include <QUndoStack>
 
 // The colours of a P&ID: set for a project, by family of fluid, of object and
@@ -259,6 +260,44 @@ class tst_pidcolors : public QObject
 			pipe->setProperties(p);
 			m_project.setPidCodification(PidCodification());
 			QCOMPARE(pipe->drawnColor(), pipe_before);
+		}
+
+		void aPipeFollowsTheZoomInsteadOfSwelling()
+		{
+				// how many dark pixels a line is wide at the zoom @p scale
+			auto width = [](Conductor *conductor, qreal scale) {
+				const QRectF bounds = conductor->sceneBoundingRect();
+				QImage image(int(bounds.width() * scale) + 40, int(bounds.height() * scale) + 40,
+							 QImage::Format_ARGB32);
+				image.fill(Qt::white);
+				QPainter painter(&image);
+				painter.translate(20, 20);
+				painter.scale(scale, scale);
+				painter.translate(-bounds.topLeft() + conductor->pos());
+				QStyleOptionGraphicsItem option;
+				conductor->paint(&painter, &option, nullptr);
+				painter.end();
+				int dark = 0;
+				for (int y = 0 ; y < image.height() ; ++y) {
+					if (image.pixelColor(image.width() / 2, y).lightness() < 128) {
+						++dark;
+					}
+				}
+				return dark;
+			};
+
+			Conductor *pipe = draw(m_nozzles);
+			Conductor *wire = draw(m_electrical);
+			QVERIFY(pipe && wire);
+				// 4 units at full size
+			QCOMPARE(width(pipe, 1.0), 4);
+				// less than half the size: thinner, never gone
+			QVERIFY(width(pipe, 0.4) <= 2);
+			QVERIFY(width(pipe, 0.4) >= 1);
+			QVERIFY(width(pipe, 0.1) >= 1);
+			QVERIFY(width(pipe, 0.1) <= 2);
+				// a wire stays one pixel wide, as before
+			QCOMPARE(width(wire, 0.4), 1);
 		}
 
 		void aColorSetOnAPipeIsSavedOnlyWhenThereIsOne()

@@ -667,9 +667,18 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 
 		//Use a cosmetic line, below a certain zoom. A custom pattern is
 		//in drawing units, which a cosmetic pen cannot follow
-	if (!custom_pattern && options && options->levelOfDetailFromTransform(painter->worldTransform()) < 0.5)
+	const qreal detail = options ? options->levelOfDetailFromTransform(painter->worldTransform()) : 1.0;
+	if (!custom_pattern && options && detail < 0.5)
 	{
-		final_conductor_pen.setCosmetic(true);
+			//A cosmetic pen keeps its width in pixels: fine for a wire of one
+			//unit, but a pipe several units wide would swell as the zoom goes
+			//down. It follows the zoom, down to one pixel.
+		if (m_properties.m_medium != TerminalData::Pipe) {
+			final_conductor_pen.setCosmetic(true);
+		} else if (final_conductor_pen.widthF() * detail < 1.0) {
+			final_conductor_pen.setCosmetic(true);
+			final_conductor_pen.setWidthF(1.0);
+		}
 	}
 
 	painter -> setPen(final_conductor_pen);
