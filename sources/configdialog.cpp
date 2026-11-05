@@ -15,6 +15,7 @@
 	You should have received a copy of the GNU General Public License
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <QPushButton>
 #include <QScrollArea>
 #include "configdialog.h"
 #include "ui/configpage/configpages.h"
@@ -52,6 +53,7 @@ ConfigDialog::ConfigDialog(QWidget *parent) : QDialog(parent) {
 	// boutons
 	buttons = new QDialogButtonBox(
 				QDialogButtonBox::Ok
+				|QDialogButtonBox::Apply
 				|QDialogButtonBox::Cancel);
 
 
@@ -77,6 +79,8 @@ ConfigDialog::ConfigDialog(QWidget *parent) : QDialog(parent) {
 	// connexion signaux / slots
 	connect(buttons, &QDialogButtonBox::accepted, this, &ConfigDialog::applyConf);
 	connect(buttons, &QDialogButtonBox::rejected, this, &ConfigDialog::reject);
+	connect(buttons->button(QDialogButtonBox::Apply), &QPushButton::clicked,
+			this, &ConfigDialog::applyPages);
 	connect(pages_list, &QListWidget::currentRowChanged, pages_widget, &QStackedWidget::setCurrentIndex);
 
 	// set maximum a bit smaller than available size = (screen-size - Task-Bar):
@@ -126,10 +130,19 @@ void ConfigDialog::addPageToList(ConfigPage *page) {
 */
 void ConfigDialog::applyConf()
 {
+	applyPages();
+	accept();
+}
+
+/**
+	@brief ConfigDialog::applyPages
+	Apply what every page holds and stay open, to see the result
+*/
+void ConfigDialog::applyPages()
+{
 	foreach(ConfigPage *page, pages) {
 		page -> applyConf();
 	}
-	accept();
 }
 
 /**

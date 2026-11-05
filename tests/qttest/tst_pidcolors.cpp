@@ -3,6 +3,7 @@
 
 #include "ElementsCollection/xmlelementcollection.h"
 #include "conductorproperties.h"
+#include "configdialog.h"
 #include "diagram.h"
 #include "editor/elementscene.h"
 #include "factory/elementfactory.h"
@@ -18,6 +19,7 @@
 #include "ui/pipepropertieswidget.h"
 
 #include <QComboBox>
+#include <QDialogButtonBox>
 #include <QDomDocument>
 #include <QHeaderView>
 #include <QImage>
@@ -518,6 +520,32 @@ class tst_pidcolors : public QObject
 			doc = scene.toXml();
 			QCOMPARE(doc.documentElement().attribute(QStringLiteral("pid_family")),
 					 QStringLiteral("equipment"));
+		}
+
+		void aDialogAppliesAndStaysOpen()
+		{
+			ConfigDialog dialog;
+			auto *page = new PidConfigPage(&m_project);
+			dialog.addPage(page);
+			dialog.show();
+			auto *box = dialog.findChild<QDialogButtonBox *>();
+			QVERIFY(box);
+			QPushButton *apply = box->button(QDialogButtonBox::Apply);
+			QVERIFY(apply);
+
+			page->setColor(PidConfigPage::ObjectFamily, QStringLiteral("pipe"), QColor(7, 7, 7));
+			QVERIFY(!m_project.pidCodification().hasColors());
+			apply->click();
+			QCOMPARE(m_project.pidCodification().object_colors.value(QStringLiteral("pipe")),
+					 QColor(7, 7, 7));
+			QVERIFY(dialog.isVisible());
+
+				// a second time changes nothing
+			const PidCodification once = m_project.pidCodification();
+			apply->click();
+			QVERIFY(m_project.pidCodification() == once);
+			QVERIFY(dialog.isVisible());
+			m_project.setPidCodification(PidCodification());
 		}
 
 		void theConfigPageSetsTheColorsOfTheProject()

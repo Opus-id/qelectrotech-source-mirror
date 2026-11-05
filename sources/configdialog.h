@@ -44,6 +44,7 @@ class ConfigDialog : public QDialog {
 	// methods
 	public slots:
 		void applyConf();
+		void applyPages();
 		void addPage(ConfigPage *);
 		void setCurrentPage(const int index);
 	
