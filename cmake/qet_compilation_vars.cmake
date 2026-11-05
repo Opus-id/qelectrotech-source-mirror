@@ -906,6 +906,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/elementoptionswidget.h
   ${QET_DIR}/sources/ui/multielementinfowidget.cpp
   ${QET_DIR}/sources/ui/multielementinfowidget.h
+  ${QET_DIR}/sources/ui/pipepropertieswidget.cpp
+  ${QET_DIR}/sources/ui/pipepropertieswidget.h
   ${QET_DIR}/sources/ui/terminalnumberingdialog.cpp
   ${QET_DIR}/sources/ui/terminalnumberingdialog.h
   ${QET_DIR}/sources/ui/cablenumberingdialog.cpp

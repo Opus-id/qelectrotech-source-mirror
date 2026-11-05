@@ -476,6 +476,9 @@ qet_add_app_test(tst_conductormedium tst_conductormedium.cpp)
 add_dependencies(tst_conductormedium qelectrotech)
 target_compile_definitions(tst_conductormedium PRIVATE
   "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+# The page of a pipe in the properties panel: only pipes get it, a change is
+# one undo step and reaches the field edited of the pipes selected, no other.
+qet_add_app_test(tst_pipepanel tst_pipepanel.cpp)
 # A quick second click on the same spot reaches the shape tools as a
 # double-click: it must still start the next line, rectangle or ellipse.
 qet_add_app_test(tst_shapequickclick tst_shapequickclick.cpp)

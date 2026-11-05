@@ -42,6 +42,7 @@
 #include "../ui/imagepropertieswidget.h"
 #include "../ui/inditextpropertieswidget.h"
 #include "../ui/multielementinfowidget.h"
+#include "../ui/pipepropertieswidget.h"
 #include "../ui/shapegraphicsitempropertieswidget.h"
 
 #include <QGraphicsItem>
@@ -162,16 +163,38 @@ PropertiesEditorWidget *PropertiesEditorFactory::propertiesEditor(
 	{
 		case Conductor::Type: //1001
 		{
+			QList<Conductor *> conductors;
+			int pipes = 0;
+			for (QGraphicsItem *qgi : std::as_const(items)) {
+				auto *conductor = static_cast<Conductor *>(qgi);
+				conductors << conductor;
+				if (conductor->medium() == TerminalData::Pipe) {
+					++pipes;
+				}
+			}
+
+				//A pipe has its own page, always offered: its data can be
+				//edited nowhere else
+			if (pipes == conductors.size())
+			{
+				if (class_name == PipePropertiesWidget::staticMetaObject.className())
+				{
+					static_cast<PipePropertiesWidget *>(editor)->setPipes(conductors);
+					return editor;
+				}
+				return new PipePropertiesWidget(conductors, parent);
+			}
+				//Pipes and wires share no field worth editing together
+			if (pipes) {
+				return nullptr;
+			}
+
 			//Off unless enabled in the preferences (General page): selecting
 			//a conductor then brings up nothing in the dock, as before.
 			if (!QSettings().value(
 					QStringLiteral("diagrameditor/conductor_properties_panel"),
 					false).toBool()) {
 				return nullptr;
-			}
-			QList<Conductor *> conductors;
-			for (QGraphicsItem *qgi : std::as_const(items)) {
-				conductors << static_cast<Conductor *>(qgi);
 			}
 
 			if (class_name == ConductorPropertiesEditorWidget::staticMetaObject.className())

@@ -12051,6 +12051,130 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
 </context>
 <context>
+    <name>PipeProperties</name>
+    <message>
+        <location filename="../sources/pipeproperties.cpp" line="113"/>
+        <source>Raw water</source>
+        <translation>Eau brute</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeproperties.cpp" line="114"/>
+        <source>Treated water</source>
+        <translation>Eau traitée</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeproperties.cpp" line="115"/>
+        <source>Wastewater</source>
+        <translation>Eaux usées</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeproperties.cpp" line="116"/>
+        <source>Sludge</source>
+        <translation>Boues</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeproperties.cpp" line="117"/>
+        <source>Air</source>
+        <translation>Air</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeproperties.cpp" line="118"/>
+        <source>Reagent</source>
+        <translation>Réactif</translation>
+    </message>
+</context>
+<context>
+    <name>PipePropertiesWidget</name>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="94"/>
+        <source>Line number:</source>
+        <translation>Numéro de ligne :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="98"/>
+        <source>Fluid:</source>
+        <translation>Fluide :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="102"/>
+        <source>Nominal diameter (DN):</source>
+        <translation>Diamètre nominal (DN) :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="108"/>
+        <source>Material:</source>
+        <translation>Matériau :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="110"/>
+        <source>Flow:</source>
+        <translation>Débit :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="113"/>
+        <source>Piping class:</source>
+        <translation>Classe de tuyauterie :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="116"/>
+        <source>Nominal pressure:</source>
+        <translation>Pression nominale :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="119"/>
+        <source>Spool number:</source>
+        <translation>Numéro de tronçon :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="122"/>
+        <source>External finish:</source>
+        <translation>Finition extérieure :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="128"/>
+        <source>Main flow line</source>
+        <translation>Ligne principale</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="129"/>
+        <source>Secondary flow line</source>
+        <translation>Ligne secondaire</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="130"/>
+        <source>Auxiliary system line</source>
+        <translation>Ligne auxiliaire</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="131"/>
+        <source>Kind of line:</source>
+        <translation>Type de ligne :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="205"/>
+        <source>Change the properties of a pipe line</source>
+        <translation>Modifier les propriétés d&apos;une tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="251"/>
+        <source>(several values)</source>
+        <translation>(plusieurs valeurs)</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="262"/>
+        <source>%n pipe line(s) selected</source>
+        <translation>
+            <numerusform>%n tuyauterie sélectionnée</numerusform>
+            <numerusform>%n tuyauteries sélectionnées</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="306"/>
+        <source>Pipe line</source>
+        <translation>Tuyauterie</translation>
+    </message>
+</context>
+<context>
     <name>PlcLinkWidget</name>
     <message>
         <location filename="../sources/ui/plclinkwidget.cpp" line="53"/>

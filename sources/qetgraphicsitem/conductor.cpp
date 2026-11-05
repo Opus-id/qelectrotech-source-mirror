@@ -31,6 +31,7 @@
 #include "../qetdiagrameditor.h"
 #include "../qetgraphicsitem/terminal.h"
 #include "../ui/conductorpropertiesdialog.h"
+#include "../ui/pipepropertieswidget.h"
 #include "conductortextitem.h"
 #include "conductordefinitionmark.h"
 #include "element.h"
@@ -2420,6 +2421,11 @@ QETDiagramEditor* Conductor::diagramEditor() const
 */
 void Conductor::editProperty()
 {
+		//The dialog of a wire is all about wires
+	if (medium() == TerminalData::Pipe) {
+		PipePropertiesWidget::editInDialog(this, diagramEditor());
+		return;
+	}
 	ConductorPropertiesDialog::PropertiesDialog(this, diagramEditor());
 }
 
