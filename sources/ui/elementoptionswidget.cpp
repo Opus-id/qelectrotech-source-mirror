@@ -18,6 +18,7 @@
 #include "elementoptionswidget.h"
 
 #include "../diagram.h"
+#include "../pidstatus.h"
 #include "../qetgraphicsitem/element.h"
 #include "../undocommand/changeelementoptionscommand.h"
 
@@ -40,11 +41,13 @@ ElementOptionsWidget::ElementOptionsWidget(Element *element, QWidget *parent) :
 /**
 	@brief ElementOptionsWidget::hasOptions
 	@param element
-	@return true if the symbol of @p element offers options
+	@return true if the symbol of @p element offers options, or a status of
+	works
 */
 bool ElementOptionsWidget::hasOptions(const Element *element)
 {
-	return element && !element->elementData().m_options.isEmpty();
+	return element && (!element->elementData().m_options.isEmpty()
+					   || !element->elementData().m_pid_family.isEmpty());
 }
 
 /**
@@ -76,6 +79,7 @@ void ElementOptionsWidget::buildLists()
 		m_layout->removeRow(0);
 	}
 	m_lists.clear();
+	m_status = nullptr;
 	if (!m_element) {
 		return;
 	}
@@ -94,6 +98,21 @@ void ElementOptionsWidget::buildLists()
 		m_layout->addRow(tr("%1:", "label of the list of an option").arg(option.names.name(option.name)), list);
 		m_lists.append({option.name, list});
 	}
+
+	if (!m_element->elementData().m_pid_family.isEmpty())
+	{
+		m_status = new QComboBox(this);
+		m_status->setObjectName(QStringLiteral("status"));
+		for (const auto &status : PidStatus::statuses()) {
+			m_status->addItem(status.second, status.first);
+		}
+		connect(m_status, &QComboBox::currentIndexChanged, this, [this]() {
+			if (m_live_edit) {
+				apply();
+			}
+		});
+		m_layout->addRow(tr("Status of works:"), m_status);
+	}
 }
 
 /**
@@ -110,6 +129,16 @@ void ElementOptionsWidget::updateUi()
 	{
 		const QSignalBlocker blocker(pair.second);
 		pair.second->setCurrentIndex(pair.second->findData(resolved.value(pair.first)));
+	}
+	if (m_status)
+	{
+		const QSignalBlocker blocker(m_status);
+		const QString status = m_element->optionChoices().value(PidStatus::option());
+		for (int i = 0 ; i < m_status->count() ; ++i) {
+			if (m_status->itemData(i).toString() == status) {
+				m_status->setCurrentIndex(i);
+			}
+		}
 	}
 }
 
@@ -133,6 +162,15 @@ ElementOptions::Choices ElementOptionsWidget::chosen() const
 			choices.remove(pair.first);
 		} else {
 			choices.insert(pair.first, value);
+		}
+	}
+	if (m_status)
+	{
+		const QString status = m_status->currentData().toString();
+		if (status.isEmpty()) {
+			choices.remove(PidStatus::option());
+		} else {
+			choices.insert(PidStatus::option(), status);
 		}
 	}
 	return choices;

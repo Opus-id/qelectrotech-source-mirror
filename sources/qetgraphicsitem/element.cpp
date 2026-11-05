@@ -17,6 +17,8 @@
 */
 #include "element.h"
 
+#include "../pidstatus.h"
+
 #include "../bridge/bridgemanager.h"
 #include "../qetapp.h"
 #include "../qetproject.h"
@@ -592,7 +594,8 @@ void Element::updateInk()
 	@param options : the options of a symbol
 	@param family : its family of objects, see ElementData::m_pid_family
 	@return what to draw the symbol with: the options chosen, and the colour
-	the project sets for @p family, unless the folio is drawn in black
+	the project sets for the status of works of this element, else for
+	@p family, unless the folio is drawn in black
 */
 ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 											   const QString &family) const
@@ -609,7 +612,11 @@ ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 	if (!project) {
 		return choices;
 	}
-	const QColor ink = project->pidCodification().object_colors.value(family);
+	const PidCodification codification = project->pidCodification();
+	QColor ink = codification.status_colors.value(m_option_choices.value(PidStatus::option()));
+	if (!ink.isValid()) {
+		ink = codification.object_colors.value(family);
+	}
 	if (ink.isValid()) {
 		choices.insert(ElementPictureFactory::inkChoice(), ink.name());
 	}

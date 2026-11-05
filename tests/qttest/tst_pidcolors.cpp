@@ -7,14 +7,17 @@
 #include "editor/elementscene.h"
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
+#include "pidstatus.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 #include "qetresult.h"
 #include "ui/configpage/pidconfigpage.h"
+#include "ui/elementoptionswidget.h"
 #include "ui/pipepropertieswidget.h"
 
+#include <QComboBox>
 #include <QDomDocument>
 #include <QHeaderView>
 #include <QImage>
@@ -420,6 +423,89 @@ class tst_pidcolors : public QObject
 				// no colour any more
 			m_project.setPidCodification(PidCodification());
 			QCOMPARE(at(render(valve), -10, -10), black);
+		}
+
+		void aStatusComesFirst()
+		{
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Raw water;E\n"
+				"fluid_color;E;#0000ff\n"
+				"object_color;valve;#808000\n"
+				"status_color;existing;#808080\n"
+				"status_color;demolished;#ff0000\n")));
+			m_next_y += 100;
+			Element *valve = place(m_valve, QPointF(0, m_next_y));
+			Conductor *pipe = draw(m_nozzles);
+			Conductor *wire = draw(m_electrical);
+			QVERIFY(valve && pipe && wire);
+			setFluid(pipe, QStringLiteral("W01"));
+			ConductorProperties p = pipe->properties();
+			p.m_pipe.color = QColor(1, 2, 3);
+			pipe->setProperties(p);
+			QVERIFY(PidStatus::applies(valve) && PidStatus::applies(pipe));
+			QVERIFY(!PidStatus::applies(wire));
+
+				// one step for all, what has no status left alone
+			const QColor wire_before = wire->drawnColor();
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.index();
+			stack.push(PidStatus::change({valve, pipe, wire}, QStringLiteral("demolished")));
+			QCOMPARE(stack.index(), steps + 1);
+			QCOMPARE(pipe->drawnColor(), QColor(Qt::red));
+			QCOMPARE(at(render(valve), -10, -10), QColor(Qt::red));
+			QCOMPARE(wire->drawnColor(), wire_before);
+
+				// nothing to change, no step
+			QVERIFY(!PidStatus::change({valve, pipe}, QStringLiteral("demolished")));
+
+			stack.undo();
+			QCOMPARE(pipe->drawnColor(), QColor(1, 2, 3));
+			QCOMPARE(at(render(valve), -10, -10), QColor(0x80, 0x80, 0));
+
+				// a status without a colour falls back on what comes next
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"object_color;valve;#808000\n")));
+			stack.redo();
+			QCOMPARE(pipe->drawnColor(), QColor(1, 2, 3));
+			QCOMPARE(at(render(valve), -10, -10), QColor(0x80, 0x80, 0));
+			stack.undo();
+			m_project.setPidCodification(PidCodification());
+		}
+
+		void theStatusIsChosenOnThePagesAndSaved()
+		{
+			m_next_y += 100;
+			Element *valve = place(m_valve, QPointF(0, m_next_y));
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(valve && pipe);
+
+			PipePropertiesWidget page({pipe});
+			auto *status = page.findChild<QComboBox *>(QStringLiteral("status"));
+			QVERIFY(status);
+			QCOMPARE(status->count(), 3);
+			QCOMPARE(status->currentIndex(), 0);
+			status->setCurrentIndex(1);
+			emit status->activated(1);
+			QCOMPARE(pipe->properties().m_pipe.status, QStringLiteral("existing"));
+
+			QDomDocument doc;
+			QDomElement e = doc.createElement(QStringLiteral("conductor"));
+			pipe->properties().toXml(e);
+			QCOMPARE(e.attribute(QStringLiteral("pipe_status")), QStringLiteral("existing"));
+
+				// a symbol of a family offers it, an electrical symbol does not
+			QVERIFY(ElementOptionsWidget::hasOptions(valve));
+			Element *plain = place(m_plain, QPointF(100, m_next_y));
+			QVERIFY(plain && !ElementOptionsWidget::hasOptions(plain));
+			ElementOptionsWidget tab(valve);
+			tab.setLiveEdit(true);
+			auto *list = tab.findChild<QComboBox *>(QStringLiteral("status"));
+			QVERIFY(list);
+			list->setCurrentIndex(2);
+			QCOMPARE(valve->optionChoices().value(PidStatus::option()), QStringLiteral("demolished"));
+			m_folio->undoStack().undo();
+			QVERIFY(valve->optionChoices().isEmpty());
+			QCOMPARE(list->currentIndex(), 0);
 		}
 
 		void theEditorKeepsTheFamilyOfASymbol()

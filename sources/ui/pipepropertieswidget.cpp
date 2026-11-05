@@ -21,6 +21,7 @@
 #include "../conductorproperties.h"
 #include "../diagram.h"
 #include "../pidcodification.h"
+#include "../pidstatus.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetproject.h"
 
@@ -157,6 +158,17 @@ void PipePropertiesWidget::buildUi()
 	connect(m_kind, &QComboBox::activated, this, [this](int index) {
 		const auto kind = PipeProperties::LineKind(m_kind->itemData(index).toInt());
 		applyChange([kind](PipeProperties &p) { p.line_kind = kind; });
+	});
+
+	m_status = new QComboBox(this);
+	m_status->setObjectName(QStringLiteral("status"));
+	for (const auto &status : PidStatus::statuses()) {
+		m_status->addItem(status.second, status.first);
+	}
+	layout->addRow(tr("Status of works:"), m_status);
+	connect(m_status, &QComboBox::activated, this, [this](int index) {
+		const QString status = m_status->itemData(index).toString();
+		applyChange([status](PipeProperties &p) { p.status = status; });
 	});
 
 	m_color = new QPushButton(this);
@@ -386,6 +398,21 @@ void PipePropertiesWidget::updateUi()
 		}
 	}
 	m_kind->setCurrentIndex(same_kind ? m_kind->findData(int(kind)) : -1);
+
+	const QSignalBlocker status_blocker(m_status);
+	const QString status = list.first()->properties().m_pipe.status;
+	bool same_status = true;
+	for (Conductor *pipe : list) {
+		if (pipe->properties().m_pipe.status != status) {
+			same_status = false;
+		}
+	}
+	m_status->setCurrentIndex(-1);
+	for (int i = 0 ; same_status && i < m_status->count() ; ++i) {
+		if (m_status->itemData(i).toString() == status) {
+			m_status->setCurrentIndex(i);
+		}
+	}
 
 	const QColor color = list.first()->properties().m_pipe.color;
 	bool same_color = true;

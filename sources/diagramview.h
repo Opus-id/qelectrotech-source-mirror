@@ -65,6 +65,7 @@ class DiagramView : public PaletteGraphicsView
 		QAction          *m_generate_cabinet_thumbnail = nullptr;
 		QMenu            *m_folio_report_menu = nullptr;
 		QMenu            *m_change_type_menu = nullptr;
+		QMenu            *m_status_menu = nullptr;
 		QPoint            m_paste_here_pos;
 		QPoint            m_press_pos;
 		DiagramContextToolbar *m_context_toolbar = nullptr;
@@ -217,6 +218,7 @@ class DiagramView : public PaletteGraphicsView
 		void handleElementDrop(QDropEvent *);
 		void updateFolioReportMenu();
 		void updateChangeTypeMenu();
+		void updateStatusMenu();
 		void changeSelectedElementsType(const ElementsLocation &location);
 			/**
 				The menu of one single core: the right button coming down

@@ -4280,6 +4280,12 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <comment>context menu action</comment>
         <translation>Changer de type</translation>
     </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="173"/>
+        <source>Status of works</source>
+        <comment>context menu action</comment>
+        <translation>Statut de travaux</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/diagramview.cpp" line="2530"/>
         <source>Change the type of %n element(s)</source>
@@ -5779,6 +5785,11 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
 </context>
 <context>
     <name>ElementOptionsWidget</name>
+    <message>
+        <location filename="../sources/ui/elementoptionswidget.cpp" line="100"/>
+        <source>Status of works:</source>
+        <translation>Statut de travaux :</translation>
+    </message>
     <message>
         <location filename="../sources/ui/elementoptionswidget.cpp" line="86"/>
         <source>%1:</source>
@@ -12165,6 +12176,29 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
 </context>
 <context>
+    <name>PidStatus</name>
+    <message>
+        <location filename="../sources/pidstatus.cpp" line="36"/>
+        <source>To be built</source>
+        <translation>À construire</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidstatus.cpp" line="36"/>
+        <source>Existing, kept</source>
+        <translation>Existant conservé</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidstatus.cpp" line="36"/>
+        <source>To be demolished</source>
+        <translation>À démolir</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidstatus.cpp" line="36"/>
+        <source>Change the status of works</source>
+        <translation>Modifier le statut de travaux</translation>
+    </message>
+</context>
+<context>
     <name>PipeProperties</name>
     <message>
         <location filename="../sources/pipeproperties.cpp" line="113"/>
@@ -12199,6 +12233,11 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
 </context>
 <context>
     <name>PipePropertiesWidget</name>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="100"/>
+        <source>Status of works:</source>
+        <translation>Statut de travaux :</translation>
+    </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="94"/>
         <source>Line number:</source>

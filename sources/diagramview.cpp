@@ -16,6 +16,8 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "diagramview.h"
+
+#include "pidstatus.h"
 #include "itemdescription.h"
 #include "shownkinds.h"
 #include "autoNum/ui/pastenumberingimport.h"
@@ -169,6 +171,8 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 
 		//Filled each time the context menu opens, see updateChangeTypeMenu()
 	m_change_type_menu = new QMenu(tr("Change type", "context menu action"), this);
+		//Filled each time the context menu opens, see updateStatusMenu()
+	m_status_menu = new QMenu(tr("Status of works", "context menu action"), this);
 
 		//setup three separators, to be use in context menu
 	for(int i=0 ; i<3 ; ++i)
@@ -2995,6 +2999,7 @@ QList<QAction *> DiagramView::contextMenuActions() const
 				}));
 			list << m_generate_cabinet_thumbnail;
 			list << m_change_type_menu->menuAction();
+			list << m_status_menu->menuAction();
 			list << qde->m_conductor_reset;
 			list << m_separators.at(1);
 			list << qde->m_selection_actions_group.actions();
@@ -3173,6 +3178,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 	else
 	{
 		updateChangeTypeMenu();
+		updateStatusMenu();
 	}
 
 	QList <QAction *> list = contextMenuActions();
@@ -3253,6 +3259,32 @@ void DiagramView::updateFolioReportMenu()
 								 location.name());
 		connect(action, &QAction::triggered, this, [this, location]() {
 			startElementPlacement(location, mapToScene(m_paste_here_pos));
+		});
+	}
+}
+
+/**
+	@brief DiagramView::updateStatusMenu
+	Fill the "Status of works" submenu of the context menu of the selection:
+	its pipes and P&ID symbols take the status picked, in one undo step. Left
+	empty, and so hidden, when the selection has none, or when the diagram is
+	read-only.
+*/
+void DiagramView::updateStatusMenu()
+{
+	m_status_menu->clear();
+	const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+	if (m_diagram->isReadOnly()
+		|| std::none_of(selected.cbegin(), selected.cend(), PidStatus::applies)) {
+		return;
+	}
+	for (const auto &status : PidStatus::statuses())
+	{
+		const QString word = status.first;
+		connect(m_status_menu->addAction(status.second), &QAction::triggered, this, [this, word]() {
+			if (QUndoCommand *undo = PidStatus::change(m_diagram->selectedItems(), word)) {
+				m_diagram->undoStack().push(undo);
+			}
 		});
 	}
 }

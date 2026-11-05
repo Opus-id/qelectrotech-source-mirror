@@ -2547,24 +2547,25 @@ QColor Conductor::drawnColor() const
 
 /**
 	@brief Conductor::pipeColor
-	@return the colour of a pipe: its own, else that of its fluid, else that
-	of the family of the pipes, from the project; an invalid one when it has
-	none, or for a wire
+	@return the colour of a pipe: that of its status of works, else its own,
+	else that of its fluid, else that of the family of the pipes, from the
+	project; an invalid one when it has none, or for a wire
 */
 QColor Conductor::pipeColor() const
 {
 	if (m_properties.m_medium != TerminalData::Pipe) {
 		return QColor();
 	}
+	const Diagram *parent_diagram = diagram();
+	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+	const PidCodification codification = project ? project->pidCodification() : PidCodification();
+	const QColor status = codification.status_colors.value(m_properties.m_pipe.status);
+	if (status.isValid()) {
+		return status;
+	}
 	if (m_properties.m_pipe.color.isValid()) {
 		return m_properties.m_pipe.color;
 	}
-	const Diagram *parent_diagram = diagram();
-	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
-	if (!project) {
-		return QColor();
-	}
-	const PidCodification codification = project->pidCodification();
 	const QColor fluid = codification.fluidColor(m_properties.m_pipe.fluid);
 	return fluid.isValid() ? fluid
 						   : codification.object_colors.value(QStringLiteral("pipe"));

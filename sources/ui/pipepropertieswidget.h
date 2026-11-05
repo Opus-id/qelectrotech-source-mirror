@@ -82,6 +82,7 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QComboBox *m_fluid = nullptr;
 		QComboBox *m_material = nullptr;
 		QComboBox *m_kind = nullptr;
+		QComboBox *m_status = nullptr;
 		QPushButton *m_color = nullptr;
 		QLabel *m_count = nullptr;
 };

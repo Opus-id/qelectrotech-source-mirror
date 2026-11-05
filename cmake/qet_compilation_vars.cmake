@@ -216,6 +216,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pipeproperties.h
   ${QET_DIR}/sources/pidcodification.cpp
   ${QET_DIR}/sources/pidcodification.h
+  ${QET_DIR}/sources/pidstatus.cpp
+  ${QET_DIR}/sources/pidstatus.h
   ${QET_DIR}/sources/conductormultiedit.h
   ${QET_DIR}/sources/conductorsegment.cpp
   ${QET_DIR}/sources/conductorsegment.h

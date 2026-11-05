@@ -73,6 +73,8 @@ class PipeProperties
 			/// A colour set on this pipe, before that of its fluid; none by
 			/// default
 		QColor color;
+			/// The status of works, see PidStatus: empty for "to be built"
+		QString status;
 
 		QList<QPair<QString, QString>> attributes() const;
 		void fromXml(const QDomElement &);

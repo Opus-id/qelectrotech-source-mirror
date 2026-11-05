@@ -77,6 +77,7 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 	add("pipe_external_finish", external_finish);
 	if (color.isValid())
 		add("pipe_color", color.name());
+	add("pipe_status", status);
 	return a;
 }
 
@@ -102,6 +103,7 @@ void PipeProperties::fromXml(const QDomElement &e)
 	spool            = e.attribute(QStringLiteral("pipe_spool"));
 	external_finish  = e.attribute(QStringLiteral("pipe_external_finish"));
 	color            = QColor(e.attribute(QStringLiteral("pipe_color")));
+	status           = e.attribute(QStringLiteral("pipe_status"));
 }
 
 /**
@@ -139,7 +141,8 @@ bool PipeProperties::operator==(const PipeProperties &other) const
 		&& line_kind == other.line_kind
 		&& spool == other.spool
 		&& external_finish == other.external_finish
-		&& color == other.color;
+		&& color == other.color
+		&& status == other.status;
 }
 
 /**

@@ -63,6 +63,8 @@ class ElementOptionsWidget : public AbstractElementPropertiesEditorWidget
 		QFormLayout *m_layout = nullptr;
 			/// One list per option, with the name of its option
 		QList<QPair<QString, QComboBox *>> m_lists;
+			/// The status of works, for a symbol of a family of objects
+		QComboBox *m_status = nullptr;
 };
 
 #endif // ELEMENTOPTIONSWIDGET_H
