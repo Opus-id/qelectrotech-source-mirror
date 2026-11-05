@@ -339,6 +339,10 @@ class ElementData : public PropertiesInterface
 			/// What may vary on a placed element of this symbol, such as
 			/// the motor of a pump (see ElementOptions)
 		ElementOptions m_options;
+			/// The family of objects of a P&ID symbol, such as "valve", which
+			/// gives it the colour its project sets for that family
+			/// (PidCodification::objectFamilies()); none for any other symbol
+		QString m_pid_family;
 
 	private:
 		ElementData::TerminalType m_override_terminal_type = ElementData::TTGeneric;

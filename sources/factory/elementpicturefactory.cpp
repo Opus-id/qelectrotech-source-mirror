@@ -402,6 +402,7 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 	low_painter.setPen(tmp);
 
 	m_build_texts_undo = texts_transform.inverted();
+	m_build_ink = QColor(choices.value(inkChoice()));
 
 	//scroll of the Children of the Definition: Parts of the Drawing
 	// Extract PLC master data for rendering plc_table parts
@@ -458,6 +459,7 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 	painter.end();
 	low_painter.end();
 	m_build_texts_undo = QTransform();
+	m_build_ink = QColor();
 	qDeleteAll(low_primitives.m_texts);
 
 	const auto uuid_ = cacheKey(location, choices);
@@ -754,6 +756,9 @@ void ElementPictureFactory::parseText(const QDomElement &dom, QPainter &painter,
 	}
 
 	QColor text_color(dom.attribute("color", "#000000"));
+	if (m_build_ink.isValid() && text_color == QColor(Qt::black)) {
+		text_color = m_build_ink;
+	}
 
 		//Instantiate a QTextDocument (like the QGraphicsTextItem class)
 		//for generate the graphics rendering of the text
@@ -1379,6 +1384,17 @@ void ElementPictureFactory::setPainterStyle(const QDomElement &dom, QPainter &pa
 					pen.setColor(*style_);
 				}
 			}
+		}
+	}
+
+		//Only the ink: not what masks in white, nor a colour chosen
+	if (m_build_ink.isValid())
+	{
+		if (pen.color() == QColor(Qt::black)) {
+			pen.setColor(m_build_ink);
+		}
+		if (brush.color() == QColor(Qt::black)) {
+			brush.setColor(m_build_ink);
 		}
 	}
 

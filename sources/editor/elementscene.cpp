@@ -517,6 +517,9 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 
 	QetVersion::toXmlAttribute(root);
 	root.setAttribute("link_type", m_element_data.typeToString(m_element_data.m_type));
+	if (!m_element_data.m_pid_family.isEmpty()) {
+		root.setAttribute(QStringLiteral("pid_family"), m_element_data.m_pid_family);
+	}
 
 	//Uuid used to compare two elements
 	QDomElement uuid = xml_document.createElement("uuid");

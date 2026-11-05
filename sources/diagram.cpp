@@ -3999,7 +3999,18 @@ void Diagram::setDrawTerminalNames(bool dt) {
 	\~French dcc true pour respecter les couleurs, false sinon
 */
 void Diagram::setDrawColoredConductors(bool dcc) {
+	if (dcc == draw_colored_conductors_) {
+		return;
+	}
 	draw_colored_conductors_ = dcc;
+		//The P&ID symbols of the folio are drawn in black along with them
+	if (m_project && m_project->pidCodification().hasColors()) {
+		for (QGraphicsItem *item : items()) {
+			if (auto *element = qgraphicsitem_cast<Element *>(item)) {
+				element->updateInk();
+			}
+		}
+	}
 }
 
 /**

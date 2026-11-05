@@ -4,6 +4,7 @@
 #include "ElementsCollection/xmlelementcollection.h"
 #include "conductorproperties.h"
 #include "diagram.h"
+#include "editor/elementscene.h"
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
 #include "qetgraphicsitem/conductor.h"
@@ -16,6 +17,8 @@
 
 #include <QDomDocument>
 #include <QHeaderView>
+#include <QImage>
+#include <QPainter>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTemporaryDir>
@@ -48,9 +51,49 @@ class tst_pidcolors : public QObject
 		return doc.documentElement();
 	}
 
+		// A symbol in three parts: a square of ink, a square of ink masked
+		// in white, a square of a colour of its own
+	static QDomElement paintedSymbol(QDomDocument &doc, const QString &uuid, const QString &family)
+	{
+		const QString rect = QStringLiteral(
+			"<rect x=\"%1\" y=\"%2\" width=\"%3\" height=\"%3\" antialias=\"false\" "
+			"style=\"line-style:normal;line-weight:none;filling:%4;color:black\"/>");
+		const QString attr = family.isEmpty() ? QString()
+											  : QStringLiteral(" pid_family=\"%1\"").arg(family);
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\"%2 "
+			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+			"<uuid uuid=\"{%1}\"/><names><name lang=\"en\">P</name></names><description>").arg(uuid, attr)
+			+ rect.arg(-15).arg(-15).arg(10).arg(QStringLiteral("black"))
+			+ rect.arg(5).arg(-15).arg(10).arg(QStringLiteral("black"))
+			+ rect.arg(7).arg(-13).arg(6).arg(QStringLiteral("white"))
+			+ rect.arg(-15).arg(5).arg(10).arg(QStringLiteral("red"))
+			+ QStringLiteral("</description></definition>"));
+		return doc.documentElement();
+	}
+
+		// The element drawn four times its size, the hotspot in the middle
+	static QImage render(Element *element)
+	{
+		QImage image(160, 160, QImage::Format_ARGB32);
+		image.fill(Qt::white);
+		QPainter painter(&image);
+		painter.scale(4, 4);
+		painter.translate(20, 20);
+		element->paint(&painter, nullptr, nullptr);
+		painter.end();
+		return image;
+	}
+
+		// The colour at the point @p x, @p y of the symbol
+	static QColor at(const QImage &image, int x, int y)
+	{
+		return image.pixelColor((x + 20) * 4, (y + 20) * 4);
+	}
+
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_electrical, m_nozzles;
+	ElementsLocation m_electrical, m_nozzles, m_valve, m_plain;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -93,7 +136,9 @@ class tst_pidcolors : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("colors"), NamesList());
-			QDomDocument a, b;
+			QDomDocument a, b, c, d;
+			m_valve = add("valve.elmt", paintedSymbol(c, "93333333-3333-3333-3333-333333333333", "valve"));
+			m_plain = add("plain.elmt", paintedSymbol(d, "94444444-4444-4444-4444-444444444444", ""));
 			m_electrical = add("electrical.elmt",
 							   definition(a, "91111111-1111-1111-1111-111111111111", ""));
 			m_nozzles = add("nozzles.elmt",
@@ -295,6 +340,59 @@ class tst_pidcolors : public QObject
 			QCOMPARE(asked, 3);
 			QCOMPARE(table->item(4, 2)->text(), QColor(6, 6, 6).name());
 			QCOMPARE(table->item(0, 2)->text(), QColor(5, 5, 5).name());
+		}
+
+		void aSymbolTakesTheColorOfItsFamily()
+		{
+			m_project.setPidCodification(PidCodification());
+			m_next_y += 100;
+			Element *valve = place(m_valve, QPointF(0, m_next_y));
+			Element *plain = place(m_plain, QPointF(100, m_next_y));
+			QVERIFY(valve && plain);
+			const QColor black(Qt::black), white(Qt::white), red(Qt::red), olive(0x80, 0x80, 0);
+
+				// no colour set: as before
+			QCOMPARE(at(render(valve), -10, -10), black);
+
+				// the ink changes at once, not the white that masks, nor a
+				// colour chosen in the symbol
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"object_color;valve;#808000\n")));
+			const QImage inked = render(valve);
+			QCOMPARE(at(inked, -10, -10), olive);
+			QCOMPARE(at(inked, 6, -10), olive);
+			QCOMPARE(at(inked, 10, -10), white);
+			QCOMPARE(at(inked, -10, 10), red);
+
+				// a symbol without a family stays black
+			QCOMPARE(at(render(plain), -10, -10), black);
+
+				// placed afterwards, it has it too
+			Element *next = place(m_valve, QPointF(200, m_next_y));
+			QVERIFY(next);
+			QCOMPARE(at(render(next), -10, -10), olive);
+
+				// a folio drawn in black, to print it so
+			m_folio->setDrawColoredConductors(false);
+			QCOMPARE(at(render(valve), -10, -10), black);
+			m_folio->setDrawColoredConductors(true);
+			QCOMPARE(at(render(valve), -10, -10), olive);
+
+				// no colour any more
+			m_project.setPidCodification(PidCodification());
+			QCOMPARE(at(render(valve), -10, -10), black);
+		}
+
+		void theEditorKeepsTheFamilyOfASymbol()
+		{
+			QDomDocument doc;
+			QDomDocument source;
+			paintedSymbol(source, "95555555-5555-5555-5555-555555555555", "equipment");
+			ElementScene scene(nullptr);
+			scene.fromXml(source, QPointF(), true);
+			doc = scene.toXml();
+			QCOMPARE(doc.documentElement().attribute(QStringLiteral("pid_family")),
+					 QStringLiteral("equipment"));
 		}
 
 		void theConfigPageSetsTheColorsOfTheProject()

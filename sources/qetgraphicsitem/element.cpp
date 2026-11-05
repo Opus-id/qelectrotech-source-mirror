@@ -534,7 +534,7 @@ void Element::updateSymbolPictures(bool force)
 				transform,
 				m_readable_picture,
 				m_readable_low_zoom_picture,
-				drawnChoices(m_data.m_options, m_option_choices));
+				inkedChoices(m_data.m_options, m_data.m_pid_family));
 	updateDrawnRect();
 	update();
 }
@@ -553,17 +553,67 @@ void Element::setOptionChoices(const ElementOptions::Choices &choices)
 		return;
 	}
 	m_option_choices = choices;
+	takePictures();
+	emit optionChoicesChanged();
+}
+
+/**
+	@brief Element::takePictures
+	Take the drawing of the symbol for the options chosen and the colour of
+	this element
+*/
+void Element::takePictures()
+{
 	QPicture picture;
 	QPicture low_zoom_picture;
 	ElementPictureFactory::instance()->getPictures(m_location, picture, low_zoom_picture,
-												   drawnChoices(m_data.m_options, m_option_choices));
+												   inkedChoices(m_data.m_options, m_data.m_pid_family));
 	if (!picture.isNull()) {
 		m_picture = picture;
 		m_low_zoom_picture = low_zoom_picture;
 	}
 	updateSymbolPictures(true);
 	update();
-	emit optionChoicesChanged();
+}
+
+/**
+	@brief Element::updateInk
+	See the declaration. Nothing to do for a symbol without a family.
+*/
+void Element::updateInk()
+{
+	if (!m_data.m_pid_family.isEmpty()) {
+		takePictures();
+	}
+}
+
+/**
+	@brief Element::inkedChoices
+	@param options : the options of a symbol
+	@param family : its family of objects, see ElementData::m_pid_family
+	@return what to draw the symbol with: the options chosen, and the colour
+	the project sets for @p family, unless the folio is drawn in black
+*/
+ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
+											   const QString &family) const
+{
+	ElementOptions::Choices choices = drawnChoices(options, m_option_choices);
+	if (family.isEmpty()) {
+		return choices;
+	}
+	const Diagram *folio = diagram();
+	if (folio && !folio->drawColoredConductors()) {
+		return choices;
+	}
+	const QETProject *project = folio ? folio->project() : m_location.project();
+	if (!project) {
+		return choices;
+	}
+	const QColor ink = project->pidCodification().object_colors.value(family);
+	if (ink.isValid()) {
+		choices.insert(ElementPictureFactory::inkChoice(), ink.name());
+	}
+	return choices;
 }
 
 /**
@@ -1027,7 +1077,7 @@ bool Element::buildFromXml(const QDomElement &xml_def_elmt, int *state)
 	epf->getPictures(m_location,
 			 m_picture,
 			 m_low_zoom_picture,
-			 drawnChoices(m_data.m_options, m_option_choices));
+			 inkedChoices(m_data.m_options, m_data.m_pid_family));
 	updateDrawnRect();
 
 	if(!m_picture.isNull())
@@ -3456,12 +3506,13 @@ Element::ReloadPictureResult Element::reloadPicture(bool adopt_frame)
 	ElementPictureFactory::instance()->getPictures(m_location,
 												   picture,
 												   low_zoom_picture,
-												   drawnChoices(options, m_option_choices));
+												   inkedChoices(options, definition.attribute(QStringLiteral("pid_family"))));
 	if (picture.isNull()) {
 		return ReloadPictureResult::Unavailable;
 	}
 
 	m_data.m_options = options;
+	m_data.m_pid_family = definition.attribute(QStringLiteral("pid_family"));
 	if (adopt_frame) {
 		setSize(definition.attribute(QStringLiteral("width")).toInt(),
 				definition.attribute(QStringLiteral("height")).toInt());
@@ -3572,8 +3623,9 @@ bool Element::changeLocation(const ElementsLocation &location)
 	options.fromXml(location.xml());
 	QPicture picture;
 	QPicture low_zoom_picture;
+	const QString family = location.xml().attribute(QStringLiteral("pid_family"));
 	ElementPictureFactory::instance()->getPictures(location, picture, low_zoom_picture,
-												   drawnChoices(options, m_option_choices));
+												   inkedChoices(options, family));
 	if (picture.isNull()) {
 		return false;
 	}
@@ -3582,6 +3634,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 	names.fromXml(location.xml());
 	m_data.m_names_list = names;
 	m_data.m_options = options;
+	m_data.m_pid_family = family;
 
 		//A saved conductor names the uuid of the terminal it ends on, and the
 		//project is read back from the new definition: the terminals take its

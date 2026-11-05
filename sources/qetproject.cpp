@@ -4664,6 +4664,11 @@ void QETProject::setPidCodification(const PidCodification &codification)
 
 		//Its colours are drawn at once
 	for (Diagram *folio : std::as_const(m_diagrams_list)) {
+		for (QGraphicsItem *item : folio->items()) {
+			if (auto *element = qgraphicsitem_cast<Element *>(item)) {
+				element->updateInk();
+			}
+		}
 		folio->update();
 	}
 	setModified(true);

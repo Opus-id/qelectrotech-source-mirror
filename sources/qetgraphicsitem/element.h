@@ -224,6 +224,8 @@ class Element : public QetGraphicsItem
 		void setOptionChoices(const ElementOptions::Choices &choices);
 			/// The value of every option of the symbol for this element
 		ElementOptions::Choices resolvedOptions() const;
+			/// Draw the symbol again in the colour its project sets now
+		void updateInk();
 		virtual void setHighlighted(bool);
 		void showAsJumpTarget();
 		bool isShownAsJumpTarget() const { return m_jump_highlight > 0; }
@@ -406,6 +408,9 @@ class Element : public QetGraphicsItem
 
 	ElementsLocation m_location;
 	QList <Terminal *> m_terminals;
+	ElementOptions::Choices inkedChoices(const ElementOptions &options, const QString &family) const;
+	void takePictures();
+
 	QPicture m_picture;
 	QPicture m_low_zoom_picture;
 		/// The drawing with its texts kept readable, when the symbol's

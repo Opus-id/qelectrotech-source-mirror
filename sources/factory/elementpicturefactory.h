@@ -18,6 +18,7 @@
 #ifndef ELEMENTPICTUREFACTORY_H
 #define ELEMENTPICTUREFACTORY_H
 
+#include <QColor>
 #include <QMutex>
 #include <QSharedPointer>
 #include <QHash>
@@ -90,6 +91,10 @@ class ElementPictureFactory
 			/// The choices of a placed element among the options of its
 			/// symbol (ElementOptions::Choices): none draws the defaults
 		using Choices = QMap<QString, QString>;
+			/// The entry of the choices which draws the symbol in another
+			/// colour than black (a colour name): only the ink changes, the
+			/// white that masks and the colours chosen in the symbol stay
+		static QString inkChoice() { return QStringLiteral("__ink"); }
 
 		void getPictures(const ElementsLocation &location, QPicture &picture, QPicture &low_picture,
 						 const Choices &choices = Choices());
@@ -134,6 +139,8 @@ class ElementPictureFactory
 		QHash<QPair<QUuid, int>, QPicture> m_readable_low_pictures_H;
 			/// What build() undoes on each text, read by parseText()
 		QTransform m_build_texts_undo;
+			/// See inkChoice(), for the drawing being built
+		QColor m_build_ink;
 		QHash<QUuid, QPixmap> m_pixmap_H;
 		QHash<QUuid, primitives> m_primitives_H;
 			/// The keys of the drawings of a symbol with options chosen
