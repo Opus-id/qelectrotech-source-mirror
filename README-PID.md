@@ -64,6 +64,12 @@ tag `pipe-connector-freeze-2026-11-03`.
 - **A page of its own** in the properties panel, and in the dialog a double
   click opens, in place of the page of a wire. Several pipes can be edited
   at once: only the field changed reaches them, in one undo step.
+- **A codification per project**: *Project > Import a P&ID codification*
+  reads the codes of the fluids and materials from a CSV file the company
+  keeps (lines `kind;code;name;family`); none is shipped. The page of a pipe
+  offers them ("W01 – Raw water"), a pipe keeps the code, free text stays
+  possible. Saved in a `<pid_codification>` block, written only when there
+  is one, in `.qet`, `.qetz` and `.qetdb` files.
 - **Drawn after its kind of line** (ISO 10628-1): main line 1 mm (4 units),
   secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
@@ -100,8 +106,8 @@ QElectroTech are saved byte for byte as by master.
 
 ## What is missing
 
-- A project codification (fluid and material codes), the line designation
-  shown along a pipe, colors per fluid.
+- The line designation shown along a pipe, colors per fluid, family of
+  object and status of works.
 - Placing a tee by dropping a pipe on another, flow direction, crossings
   as ISO 10628-1 draws them.
 - Signal lines, drive links, data of the nozzles, equipment data tables.
