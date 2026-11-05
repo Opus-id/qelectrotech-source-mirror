@@ -20,6 +20,7 @@
 #include "../../qeticons.h"
 #include "../../qetproject.h"
 
+#include <QApplication>
 #include <QColorDialog>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -35,6 +36,7 @@
 namespace {
 	constexpr int group_role = Qt::UserRole;
 	constexpr int key_role = Qt::UserRole + 1;
+	constexpr int color_column = 2;
 }
 
 /**
@@ -82,7 +84,18 @@ void PidConfigPage::initWidgets()
 	m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	m_table->verticalHeader()->hide();
 	m_table->horizontalHeader()->setStretchLastSection(true);
-	connect(m_table, &QTableWidget::cellDoubleClicked, this, [this]() { chooseColor(); });
+		//A click in the colour of a line asks it at once; with Ctrl or Shift
+		//it is a selection, for the buttons
+	connect(m_table, &QTableWidget::cellClicked, this, [this](int, int column) {
+		if (column == color_column && QApplication::keyboardModifiers() == Qt::NoModifier) {
+			chooseColor();
+		}
+	});
+	connect(m_table, &QTableWidget::cellDoubleClicked, this, [this](int, int column) {
+		if (column != color_column) {
+			chooseColor();
+		}
+	});
 
 	m_choose = new QPushButton(tr("Choose a color..."), this);
 	m_clear = new QPushButton(tr("No color"), this);
