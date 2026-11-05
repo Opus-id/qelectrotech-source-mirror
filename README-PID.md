@@ -73,8 +73,11 @@ tag `pipe-connector-freeze-2026-11-03`.
 - **Colors set for the project**, in a *P&ID* page of the project properties
   or imported from the same CSV file (`fluid_color;family;#rrggbb`,
   `object_color;pipe;#rrggbb`). A pipe takes the color set on it, else that
-  of the family of its fluid, else that of the pipes; the code knows no
-  color of its own, what has none stays black.
+  of the family of its fluid, else that of the pipes; a symbol takes that
+  of its family of objects (`pid_family` attribute of the `.elmt`: only its
+  ink changes, not the white that masks). The code knows no color of its
+  own, what has none stays black, and a folio drawn without colors stays
+  black too.
 - **Drawn after its kind of line** (ISO 10628-1): main line 1 mm (4 units),
   secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
@@ -111,8 +114,7 @@ QElectroTech are saved byte for byte as by master.
 
 ## What is missing
 
-- The line designation shown along a pipe, colors of the symbols, status
-  of works.
+- The line designation shown along a pipe, status of works.
 - Placing a tee by dropping a pipe on another, flow direction, crossings
   as ISO 10628-1 draws them.
 - Signal lines, drive links, data of the nozzles, equipment data tables.
