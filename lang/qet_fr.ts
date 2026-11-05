@@ -7767,7 +7767,7 @@ En important ce fichier, vous confirmez que :
     <message>
         <location filename="../sources/exportpropertieswidget.cpp" line="224"/>
         <source>Keep conductors colors</source>
-        <translation>Conserver les couleurs des conducteurs</translation>
+        <translation>Conserver les couleurs</translation>
     </message>
     <message>
         <location filename="../sources/exportpropertieswidget.cpp" line="228"/>
@@ -13484,7 +13484,7 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
     <message>
         <location filename="../sources/print/projectprintwindow.ui" line="174"/>
         <source>Keep conductors colors</source>
-        <translation>Conserver les couleurs des conducteurs</translation>
+        <translation>Conserver les couleurs</translation>
     </message>
     <message>
         <location filename="../sources/print/projectprintwindow.ui" line="181"/>
