@@ -482,6 +482,8 @@ qet_add_app_test(tst_pipepanel tst_pipepanel.cpp)
 # The colours of a P&ID: set for a project, none known by the code; on a pipe
 # its own colour first, then its fluid, then its family of object.
 qet_add_app_test(tst_pidcolors tst_pidcolors.cpp)
+# The frame of a folio follows a new size at once.
+qet_add_app_test(tst_borderresize tst_borderresize.cpp)
 # A quick second click on the same spot reaches the shape tools as a
 # double-click: it must still start the next line, rectangle or ellipse.
 qet_add_app_test(tst_shapequickclick tst_shapequickclick.cpp)
