@@ -15,7 +15,9 @@
 #include "ui/pipepropertieswidget.h"
 
 #include <QDomDocument>
+#include <QHeaderView>
 #include <QPushButton>
+#include <QTableWidget>
 #include <QTemporaryDir>
 #include <QUndoStack>
 
@@ -251,6 +253,48 @@ class tst_pidcolors : public QObject
 			QVERIFY(!pipe->properties().m_pipe.color.isValid());
 			stack.undo();
 			QCOMPARE(pipe->properties().m_pipe.color, QColor(10, 20, 30));
+		}
+
+		void aClickInAColorAsksForIt()
+		{
+			PidConfigPage page(&m_project);
+			page.resize(800, 600);
+			page.show();
+			auto *table = page.findChild<QTableWidget *>();
+			QVERIFY(table);
+			int asked = 0;
+			page.setColorAsker([&asked](const QColor &) { ++asked; return QColor(4, 4, 4); });
+			auto cell = [table](int row, int column) {
+				return table->visualRect(table->model()->index(row, column)).center();
+			};
+			auto *viewport = table->viewport();
+
+				// one line
+			QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, cell(0, 2));
+			QCOMPARE(asked, 1);
+			QCOMPARE(table->item(0, 2)->text(), QColor(4, 4, 4).name());
+
+				// Ctrl selects without asking
+			QTest::mouseClick(viewport, Qt::LeftButton, Qt::ControlModifier, cell(2, 2));
+			QTest::mouseClick(viewport, Qt::LeftButton, Qt::ControlModifier, cell(3, 2));
+			QCOMPARE(asked, 1);
+			QCOMPARE(table->selectionModel()->selectedRows().size(), 3);
+
+				// a click in the colour of one of them asks for all of them
+			page.setColorAsker([&asked](const QColor &) { ++asked; return QColor(5, 5, 5); });
+			QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, cell(2, 2));
+			QCOMPARE(asked, 2);
+			for (int row : {0, 2, 3}) {
+				QCOMPARE(table->item(row, 2)->text(), QColor(5, 5, 5).name());
+			}
+			QCOMPARE(table->selectionModel()->selectedRows().size(), 3);
+
+				// a click in the colour of another line is for that line alone
+			page.setColorAsker([&asked](const QColor &) { ++asked; return QColor(6, 6, 6); });
+			QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, cell(4, 2));
+			QCOMPARE(asked, 3);
+			QCOMPARE(table->item(4, 2)->text(), QColor(6, 6, 6).name());
+			QCOMPARE(table->item(0, 2)->text(), QColor(5, 5, 5).name());
 		}
 
 		void theConfigPageSetsTheColorsOfTheProject()

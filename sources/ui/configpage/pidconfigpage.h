@@ -21,6 +21,8 @@
 #include "../../pidcodification.h"
 #include "projectconfigpages.h"
 
+#include <functional>
+
 class QPushButton;
 class QTableWidget;
 
@@ -50,12 +52,16 @@ class PidConfigPage : public ProjectConfigPage
 			/// Give the lines selected the colour @p color, none when it is
 			/// invalid
 		void setColorOfSelection(const QColor &color);
+			/// What asks a colour, the colour dialog unless a test says
+			/// otherwise; it answers an invalid colour when cancelled
+		void setColorAsker(const std::function<QColor(const QColor &)> &asker) { m_ask_color = asker; }
 
 	protected:
 		void initWidgets() override;
 		void initLayout() override;
 		void readValuesFromProject() override;
 		void adjustReadOnly() override;
+		bool eventFilter(QObject *watched, QEvent *event) override;
 
 	private:
 		void fillTable();
@@ -68,6 +74,7 @@ class PidConfigPage : public ProjectConfigPage
 		QPushButton *m_clear = nullptr;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
+		std::function<QColor(const QColor &)> m_ask_color;
 };
 
 #endif // PIDCONFIGPAGE_H

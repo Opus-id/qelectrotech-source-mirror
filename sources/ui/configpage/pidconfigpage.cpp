@@ -25,6 +25,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QSet>
 #include <QTabWidget>
@@ -97,6 +98,8 @@ void PidConfigPage::initWidgets()
 		}
 	});
 
+	m_table->viewport()->installEventFilter(this);
+
 	m_choose = new QPushButton(tr("Choose a color..."), this);
 	m_clear = new QPushButton(tr("No color"), this);
 	connect(m_choose, &QPushButton::clicked, this, &PidConfigPage::chooseColor);
@@ -138,6 +141,28 @@ void PidConfigPage::adjustReadOnly()
 	m_table->setEnabled(!read_only);
 	m_choose->setEnabled(!read_only);
 	m_clear->setEnabled(!read_only);
+}
+
+/**
+	@brief PidConfigPage::eventFilter
+	A press in the colour of a line of a selection of several would end that
+	selection: it asks the colour of all of them instead.
+*/
+bool PidConfigPage::eventFilter(QObject *watched, QEvent *event)
+{
+	if (watched == m_table->viewport() && event->type() == QEvent::MouseButtonPress)
+	{
+		const auto *mouse = static_cast<QMouseEvent *>(event);
+		const QModelIndex index = m_table->indexAt(mouse->position().toPoint());
+		if (mouse->button() == Qt::LeftButton && mouse->modifiers() == Qt::NoModifier
+			&& index.isValid() && index.column() == color_column
+			&& selectedRows().size() > 1 && selectedRows().contains(index.row()))
+		{
+			chooseColor();
+			return true;
+		}
+	}
+	return ProjectConfigPage::eventFilter(watched, event);
 }
 
 /**
@@ -252,7 +277,8 @@ void PidConfigPage::chooseColor()
 	const QTableWidgetItem *first = m_table->item(rows.first(), 0);
 	const auto group = Group(first->data(group_role).toInt());
 	const QColor current = colors(group).value(first->data(key_role).toString(), Qt::black);
-	const QColor color = QColorDialog::getColor(current, this, title());
+	const QColor color = m_ask_color ? m_ask_color(current)
+									 : QColorDialog::getColor(current, this, title());
 	if (color.isValid()) {
 		setColorOfSelection(color);
 	}
