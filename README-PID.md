@@ -78,6 +78,11 @@ tag `pipe-connector-freeze-2026-11-03`.
   ink changes, not the white that masks). The code knows no color of its
   own, what has none stays black, and a folio drawn without colors stays
   black too.
+- **A status of works** on pipes and P&ID symbols: to be built, the default,
+  existing and kept, to be demolished. Its color, set for the project,
+  comes before any other. Chosen on the page of the object, or for a whole
+  selection in its context menu, in one undo step. On a symbol it is kept
+  with the options, so a `.qetdb` file refuses it as it refuses them.
 - **Drawn after its kind of line** (ISO 10628-1): main line 1 mm (4 units),
   secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
@@ -114,7 +119,7 @@ QElectroTech are saved byte for byte as by master.
 
 ## What is missing
 
-- The line designation shown along a pipe, status of works.
+- The line designation shown along a pipe.
 - Placing a tee by dropping a pipe on another, flow direction, crossings
   as ISO 10628-1 draws them.
 - Signal lines, drive links, data of the nozzles, equipment data tables.
