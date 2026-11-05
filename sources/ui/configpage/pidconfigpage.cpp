@@ -59,7 +59,7 @@ QString PidConfigPage::title() const
 */
 QIcon PidConfigPage::icon() const
 {
-	return QET::Icons::Conductor;
+	return QET::Icons::PidDiagram;
 }
 
 /**

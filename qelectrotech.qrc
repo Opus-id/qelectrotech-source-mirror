@@ -470,6 +470,7 @@
 	<file>ico/format-copy.svg</file>
 	<file>ico/format-apply.svg</file>
 	<file>ico/dimension-linear.svg</file>
+	<file>ico/pid-diagram.svg</file>
 	<file>ico/dimension-chain.svg</file>
     </qresource>
 </RCC>
