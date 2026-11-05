@@ -479,6 +479,9 @@ target_compile_definitions(tst_conductormedium PRIVATE
 # The page of a pipe in the properties panel: only pipes get it, a change is
 # one undo step and reaches the field edited of the pipes selected, no other.
 qet_add_app_test(tst_pipepanel tst_pipepanel.cpp)
+# The colours of a P&ID: set for a project, none known by the code; on a pipe
+# its own colour first, then its fluid, then its family of object.
+qet_add_app_test(tst_pidcolors tst_pidcolors.cpp)
 # A quick second click on the same spot reaches the shape tools as a
 # double-click: it must still start the next line, rectangle or ellipse.
 qet_add_app_test(tst_shapequickclick tst_shapequickclick.cpp)

@@ -4662,6 +4662,10 @@ void QETProject::setPidCodification(const PidCodification &codification)
 	}
 	m_data_base.storeForeignBlocks(owner, blocks);
 
+		//Its colours are drawn at once
+	for (Diagram *folio : std::as_const(m_diagrams_list)) {
+		folio->update();
+	}
 	setModified(true);
 	emit pidCodificationChanged();
 }

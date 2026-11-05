@@ -187,6 +187,7 @@ class Conductor : public QGraphicsObject
 		QList<QPointF> junctions() const;
 		QPainterPath paintedPath() const;
 		QColor drawnColor() const;
+		QColor pipeColor() const;
 		bool potentialTypeFormat(PotentialType *type) const;
 
 	private:

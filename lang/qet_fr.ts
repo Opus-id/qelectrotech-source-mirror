@@ -5215,6 +5215,11 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <translation>Couleur</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="110"/>
+        <source>Colors</source>
+        <translation>Couleurs</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/dynamicelementtextmodel.cpp" line="305"/>
         <location filename="../sources/ui/dynamicelementtextmodel.cpp" line="894"/>
         <source>Frame</source>
@@ -5260,6 +5265,11 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <location filename="../sources/editor/ui/dynamictextfieldeditor.ui" line="20"/>
         <source>Color</source>
         <translation>Couleur</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="110"/>
+        <source>Colors</source>
+        <translation>Couleurs</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/dynamictextfieldeditor.ui" line="72"/>
@@ -6152,6 +6162,11 @@ Continuer ?</translation>
         <location filename="../sources/editor/ui/elementpropertieseditorwidget.ui" line="299"/>
         <source>Color</source>
         <translation>Couleur</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="110"/>
+        <source>Colors</source>
+        <translation>Couleurs</translation>
     </message>
     <message>
         <source>Potential separation</source>
@@ -10018,6 +10033,11 @@ Toutes valeurs autre que ‘Pas d’arrondi’ peut causer des erreurs de rendu 
         <translation>Couleur</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="110"/>
+        <source>Colors</source>
+        <translation>Couleurs</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/guidespropertieswidget.cpp" line="27"/>
         <source>Add</source>
         <translation>Ajouter</translation>
@@ -12051,6 +12071,100 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
 </context>
 <context>
+    <name>PidConfigPage</name>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>P&amp;ID</source>
+        <comment>configuration page title</comment>
+        <translation>P&amp;ID</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Applies to</source>
+        <translation>S&apos;applique à</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Name</source>
+        <translation>Nom</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Color</source>
+        <translation>Couleur</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="110"/>
+        <source>Colors</source>
+        <translation>Couleurs</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Choose a color...</source>
+        <translation>Choisir une couleur...</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>No color</source>
+        <translation>Aucune couleur</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>What has no color here is drawn in black. A status comes first, then a color set on a pipe line, then its fluid, then the family of the object.</source>
+        <translation>Ce qui n&apos;a pas de couleur ici est dessiné en noir. Le statut passe d&apos;abord, puis la couleur posée sur une tuyauterie, puis son fluide, puis la famille de l&apos;objet.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Family of fluids</source>
+        <translation>Famille de fluides</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Family of objects</source>
+        <translation>Famille d&apos;objets</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Status of works</source>
+        <translation>Statut de travaux</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Pipe lines</source>
+        <translation>Tuyauteries</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Equipment</source>
+        <translation>Équipements</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Valves</source>
+        <translation>Robinetterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Instruments</source>
+        <translation>Instruments</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Signal lines</source>
+        <translation>Lignes de signal</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>Existing, kept</source>
+        <translation>Existant conservé</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
+        <source>To be demolished</source>
+        <translation>À démolir</translation>
+    </message>
+</context>
+<context>
     <name>PipeProperties</name>
     <message>
         <location filename="../sources/pipeproperties.cpp" line="113"/>
@@ -12172,6 +12286,16 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="306"/>
         <source>Pipe line</source>
         <translation>Tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="140"/>
+        <source>Automatic</source>
+        <translation>Automatique</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="145"/>
+        <source>Color:</source>
+        <translation>Couleur :</translation>
     </message>
 </context>
 <context>
@@ -23472,6 +23596,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <translation>Couleur</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="110"/>
+        <source>Colors</source>
+        <translation>Couleurs</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/shapegraphicsitempropertieswidget.ui" line="193"/>
         <source>Filling</source>
         <translation>Remplissage</translation>
@@ -27209,6 +27338,11 @@ Double-cliquez pour aller à l&apos;élément</translation>
         <location filename="../sources/TerminalStrip/ui/terminalstripmodel.cpp" line="511"/>
         <source>Color</source>
         <translation>Couleur</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="110"/>
+        <source>Colors</source>
+        <translation>Couleurs</translation>
     </message>
     <message>
         <location filename="../sources/TerminalStrip/ui/terminalstripmodel.cpp" line="512"/>

@@ -48,6 +48,35 @@ namespace
 		}
 	}
 
+	void writeColors(QDomDocument &document, QDomElement &block, const QString &group,
+					 const QMap<QString, QColor> &colors)
+	{
+		for (auto it = colors.cbegin() ; it != colors.cend() ; ++it)
+		{
+			QDomElement e = document.createElement(QStringLiteral("color"));
+			e.setAttribute(QStringLiteral("group"), group);
+			e.setAttribute(QStringLiteral("key"), it.key());
+			e.setAttribute(QStringLiteral("value"), it.value().name());
+			block.appendChild(e);
+		}
+	}
+
+	QMap<QString, QColor> readColors(const QDomElement &block, const QString &group)
+	{
+		QMap<QString, QColor> colors;
+		const QString tag = QStringLiteral("color");
+		for (QDomElement e = block.firstChildElement(tag) ; !e.isNull() ;
+			 e = e.nextSiblingElement(tag))
+		{
+			const QString key = e.attribute(QStringLiteral("key")).trimmed();
+			const QColor color(e.attribute(QStringLiteral("value")));
+			if (e.attribute(QStringLiteral("group")) == group && !key.isEmpty() && color.isValid()) {
+				colors.insert(key, color);
+			}
+		}
+		return colors;
+	}
+
 	QList<PidCodification::Entry> readList(const QDomElement &block, const QString &tag)
 	{
 		QList<PidCodification::Entry> list;
@@ -85,6 +114,46 @@ const PidCodification::Entry *PidCodification::material(const QString &code) con
 }
 
 /**
+	@brief PidCodification::fluidColor
+	See the declaration
+*/
+QColor PidCodification::fluidColor(const QString &code) const
+{
+	const Entry *entry = fluid(code);
+	return entry ? fluid_family_colors.value(entry->family) : QColor();
+}
+
+QStringList PidCodification::objectFamilies()
+{
+	return {QStringLiteral("pipe"), QStringLiteral("equipment"), QStringLiteral("valve"),
+			QStringLiteral("instrument"), QStringLiteral("signal")};
+}
+
+QStringList PidCodification::statuses()
+{
+	return {QStringLiteral("existing"), QStringLiteral("demolished")};
+}
+
+/**
+	@brief PidCodification::completedWith
+	See the declaration
+*/
+PidCodification PidCodification::completedWith(const PidCodification &other) const
+{
+	PidCodification result = *this;
+	if (!hasCodes()) {
+		result.fluids = other.fluids;
+		result.materials = other.materials;
+	}
+	if (!hasColors()) {
+		result.fluid_family_colors = other.fluid_family_colors;
+		result.object_colors = other.object_colors;
+		result.status_colors = other.status_colors;
+	}
+	return result;
+}
+
+/**
 	@brief PidCodification::toXml
 	@param document
 	@return the <pid_codification> block, fluids then materials in their
@@ -99,6 +168,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	QDomElement block = document.createElement(block_tag);
 	writeList(document, block, QStringLiteral("fluid"), fluids);
 	writeList(document, block, QStringLiteral("material"), materials);
+	writeColors(document, block, QStringLiteral("fluid_family"), fluid_family_colors);
+	writeColors(document, block, QStringLiteral("object"), object_colors);
+	writeColors(document, block, QStringLiteral("status"), status_colors);
 	return block;
 }
 
@@ -111,6 +183,9 @@ void PidCodification::fromXml(const QDomElement &parent)
 	const QDomElement block = parent.firstChildElement(block_tag);
 	fluids = readList(block, QStringLiteral("fluid"));
 	materials = readList(block, QStringLiteral("material"));
+	fluid_family_colors = readColors(block, QStringLiteral("fluid_family"));
+	object_colors = readColors(block, QStringLiteral("object"));
+	status_colors = readColors(block, QStringLiteral("status"));
 }
 
 /**
@@ -147,6 +222,25 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 			}
 		}
 		const QString kind = fields.value(0).toLower();
+		QMap<QString, QColor> *colors = nullptr;
+		if (kind == QLatin1String("fluid_color") || kind == QLatin1String("couleur_fluide")) {
+			colors = &codification.fluid_family_colors;
+		} else if (kind == QLatin1String("object_color") || kind == QLatin1String("couleur_objet")) {
+			colors = &codification.object_colors;
+		} else if (kind == QLatin1String("status_color") || kind == QLatin1String("couleur_statut")) {
+			colors = &codification.status_colors;
+		}
+		if (colors)
+		{
+			const QString key = fields.value(1);
+			const QColor color(fields.value(2));
+			if (key.isEmpty() || !color.isValid() || colors->contains(key)) {
+				++left_out;
+			} else {
+				colors->insert(key, color);
+			}
+			continue;
+		}
 		const bool is_fluid = kind == QLatin1String("fluid") || kind == QLatin1String("fluide");
 		const bool is_material = kind == QLatin1String("material") || kind == QStringLiteral("matériau")
 							   || kind == QLatin1String("materiau");
@@ -178,5 +272,8 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 
 bool PidCodification::operator==(const PidCodification &other) const
 {
-	return fluids == other.fluids && materials == other.materials;
+	return fluids == other.fluids && materials == other.materials
+			&& fluid_family_colors == other.fluid_family_colors
+			&& object_colors == other.object_colors
+			&& status_colors == other.status_colors;
 }

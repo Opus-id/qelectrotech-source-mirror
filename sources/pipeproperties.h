@@ -18,6 +18,7 @@
 #ifndef PIPE_PROPERTIES_H
 #define PIPE_PROPERTIES_H
 
+#include <QColor>
 #include <QDomElement>
 #include <QList>
 #include <QPair>
@@ -69,6 +70,9 @@ class PipeProperties
 		QString spool;
 			/// External finish of the pipe (paint...), free text
 		QString external_finish;
+			/// A colour set on this pipe, before that of its fluid; none by
+			/// default
+		QColor color;
 
 		QList<QPair<QString, QString>> attributes() const;
 		void fromXml(const QDomElement &);

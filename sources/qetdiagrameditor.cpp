@@ -1185,7 +1185,7 @@ void QETDiagramEditor::setUpActions()
 				   QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) {
 			return;
 		}
-		project->setPidCodification(codification);
+		project->setPidCodification(codification.completedWith(project->pidCodification()));
 		QET::QetMessageBox::information(
 					this, tr("Import a P&ID codification"),
 					tr("%1 fluids and %2 materials imported.").arg(codification.fluids.size())

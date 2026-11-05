@@ -30,6 +30,7 @@ class QETProject;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 
 /**
 	@brief The PipePropertiesWidget class
@@ -55,6 +56,10 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		void updateUi() override;
 		bool setLiveEdit(bool live_edit) override;
 
+			/// Give the pipes edited the colour @p color, or none when it is
+			/// invalid: they then follow their fluid
+		void setManualColor(const QColor &color);
+
 		static void editInDialog(Conductor *pipe, QWidget *parent = nullptr);
 
 	private:
@@ -77,6 +82,7 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QComboBox *m_fluid = nullptr;
 		QComboBox *m_material = nullptr;
 		QComboBox *m_kind = nullptr;
+		QPushButton *m_color = nullptr;
 		QLabel *m_count = nullptr;
 };
 

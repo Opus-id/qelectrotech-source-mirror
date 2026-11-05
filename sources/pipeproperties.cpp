@@ -75,6 +75,8 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 		add("pipe_line_kind", lineKindToString(line_kind));
 	add("pipe_spool", spool);
 	add("pipe_external_finish", external_finish);
+	if (color.isValid())
+		add("pipe_color", color.name());
 	return a;
 }
 
@@ -99,6 +101,7 @@ void PipeProperties::fromXml(const QDomElement &e)
 	line_kind        = lineKindFromString(e.attribute(QStringLiteral("pipe_line_kind")));
 	spool            = e.attribute(QStringLiteral("pipe_spool"));
 	external_finish  = e.attribute(QStringLiteral("pipe_external_finish"));
+	color            = QColor(e.attribute(QStringLiteral("pipe_color")));
 }
 
 /**
@@ -135,7 +138,8 @@ bool PipeProperties::operator==(const PipeProperties &other) const
 		&& nominal_pressure == other.nominal_pressure
 		&& line_kind == other.line_kind
 		&& spool == other.spool
-		&& external_finish == other.external_finish;
+		&& external_finish == other.external_finish
+		&& color == other.color;
 }
 
 /**

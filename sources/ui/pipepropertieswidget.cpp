@@ -24,13 +24,16 @@
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetproject.h"
 
+#include <QColorDialog>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QIntValidator>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
@@ -155,6 +158,33 @@ void PipePropertiesWidget::buildUi()
 		const auto kind = PipeProperties::LineKind(m_kind->itemData(index).toInt());
 		applyChange([kind](PipeProperties &p) { p.line_kind = kind; });
 	});
+
+	m_color = new QPushButton(this);
+	m_color->setObjectName(QStringLiteral("color"));
+	auto *automatic = new QPushButton(tr("Automatic"), this);
+	automatic->setObjectName(QStringLiteral("automatic_color"));
+	auto *color_row = new QHBoxLayout();
+	color_row->addWidget(m_color);
+	color_row->addWidget(automatic);
+	layout->addRow(tr("Color:"), color_row);
+	connect(m_color, &QPushButton::clicked, this, [this]() {
+		const QList<Conductor *> list = pipes();
+		const QColor current = list.isEmpty() ? QColor() : list.first()->drawnColor();
+		const QColor color = QColorDialog::getColor(current, this, title());
+		if (color.isValid()) {
+			setManualColor(color);
+		}
+	});
+	connect(automatic, &QPushButton::clicked, this, [this]() { setManualColor(QColor()); });
+}
+
+/**
+	@brief PipePropertiesWidget::setManualColor
+	See the declaration
+*/
+void PipePropertiesWidget::setManualColor(const QColor &color)
+{
+	applyChange([color](PipeProperties &p) { p.color = color; });
 }
 
 /**
@@ -356,6 +386,21 @@ void PipePropertiesWidget::updateUi()
 		}
 	}
 	m_kind->setCurrentIndex(same_kind ? m_kind->findData(int(kind)) : -1);
+
+	const QColor color = list.first()->properties().m_pipe.color;
+	bool same_color = true;
+	for (Conductor *pipe : list) {
+		if (pipe->properties().m_pipe.color != color) {
+			same_color = false;
+		}
+	}
+	m_color->setText(!same_color ? tr("(several values)")
+					 : color.isValid() ? color.name() : tr("Automatic"));
+	m_color->setStyleSheet(same_color && color.isValid()
+						   ? QStringLiteral("background-color: %1; color: %2")
+							 .arg(color.name(), color.lightness() < 128 ? QStringLiteral("white")
+																		 : QStringLiteral("black"))
+						   : QString());
 }
 
 /**

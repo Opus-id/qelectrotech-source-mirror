@@ -617,7 +617,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	const QET::Palette::SheetInk sheet_ink = PaletteGraphicsView::paintingInk(qw);
 	PotentialType potential_type;
 	const bool typed = potentialTypeFormat(&potential_type);
-	QColor final_conductor_color(typed ? potential_type.color : m_properties.color);
+	QColor final_conductor_color(drawnColor());
 	if (m_preview) {
 		final_conductor_color = QColor(160, 160, 160);
 	} else if (must_highlight_ == Normal) {
@@ -2523,13 +2523,42 @@ bool isContained(const QPointF &a, const QPointF &b, const QPointF &c) {
 
 /**
 	@brief Conductor::drawnColor
-	@return the colour the conductor is drawn in: its potential type's when
-	the project draws from them, else its own
+	@return the colour the conductor is drawn in: that of a pipe when it has
+	one, its potential type's when the project draws from them, else its own
 */
 QColor Conductor::drawnColor() const
 {
+	const QColor pipe_color = pipeColor();
+	if (pipe_color.isValid()) {
+		return pipe_color;
+	}
 	PotentialType type;
 	return potentialTypeFormat(&type) ? type.color : m_properties.color;
+}
+
+/**
+	@brief Conductor::pipeColor
+	@return the colour of a pipe: its own, else that of its fluid, else that
+	of the family of the pipes, from the project; an invalid one when it has
+	none, or for a wire
+*/
+QColor Conductor::pipeColor() const
+{
+	if (m_properties.m_medium != TerminalData::Pipe) {
+		return QColor();
+	}
+	if (m_properties.m_pipe.color.isValid()) {
+		return m_properties.m_pipe.color;
+	}
+	const Diagram *parent_diagram = diagram();
+	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+	if (!project) {
+		return QColor();
+	}
+	const PidCodification codification = project->pidCodification();
+	const QColor fluid = codification.fluidColor(m_properties.m_pipe.fluid);
+	return fluid.isValid() ? fluid
+						   : codification.object_colors.value(QStringLiteral("pipe"));
 }
 
 /**
