@@ -61,6 +61,9 @@ tag `pipe-connector-freeze-2026-11-03`.
   finish, saved as `pipe_…` attributes of the conductor, only those set.
   They go through `.qet`, `.qetz` and `.qetdb` files with no code of their
   own (checked by a round trip through a `.qetdb` file).
+- **A page of its own** in the properties panel, and in the dialog a double
+  click opens, in place of the page of a wire. Several pipes can be edited
+  at once: only the field changed reaches them, in one undo step.
 - **Drawn after its kind of line** (ISO 10628-1): main line 1 mm (4 units),
   secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
@@ -97,8 +100,6 @@ QElectroTech are saved byte for byte as by master.
 
 ## What is missing
 
-- The properties panel of a pipe (the data cannot be edited from the user
-  interface yet).
 - A project codification (fluid and material codes), the line designation
   shown along a pipe, colors per fluid.
 - Placing a tee by dropping a pipe on another, flow direction, crossings
