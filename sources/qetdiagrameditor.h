@@ -278,6 +278,9 @@ class QETDiagramEditor : public QETMainWindow
 		
 		QAction* m_find_duplicate_labels = nullptr;
 		QAction* m_project_languages = nullptr;
+			/// The codes of the fluids and materials of the pipes, read from
+			/// a file the company keeps (PidCodification)
+		QAction* m_import_pid_codification = nullptr;
 
 		QAction
 		*m_tabbed_view_mode,		///< Display projects as tabs

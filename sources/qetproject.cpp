@@ -2866,6 +2866,10 @@ QDomDocument QETProject::toXml(QHash<int, QByteArray> *kept_folios, QStringList 
 	writeWiringRulesXml(project_root);
 	writeChainedReportsXml(project_root);
 	writeOriginXml(project_root);
+		//The codification of the pipes, only when the project has one
+	const QDomElement pid_codification = m_pid_codification.toXml(xml_doc);
+	if (!pid_codification.isNull())
+		project_root.appendChild(pid_codification);
 
 	// Properties for news diagrams
 	QDomElement new_diagrams_properties = xml_doc.createElement("newdiagrams");
@@ -4057,6 +4061,7 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 	readWiringRulesXml(xml_project);
 	readChainedReportsXml(xml_project);
 	readOriginXml(xml_project);
+	readPidCodificationXml(xml_project);
 
 		//What this QET does not know of the project, kept for every format
 	m_data_base.storeForeignBlocks(QString::fromLatin1(projectDataBase::project_owner),
@@ -4613,6 +4618,52 @@ void QETProject::readElementsCollectionXml(QDomDocument &xml_project)
 	else {
 		m_elements_collection = new XmlElementCollection(collection_root, this);
 	}
+}
+
+/**
+	@brief QETProject::readPidCodificationXml
+	Read the <pid_codification> block of the project, if any (PidCodification)
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readPidCodificationXml(QDomDocument &xml_project)
+{
+	m_pid_codification.fromXml(xml_project.documentElement());
+}
+
+/**
+	@brief QETProject::setPidCodification
+	Give the pipes of this project the codification @p codification: their
+	codes keep their values, only the names and families the list gives them
+	change. The project is modified.
+	A .qetdb keeps the block with what it does not know of the project, read
+	when the project was opened: it is brought up to date here.
+	@param codification
+*/
+void QETProject::setPidCodification(const PidCodification &codification)
+{
+	if (codification == m_pid_codification) {
+		return;
+	}
+	m_pid_codification = codification;
+
+	const QString owner = QString::fromLatin1(projectDataBase::project_owner);
+	QStringList blocks;
+	for (const QString &block : m_data_base.foreignBlocks(owner)) {
+		if (!block.startsWith(QLatin1String("<pid_codification"))) {
+			blocks << block;
+		}
+	}
+	QDomDocument document;
+	QDomElement holder = document.createElement(QStringLiteral("project"));
+	const QDomElement block = codification.toXml(document);
+	if (!block.isNull()) {
+		holder.appendChild(block);
+		blocks << projectDataBase::foreignChildren(holder, false);
+	}
+	m_data_base.storeForeignBlocks(owner, blocks);
+
+	setModified(true);
+	emit pidCodificationChanged();
 }
 
 /**

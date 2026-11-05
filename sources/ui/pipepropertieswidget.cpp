@@ -20,7 +20,9 @@
 #include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../conductorproperties.h"
 #include "../diagram.h"
+#include "../pidcodification.h"
 #include "../qetgraphicsitem/conductor.h"
+#include "../qetproject.h"
 
 #include <QComboBox>
 #include <QDialog>
@@ -65,6 +67,26 @@ void PipePropertiesWidget::setPipes(const QList<Conductor *> &pipes)
 			connect(pipe, &Conductor::propertiesChange, this, &PipePropertiesWidget::updateUi);
 		}
 	}
+
+		//The codification of their project, followed when it changes
+	QETProject *project = nullptr;
+	if (!m_pipes.isEmpty() && m_pipes.first()->diagram()) {
+		project = m_pipes.first()->diagram()->project();
+	}
+	if (project != m_project)
+	{
+		if (m_project) {
+			disconnect(m_project, &QETProject::pidCodificationChanged, this, nullptr);
+		}
+		m_project = project;
+		if (m_project) {
+			connect(m_project, &QETProject::pidCodificationChanged, this, [this]() {
+				fillLists();
+				updateUi();
+			});
+		}
+	}
+	fillLists();
 	updateUi();
 }
 
@@ -96,8 +118,7 @@ void PipePropertiesWidget::buildUi()
 				 [](PipeProperties &p, const QString &t) { p.line_number = t; });
 
 	m_fluid = addListField(QStringLiteral("fluid"), tr("Fluid:"),
-						   [](PipeProperties &p, const QString &text) { p.fluid = text; });
-	m_fluid->addItems(PipeProperties::defaultFluids());
+						   [](PipeProperties &p, const QString &code) { p.fluid = code; });
 
 	QLineEdit *diameter = addTextField(QStringLiteral("nominal_diameter"), tr("Nominal diameter (DN):"),
 				 [](const PipeProperties &p) {
@@ -107,7 +128,7 @@ void PipePropertiesWidget::buildUi()
 	diameter->setValidator(new QIntValidator(0, 100000, diameter));
 
 	m_material = addListField(QStringLiteral("material"), tr("Material:"),
-							  [](PipeProperties &p, const QString &text) { p.material = text; });
+							  [](PipeProperties &p, const QString &code) { p.material = code; });
 	addTextField(QStringLiteral("flow"), tr("Flow:"),
 				 [](const PipeProperties &p) { return p.flow; },
 				 [](PipeProperties &p, const QString &t) { p.flow = t; });
@@ -138,8 +159,10 @@ void PipePropertiesWidget::buildUi()
 
 /**
 	@brief PipePropertiesWidget::addListField
-	Add a list in which free text may be typed too; once an entry is picked
-	or a text typed, does @p set to the properties of every pipe edited
+	Add a list of the codes of the codification of the project ("W01 - Raw
+	water"), in which free text may be typed too; once a code is picked or a
+	text typed, does @p set to the properties of every pipe edited with the
+	code, or the text when it is none
 	@return the list
 */
 QComboBox *PipePropertiesWidget::addListField(
@@ -152,8 +175,8 @@ QComboBox *PipePropertiesWidget::addListField(
 	list->setInsertPolicy(QComboBox::NoInsert);
 	static_cast<QFormLayout *>(layout())->addRow(label, list);
 	auto apply = [this, list, set]() {
-		const QString text = list->currentText().trimmed();
-		applyChange([set, text](PipeProperties &p) { set(p, text); });
+		const QString code = codeOf(list, list->currentText());
+		applyChange([set, code](PipeProperties &p) { set(p, code); });
 	};
 	connect(list, &QComboBox::activated, this, apply);
 	connect(list->lineEdit(), &QLineEdit::editingFinished, this, [list, apply]() {
@@ -163,6 +186,53 @@ QComboBox *PipePropertiesWidget::addListField(
 		}
 	});
 	return list;
+}
+
+/**
+	@brief PipePropertiesWidget::codeOf
+	@param list : a list made by addListField()
+	@param text : a text shown or typed in it
+	@return the code of the entry shown as @p text, or of the entry whose code
+	is @p text; else @p text itself, trimmed, which is free text
+*/
+QString PipePropertiesWidget::codeOf(const QComboBox *list, const QString &text)
+{
+	const QString trimmed = text.trimmed();
+	for (int i = 0 ; i < list->count() ; ++i)
+	{
+		if (list->itemText(i) == trimmed || list->itemData(i).toString() == trimmed) {
+			return list->itemData(i).toString();
+		}
+	}
+	return trimmed;
+}
+
+/**
+	@brief PipePropertiesWidget::fillLists
+	Offer in the lists of fluids and materials the codification of the
+	project; without one, the default fluids as free text, and no material
+*/
+void PipePropertiesWidget::fillLists()
+{
+	const PidCodification codification = m_project ? m_project->pidCodification()
+												   : PidCodification();
+	auto fill = [](QComboBox *list, const QList<PidCodification::Entry> &entries,
+				   const QStringList &fallback) {
+		const QSignalBlocker blocker(list);
+		list->clear();
+		for (const PidCodification::Entry &entry : entries) {
+			list->addItem(entry.name.isEmpty() ? entry.code
+											   : entry.code + QStringLiteral(" – ") + entry.name,
+						  entry.code);
+		}
+		if (entries.isEmpty()) {
+			for (const QString &text : fallback) {
+				list->addItem(text, text);
+			}
+		}
+	};
+	fill(m_fluid, codification.fluids, PipeProperties::defaultFluids());
+	fill(m_material, codification.materials, QStringList());
 }
 
 /**
@@ -269,8 +339,13 @@ void PipePropertiesWidget::updateUi()
 	for (const auto &field : std::as_const(m_text_fields)) {
 		showText(field.first, field.second);
 	}
-	showText(m_fluid->lineEdit(), [](const PipeProperties &p) { return p.fluid; });
-	showText(m_material->lineEdit(), [](const PipeProperties &p) { return p.material; });
+		//A code shown with its name, as the list offers it
+	auto shown = [](const QComboBox *list, const QString &code) {
+		const int index = list->findData(code);
+		return index >= 0 ? list->itemText(index) : code;
+	};
+	showText(m_fluid->lineEdit(), [this, shown](const PipeProperties &p) { return shown(m_fluid, p.fluid); });
+	showText(m_material->lineEdit(), [this, shown](const PipeProperties &p) { return shown(m_material, p.material); });
 
 	const QSignalBlocker blocker(m_kind);
 	const PipeProperties::LineKind kind = list.first()->properties().m_pipe.line_kind;

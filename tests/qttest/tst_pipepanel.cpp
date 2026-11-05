@@ -4,18 +4,22 @@
 #include "ElementsCollection/xmlelementcollection.h"
 #include "conductorproperties.h"
 #include "diagram.h"
+#include "pidcodification.h"
 #include "factory/elementfactory.h"
 #include "factory/propertieseditorfactory.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "qetresult.h"
 #include "ui/pipepropertieswidget.h"
 
 #include <QComboBox>
 #include <QDomDocument>
 #include <QLabel>
 #include <QLineEdit>
+#include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QUndoStack>
 
 // The page of a pipe in the properties panel. It is offered for pipes only,
@@ -279,6 +283,114 @@ class tst_pipepanel : public QObject
 			type(page.findChild<QLineEdit *>(QStringLiteral("line_number")), QStringLiteral("47121"));
 			QCOMPARE(edited->properties().m_pipe.line_number, QStringLiteral("47121"));
 			QVERIFY(next->properties().m_pipe.line_number.isEmpty());
+		}
+
+			// ---- the codification of the project ----
+		void aCodificationIsReadFromACsvFile()
+		{
+			int skipped = -1;
+			const PidCodification c = PidCodification::fromCsv(QStringLiteral(
+				"\xFEFF" "kind;code;name;family\r\n"
+				"fluid;W01;Raw water;E\r\n"
+				"fluide;SL1;\"Thickened \"\"sludge\"\"\";B\n"
+				"material\tM04\tHigh density polyethylene\n"
+				"matériau,M03,Stainless steel\n"
+				"\n"
+				"fluid;W01;Twice;E\n"
+				"pump;P;Pump\n"
+				"fluid;;No code\n"), &skipped);
+			QCOMPARE(c.fluids.size(), 2);
+			QCOMPARE(c.materials.size(), 2);
+			QCOMPARE(c.fluids.at(0).code, QStringLiteral("W01"));
+			QCOMPARE(c.fluids.at(0).family, QStringLiteral("E"));
+			QCOMPARE(c.fluids.at(1).name, QStringLiteral("Thickened \"sludge\""));
+			QCOMPARE(c.material(QStringLiteral("M03"))->name, QStringLiteral("Stainless steel"));
+			QVERIFY(!c.fluid(QStringLiteral("M01")));
+				// the header is no line left out; a code twice, a line of
+				// another kind, a line without a code are
+			QCOMPARE(skipped, 3);
+			QVERIFY(PidCodification::fromCsv(QStringLiteral("nothing to read")).isEmpty());
+		}
+
+		void theCodificationIsSavedWithTheProject_data()
+		{
+			QTest::addColumn<QString>("suffix");
+			QTest::newRow(".qet") << QStringLiteral(".qet");
+			QTest::newRow(".qetz") << QStringLiteral(".qetz");
+			QTest::newRow(".qetdb") << QStringLiteral(".qetdb");
+		}
+
+		void theCodificationIsSavedWithTheProject()
+		{
+			QFETCH(QString, suffix);
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString path = dir.filePath(QStringLiteral("codes") + suffix);
+			const PidCodification c = PidCodification::fromCsv(QStringLiteral(
+				"fluid;W02;Clarified water;E\nmaterial;M02;Galvanised steel\n"));
+			{
+				QETProject project;
+				project.addNewDiagram();
+					// none: no block
+				QVERIFY(project.toXml().documentElement()
+						.firstChildElement(QStringLiteral("pid_codification")).isNull());
+				QSignalSpy changed(&project, &QETProject::pidCodificationChanged);
+				project.setPidCodification(c);
+				QCOMPARE(changed.count(), 1);
+				project.setFilePath(path);
+				QVERIFY(project.write().isOk());
+			}
+			QETProject back(path);
+			QVERIFY(back.pidCodification() == c);
+
+				// a second one, imported after opening, replaces it, once
+			const PidCodification other = PidCodification::fromCsv(QStringLiteral("fluid;W03;Other\n"));
+			back.setPidCodification(other);
+			QVERIFY(back.write().isOk());
+			QETProject again(path);
+			QVERIFY(again.pidCodification() == other);
+			const QDomDocument xml = again.toXml();
+			const QDomElement block = xml.documentElement()
+					.firstChildElement(QStringLiteral("pid_codification"));
+			QVERIFY(!block.isNull());
+			QVERIFY(block.nextSiblingElement(QStringLiteral("pid_codification")).isNull());
+		}
+
+		void thePageOffersTheCodesOfTheProject()
+		{
+			const PidCodification saved = m_project.pidCodification();
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Raw water;E\nfluid;SL1;Sludge;B\nmaterial;M01;Steel\n")));
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(pipe);
+			PipePropertiesWidget page({pipe});
+			auto *fluid = page.findChild<QComboBox *>(QStringLiteral("fluid"));
+			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
+			QVERIFY(fluid && material);
+			QCOMPARE(fluid->count(), 2);
+			QCOMPARE(material->count(), 1);
+
+				// the pipe keeps the code, the page shows it with its name
+			fluid->setCurrentIndex(1);
+			emit fluid->activated(1);
+			QCOMPARE(pipe->properties().m_pipe.fluid, QStringLiteral("SL1"));
+			QVERIFY(fluid->currentText().startsWith(QStringLiteral("SL1")));
+			QVERIFY(fluid->currentText().contains(QStringLiteral("Sludge")));
+
+				// a code typed is that code, free text stays free text
+			type(material->lineEdit(), QStringLiteral("M01"));
+			QCOMPARE(pipe->properties().m_pipe.material, QStringLiteral("M01"));
+			type(fluid->lineEdit(), QStringLiteral("Something else"));
+			QCOMPARE(pipe->properties().m_pipe.fluid, QStringLiteral("Something else"));
+
+				// a new codification reaches the open page, the pipe keeps its code
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Water;E\n")));
+			QCOMPARE(fluid->count(), 1);
+			QCOMPARE(pipe->properties().m_pipe.fluid, QStringLiteral("Something else"));
+
+			m_project.setPidCodification(saved);
+			QVERIFY(fluid->count() > 1);
 		}
 
 		void aPipeRemovedFromTheFolioLeavesThePageUsable()

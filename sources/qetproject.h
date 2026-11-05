@@ -24,6 +24,7 @@
 #include "project/projectpropertieshandler.h"
 #include "borderproperties.h"
 #include "conductorproperties.h"
+#include "pidcodification.h"
 #include "dataBase/projectdatabase.h"
 #include "dataBase/qetdbfile.h"
 #include "properties/projectlanguages.h"
@@ -149,6 +150,10 @@ class QETProject : public QObject
 			/// Whether a folio has symbols given a value of their options,
 			/// which a .qetdb does not keep yet (write())
 		bool hasOptionChoices() const;
+			/// The codes of the fluids and materials of the pipes of this
+			/// project (PidCodification), saved with it; empty by default
+		PidCodification pidCodification() const {return m_pid_codification;}
+		void setPidCodification(const PidCodification &codification);
 		bool deferringFolios() const {return m_deferring_folios;}
 		int unloadedFolioCount() const;
 		QList<Diagram *> builtFolios() const;
@@ -446,6 +451,8 @@ class QETProject : public QObject
 		void XRefPropertiesChanged ();
 		void addAutoNumDiagram();
 		void elementAutoNumAdded(QString name);
+			/// The codification of the pipes changed
+		void pidCodificationChanged();
 		void elementAutoNumRemoved(QString name);
 		void conductorAutoNumAdded();
 		void conductorAutoNumRemoved();
@@ -517,6 +524,7 @@ class QETProject : public QObject
 		void readChainedReportsXml(QDomDocument &xml_project);
 		void readTerminalLabelSplitXml(QDomDocument &xml_project);
 		void readWiringRulesXml(QDomDocument &xml_project);
+		void readPidCodificationXml(QDomDocument &xml_project);
 
 		void writeProjectPropertiesXml(QDomElement &);
 		void writeDefaultPropertiesXml(QDomElement &);
@@ -650,6 +658,8 @@ class QETProject : public QObject
 		QByteArray m_opened_content;
 		bool m_auto_conductor = true;
 		WireHops::Mode m_wire_hops = WireHops::Mode::None;
+			/// See pidCodification()
+		PidCodification m_pid_codification;
 		ProjectOrigin::Mode m_origin = ProjectOrigin::Mode::TopLeft;
 			/// Texts drawn in a turned symbol stay horizontal (on for a new
 			/// project, off for one saved without it), see uprightSymbolTexts()

@@ -14160,6 +14160,58 @@ Options disponibles :
 <context>
     <name>QETDiagramEditor</name>
     <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1148"/>
+        <source>Import a P&amp;&amp;ID codification...</source>
+        <translation>Importer une codification P&amp;&amp;ID...</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1148"/>
+        <source>Read the codes of the fluids and materials of the pipe lines from a CSV file</source>
+        <translation>Lire les codes des fluides et des matériaux des tuyauteries dans un fichier CSV</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1148"/>
+        <source>Import a P&amp;ID codification</source>
+        <translation>Importer une codification P&amp;ID</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1148"/>
+        <source>CSV files (*.csv *.txt);;All files (*)</source>
+        <translation>Fichiers CSV (*.csv *.txt);;Tous les fichiers (*)</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1148"/>
+        <source>The file %1 could not be read.</source>
+        <translation>Le fichier %1 n&apos;a pas pu être lu.</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1148"/>
+        <source>No fluid and no material could be read from %1.
+
+Each line is expected as: kind;code;name;family, kind being &quot;fluid&quot; or &quot;material&quot;.</source>
+        <translation>Aucun fluide ni aucun matériau n&apos;a pu être lu dans %1.
+
+Chaque ligne doit avoir la forme : nature;code;nom;famille, la nature étant « fluide » (fluid) ou « matériau » (material).</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1148"/>
+        <source>Replace the codification of the project with %1 fluids and %2 materials?</source>
+        <translation>Remplacer la codification du projet par %1 fluides et %2 matériaux ?</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1148"/>
+        <source>%1 fluids and %2 materials imported.</source>
+        <translation>%1 fluides et %2 matériaux importés.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/qetdiagrameditor.cpp" line="1194"/>
+        <source>%n line(s) could not be read.</source>
+        <translation>
+            <numerusform>%n ligne n&apos;a pas pu être lue.</numerusform>
+            <numerusform>%n lignes n&apos;ont pas pu être lues.</numerusform>
+        </translation>
+    </message>
+    <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="661"/>
         <source>Place symbol texts</source>
         <translation>Placer les textes du symbole</translation>
