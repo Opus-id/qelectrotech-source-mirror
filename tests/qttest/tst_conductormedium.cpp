@@ -671,15 +671,15 @@ class tst_conductormedium : public QObject
 			QVERIFY(!pipe.usesDashPattern());
 
 			pipe.m_pipe.line_kind = PipeProperties::Main;
-			QCOMPARE(pipe.lineWidth(), 2.0);
+			QCOMPARE(pipe.lineWidth(), 4.0);
 			QCOMPARE(pipe.lineStyle(), Qt::SolidLine);
 
 			pipe.m_pipe.line_kind = PipeProperties::Secondary;
-			QCOMPARE(pipe.lineWidth(), 1.0);
+			QCOMPARE(pipe.lineWidth(), 2.0);
 			QCOMPARE(pipe.lineStyle(), Qt::SolidLine);
 
 			pipe.m_pipe.line_kind = PipeProperties::Auxiliary;
-			QCOMPARE(pipe.lineWidth(), 1.0);
+			QCOMPARE(pipe.lineWidth(), 2.0);
 			QCOMPARE(pipe.lineStyle(), Qt::DashLine);
 		}
 

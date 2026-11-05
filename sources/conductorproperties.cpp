@@ -1073,11 +1073,12 @@ ConductorProperties ConductorProperties::defaultsFor(TerminalData::Medium medium
 }
 
 namespace {
-		//The line widths of ISO 10628-1 (5.3.1), at two drawing units per
-		//millimetre (a folio grid step of 10 is 5 mm): 1 mm for the main
-		//flow lines, 0.5 mm for the subsidiary and auxiliary ones
-	constexpr qreal main_line_width = 2.0;
-	constexpr qreal medium_line_width = 1.0;
+		//The line widths of ISO 10628-1 (5.3.1), at four drawing units per
+		//millimetre, close to the 3.78 of the PDF export, so that the paper
+		//sizes of a folio fit: 1 mm for the main flow lines, 0.5 mm for the
+		//subsidiary and auxiliary ones
+	constexpr qreal main_line_width = 4.0;
+	constexpr qreal medium_line_width = 2.0;
 }
 
 /**
