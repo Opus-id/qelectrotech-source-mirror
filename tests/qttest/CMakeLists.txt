@@ -539,6 +539,7 @@ qet_add_app_test(tst_terminalcableauto tst_terminalcableauto.cpp)
 # drawing changes; the stored label, the numbering and the exports keep
 # the whole label.
 qet_add_app_test(tst_terminallabeldisplay tst_terminallabeldisplay.cpp)
+qet_add_app_test(tst_terminalconductortext tst_terminalconductortext.cpp)
 
 # The bridge drawn over terminals: what a bridge holds (colour, how many
 # terminals it may take, its sections), which terminals a line about to be
@@ -550,9 +551,17 @@ qet_add_app_test(tst_bridgetool tst_bridgetool.cpp)
 # it selected and records no undo step (#1414); the key goes to the view.
 qet_add_app_test(tst_imagehandleescape tst_imagehandleescape.cpp)
 
+# The zoom step (a setting, off by default): zooming goes by a fixed number
+# of percent, also from between two steps and from a smooth mouse wheel.
+qet_add_app_test(tst_zoomstep tst_zoomstep.cpp)
+
+# A conductor between two terminals on the same point (symbols placed
+# against each other) connects them but is not drawn nor clicked.
+qet_add_app_test(tst_touchingconductor tst_touchingconductor.cpp)
 # A symbol that draws beyond its frame is drawn whole, at every zoom: its
 # bounding rect covers the drawing, not only the frame.
 qet_add_app_test(tst_symboloutsideframe tst_symboloutsideframe.cpp)
+qet_add_app_test(tst_updateelements tst_updateelements.cpp)
 qet_add_app_test(tst_selectionrectangle tst_selectionrectangle.cpp)
 qet_add_app_test(tst_terminalcolor tst_terminalcolor.cpp)
 
@@ -1888,6 +1897,22 @@ add_test(NAME tst_conductordashpattern COMMAND tst_conductordashpattern)
 target_include_directories(tst_conductordashpattern PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_conductordashpattern PRIVATE Qt::Test Qt::Widgets Qt::Xml pugixml::pugixml)
 
+# The conductor type of a wire: written only when it is set, read back
+# the way it was written, and offered in the dynamic text fields
+add_executable(
+  tst_conductortypefield
+  tst_conductortypefield.cpp
+  ${QET_DIR}/sources/conductorproperties.cpp
+  ${QET_DIR}/sources/conductordashpattern.cpp
+  ${QET_DIR}/sources/pipeproperties.cpp
+  ${QET_DIR}/sources/qetinformation.cpp
+  ${QET_DIR}/sources/qet.cpp
+  ${QET_DIR}/sources/qeticons.cpp
+  ${QET_DIR}/sources/shortcutmanager.cpp)
+add_test(NAME tst_conductortypefield COMMAND tst_conductortypefield)
+target_include_directories(tst_conductortypefield PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_conductortypefield PRIVATE Qt::Test Qt::Widgets Qt::Xml pugixml::pugixml)
+
 # ConductorProperties::fromSettings() -- the default conductor width is a
 # decimal and comes back as saved (1.4 used to be read as 0).
 add_executable(
@@ -2206,6 +2231,9 @@ qet_add_app_test(tst_propertiesdockscroll tst_propertiesdockscroll.cpp)
 # Dragging a symbol's text moves the symbol, Shift+drag the text, or the
 # other way round with "Drag symbol texts without holding Shift" (#1576).
 qet_add_app_test(tst_dragtextswithoutshift tst_dragtextswithoutshift.cpp)
+# Potential types (#1539): a project that asks for it draws a conductor in the
+# colour, line style and width of its potential type.
+qet_add_app_test(tst_potentialtypes tst_potentialtypes.cpp)
 
 # Settings for every test. get_property(... TESTS) only sees the tests added
 # so far, so they wait for the end of this file: a test takes them wherever

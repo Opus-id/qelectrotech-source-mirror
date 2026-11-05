@@ -320,6 +320,8 @@ class tst_conductormedium : public QObject
 			p.m_cable_slot = 2;
 			p.m_wire_color = QStringLiteral("BN");
 			p.m_wire_section = QStringLiteral("1.5");
+			p.m_conductor_type = QStringLiteral("H07V-K");
+			p.m_potential_type = QStringLiteral("L1");
 			p.m_tension_protocol = QStringLiteral("400V");
 			p.m_bus = QStringLiteral("L1");
 			p.m_function = QStringLiteral("power");
@@ -340,6 +342,8 @@ class tst_conductormedium : public QObject
 			QCOMPARE(p.m_cable_slot, -1);
 			QVERIFY(p.m_wire_color.isEmpty());
 			QVERIFY(p.m_wire_section.isEmpty());
+			QVERIFY(p.m_conductor_type.isEmpty());
+			QVERIFY(p.m_potential_type.isEmpty());
 			QVERIFY(p.m_tension_protocol.isEmpty());
 			QVERIFY(p.m_bus.isEmpty());
 			QVERIFY(p.m_function.isEmpty());

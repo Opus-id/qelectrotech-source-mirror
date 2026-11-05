@@ -90,7 +90,8 @@ class Element : public QetGraphicsItem
 			Element::kind link_type = Element::Simple);
 		~Element() override;
 	private:
-		bool definitionGeometryMatches(const QDomElement &definition) const;
+		bool definitionGeometryMatches(const QDomElement &definition,
+									   bool check_frame = true) const;
 		Element(const Element &);
 
 		// attributes
@@ -125,6 +126,7 @@ class Element : public QetGraphicsItem
 
 	public slots:
 		void updateConductorTexts();
+		void watchConductorText(Conductor *conductor);
 
 	public:
 		QList<Terminal *> terminals() const;
@@ -190,6 +192,8 @@ class Element : public QetGraphicsItem
 			*/
 		QString labelForDisplay();
 		QString terminalNumberForDisplay();
+		QString conductorTextForDisplay();
+		void addDisplayValues(DiagramContext &dc);
 		QString infoForDisplay(const QString &info_name);
 		bool hasTerminalNumberText() const;
 		bool labelShown() const;
@@ -211,7 +215,7 @@ class Element : public QetGraphicsItem
 			Unavailable,       ///< definition missing or unreadable, old drawing kept
 			GeometryChanged    ///< size, hotspot or terminals changed, old drawing kept
 		};
-		ReloadPictureResult reloadPicture();
+		ReloadPictureResult reloadPicture(bool adopt_frame = false);
 		bool canChangeLocationTo(const ElementsLocation &location) const;
 		bool changeLocation(const ElementsLocation &location);
 			/// The options of the symbol (ElementOptions) given a value on

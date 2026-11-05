@@ -22,6 +22,7 @@
 #include "../qtextorientationspinboxwidget.h"
 #include "ui_conductorpropertieswidget.h"
 
+#include <QIcon>
 #include <QPainter>
 #include <QPixmap>
 
@@ -93,11 +94,13 @@ void ConductorPropertiesWidget::setProperties(
 	ui->m_formula_le            -> setText    (m_properties.m_formula);
 	ui->m_text_le               -> setText    (m_properties.text);
 	ui->m_function_le           -> setText    (m_properties.m_function);
+	selectPotentialType(m_properties.m_potential_type);
 	ui->m_cable_le              -> setText    (m_properties.m_cable);
 	ui->m_bus_le                -> setText    (m_properties.m_bus);
 	ui->m_tension_protocol_le   -> setText    (m_properties.m_tension_protocol);
 	ui->m_wire_color_le         -> setText    (m_properties.m_wire_color);
 	ui->m_wire_section_le       -> setText    (m_properties.m_wire_section);
+	ui->m_conductor_type_le     -> setText    (m_properties.m_conductor_type);
 	ui->m_text_size_sb          -> setValue   (m_properties.text_size);
 	ui->m_cond_size_sb          -> setValue   (m_properties.cond_size);
 	ui->m_show_text_cb          -> setChecked (m_properties.m_show_text);
@@ -155,11 +158,17 @@ ConductorProperties ConductorPropertiesWidget::properties() const
 	properties_.text                    = ui -> m_text_le -> text();
 	properties_.text_color              = ui -> m_text_color_kpb->color();
 	properties_.m_function              = ui -> m_function_le->text();
+		//Hidden when the project does not draw from potential types: the
+		//conductor keeps the type it has
+	properties_.m_potential_type        = ui->m_potential_type_cb->isHidden()
+			? m_properties.m_potential_type
+			: ui->m_potential_type_cb->currentData().toString();
 	properties_.m_cable                 = ui -> m_cable_le->text();
 	properties_.m_bus                   = ui -> m_bus_le->text();
 	properties_.m_tension_protocol      = ui -> m_tension_protocol_le->text();
 	properties_.m_wire_color            = ui -> m_wire_color_le->text();
 	properties_.m_wire_section          = ui -> m_wire_section_le->text();
+	properties_.m_conductor_type        = ui -> m_conductor_type_le->text();
 	properties_.text_size               = ui -> m_text_size_sb -> value();
 	properties_.cond_size               = ui -> m_cond_size_sb -> value();
 	properties_.m_show_text             = ui -> m_show_text_cb -> isChecked();
@@ -216,6 +225,46 @@ void ConductorPropertiesWidget::addAutonumWidget(QWidget *widget) {
 }
 
 /**
+	@brief ConductorPropertiesWidget::setPotentialTypes
+	Offer the potential types of a project that draws from them. Without
+	this call the choice stays hidden, which is what a project that has not
+	turned the feature on, and the application defaults page, show.
+	@param types
+*/
+void ConductorPropertiesWidget::setPotentialTypes(const PotentialTypes &types)
+{
+	const bool shown = types.isEnabled();
+	ui->m_potential_type_cb->clear();
+	ui->m_potential_type_cb->addItem(tr("None"), QString());
+	for (const PotentialType &type : types.types()) {
+		QPixmap swatch(24, 12);
+		swatch.fill(type.color);
+		ui->m_potential_type_cb->addItem(QIcon(swatch), type.name, type.name);
+	}
+	selectPotentialType(m_properties.m_potential_type);
+	ui->m_potential_type_cb->setVisible(shown);
+	ui->m_potential_type_label->setVisible(shown);
+}
+
+/**
+	@brief ConductorPropertiesWidget::selectPotentialType
+	Show \p name in the potential type choice. A name the project no
+	longer lists is added to it, so opening and closing the dialog does not
+	lose it.
+	@param name
+*/
+void ConductorPropertiesWidget::selectPotentialType(const QString &name)
+{
+	QComboBox *cb = ui->m_potential_type_cb;
+	int index = cb->findData(name);
+	if (index == -1) {
+		cb->addItem(name, name);
+		index = cb->count() - 1;
+	}
+	cb->setCurrentIndex(index);
+}
+
+/**
 	@brief ConductorPropertiesWidget::setHiddenOneTextPerFolio
 	@param hide
 */
@@ -240,6 +289,7 @@ void ConductorPropertiesWidget::setMixedTextFields(
 		{TensionProtocol, ui->m_tension_protocol_le},
 		{WireColor,       ui->m_wire_color_le},
 		{WireSection,     ui->m_wire_section_le},
+		{WireType,        ui->m_conductor_type_le},
 		{Cable,           ui->m_cable_le},
 		{Bus,             ui->m_bus_le}};
 
@@ -306,6 +356,9 @@ QPushButton *ConductorPropertiesWidget::editAutonumPushButton() const
 */
 void ConductorPropertiesWidget::initWidget()
 {
+		//Shown by setPotentialTypes(), for a project that draws from them
+	ui->m_potential_type_cb->hide();
+	ui->m_potential_type_label->hide();
 	m_verti_select = QETApp::createTextOrientationSpinBoxWidget();
 	ui -> m_text_angle_gl -> addWidget(m_verti_select, 2, 0, Qt::AlignHCenter);
 	m_horiz_select = QETApp::createTextOrientationSpinBoxWidget();

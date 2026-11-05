@@ -294,7 +294,7 @@ void Terminal::paint(
 	// draw the terminal in red, or in the color of its medium
 	if (!diagram() || diagram()->drawTerminals()) {
 		t.setColor(takesConductorColor() && !m_conductors_list.isEmpty()
-				   ? m_conductors_list.first()->properties().color
+				   ? m_conductors_list.first()->drawnColor()
 				   : stemColor(d->m_medium));
 		painter -> setPen(t);
 		painter -> drawLine(c, e);

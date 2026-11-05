@@ -27,6 +27,7 @@
 #include "dataBase/projectdatabase.h"
 #include "dataBase/qetdbfile.h"
 #include "properties/projectlanguages.h"
+#include "properties/potentialtypes.h"
 #include "properties/reportproperties.h"
 #include "properties/xrefproperties.h"
 #include "titleblock/templatescollection.h"
@@ -342,6 +343,8 @@ class QETProject : public QObject
 		void setUprightSymbolTexts(bool upright);
 		const ProjectLanguages &languages() const {return m_languages;}
 		void setLanguages(const ProjectLanguages &languages);
+		const PotentialTypes &potentialTypes() const {return m_potential_types;}
+		void setPotentialTypes(const PotentialTypes &potential_types);
 		QStringList translatableTexts();
 		bool chainedReports() const;
 		void setChainedReports(bool enable);
@@ -386,6 +389,13 @@ class QETProject : public QObject
 		void setOpenedReadOnlyByLock(bool by_lock);
 		bool isEmpty() const;
 		ElementsLocation importElement(ElementsLocation &location);
+			/// An embedded element and the element of a collection it was taken from
+		struct OutdatedElement {
+			ElementsLocation embedded;
+			ElementsLocation source;
+		};
+		QList<OutdatedElement> outdatedElements() const;
+		void updateElement(const OutdatedElement &element);
 		QString integrateTitleBlockTemplate(const TitleBlockTemplateLocation &, MoveTitleBlockTemplatesHandler *handler);
 		bool usesElement(const ElementsLocation &) const;
 		QList <ElementsLocation> unusedElements() const;
@@ -503,6 +513,7 @@ class QETProject : public QObject
 		void readOriginXml(QDomDocument& xml_project);
 		void readSymbolTextsXml(QDomDocument &xml_project);
 		void readLanguagesXml(QDomDocument &xml_project);
+		void readPotentialTypesXml(QDomDocument &xml_project);
 		void readChainedReportsXml(QDomDocument &xml_project);
 		void readTerminalLabelSplitXml(QDomDocument &xml_project);
 		void readWiringRulesXml(QDomDocument &xml_project);
@@ -520,6 +531,7 @@ class QETProject : public QObject
 		void writeOriginXml(QDomElement&);
 		void writeSymbolTextsXml(QDomElement &);
 		void writeLanguagesXml(QDomElement &);
+		void writePotentialTypesXml(QDomElement &);
 		void writeChainedReportsXml(QDomElement &);
 		void writeTerminalLabelSplitXml(QDomElement &);
 		void writeWiringRulesXml(QDomElement &);
@@ -644,6 +656,8 @@ class QETProject : public QObject
 		bool m_upright_symbol_texts = false;
 			/// The texts in other languages, see ProjectLanguages
 		ProjectLanguages m_languages;
+			/// The potential types and whether conductors are drawn from them
+		PotentialTypes m_potential_types;
 		bool m_chained_reports = false;
 		bool m_has_chained_reports_attribute = false;
 		bool m_pending_auto_link = false;

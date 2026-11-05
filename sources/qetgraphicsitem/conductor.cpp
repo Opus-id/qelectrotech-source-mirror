@@ -603,6 +603,10 @@ QPointF Conductor::extendTerminal(const QPointF &terminal, Qet::Orientation term
 */
 void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options, QWidget *qw)
 {
+		//Nothing to draw between two terminals on the same point: the
+		//path would be the two terminals' stubs, drawn over their symbols
+	if (endsTouch())
+		return;
 	painter -> save();
 	painter -> setRenderHint(QPainter::Antialiasing, false);
 
@@ -610,7 +614,9 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		//In the dark mode a red pick and a blue highlight would look like
 		//the red and light blue conductors around them
 	const QET::Palette::SheetInk sheet_ink = PaletteGraphicsView::paintingInk(qw);
-	QColor final_conductor_color(m_properties.color);
+	PotentialType potential_type;
+	const bool typed = potentialTypeFormat(&potential_type);
+	QColor final_conductor_color(typed ? potential_type.color : m_properties.color);
 	if (m_preview) {
 		final_conductor_color = QColor(160, 160, 160);
 	} else if (must_highlight_ == Normal) {
@@ -629,7 +635,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 
 		//Draw the conductor bigger when is hovered
 		//(lineWidth(): a wire's own width, or for a pipe its kind of line)
-	const qreal line_width = m_properties.lineWidth();
+	const qreal line_width = typed ? potential_type.width : m_properties.lineWidth();
 	conductor_pen.setWidthF(m_mouse_over? line_width + 4 : line_width);
 
 		//Set the QPen and QBrush to the QPainter
@@ -642,8 +648,10 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	final_conductor_pen.setColor(final_conductor_color);
 		//(lineStyle(): a wire's own style, or for a pipe its kind of line,
 		//which also never takes a pattern of its own)
-	const Qt::PenStyle line_style = m_properties.lineStyle();
-	const bool custom_pattern = m_properties.usesDashPattern()
+	const Qt::PenStyle line_style = typed ? potential_type.style : m_properties.lineStyle();
+		//The type says how the line looks, so the conductor's own pattern
+		//stays stored but is not applied
+	const bool custom_pattern = !typed && m_properties.usesDashPattern()
 			&& m_properties.m_dash_pattern.apply(final_conductor_pen, line_style);
 	if (!custom_pattern)
 	{
@@ -669,7 +677,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	const QPainterPath painted_path = paintedPath();
 	painter -> drawPath(painted_path);
 		//Draw the second color
-	if(m_properties.m_bicolor)
+	if(m_properties.m_bicolor && !typed)
 	{
 		final_conductor_pen.setColor(m_properties.m_color_2);
 		final_conductor_pen.setStyle(Qt::CustomDashLine);
@@ -1063,6 +1071,10 @@ QRectF Conductor::boundingRect() const
 */
 QPainterPath Conductor::shape() const
 {
+		//Not drawn (see paint()), so not to be clicked either: a click
+		//there goes to the symbols
+	if (endsTouch())
+		return QPainterPath();
 	QPainterPathStroker pps;
 	pps.setWidth(m_mouse_over? 5 : 1);
 	pps.setJoinStyle(conductor_pen.joinStyle());
@@ -1070,6 +1082,18 @@ QPainterPath Conductor::shape() const
 	QPainterPath shape_(pps.createStroke(path()));
 
 	return shape_;
+}
+
+/**
+	@brief Conductor::endsTouch
+	@return true when the two terminals this conductor joins are on the
+	same point, as when two symbols are placed against each other: the
+	conductor connects them but is not drawn.
+*/
+bool Conductor::endsTouch() const
+{
+	return terminal1 && terminal2
+			&& terminal1->dockConductor() == terminal2->dockConductor();
 }
 
 /**
@@ -1942,6 +1966,7 @@ void Conductor::setPropertyToPotential(const ConductorProperties &property,
 			other_properties.m_formula = m_properties.m_formula;
 			other_properties.text = m_properties.text;
 			other_properties.m_function = m_properties.m_function;
+			other_properties.m_potential_type = m_properties.m_potential_type;
 			other_properties.m_tension_protocol = m_properties.m_tension_protocol;
 			other_properties.m_wire_color = m_properties.m_wire_color;
 			other_properties.m_wire_section = m_properties.m_wire_section;
@@ -2469,6 +2494,36 @@ bool isContained(const QPointF &a, const QPointF &b, const QPointF &c) {
 		isBetween(a.x(), b.x(), c.x()) &&
 		isBetween(a.y(), b.y(), c.y())
 	);
+}
+
+/**
+	@brief Conductor::drawnColor
+	@return the colour the conductor is drawn in: its potential type's when
+	the project draws from them, else its own
+*/
+QColor Conductor::drawnColor() const
+{
+	PotentialType type;
+	return potentialTypeFormat(&type) ? type.color : m_properties.color;
+}
+
+/**
+	@brief Conductor::potentialTypeFormat
+	The format the project gives the potential of this conductor.
+	@param type : receives the type when there is one
+	@return true when the project draws its conductors from potential
+	types, and this conductor's type is one of them. False leaves the
+	conductor drawn from its own stored style.
+*/
+bool Conductor::potentialTypeFormat(PotentialType *type) const
+{
+	if (m_properties.m_potential_type.isEmpty())
+		return false;
+	const Diagram *parent_diagram = diagram();
+	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+	if (!project || !project->potentialTypes().isEnabled())
+		return false;
+	return project->potentialTypes().find(m_properties.m_potential_type, type);
 }
 
 /**
