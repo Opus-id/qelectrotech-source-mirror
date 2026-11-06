@@ -440,6 +440,11 @@ class tst_conductormedium : public QObject
 				// from a's east nozzle to b's west one: along y, down, along
 			Conductor *pipe = draw(a->terminals().at(1), b->terminals().at(0));
 			QCOMPARE(pipe->medium(), TerminalData::Pipe);
+			ConductorProperties data = pipe->properties();
+			data.m_pipe.fluid = QStringLiteral("W01");
+			data.m_pipe.nominal_diameter = 80;
+			data.m_pipe.line_number = QStringLiteral("L1");
+			pipe->setProperties(data);
 
 			Element *tee = place(m_tee, QPointF(50, y));
 			QVERIFY(tee);
@@ -465,6 +470,16 @@ class tst_conductormedium : public QObject
 			QCOMPARE(n3->conductors().size(), 0);
 			QCOMPARE(n1->conductors().first()->medium(), TerminalData::Pipe);
 			QCOMPARE(n2->conductors().first()->medium(), TerminalData::Pipe);
+
+				// the two halves are the same line: they keep its data
+			QVERIFY(n1->conductors().first()->properties().m_pipe == data.m_pipe);
+			QVERIFY(n2->conductors().first()->properties().m_pipe == data.m_pipe);
+
+				// and undoing brings the pipe back whole
+			m_folio->undoStack().undo();
+			QVERIFY(n1->conductors().isEmpty() && n2->conductors().isEmpty());
+			QCOMPARE(a->terminals().at(1)->conductors().size(), 1);
+			QVERIFY(a->terminals().at(1)->conductors().first()->properties().m_pipe == data.m_pipe);
 		}
 
 			// ---- the defaults and the number of a new conductor ----
