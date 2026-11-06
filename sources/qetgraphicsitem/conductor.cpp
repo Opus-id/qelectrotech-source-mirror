@@ -2052,6 +2052,7 @@ void Conductor::setProperties(const ConductorProperties &properties)
 		if (terminal1) terminal1->update();
 		if (terminal2) terminal2->update();
 	}
+	updateFittings();
 
 	storeProperties();
 	emit propertiesChange();
@@ -2569,6 +2570,26 @@ QColor Conductor::pipeColor() const
 	const QColor fluid = codification.fluidColor(m_properties.m_pipe.fluid);
 	return fluid.isValid() ? fluid
 						   : codification.object_colors.value(QStringLiteral("pipe"));
+}
+
+/**
+	@brief Conductor::updateFittings
+	See the declaration. Called by the folio and by setProperties(), not by
+	the terminals: those also lose their conductors while their element is
+	being destroyed.
+*/
+void Conductor::updateFittings() const
+{
+	if (m_properties.m_medium != TerminalData::Pipe) {
+		return;
+	}
+	for (Terminal *terminal : {terminal1, terminal2})
+	{
+		Element *element = terminal ? terminal->parentElement() : nullptr;
+		if (element && element->followsPipes()) {
+			element->updateInk();
+		}
+	}
 }
 
 /**

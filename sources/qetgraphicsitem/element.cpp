@@ -591,12 +591,49 @@ void Element::updateInk()
 }
 
 /**
+	@brief Element::followsPipes
+	See the declaration
+*/
+bool Element::followsPipes() const
+{
+	return m_data.m_pid_family == QLatin1String("pipe");
+}
+
+/**
+	@brief Element::leadingPipe
+	@return the pipe on the first nozzle of this element that has one, by
+	name: N1, else N2, else N3. Through a tee this is the run, the branch on
+	N3 only counts when it is alone. Nullptr without a pipe.
+*/
+const Conductor *Element::leadingPipe() const
+{
+	const Terminal *leading = nullptr;
+	const Conductor *pipe = nullptr;
+	for (const Terminal *terminal : m_terminals)
+	{
+		if (leading && terminal->baseName() >= leading->baseName()) {
+			continue;
+		}
+		for (const Conductor *conductor : terminal->conductors())
+		{
+			if (conductor->medium() == TerminalData::Pipe) {
+				leading = terminal;
+				pipe = conductor;
+				break;
+			}
+		}
+	}
+	return pipe;
+}
+
+/**
 	@brief Element::inkedChoices
 	@param options : the options of a symbol
 	@param family : its family of objects, see ElementData::m_pid_family
 	@return what to draw the symbol with: the options chosen, and the colour
-	the project sets for the status of works of this element, else for
-	@p family, unless the folio is drawn in black
+	the project sets for the status of works of this element, else that of
+	the pipe of a fitting, else that of @p family, unless the folio is drawn
+	in black
 */
 ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 											   const QString &family) const
@@ -615,6 +652,11 @@ ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 	}
 	const PidCodification codification = project->pidCodification();
 	QColor ink = codification.status_colors.value(m_option_choices.value(PidStatus::option()));
+	if (!ink.isValid() && family == QLatin1String("pipe")) {
+		if (const Conductor *pipe = leadingPipe()) {
+			ink = pipe->pipeColor();
+		}
+	}
 	if (!ink.isValid()) {
 		ink = codification.object_colors.value(family);
 	}

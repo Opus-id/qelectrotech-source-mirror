@@ -2998,6 +2998,7 @@ void Diagram::addItem(QGraphicsItem *item)
 			conductor->terminal1->addConductor(conductor);
 			conductor->terminal2->addConductor(conductor);
 			conductor->calculateTextItemPosition();
+			conductor->updateFittings();
 			m_project->dataBase()->addConductor(conductor);
 			break;
 		}
@@ -3041,6 +3042,7 @@ void Diagram::removeItem(QGraphicsItem *item)
 			Conductor *conductor = static_cast<Conductor *>(item);
 			conductor->terminal1->removeConductor(conductor);
 			conductor->terminal2->removeConductor(conductor);
+			conductor->updateFittings();
 			m_project->dataBase()->removeConductor(conductor);
 			break;
 		}
@@ -4003,12 +4005,11 @@ void Diagram::setDrawColoredConductors(bool dcc) {
 		return;
 	}
 	draw_colored_conductors_ = dcc;
-		//The P&ID symbols of the folio are drawn in black along with them
-	if (m_project && m_project->pidCodification().hasColors()) {
-		for (QGraphicsItem *item : items()) {
-			if (auto *element = qgraphicsitem_cast<Element *>(item)) {
-				element->updateInk();
-			}
+		//The P&ID symbols of the folio are drawn in black along with them,
+		//also those that only take the colour set on their pipe
+	for (QGraphicsItem *item : items()) {
+		if (auto *element = qgraphicsitem_cast<Element *>(item)) {
+			element->updateInk();
 		}
 	}
 }

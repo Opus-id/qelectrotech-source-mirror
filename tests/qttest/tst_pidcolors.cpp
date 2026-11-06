@@ -79,6 +79,34 @@ class tst_pidcolors : public QObject
 		return doc.documentElement();
 	}
 
+		// A tee: a square of ink, and three nozzles the file gives out of
+		// order
+	static QDomElement fittingSymbol(QDomDocument &doc, const QString &uuid)
+	{
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pid_family=\"pipe\" "
+			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+			"<uuid uuid=\"{%1}\"/><names><name lang=\"en\">T</name></names><description>"
+			"<rect x=\"-15\" y=\"-15\" width=\"10\" height=\"10\" antialias=\"false\" "
+			"style=\"line-style:normal;line-weight:none;filling:black;color:black\"/>"
+			"<terminal uuid=\"{a3333333-3333-3333-3333-333333333333}\" name=\"N3\" x=\"0\" y=\"10\" "
+			"orientation=\"s\" type=\"Generic\" medium=\"pipe\"/>"
+			"<terminal uuid=\"{a1111111-1111-1111-1111-111111111111}\" name=\"N1\" x=\"-10\" y=\"0\" "
+			"orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
+			"<terminal uuid=\"{a2222222-2222-2222-2222-222222222222}\" name=\"N2\" x=\"10\" y=\"0\" "
+			"orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>"
+			"</description></definition>").arg(uuid));
+		return doc.documentElement();
+	}
+
+	static Terminal *nozzle(Element *element, const QString &name)
+	{
+		for (Terminal *terminal : element->terminals()) {
+			if (terminal->baseName() == name) return terminal;
+		}
+		return nullptr;
+	}
+
 		// The element drawn four times its size, the hotspot in the middle
 	static QImage render(Element *element)
 	{
@@ -100,7 +128,7 @@ class tst_pidcolors : public QObject
 
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_electrical, m_nozzles, m_valve, m_plain;
+	ElementsLocation m_electrical, m_nozzles, m_valve, m_plain, m_fitting;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -143,7 +171,8 @@ class tst_pidcolors : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("colors"), NamesList());
-			QDomDocument a, b, c, d;
+			QDomDocument a, b, c, d, e;
+			m_fitting = add("fitting.elmt", fittingSymbol(e, "95555555-5555-5555-5555-555555555555"));
 			m_valve = add("valve.elmt", paintedSymbol(c, "93333333-3333-3333-3333-333333333333", "valve"));
 			m_plain = add("plain.elmt", paintedSymbol(d, "94444444-4444-4444-4444-444444444444", ""));
 			m_electrical = add("electrical.elmt",
@@ -473,6 +502,156 @@ class tst_pidcolors : public QObject
 			QCOMPARE(at(render(valve), -10, -10), QColor(0x80, 0x80, 0));
 			stack.undo();
 			m_project.setPidCodification(PidCodification());
+		}
+
+		void aFittingFollowsItsPipe()
+		{
+			const QColor black(Qt::black), olive(0x80, 0x80, 0), blue(0, 0, 255),
+					lime(0, 255, 0), red(Qt::red), gray(0x80, 0x80, 0x80), own(1, 2, 3);
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Raw water;E\n"
+				"fluid;SL1;Sludge;B\n"
+				"fluid_color;E;#0000ff\n"
+				"fluid_color;B;#00ff00\n"
+				"object_color;pipe;#808000\n"
+				"object_color;valve;#ff00ff\n"
+				"status_color;existing;#808080\n"
+				"status_color;demolished;#ff0000\n")));
+			m_next_y += 100;
+			Element *tee = place(m_fitting, QPointF(0, m_next_y));
+			Element *a = place(m_nozzles, QPointF(200, m_next_y));
+			Element *b = place(m_nozzles, QPointF(300, m_next_y));
+			Element *c = place(m_nozzles, QPointF(400, m_next_y));
+			QVERIFY(tee && a && b && c);
+			QVERIFY(tee->followsPipes() && !a->followsPipes());
+			auto ink = [tee]() { return at(render(tee), -10, -10); };
+
+				// without a pipe, the colour of its family
+			QCOMPARE(ink(), olive);
+
+				// the branch while it is alone, and the changes of its fluid
+			auto *branch = new Conductor(nozzle(tee, QStringLiteral("N3")), a->terminals().at(0));
+			m_folio->addItem(branch);
+			setFluid(branch, QStringLiteral("SL1"));
+			QCOMPARE(ink(), lime);
+
+				// the run goes first, N1 before N2, as named and not as listed
+			auto *out = new Conductor(nozzle(tee, QStringLiteral("N2")), b->terminals().at(0));
+			m_folio->addItem(out);
+			QCOMPARE(ink(), olive);
+			setFluid(out, QStringLiteral("W01"));
+			QCOMPARE(ink(), blue);
+			auto *in = new Conductor(c->terminals().at(1), nozzle(tee, QStringLiteral("N1")));
+			m_folio->addItem(in);
+			setFluid(in, QStringLiteral("SL1"));
+			QCOMPARE(ink(), lime);
+
+				// the status of the pipe, undone
+			QUndoStack &stack = m_folio->undoStack();
+			stack.push(PidStatus::change({in}, QStringLiteral("demolished")));
+			QCOMPARE(ink(), red);
+			stack.undo();
+			QCOMPARE(ink(), lime);
+
+				// a status of its own comes first
+			stack.push(PidStatus::change({tee}, QStringLiteral("existing")));
+			QCOMPARE(ink(), gray);
+			stack.undo();
+			QCOMPARE(ink(), lime);
+
+				// the pipe leaves and comes back
+			m_folio->removeItem(in);
+			QCOMPARE(ink(), blue);
+			m_folio->addItem(in);
+			QCOMPARE(ink(), lime);
+
+				// nothing of this is kept on the element
+			QVERIFY(tee->optionChoices().isEmpty());
+
+				// a folio drawn in black, also for a colour only set on the
+				// pipe, in a project without colours
+			m_folio->setDrawColoredConductors(false);
+			QCOMPARE(ink(), black);
+			m_folio->setDrawColoredConductors(true);
+			QCOMPARE(ink(), lime);
+			m_project.setPidCodification(PidCodification());
+			QCOMPARE(ink(), black);
+			ConductorProperties p = in->properties();
+			p.m_pipe.color = own;
+			in->setProperties(p);
+			QCOMPARE(ink(), own);
+			m_folio->setDrawColoredConductors(false);
+			QCOMPARE(ink(), black);
+			m_folio->setDrawColoredConductors(true);
+			QCOMPARE(ink(), own);
+
+				// a valve keeps the colour of its family
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"object_color;valve;#ff00ff\n")));
+			Element *valve = place(m_valve, QPointF(500, m_next_y));
+			QVERIFY(valve);
+			QCOMPARE(at(render(valve), -10, -10), QColor(0xff, 0, 0xff));
+
+				// gone with its pipes, which leave the others as they were
+			delete tee;
+			QVERIFY(a->terminals().at(0)->conductors().isEmpty());
+			m_project.setPidCodification(PidCodification());
+		}
+
+		void aFittingIsDrawnAfterItsPipeOnceReopened_data()
+		{
+			QTest::addColumn<QString>("suffix");
+			QTest::newRow(".qet") << QStringLiteral(".qet");
+			QTest::newRow(".qetz") << QStringLiteral(".qetz");
+			QTest::newRow(".qetdb") << QStringLiteral(".qetdb");
+		}
+
+		void aFittingIsDrawnAfterItsPipeOnceReopened()
+		{
+			QFETCH(QString, suffix);
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString path = dir.filePath(QStringLiteral("fitting") + suffix);
+			QUuid tee_uuid;
+			{
+				QETProject project;
+				project.embeddedElementCollection()->createDir(
+							QStringLiteral("import"), QStringLiteral("colors"), NamesList());
+				QDomDocument a;
+				project.embeddedElementCollection()->addElementDefinition(
+							QStringLiteral("import/colors"), QStringLiteral("fitting.elmt"),
+							fittingSymbol(a, "96666666-6666-6666-6666-666666666666"));
+				project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+					"fluid;W01;Raw water;E\nfluid_color;E;#0000ff\n")));
+				Diagram *folio = project.addNewDiagram();
+				int state = 0;
+				const ElementsLocation fitting(QStringLiteral("embed://import/colors/fitting.elmt"), &project);
+				Element *tee = ElementFactory::Instance()->createElement(fitting, nullptr, &state);
+				Element *end = ElementFactory::Instance()->createElement(fitting, nullptr, &state);
+				QVERIFY(tee && end && !state);
+				folio->addItem(tee);
+				folio->addItem(end);
+				end->setPos(200, 0);
+				auto *pipe = new Conductor(nozzle(tee, QStringLiteral("N2")),
+										   nozzle(end, QStringLiteral("N1")));
+				folio->addItem(pipe);
+				setFluid(pipe, QStringLiteral("W01"));
+				tee_uuid = tee->uuid();
+				project.setFilePath(path);
+				QVERIFY(project.write().isOk());
+			}
+			QETProject back(path);
+			QCOMPARE(back.diagrams().size(), 1);
+				// a .qetz builds its folios when they are shown
+			back.diagrams().first()->ensureLoaded();
+			Element *tee = nullptr;
+			for (QGraphicsItem *item : back.diagrams().first()->items()) {
+				if (auto *element = qgraphicsitem_cast<Element *>(item)) {
+					if (element->uuid() == tee_uuid) tee = element;
+				}
+			}
+			QVERIFY(tee);
+			QCOMPARE(at(render(tee), -10, -10), QColor(0, 0, 255));
 		}
 
 		void theStatusIsChosenOnThePagesAndSaved()

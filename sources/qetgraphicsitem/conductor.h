@@ -188,6 +188,9 @@ class Conductor : public QGraphicsObject
 		QPainterPath paintedPath() const;
 		QColor drawnColor() const;
 		QColor pipeColor() const;
+			/// Draw again the fittings at the ends of a pipe, which take
+			/// its colour (Element::followsPipes())
+		void updateFittings() const;
 		bool potentialTypeFormat(PotentialType *type) const;
 
 	private:
