@@ -562,7 +562,8 @@ void Element::setOptionChoices(const ElementOptions::Choices &choices)
 /**
 	@brief Element::setNozzleDiameters
 	Give nozzles of this element nominal diameters of their own, shown under
-	their names. Nothing goes to the pipes connected there.
+	their names. A pipe connected there keeps its DN: a difference is marked,
+	not corrected (Terminal::hasDiameterGap()).
 	@param diameters : by name of nozzle
 */
 void Element::setNozzleDiameters(const QMap<QString, int> &diameters)
@@ -570,13 +571,12 @@ void Element::setNozzleDiameters(const QMap<QString, int> &diameters)
 	if (diameters == m_nozzle_diameters) {
 		return;
 	}
-	for (Terminal *terminal : std::as_const(m_terminals)) {
-		terminal->prepareLabelChange();
-	}
 	m_nozzle_diameters = diameters;
 	for (Terminal *terminal : std::as_const(m_terminals)) {
+		terminal->updateDiameterToolTip();
 		terminal->update();
 	}
+	update();
 	emit nozzleDiametersChanged();
 }
 
@@ -856,6 +856,9 @@ void Element::paint(
 	if (followsPipes()) {
 		drawFreeNozzles(painter);
 	}
+	if (!m_data.m_pid_family.isEmpty()) {
+		drawDiameterGaps(painter);
+	}
 
 		//Draw the selection rectangle
 	if ( isSelected() || m_mouse_over ) {
@@ -887,6 +890,36 @@ void Element::drawFreeNozzles(QPainter *painter) const
 	{
 		if (terminal->medium() == TerminalData::Pipe && terminal->conductors().isEmpty()) {
 			painter->drawEllipse(mapFromScene(terminal->dockConductor()), 6.0, 6.0);
+		}
+	}
+	painter->restore();
+}
+
+/**
+	@brief Element::drawDiameterGaps
+	Mark each nozzle whose DN is not that of its pipe, with an orange diamond.
+	It says so and blocks nothing: a valve may be smaller than its line. Like
+	the terminals, it is on the screen only.
+	@param painter
+*/
+void Element::drawDiameterGaps(QPainter *painter) const
+{
+	const Diagram *folio = diagram();
+	if (!folio || !folio->drawTerminals()) {
+		return;
+	}
+	painter->save();
+	QPen pen(QColor(255, 140, 0));
+	pen.setCosmetic(true);
+	painter->setPen(pen);
+	painter->setBrush(QColor(255, 140, 0));
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	for (const Terminal *terminal : m_terminals)
+	{
+		if (terminal->hasDiameterGap()) {
+			const QPointF c = mapFromScene(terminal->dockConductor());
+			painter->drawPolygon(QPolygonF({c + QPointF(0, -6), c + QPointF(6, 0),
+											c + QPointF(0, 6), c + QPointF(-6, 0)}));
 		}
 	}
 	painter->restore();

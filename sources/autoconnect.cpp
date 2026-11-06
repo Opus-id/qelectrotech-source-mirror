@@ -212,6 +212,7 @@ void makeWire(State &s, Terminal *a, Terminal *b, QUndoCommand *parent)
 		ConductorAutoNumerotation can(conductor, diagram, parent);
 		can.numerate();
 	}
+	conductor->takeNozzleDiameter();
 	if (diagram->freezeNewConductors() || diagram->project()->isFreezeNewConductors())
 		conductor->setFreezeLabel(true);
 

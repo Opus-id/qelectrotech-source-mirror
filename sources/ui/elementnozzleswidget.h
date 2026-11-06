@@ -31,8 +31,8 @@ class QLineEdit;
 	@brief The ElementNozzlesWidget class
 	The tab of the properties of a placed element where its nozzles are given
 	a nominal diameter: one field per named nozzle, empty for the one of the
-	symbol, which it shows in grey. Live, a value is applied when the field is
-	left, with undo.
+	symbol or else of the pipe connected there, shown in grey. Live, a value
+	is applied when the field is left, with undo.
 */
 class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 {

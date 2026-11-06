@@ -179,6 +179,31 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 			properties.color = LastUsedStyle::conductorColor();
 		setProperties(properties);
 	}
+	takeNozzleDiameter();
+}
+
+/**
+	@brief Conductor::takeNozzleDiameter
+	A new pipe without a DN takes the one given to a nozzle at its ends, the
+	nozzle it starts from first. Done once, when it is connected: from then on
+	each side keeps its value, and a difference is marked by the element. Read
+	back from a file, a pipe has the DN saved there.
+*/
+void Conductor::takeNozzleDiameter()
+{
+	if (m_properties.m_medium != TerminalData::Pipe) {
+		return;
+	}
+	ConductorProperties pipe = properties();
+	if (pipe.m_pipe.nominal_diameter > 0) {
+		return;
+	}
+	const int start = terminal1 ? terminal1->ownDiameter() : 0;
+	const int dn = start > 0 ? start : (terminal2 ? terminal2->ownDiameter() : 0);
+	if (dn > 0) {
+		pipe.m_pipe.nominal_diameter = dn;
+		setProperties(pipe);
+	}
 }
 
 /**
@@ -2052,9 +2077,10 @@ void Conductor::setProperties(const ConductorProperties &properties)
 		if (terminal1) terminal1->update();
 		if (terminal2) terminal2->update();
 	}
-	updateFittings();
 
 	storeProperties();
+		//After the store: what is at its ends reads the new properties there
+	updateFittings();
 	emit propertiesChange();
 }
 
@@ -2588,6 +2614,14 @@ void Conductor::updateFittings() const
 		Element *element = terminal ? terminal->parentElement() : nullptr;
 		if (element && element->followsPipes()) {
 			element->updateInk();
+		}
+			//A nozzle follows the DN of its pipe, or marks a difference
+		if (terminal) {
+			terminal->updateDiameterToolTip();
+			terminal->update();
+		}
+		if (element) {
+			element->update();
 		}
 	}
 }

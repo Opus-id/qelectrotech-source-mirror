@@ -556,6 +556,7 @@ void ElementsMover::endMovement()
 					ConductorAutoNumerotation can  (conductor, m_diagram, undo_object);
 					can.numerate();
 				}
+				conductor->takeNozzleDiameter();
 			}
 		}
 	}

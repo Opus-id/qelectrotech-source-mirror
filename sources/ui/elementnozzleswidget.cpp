@@ -101,8 +101,11 @@ void ElementNozzlesWidget::buildFields()
 		auto *edit = new QLineEdit(this);
 		edit->setValidator(new QIntValidator(1, 99999, edit));
 		const int symbol_dn = terminal->symbolDiameter();
-		if (symbol_dn > 0) {
-			edit->setPlaceholderText(QString::number(symbol_dn));
+			//In grey, what the nozzle has without a value of its own: the DN
+			//of its symbol, else that of its pipe, which it follows
+		const int shown = symbol_dn > 0 ? symbol_dn : terminal->pipeDiameter();
+		if (shown > 0) {
+			edit->setPlaceholderText(QString::number(shown));
 		}
 		connect(edit, &QLineEdit::editingFinished, this, [this]() {
 			if (m_live_edit) {

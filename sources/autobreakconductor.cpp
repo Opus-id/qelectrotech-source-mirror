@@ -198,8 +198,10 @@ QSet<Terminal *> autoBreakConductors(
 			Conductor *new_c = new Conductor(m.connect_to, t);
 				//The two halves of a pipe are the same line: they keep its
 				//data, which no potential brings back as for a wire
-			if (m.conductor->medium() == TerminalData::Pipe)
+			if (m.conductor->medium() == TerminalData::Pipe) {
 				new_c->setProperties(m.conductor->properties());
+				new_c->takeNozzleDiameter();
+			}
 			new AddGraphicsObjectCommand(new_c, diagram, QPointF(), parent);
 			ConductorAutoNumerotation can(new_c, diagram, parent);
 			can.numerate();
@@ -246,8 +248,10 @@ QSet<Terminal *> autoBreakConductors(
 
 		if (other_terminal) {
 			Conductor *new_c2 = new Conductor(best_other, other_terminal);
-			if (matches.first().conductor->medium() == TerminalData::Pipe)
+			if (matches.first().conductor->medium() == TerminalData::Pipe) {
 				new_c2->setProperties(matches.first().conductor->properties());
+				new_c2->takeNozzleDiameter();
+			}
 			new AddGraphicsObjectCommand(new_c2, diagram, QPointF(), parent);
 			ConductorAutoNumerotation can2(new_c2, diagram, parent);
 			can2.numerate();

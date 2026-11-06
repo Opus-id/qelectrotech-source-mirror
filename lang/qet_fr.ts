@@ -26254,6 +26254,11 @@ Les autres champs ne sont pas utilisés.</translation>
 </context>
 <context>
     <name>Terminal</name>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1215"/>
+        <source>Nozzle DN %1, pipe DN %2</source>
+        <translation>Piquage DN %1, tuyauterie DN %2</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="693"/>
         <source>This terminal already has %n conductors, the project&apos;s limit. Add a terminal to connect one more conductor.</source>

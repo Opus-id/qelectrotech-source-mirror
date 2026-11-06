@@ -424,6 +424,7 @@ class Element : public QetGraphicsItem
 	ElementOptions::Choices inkedChoices(const ElementOptions &options, const QString &family) const;
 	const Conductor *leadingPipe() const;
 	void drawFreeNozzles(QPainter *painter) const;
+	void drawDiameterGaps(QPainter *painter) const;
 	void takePictures();
 
 	QPicture m_picture;

@@ -84,16 +84,22 @@ class Terminal : public QGraphicsObject
 		QString   baseName            () const;
 		TerminalData::Type terminalType() const;
 		TerminalData::Medium medium() const;
-			/// The nominal diameter of this nozzle: the one its element gave
-			/// it, else that of its symbol; 0 for none and for any other medium
+			/// The nominal diameter given to this nozzle: by its element, else
+			/// by its symbol; 0 for none and for any other medium
+		int ownDiameter() const;
+			/// The DN of the pipe connected to this nozzle, 0 for none
+		int pipeDiameter() const;
+			/// The nominal diameter of this nozzle: its own, else it follows
+			/// its pipe, so that nothing goes out of date on a valve
 		int nominalDiameter() const;
+			/// The nozzle has a DN of its own, its pipe another one
+		bool hasDiameterGap() const;
+		void updateDiameterToolTip();
 			/// The one its symbol gives this nozzle
 		int symbolDiameter() const { return d->m_dn; }
 		void setSymbolDiameter(int dn);
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
-			/// To call before its element changes what labelText() gives
-		void prepareLabelChange();
 		QString potential() const;
 		bool useMasterLabel() const { return d->m_use_master_label; }
 		void setUseMasterLabel(bool use);

@@ -191,6 +191,9 @@ class Conductor : public QGraphicsObject
 			/// Draw again the fittings at the ends of a pipe, which take
 			/// its colour (Element::followsPipes())
 		void updateFittings() const;
+			/// See the definition; to call again on a new pipe after giving
+			/// it other properties
+		void takeNozzleDiameter();
 		bool potentialTypeFormat(PotentialType *type) const;
 
 	private:

@@ -515,7 +515,10 @@ QLineF Terminal::HelpLine() const
 	@return Le rectangle (en precision flottante) delimitant la borne et ses alentours.
 */
 QRectF Terminal::boundingRect() const {
-	const QString display_name = labelText();
+		//A nozzle keeps room for the DN under its name: that DN comes and
+		//goes with its pipe, which does not tell the scene
+	const QString display_name = d->m_medium == TerminalData::Pipe
+			? TerminalData::labelText(name(), 99999) : name();
 	if (!d->m_show_name || display_name.isEmpty()) {
 		return m_br;
 	}
@@ -1157,7 +1160,7 @@ void Terminal::setPlaceRank(int rank)
 	m_place_rank = rank;
 }
 
-int Terminal::nominalDiameter() const
+int Terminal::ownDiameter() const
 {
 	if (d->m_medium != TerminalData::Pipe) {
 		return 0;
@@ -1172,21 +1175,56 @@ int Terminal::nominalDiameter() const
 	return d->m_dn;
 }
 
+int Terminal::pipeDiameter() const
+{
+	if (d->m_medium != TerminalData::Pipe) {
+		return 0;
+	}
+	for (const Conductor *conductor : m_conductors_list) {
+		if (conductor->medium() == TerminalData::Pipe) {
+			return conductor->properties().m_pipe.nominal_diameter;
+		}
+	}
+	return 0;
+}
+
+int Terminal::nominalDiameter() const
+{
+	const int own = ownDiameter();
+	return own > 0 ? own : pipeDiameter();
+}
+
+bool Terminal::hasDiameterGap() const
+{
+	const int own = ownDiameter();
+	const int pipe = pipeDiameter();
+	return own > 0 && pipe > 0 && own != pipe;
+}
+
+/**
+	@brief Terminal::updateDiameterToolTip
+	Say what differs on a nozzle marked by its element (hasDiameterGap())
+*/
+void Terminal::updateDiameterToolTip()
+{
+	if (d->m_medium != TerminalData::Pipe) {
+		return;
+	}
+	setToolTip(hasDiameterGap() ? tr("Nozzle DN %1, pipe DN %2")
+								  .arg(ownDiameter()).arg(pipeDiameter())
+								: QString());
+}
+
 void Terminal::setSymbolDiameter(int dn)
 {
-	prepareGeometryChange();
 	d->m_dn = dn;
+	updateDiameterToolTip();
 	update();
 }
 
 QString Terminal::labelText() const
 {
 	return TerminalData::labelText(name(), nominalDiameter());
-}
-
-void Terminal::prepareLabelChange()
-{
-	prepareGeometryChange();
 }
 
 QString Terminal::name() const

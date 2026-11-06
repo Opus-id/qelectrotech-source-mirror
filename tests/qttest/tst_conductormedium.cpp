@@ -482,6 +482,45 @@ class tst_conductormedium : public QObject
 			QVERIFY(a->terminals().at(1)->conductors().first()->properties().m_pipe == data.m_pipe);
 		}
 
+			// A pipe without a DN takes the one given to the symbol dropped on
+			// it, a pipe with a DN keeps its own (above)
+		void aSymbolDroppedOnAnEmptyPipeGivesItsDiameter()
+		{
+			m_next_y += 600;
+			const qreal y = m_next_y;
+			Element *a = place(m_pipe, QPointF(0, y));
+			Element *b = place(m_pipe, QPointF(200, y + 300));
+			QVERIFY(a && b);
+			Conductor *pipe = draw(a->terminals().at(1), b->terminals().at(0));
+			QCOMPARE(pipe->properties().m_pipe.nominal_diameter, 0);
+
+			Element *tee = place(m_tee, QPointF(50, y));
+			QVERIFY(tee);
+			tee->setNozzleDiameters({{QStringLiteral("N1"), 65}});
+			Terminal *n1 = nullptr;
+			for (Terminal *t : tee->terminals()) {
+				if (t->name() == QLatin1String("N1")) n1 = t;
+			}
+			QVERIFY(n1);
+
+			const bool was = m_project.autoBreakConductor();
+			m_project.setAutoBreakConductor(true);
+			QList<Conductor *> handled;
+			QSet<Terminal *> used;
+			auto *undo = new QUndoCommand();
+			autoBreakConductors(m_folio, tee, undo, handled, used);
+			m_folio->undoStack().push(undo);
+			m_project.setAutoBreakConductor(was);
+
+			QCOMPARE(n1->conductors().size(), 1);
+			QCOMPARE(n1->conductors().first()->properties().m_pipe.nominal_diameter, 65);
+
+				// undone, the pipe is back without a DN
+			m_folio->undoStack().undo();
+			QCOMPARE(a->terminals().at(1)->conductors().first()
+					 ->properties().m_pipe.nominal_diameter, 0);
+		}
+
 			// ---- the defaults and the number of a new conductor ----
 			// A wire takes the defaults of its folio, as always; a pipe takes
 			// none of them (no wire number, color, size...)
