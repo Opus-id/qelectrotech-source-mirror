@@ -21,6 +21,7 @@
 #include "../ElementsCollection/elementslocation.h"
 #include "diagrameventinterface.h"
 
+#include "../properties/elementoptions.h"
 #include <QPointF>
 
 class Element;
@@ -52,6 +53,7 @@ class DiagramEventAddElement : public DiagramEventInterface
 		void init() override;
 			/// The symbol that follows the mouse, until it is dropped
 		Element *pendingElement() const { return m_element; }
+		void setLike(const Element *source);
 
 	private:
 		bool buildElement();
@@ -65,6 +67,8 @@ class DiagramEventAddElement : public DiagramEventInterface
 		ElementsLocation m_location;
 		Element *m_element;
 		QString m_integrate_path;
+			/// Options (and status) every copy takes, see setLike()
+		ElementOptions::Choices m_like_choices;
 		QPointer<QStatusBar> m_status_bar;
 
 			/// Placing along a drag

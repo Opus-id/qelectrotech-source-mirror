@@ -62,6 +62,53 @@ class tst_pendingelement : public QObject
 			QTest::keyClick(view, Qt::Key_Escape);
 			QVERIFY(!diagram->pendingElement());
 		}
+
+		void similarPlacementTakesTheOptionsAndTheRotation()
+		{
+			QETDiagramEditor *editor = QetAppTest::editor();
+			QVERIFY(editor);
+			editor->resize(1400, 1000);
+			editor->show();
+			QVERIFY(QTest::qWaitForWindowExposed(editor));
+			const QString copy = m_dir.filePath("similar.qet");
+			QVERIFY(QFile::copy(QFINDTESTDATA("fixtures/every_feature.qet"), copy));
+			QVERIFY(editor->openAndAddProject(copy, false));
+			DiagramView *view = editor->currentProjectView()->currentDiagram();
+			Diagram *diagram = view->diagram();
+			QVERIFY(!diagram->elements().isEmpty());
+			Element *model = diagram->elements().first();
+			ElementOptions::Choices choices;
+			choices.insert("motor", "variable");
+			choices.insert("pid_status", "existing");
+			model->setOptionChoices(choices);
+			model->setRotation(90);
+			const int before = diagram->elements().size();
+
+			QVERIFY(view->startSimilarPlacement(model));
+			Element *pending = diagram->pendingElement();
+			QVERIFY(pending);
+			QVERIFY(pending != model);
+			QCOMPARE(pending->optionChoices(), choices);
+			QCOMPARE(pending->rotation(), 90.0);
+
+				//Drop one copy: it keeps the options, the model is untouched
+			const QPoint at = view->mapFromScene(pending->scenePos());
+			QTest::mouseMove(view->viewport(), at);
+			QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, at);
+			QVERIFY(diagram->elements().size() > before);
+			Element *dropped = nullptr;
+			for (Element *e : diagram->elements()) {
+				if (e != model && e->location() == model->location() && e->optionChoices() == choices) {
+					dropped = e;
+				}
+			}
+			QVERIFY(dropped);
+			QCOMPARE(dropped->rotation(), 90.0);
+			QCOMPARE(model->optionChoices(), choices);
+
+			QTest::keyClick(view, Qt::Key_Escape);
+			QVERIFY(!diagram->pendingElement());
+		}
 };
 
 QET_APP_TEST_MAIN(tst_pendingelement)

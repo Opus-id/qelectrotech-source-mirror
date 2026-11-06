@@ -169,6 +169,15 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 		//Filled each time the context menu opens, see updateFolioReportMenu()
 	m_folio_report_menu = new QMenu(tr("Sheet reference"), this);
 
+	m_create_similar = new QAction(tr("Create similar", "context menu action"), this);
+	m_create_similar->setStatusTip(tr("Place another copy of the selected symbol, with the same options and status"));
+	connect(m_create_similar, &QAction::triggered, this, [this]() {
+		const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+		if (selected.size() == 1) {
+			startSimilarPlacement(qgraphicsitem_cast<Element *>(selected.first()));
+		}
+	});
+
 		//Filled each time the context menu opens, see updateChangeTypeMenu()
 	m_change_type_menu = new QMenu(tr("Change type", "context menu action"), this);
 		//Filled each time the context menu opens, see updateStatusMenu()
@@ -388,6 +397,24 @@ bool DiagramView::startElementPlacement(const ElementsLocation &location,
 
 	//Set focus to the view to get event
 	this->setFocus();
+	return true;
+}
+
+/**
+	@brief DiagramView::startSimilarPlacement
+	Enter the placement mode with the symbol of @a source, set like it
+	(options, status of works, rotation). The wiring of the placement mode
+	applies as for any symbol, so pipes join nozzles of the same medium only.
+	@return true if the placement mode was entered
+*/
+bool DiagramView::startSimilarPlacement(const Element *source)
+{
+	if (!source || !startElementPlacement(source->location(), defaultPlacementPos())) {
+		return false;
+	}
+	if (auto *event = dynamic_cast<DiagramEventAddElement *>(diagram()->eventInterface())) {
+		event->setLike(source);
+	}
 	return true;
 }
 
@@ -2998,6 +3025,7 @@ QList<QAction *> DiagramView::contextMenuActions() const
 					return element && hasCabinetInfo(element->elementInformations());
 				}));
 			list << m_generate_cabinet_thumbnail;
+			list << m_create_similar;
 			list << m_change_type_menu->menuAction();
 			list << m_status_menu->menuAction();
 			list << qde->m_conductor_reset;
@@ -3179,6 +3207,13 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 	{
 		updateChangeTypeMenu();
 		updateStatusMenu();
+		{
+			const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+			const Element *one = selected.size() == 1
+				? qgraphicsitem_cast<Element *>(selected.first()) : nullptr;
+			m_create_similar->setEnabled(one && !m_diagram->isReadOnly()
+				&& one->location().exist());
+		}
 	}
 
 	QList <QAction *> list = contextMenuActions();

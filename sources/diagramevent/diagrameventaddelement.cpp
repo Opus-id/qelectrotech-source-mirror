@@ -242,6 +242,22 @@ void DiagramEventAddElement::init()
 }
 
 /**
+	@brief DiagramEventAddElement::setLike
+	Make the symbol being placed, and every copy dropped from now on, look
+	like @a source: same options (status of works included) and same rotation.
+	What belongs to the device itself -- label, information -- is not copied.
+*/
+void DiagramEventAddElement::setLike(const Element *source)
+{
+	if (!source || !m_element) {
+		return;
+	}
+	m_like_choices = source->optionChoices();
+	m_element->setOptionChoices(m_like_choices);
+	m_element->setRotation(source->rotation());
+}
+
+/**
 	@brief DiagramEventAddElement::buildElement
 	Build the element, if the element is build successfully, we return true, otherwise false
 */
@@ -349,6 +365,9 @@ Element *DiagramEventAddElement::createElement() const
 	{
 		delete element;
 		return nullptr;
+	}
+	if (!m_like_choices.isEmpty()) {
+		element->setOptionChoices(m_like_choices);
 	}
 	return element;
 }
