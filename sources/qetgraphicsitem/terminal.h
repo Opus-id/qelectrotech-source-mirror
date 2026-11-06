@@ -84,15 +84,21 @@ class Terminal : public QGraphicsObject
 		QString   baseName            () const;
 		TerminalData::Type terminalType() const;
 		TerminalData::Medium medium() const;
+			/// The other nozzle of a symbol a line runs through, nullptr for
+			/// any other (Element::isPipeInline())
+		Terminal *inlineSibling() const;
 			/// The nominal diameter given to this nozzle: by its element, else
-			/// by its symbol; 0 for none and for any other medium
+			/// by its symbol; 0 for none and for any other medium. A symbol a
+			/// line runs through has one DN: the other nozzle's counts too.
 		int ownDiameter() const;
-			/// The DN of the pipe connected to this nozzle, 0 for none
+			/// The DN of the pipe connected to this nozzle, 0 for none; on a
+			/// symbol a line runs through, else of the pipe on the other side
 		int pipeDiameter() const;
 			/// The nominal diameter of this nozzle: its own, else it follows
 			/// its pipe, so that nothing goes out of date on a valve
 		int nominalDiameter() const;
-			/// The nozzle has a DN of its own, its pipe another one
+			/// The nozzle has a DN of its own, its pipe another one; or the
+			/// line runs through its symbol with two DN and no reducer
 		bool hasDiameterGap() const;
 		void updateDiameterToolTip();
 			/// The one its symbol gives this nozzle
@@ -155,6 +161,11 @@ class Terminal : public QGraphicsObject
 		static void setTakesConductorColor(bool takes);
 
 	private:
+			/// The DN given to this nozzle alone, by its element or its symbol
+		int givenDiameter() const;
+			/// The DN of the pipe connected to this nozzle alone
+		int connectedDiameter() const;
+
 		bool               m_draw_help_line{false};
 		QGraphicsLineItem *m_help_line{nullptr};
 		QGraphicsLineItem *m_help_line_a{nullptr};

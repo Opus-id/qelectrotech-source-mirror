@@ -67,9 +67,14 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QLineEdit *addTextField(const QString &name, const QString &label,
 								const std::function<QString(const PipeProperties &)> &get,
 								const std::function<void(PipeProperties &, const QString &)> &set);
+		void bindTextField(QLineEdit *edit,
+						   const std::function<QString(const PipeProperties &)> &get,
+						   const std::function<void(PipeProperties &, const QString &)> &set,
+						   bool through_valves = false);
 		QComboBox *addListField(const QString &name, const QString &label,
 								const std::function<void(PipeProperties &, const QString &)> &set);
-		void applyChange(const std::function<void(PipeProperties &)> &change);
+		void applyChange(const std::function<void(PipeProperties &)> &change,
+						 bool through_valves = false);
 		void showText(QLineEdit *edit, const std::function<QString(const PipeProperties &)> &get);
 		void fillLists();
 		static QString codeOf(const QComboBox *list, const QString &text);

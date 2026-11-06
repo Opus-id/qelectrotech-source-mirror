@@ -234,6 +234,7 @@ class Element : public QetGraphicsItem
 		void setNozzleDiameters(const QMap<QString, int> &diameters);
 			/// Those of the <nozzles> block of @p element
 		static QMap<QString, int> nozzleDiametersFromXml(const QDomElement &element);
+		bool isPipeInline() const;
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// True for a fitting (a tee, the end of a pipe), drawn after
@@ -424,7 +425,6 @@ class Element : public QetGraphicsItem
 	ElementOptions::Choices inkedChoices(const ElementOptions &options, const QString &family) const;
 	const Conductor *leadingPipe() const;
 	void drawFreeNozzles(QPainter *painter) const;
-	void drawDiameterGaps(QPainter *painter) const;
 	void takePictures();
 
 	QPicture m_picture;

@@ -107,6 +107,18 @@ void PipeProperties::fromXml(const QDomElement &e)
 }
 
 /**
+	@brief PipeProperties::preferredDiameters
+	@return the preferred DN values of ISO 6708:1995 (clause 3), in order.
+	Preferred, not the only ones: a pipe or a nozzle can have another.
+*/
+QList<int> PipeProperties::preferredDiameters()
+{
+	return {10, 15, 20, 25, 32, 40, 50, 60, 65, 80, 100, 125, 150, 200,
+			250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1400,
+			1500, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 3600, 3800, 4000};
+}
+
+/**
 	@brief PipeProperties::defaultFluids
 	@return the fluids offered by default to the user, translated.
 	The fluid of a pipe is stored as the text the user chose, not as an

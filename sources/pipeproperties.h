@@ -82,6 +82,8 @@ class PipeProperties
 		static QString lineKindToString(LineKind kind);
 		static LineKind lineKindFromString(const QString &string);
 		static QStringList defaultFluids();
+			/// The preferred DN values of ISO 6708:1995, clause 3
+		static QList<int> preferredDiameters();
 
 		bool isDefault() const { return *this == PipeProperties(); }
 		bool operator==(const PipeProperties &) const;

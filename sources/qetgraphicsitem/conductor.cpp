@@ -184,10 +184,11 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 
 /**
 	@brief Conductor::takeNozzleDiameter
-	A new pipe without a DN takes the one given to a nozzle at its ends, the
-	nozzle it starts from first. Done once, when it is connected: from then on
-	each side keeps its value, and a difference is marked by the element. Read
-	back from a file, a pipe has the DN saved there.
+	A new pipe without a DN takes the one of a nozzle at its ends, the nozzle
+	it starts from first: given to it, or on a valve that of the pipe on the
+	other side. Done once, when it is connected: from then on each side keeps
+	its value, and a difference is marked. Read back from a file, a pipe has
+	the DN saved there.
 */
 void Conductor::takeNozzleDiameter()
 {
@@ -198,8 +199,8 @@ void Conductor::takeNozzleDiameter()
 	if (pipe.m_pipe.nominal_diameter > 0) {
 		return;
 	}
-	const int start = terminal1 ? terminal1->ownDiameter() : 0;
-	const int dn = start > 0 ? start : (terminal2 ? terminal2->ownDiameter() : 0);
+	const int start = terminal1 ? terminal1->nominalDiameter() : 0;
+	const int dn = start > 0 ? start : (terminal2 ? terminal2->nominalDiameter() : 0);
 	if (dn > 0) {
 		pipe.m_pipe.nominal_diameter = dn;
 		setProperties(pipe);
@@ -763,7 +764,41 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		}
 	}
 
+	if (m_properties.m_medium == TerminalData::Pipe) {
+		drawDiameterGaps(painter);
+	}
+
 	painter -> restore();
+}
+
+/**
+	@brief Conductor::drawDiameterGaps
+	Mark with an orange diamond each end of this pipe whose nozzle has another
+	DN (Terminal::hasDiameterGap()). It says so and blocks nothing: a valve may
+	be smaller than its line. Drawn here, not by the element: a pipe goes over
+	the elements, and would hide it. Like the terminals, on the screen only.
+	@param painter
+*/
+void Conductor::drawDiameterGaps(QPainter *painter) const
+{
+	const Diagram *folio = diagram();
+	if (!folio || !folio->drawTerminals()) {
+		return;
+	}
+	const QColor orange(255, 140, 0);
+	QPen pen(orange);
+	pen.setCosmetic(true);
+	painter->setPen(pen);
+	painter->setBrush(orange);
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	for (const Terminal *terminal : {terminal1, terminal2})
+	{
+		if (terminal && terminal->hasDiameterGap()) {
+			const QPointF c = mapFromScene(terminal->dockConductor());
+			painter->drawPolygon(QPolygonF({c + QPointF(0, -6), c + QPointF(6, 0),
+											c + QPointF(0, 6), c + QPointF(-6, 0)}));
+		}
+	}
 }
 
 /// @return le Diagram auquel ce conducteur appartient, ou 0 si ce conducteur est independant
@@ -2619,11 +2654,39 @@ void Conductor::updateFittings() const
 		if (terminal) {
 			terminal->updateDiameterToolTip();
 			terminal->update();
-		}
-		if (element) {
-			element->update();
+			if (Terminal *sibling = terminal->inlineSibling()) {
+				sibling->updateDiameterToolTip();
+				sibling->update();
+			}
 		}
 	}
+}
+
+/**
+	@brief Conductor::inlineRun
+	@return this pipe and those it continues through the symbols a line runs
+	through, as valves (Element::isPipeInline()): they have one DN. Reducers,
+	tees and equipment stop it.
+*/
+QList<Conductor *> Conductor::inlineRun()
+{
+	QList<Conductor *> run{this};
+	for (int i = 0 ; i < run.size() ; ++i)
+	{
+		for (Terminal *terminal : {run.at(i)->terminal1, run.at(i)->terminal2})
+		{
+			const Terminal *sibling = terminal ? terminal->inlineSibling() : nullptr;
+			if (!sibling) {
+				continue;
+			}
+			for (Conductor *next : sibling->conductors()) {
+				if (next->medium() == TerminalData::Pipe && !run.contains(next)) {
+					run << next;
+				}
+			}
+		}
+	}
+	return run;
 }
 
 /**

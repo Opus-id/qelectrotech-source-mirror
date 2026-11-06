@@ -22,11 +22,11 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/terminal.h"
 #include "../undocommand/changenozzlediameterscommand.h"
+#include "diameterlist.h"
 
 #include <algorithm>
 
 #include <QFormLayout>
-#include <QIntValidator>
 #include <QLineEdit>
 #include <QSignalBlocker>
 
@@ -98,22 +98,19 @@ void ElementNozzlesWidget::buildFields()
 		if (terminal->medium() != TerminalData::Pipe || name.isEmpty()) {
 			continue;
 		}
-		auto *edit = new QLineEdit(this);
-		edit->setValidator(new QIntValidator(1, 99999, edit));
+		auto *list = new QComboBox(this);
+		DiameterList::setUp(list);
+		QLineEdit *edit = list->lineEdit();
 		const int symbol_dn = terminal->symbolDiameter();
-			//In grey, what the nozzle has without a value of its own: the DN
-			//of its symbol, else that of its pipe, which it follows
-		const int shown = symbol_dn > 0 ? symbol_dn : terminal->pipeDiameter();
-		if (shown > 0) {
-			edit->setPlaceholderText(QString::number(shown));
-		}
-		connect(edit, &QLineEdit::editingFinished, this, [this]() {
+		const auto applied = [this]() {
 			if (m_live_edit) {
 				apply();
 			}
-		});
-		m_layout->addRow(tr("%1:", "label of the DN of a nozzle").arg(name), edit);
-		m_fields.append({name, symbol_dn, edit});
+		};
+		connect(edit, &QLineEdit::editingFinished, this, applied);
+		connect(list, &QComboBox::activated, this, applied);
+		m_layout->addRow(tr("%1:", "label of the DN of a nozzle").arg(name), list);
+		m_fields.append({name, symbol_dn, edit, terminal});
 	}
 }
 
@@ -133,6 +130,10 @@ void ElementNozzlesWidget::updateUi()
 		field.edit->setText(diameters.contains(field.name)
 								? QString::number(diameters.value(field.name))
 								: QString());
+			//In grey, what the nozzle has without a value of its own: the DN
+			//of its symbol, else that of its pipe, which it follows
+		const int shown = field.terminal->nominalDiameter();
+		field.edit->setPlaceholderText(shown > 0 ? QString::number(shown) : QString());
 	}
 }
 

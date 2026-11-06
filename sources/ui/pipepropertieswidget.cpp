@@ -24,6 +24,7 @@
 #include "../pidstatus.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetproject.h"
+#include "diameterlist.h"
 
 #include <QColorDialog>
 #include <QComboBox>
@@ -31,7 +32,6 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
-#include <QIntValidator>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -124,12 +124,22 @@ void PipePropertiesWidget::buildUi()
 	m_fluid = addListField(QStringLiteral("fluid"), tr("Fluid:"),
 						   [](PipeProperties &p, const QString &code) { p.fluid = code; });
 
-	QLineEdit *diameter = addTextField(QStringLiteral("nominal_diameter"), tr("Nominal diameter (DN):"),
-				 [](const PipeProperties &p) {
-					 return p.nominal_diameter > 0 ? QString::number(p.nominal_diameter) : QString();
-				 },
-				 [](PipeProperties &p, const QString &t) { p.nominal_diameter = qMax(0, t.toInt()); });
-	diameter->setValidator(new QIntValidator(0, 100000, diameter));
+	auto *diameter = new QComboBox(this);
+	DiameterList::setUp(diameter);
+	QLineEdit *diameter_edit = diameter->lineEdit();
+	diameter_edit->setObjectName(QStringLiteral("nominal_diameter"));
+	layout->addRow(tr("Nominal diameter (DN):"), diameter);
+	bindTextField(diameter_edit,
+				  [](const PipeProperties &p) {
+					  return p.nominal_diameter > 0 ? QString::number(p.nominal_diameter) : QString();
+				  },
+				  [](PipeProperties &p, const QString &t) { p.nominal_diameter = qMax(0, t.toInt()); },
+				  true);
+		//Picked in the list: as if typed
+	connect(diameter, &QComboBox::activated, this, [diameter_edit]() {
+		diameter_edit->setModified(true);
+		emit diameter_edit->editingFinished();
+	});
 
 	m_material = addListField(QStringLiteral("material"), tr("Material:"),
 							  [](PipeProperties &p, const QString &code) { p.material = code; });
@@ -296,18 +306,32 @@ QLineEdit *PipePropertiesWidget::addTextField(
 	auto *edit = new QLineEdit(this);
 	edit->setObjectName(name);
 	static_cast<QFormLayout *>(layout())->addRow(label, edit);
+	bindTextField(edit, get, set);
+	return edit;
+}
+
+/**
+	@brief PipePropertiesWidget::bindTextField
+	Make @p edit show @p get of the properties and, once edited, do @p set to
+	those of every pipe edited
+*/
+void PipePropertiesWidget::bindTextField(
+		QLineEdit *edit,
+		const std::function<QString(const PipeProperties &)> &get,
+		const std::function<void(PipeProperties &, const QString &)> &set,
+		bool through_valves)
+{
 	m_text_fields.append({edit, get});
 		//Only once the user changed it: leaving a field which shows
 		//nothing, for several values, changes nothing
-	connect(edit, &QLineEdit::editingFinished, this, [this, edit, set]() {
+	connect(edit, &QLineEdit::editingFinished, this, [this, edit, set, through_valves]() {
 		if (!edit->isModified()) {
 			return;
 		}
 		edit->setModified(false);
 		const QString text = edit->text().trimmed();
-		applyChange([set, text](PipeProperties &p) { set(p, text); });
+		applyChange([set, text](PipeProperties &p) { set(p, text); }, through_valves);
 	});
-	return edit;
 }
 
 /**
@@ -315,12 +339,25 @@ QLineEdit *PipePropertiesWidget::addTextField(
 	Do @p change to the data of every pipe edited, in one undo step, if it
 	changes anything
 	@param change
+	@param through_valves : also to the pipes they continue through valves,
+	see Conductor::inlineRun()
 */
-void PipePropertiesWidget::applyChange(const std::function<void(PipeProperties &)> &change)
+void PipePropertiesWidget::applyChange(const std::function<void(PipeProperties &)> &change,
+									   bool through_valves)
 {
+	QList<Conductor *> changed = pipes();
+	if (through_valves) {
+		for (Conductor *pipe : pipes()) {
+			for (Conductor *next : pipe->inlineRun()) {
+				if (!changed.contains(next)) {
+					changed << next;
+				}
+			}
+		}
+	}
 	auto *undo = new QUndoCommand(tr("Change the properties of a pipe line"));
 	Diagram *diagram = nullptr;
-	for (Conductor *pipe : pipes())
+	for (Conductor *pipe : changed)
 	{
 		ConductorProperties properties = pipe->properties();
 		change(properties.m_pipe);

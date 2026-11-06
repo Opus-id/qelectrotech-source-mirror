@@ -343,6 +343,9 @@ class ElementData : public PropertiesInterface
 			/// gives it the colour its project sets for that family
 			/// (PidCodification::objectFamilies()); none for any other symbol
 		QString m_pid_family;
+			/// A line runs through this symbol, as through a valve: it has one
+			/// DN, and a change of DN goes through it (Element::isPipeInline())
+		bool m_pipe_inline = false;
 
 	private:
 		ElementData::TerminalType m_override_terminal_type = ElementData::TTGeneric;

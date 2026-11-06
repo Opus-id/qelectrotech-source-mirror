@@ -25,7 +25,7 @@
 
 #include <QColorDialog>
 #include <QFontDialog>
-#include <QIntValidator>
+#include "../../ui/diameterlist.h"
 #include "../elementscene.h"
 #include "qetelementeditor.h"
 
@@ -98,8 +98,8 @@ void TerminalEditor::updateForm()
 		//Only a nozzle has a nominal diameter
 	const bool nozzle = m_part->medium() == TerminalData::Pipe;
 	ui->label_dn->setVisible(nozzle);
-	ui->m_dn_le->setVisible(nozzle);
-	ui->m_dn_le->setText(m_part->dn() > 0 ? QString::number(m_part->dn()) : QString());
+	ui->m_dn_cb->setVisible(nozzle);
+	ui->m_dn_cb->lineEdit()->setText(m_part->dn() > 0 ? QString::number(m_part->dn()) : QString());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());
 	ui->m_label_x_dsb->setValue(m_part->labelPos().x());
@@ -207,7 +207,7 @@ void TerminalEditor::init()
 	ui->m_medium_cb->addItem(tr("Signal", "terminal medium"),          TerminalData::Signal);
 	ui->m_medium_cb->addItem(tr("Drive (shaft)", "terminal medium"),   TerminalData::Drive);
 
-	ui->m_dn_le->setValidator(new QIntValidator(1, 99999, ui->m_dn_le));
+	DiameterList::setUp(ui->m_dn_cb);
 
 	ui->m_text_props_gb->setEnabled(false);
 
@@ -334,7 +334,7 @@ void TerminalEditor::dnEdited()
 	}
 	m_locked = true;
 
-	const int dn = TerminalData::dnFromString(ui->m_dn_le->text());
+	const int dn = TerminalData::dnFromString(ui->m_dn_cb->lineEdit()->text());
 	if (m_part->dn() != dn)
 	{
 		auto undo = new QPropertyUndoCommand(m_part, "dn", m_part->dn(), dn);
@@ -550,7 +550,9 @@ void TerminalEditor::activeConnections(bool active)
 										this, &TerminalEditor::typeEdited);
 		m_editor_connections << connect(ui->m_medium_cb, QOverload<int>::of(&QComboBox::activated),
 										this, &TerminalEditor::mediumEdited);
-		m_editor_connections << connect(ui->m_dn_le, &QLineEdit::editingFinished,
+		m_editor_connections << connect(ui->m_dn_cb->lineEdit(), &QLineEdit::editingFinished,
+										this, &TerminalEditor::dnEdited);
+		m_editor_connections << connect(ui->m_dn_cb, QOverload<int>::of(&QComboBox::activated),
 										this, &TerminalEditor::dnEdited);
 		m_editor_connections << connect(ui->m_show_name_cb, &QCheckBox::toggled,
 										this, &TerminalEditor::showNameEdited);

@@ -576,8 +576,22 @@ void Element::setNozzleDiameters(const QMap<QString, int> &diameters)
 		terminal->updateDiameterToolTip();
 		terminal->update();
 	}
-	update();
 	emit nozzleDiametersChanged();
+}
+
+/**
+	@brief Element::isPipeInline
+	@return true if a line runs through this symbol, as through a valve: the
+	symbol says so and has two nozzles. A three-way valve joins lines, as a tee.
+*/
+bool Element::isPipeInline() const
+{
+	if (!m_data.m_pipe_inline) {
+		return false;
+	}
+	return std::count_if(m_terminals.cbegin(), m_terminals.cend(), [](const Terminal *terminal) {
+		return terminal->medium() == TerminalData::Pipe;
+	}) == 2;
 }
 
 /**
@@ -856,9 +870,6 @@ void Element::paint(
 	if (followsPipes()) {
 		drawFreeNozzles(painter);
 	}
-	if (!m_data.m_pid_family.isEmpty()) {
-		drawDiameterGaps(painter);
-	}
 
 		//Draw the selection rectangle
 	if ( isSelected() || m_mouse_over ) {
@@ -890,36 +901,6 @@ void Element::drawFreeNozzles(QPainter *painter) const
 	{
 		if (terminal->medium() == TerminalData::Pipe && terminal->conductors().isEmpty()) {
 			painter->drawEllipse(mapFromScene(terminal->dockConductor()), 6.0, 6.0);
-		}
-	}
-	painter->restore();
-}
-
-/**
-	@brief Element::drawDiameterGaps
-	Mark each nozzle whose DN is not that of its pipe, with an orange diamond.
-	It says so and blocks nothing: a valve may be smaller than its line. Like
-	the terminals, it is on the screen only.
-	@param painter
-*/
-void Element::drawDiameterGaps(QPainter *painter) const
-{
-	const Diagram *folio = diagram();
-	if (!folio || !folio->drawTerminals()) {
-		return;
-	}
-	painter->save();
-	QPen pen(QColor(255, 140, 0));
-	pen.setCosmetic(true);
-	painter->setPen(pen);
-	painter->setBrush(QColor(255, 140, 0));
-	painter->setRenderHint(QPainter::Antialiasing, true);
-	for (const Terminal *terminal : m_terminals)
-	{
-		if (terminal->hasDiameterGap()) {
-			const QPointF c = mapFromScene(terminal->dockConductor());
-			painter->drawPolygon(QPolygonF({c + QPointF(0, -6), c + QPointF(6, 0),
-											c + QPointF(0, 6), c + QPointF(-6, 0)}));
 		}
 	}
 	painter->restore();
@@ -3688,6 +3669,7 @@ Element::ReloadPictureResult Element::reloadPicture(bool adopt_frame)
 
 	m_data.m_options = options;
 	m_data.m_pid_family = definition.attribute(QStringLiteral("pid_family"));
+	m_data.m_pipe_inline = definition.attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
 	if (adopt_frame) {
 		setSize(definition.attribute(QStringLiteral("width")).toInt(),
 				definition.attribute(QStringLiteral("height")).toInt());
@@ -3810,6 +3792,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 	m_data.m_names_list = names;
 	m_data.m_options = options;
 	m_data.m_pid_family = family;
+	m_data.m_pipe_inline = location.xml().attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
 
 		//A saved conductor names the uuid of the terminal it ends on, and the
 		//project is read back from the new definition: the terminals take its

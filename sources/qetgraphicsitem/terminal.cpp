@@ -1160,7 +1160,21 @@ void Terminal::setPlaceRank(int rank)
 	m_place_rank = rank;
 }
 
-int Terminal::ownDiameter() const
+Terminal *Terminal::inlineSibling() const
+{
+	if (d->m_medium != TerminalData::Pipe || !parent_element_
+		|| !parent_element_->isPipeInline()) {
+		return nullptr;
+	}
+	for (Terminal *terminal : parent_element_->terminals()) {
+		if (terminal != this && terminal->medium() == TerminalData::Pipe) {
+			return terminal;
+		}
+	}
+	return nullptr;
+}
+
+int Terminal::givenDiameter() const
 {
 	if (d->m_medium != TerminalData::Pipe) {
 		return 0;
@@ -1175,7 +1189,7 @@ int Terminal::ownDiameter() const
 	return d->m_dn;
 }
 
-int Terminal::pipeDiameter() const
+int Terminal::connectedDiameter() const
 {
 	if (d->m_medium != TerminalData::Pipe) {
 		return 0;
@@ -1188,6 +1202,26 @@ int Terminal::pipeDiameter() const
 	return 0;
 }
 
+int Terminal::ownDiameter() const
+{
+	const int given = givenDiameter();
+	if (given > 0) {
+		return given;
+	}
+	const Terminal *sibling = inlineSibling();
+	return sibling ? sibling->givenDiameter() : 0;
+}
+
+int Terminal::pipeDiameter() const
+{
+	const int connected = connectedDiameter();
+	if (connected > 0) {
+		return connected;
+	}
+	const Terminal *sibling = inlineSibling();
+	return sibling ? sibling->connectedDiameter() : 0;
+}
+
 int Terminal::nominalDiameter() const
 {
 	const int own = ownDiameter();
@@ -1196,9 +1230,17 @@ int Terminal::nominalDiameter() const
 
 bool Terminal::hasDiameterGap() const
 {
+	const int pipe = connectedDiameter();
+	if (pipe <= 0) {
+		return false;
+	}
+	const Terminal *sibling = inlineSibling();
+	const int other = sibling ? sibling->connectedDiameter() : 0;
+	if (other > 0 && other != pipe) {
+		return true;
+	}
 	const int own = ownDiameter();
-	const int pipe = pipeDiameter();
-	return own > 0 && pipe > 0 && own != pipe;
+	return own > 0 && own != pipe;
 }
 
 /**
@@ -1210,9 +1252,21 @@ void Terminal::updateDiameterToolTip()
 	if (d->m_medium != TerminalData::Pipe) {
 		return;
 	}
-	setToolTip(hasDiameterGap() ? tr("Nozzle DN %1, pipe DN %2")
-								  .arg(ownDiameter()).arg(pipeDiameter())
-								: QString());
+	const Terminal *sibling = inlineSibling();
+	const int pipe = connectedDiameter();
+	const int other = sibling ? sibling->connectedDiameter() : 0;
+	if (!hasDiameterGap()) {
+		setToolTip(QString());
+	} else if (other > 0 && other != pipe) {
+		setToolTip(tr("Inline item between DN %1 and DN %2, without a reducer")
+				   .arg(pipe).arg(other));
+	} else {
+		setToolTip(tr("Nozzle DN %1, pipe DN %2").arg(ownDiameter()).arg(pipe));
+	}
+		//The pipe draws the mark
+	for (Conductor *conductor : std::as_const(m_conductors_list)) {
+		conductor->update();
+	}
 }
 
 void Terminal::setSymbolDiameter(int dn)

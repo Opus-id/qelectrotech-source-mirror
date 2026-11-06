@@ -26,6 +26,7 @@
 
 class QFormLayout;
 class QLineEdit;
+class Terminal;
 
 /**
 	@brief The ElementNozzlesWidget class
@@ -64,6 +65,7 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			QString name;
 			int symbol_dn;
 			QLineEdit *edit;
+			const Terminal *terminal;
 		};
 		QFormLayout *m_layout = nullptr;
 		QList<Field> m_fields;

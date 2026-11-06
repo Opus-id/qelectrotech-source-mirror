@@ -906,6 +906,7 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/elementinfopartwidget.h
   ${QET_DIR}/sources/ui/elementinfowidget.cpp
   ${QET_DIR}/sources/ui/elementinfowidget.h
+  ${QET_DIR}/sources/ui/diameterlist.h
   ${QET_DIR}/sources/ui/elementnozzleswidget.cpp
   ${QET_DIR}/sources/ui/elementnozzleswidget.h
   ${QET_DIR}/sources/ui/elementoptionswidget.cpp

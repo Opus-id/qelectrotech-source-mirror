@@ -26259,6 +26259,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <source>Nozzle DN %1, pipe DN %2</source>
         <translation>Piquage DN %1, tuyauterie DN %2</translation>
     </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1270"/>
+        <source>Inline item between DN %1 and DN %2, without a reducer</source>
+        <translation>Appareil en ligne entre DN %1 et DN %2, sans réduction</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="693"/>
         <source>This terminal already has %n conductors, the project&apos;s limit. Add a terminal to connect one more conductor.</source>

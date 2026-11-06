@@ -19,6 +19,7 @@
 
 #include "diagram.h"
 #include "diagramview.h"
+#include "editor/elementscene.h"
 #include "editor/graphicspart/partterminal.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
@@ -28,9 +29,12 @@
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "properties/elementdata.h"
 #include "ui/elementnozzleswidget.h"
+#include "ui/pipepropertieswidget.h"
 #include "undocommand/changenozzlediameterscommand.h"
 
+#include <QComboBox>
 #include <QDomDocument>
 #include <QFile>
 #include <QImage>
@@ -51,10 +55,10 @@ class tst_nozzlediameter : public QObject
 	Q_OBJECT
 
 		// N1 has a usual size, N2 none, E1 is electrical: a dn means nothing
-	static QString symbol(const QString &uuid, int n1_dn)
+	static QString symbol(const QString &uuid, int n1_dn, const QString &extra = QString())
 	{
 		return QStringLiteral(
-			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" %3"
 			"width=\"60\" height=\"40\" hotspot_x=\"30\" hotspot_y=\"20\">"
 			"<uuid uuid=\"%1\"/>"
 			"<names><name lang=\"en\">Tank</name></names>"
@@ -68,16 +72,22 @@ class tst_nozzlediameter : public QObject
 			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" show_name=\"true\"/>"
 			"<terminal uuid=\"{7b000000-0000-0000-0000-000000000003}\" name=\"E1\" x=\"0\" y=\"-10\" "
 			"orientation=\"n\" type=\"Generic\" dn=\"50\" show_name=\"true\"/>"
-			"</description></definition>").arg(uuid).arg(n1_dn);
+			"%4</description></definition>").arg(uuid).arg(n1_dn).arg(extra)
+			.arg(extra.contains(QStringLiteral("three"))
+				 ? QStringLiteral("<terminal uuid=\"{7b000000-0000-0000-0000-000000000004}\" "
+								  "name=\"N3\" x=\"0\" y=\"10\" orientation=\"s\" "
+								  "type=\"Generic\" medium=\"pipe\"/>")
+				 : QString());
 	}
 
 	static ElementsLocation addSymbol(QETProject &project, const QString &file,
-									  const QString &uuid, int n1_dn)
+									  const QString &uuid, int n1_dn,
+									  const QString &extra = QString())
 	{
 		project.embeddedElementCollection()->createDir(
 					QStringLiteral("import"), QStringLiteral("nozzles"), NamesList());
 		QDomDocument doc;
-		doc.setContent(symbol(uuid, n1_dn));
+		doc.setContent(symbol(uuid, n1_dn, extra));
 		project.embeddedElementCollection()->addElementDefinition(
 					QStringLiteral("import/nozzles"), file, doc.documentElement());
 		return ElementsLocation(QStringLiteral("embed://import/nozzles/") + file, &project);
@@ -87,6 +97,14 @@ class tst_nozzlediameter : public QObject
 	{
 		return addSymbol(project, QStringLiteral("tank.elmt"),
 						 QStringLiteral("{7b111111-1111-1111-1111-111111111111}"), 80);
+	}
+
+		// A valve: a line runs through it, and it has no DN of its own
+	static ElementsLocation addValve(QETProject &project)
+	{
+		return addSymbol(project, QStringLiteral("valve.elmt"),
+						 QStringLiteral("{7b333333-3333-3333-3333-333333333333}"), 0,
+						 QStringLiteral("pipe_inline=\"true\" "));
 	}
 
 	static Element *place(Diagram *folio, const ElementsLocation &location)
@@ -319,6 +337,22 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!n2->hasDiameterGap());
 			QVERIFY(a->nozzleDiameters().isEmpty());
 
+				// the Nozzles tab shows it in grey, and once a value of its own
+				// is emptied the nozzle is back on its pipe, still in grey
+			ElementNozzlesWidget tab(a);
+			tab.setLiveEdit(true);
+			QLineEdit *field = tab.fieldFor(QStringLiteral("N2"));
+			QVERIFY(field->text().isEmpty());
+			QCOMPARE(field->placeholderText(), QStringLiteral("200"));
+			field->setText(QStringLiteral("100"));
+			emit field->editingFinished();
+			QCOMPARE(n2->nominalDiameter(), 100);
+			field->clear();
+			emit field->editingFinished();
+			QVERIFY(a->nozzleDiameters().isEmpty());
+			QCOMPARE(n2->nominalDiameter(), 200);
+			QCOMPARE(field->placeholderText(), QStringLiteral("200"));
+
 				// and goes back to nothing without its pipe
 			folio->removeItem(pipe);
 			QCOMPARE(n2->nominalDiameter(), 0);
@@ -326,45 +360,194 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(n2->nominalDiameter(), 200);
 		}
 
-			// the case of a valve in a line: the pipe on the other side and
-			// the valve itself are not changed, the valve shows each side
-		void aPipeChangedOnOneSideOfAValve()
+			// ---- a line through valves ----
+			// A valve has one DN: a change of DN made by the user goes through
+			// it, in one step; equipment, tees and three-way valves stop it
+		void aChangeOfDiameterGoesThroughTheValves()
 		{
 			QETProject project;
-				// no DN on any nozzle of this symbol
-			const ElementsLocation location = addSymbol(
-						project, QStringLiteral("valve.elmt"),
-						QStringLiteral("{7b333333-3333-3333-3333-333333333333}"), 0);
+			const ElementsLocation tank = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			const ElementsLocation valve_symbol = addValve(project);
 			Diagram *folio = project.addNewDiagram();
-			Element *left = place(folio, location);
-			Element *valve = place(folio, location);
-			Element *right = place(folio, location);
+			Element *start = place(folio, tank);
+			Element *first = place(folio, valve_symbol);
+			Element *second = place(folio, valve_symbol);
+			Element *equipment = place(folio, tank);
+			Element *end = place(folio, tank);
+			QVERIFY(start && first && second && equipment && end);
+			first->setPos(400, 200);
+			second->setPos(600, 200);
+			equipment->setPos(800, 200);
+			end->setPos(1000, 200);
+			Conductor *a = connect(folio, start, QStringLiteral("N2"), first, QStringLiteral("N1"));
+			Conductor *b = connect(folio, first, QStringLiteral("N2"), second, QStringLiteral("N1"));
+			Conductor *c = connect(folio, second, QStringLiteral("N2"), equipment, QStringLiteral("N1"));
+			Conductor *d = connect(folio, equipment, QStringLiteral("N2"), end, QStringLiteral("N1"));
+			QVERIFY(a && b && c && d);
+			setDn(d, 65);
+			QCOMPARE(a->inlineRun().size(), 3);
+
+			PipePropertiesWidget page({a});
+			auto *field = page.findChild<QLineEdit *>(QStringLiteral("nominal_diameter"));
+			QVERIFY(field);
+			const int steps = folio->undoStack().count();
+			field->setText(QStringLiteral("150"));
+			field->setModified(true);
+			emit field->editingFinished();
+
+			QCOMPARE(dn(a), 150);
+			QCOMPARE(dn(b), 150);
+			QCOMPARE(dn(c), 150);
+				// stopped by the equipment
+			QCOMPARE(dn(d), 65);
+			QCOMPARE(terminal(first, QStringLiteral("N2"))->nominalDiameter(), 150);
+			QVERIFY(first->nozzleDiameters().isEmpty());
+
+				// one step, undone at once
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			QCOMPARE(dn(a), 0);
+			QCOMPARE(dn(c), 0);
+			folio->undoStack().redo();
+			QCOMPARE(dn(c), 150);
+		}
+
+			// the same pipe from any side
+		void aChangeGoesBothWays()
+		{
+			QETProject project;
+			const ElementsLocation tank = addTank(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *left = place(folio, tank);
+			Element *valve = place(folio, addValve(project));
+			Element *right = place(folio, tank);
+			QVERIFY(left && valve && right);
+			valve->setPos(400, 200);
+			right->setPos(600, 200);
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			Conductor *after = connect(folio, valve, QStringLiteral("N2"), right, QStringLiteral("N2"));
+			QCOMPARE(before->inlineRun().size(), 2);
+			QCOMPARE(after->inlineRun().size(), 2);
+		}
+
+			// a three-way valve joins lines, as a tee
+		void aThreeWayValveStopsAChange()
+		{
+			QETProject project;
+			const ElementsLocation tank = addTank(project);
+			const ElementsLocation three = addSymbol(
+						project, QStringLiteral("three.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555555}"), 0,
+						QStringLiteral("pipe_inline=\"true\" three=\"true\" "));
+			Diagram *folio = project.addNewDiagram();
+			Element *left = place(folio, tank);
+			Element *valve = place(folio, three);
+			Element *right = place(folio, tank);
+			QVERIFY(left && valve && right);
+			valve->setPos(400, 200);
+			right->setPos(600, 200);
+			QVERIFY(!valve->isPipeInline());
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			connect(folio, valve, QStringLiteral("N2"), right, QStringLiteral("N2"));
+			QCOMPARE(before->inlineRun().size(), 1);
+		}
+
+			// a valve has one DN: given to one nozzle, seen on both
+		void aValveHasOneDiameter()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			Element *valve = place(folio, addValve(project));
+			QVERIFY(valve);
+			QVERIFY(valve->isPipeInline());
+			valve->setNozzleDiameters({{QStringLiteral("N1"), 80}});
+			QCOMPARE(terminal(valve, QStringLiteral("N2"))->nominalDiameter(), 80);
+
+				// and a symbol that is not a valve keeps two
+			Element *tank = place(folio, addTank(project));
+			QVERIFY(!tank->isPipeInline());
+			tank->setNozzleDiameters({{QStringLiteral("N1"), 200}});
+			QCOMPARE(terminal(tank, QStringLiteral("N2"))->nominalDiameter(), 0);
+		}
+
+			// a new pipe on the free side of a valve takes the DN of the line
+		void aNewPipeOnAValveContinuesTheLine()
+		{
+			QETProject project;
+			const ElementsLocation tank = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			Diagram *folio = project.addNewDiagram();
+			Element *left = place(folio, tank);
+			Element *valve = place(folio, addValve(project));
+			Element *right = place(folio, tank);
+			QVERIFY(left && valve && right);
+			valve->setPos(400, 200);
+			right->setPos(600, 200);
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			setDn(before, 100);
+			QCOMPARE(terminal(valve, QStringLiteral("N2"))->nominalDiameter(), 100);
+			Conductor *after = connect(folio, valve, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QCOMPARE(dn(after), 100);
+		}
+
+			// reached anyway (one pipe changed by a script, a paste...): said
+			// on both sides, nothing corrected
+		void twoDiametersOnAValveAreMarked()
+		{
+			QETProject project;
+			const ElementsLocation tank = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			Diagram *folio = project.addNewDiagram();
+			Element *left = place(folio, tank);
+			Element *valve = place(folio, addValve(project));
+			Element *right = place(folio, tank);
 			QVERIFY(left && valve && right);
 			valve->setPos(400, 200);
 			right->setPos(600, 200);
 			Conductor *before = connect(folio, left, QStringLiteral("N2"), valve, QStringLiteral("N1"));
 			Conductor *after = connect(folio, valve, QStringLiteral("N2"), right, QStringLiteral("N1"));
-			QVERIFY(before && after);
 			setDn(before, 100);
-			setDn(after, 100);
+			setDn(after, 150);
 			Terminal *in = terminal(valve, QStringLiteral("N1"));
 			Terminal *out = terminal(valve, QStringLiteral("N2"));
-			QCOMPARE(in->nominalDiameter(), 100);
-			QCOMPARE(out->nominalDiameter(), 100);
+			QVERIFY(in->hasDiameterGap());
+			QVERIFY(out->hasDiameterGap());
+			QVERIFY(in->toolTip().contains(QStringLiteral("150")));
+			QVERIFY(out->toolTip().contains(QStringLiteral("100")));
+			QCOMPARE(dn(before), 100);
 
-			setDn(before, 150);
-			QCOMPARE(in->nominalDiameter(), 150);
-			QCOMPARE(out->nominalDiameter(), 100);
-			QCOMPARE(dn(after), 100);
+				// the same again: no mark left on either side
+			setDn(after, 100);
 			QVERIFY(!in->hasDiameterGap());
 			QVERIFY(!out->hasDiameterGap());
-			QVERIFY(valve->nozzleDiameters().isEmpty());
+			QVERIFY(in->toolTip().isEmpty());
+		}
 
-				// a valve given a DN of its own: a real difference, marked
-			valve->setNozzleDiameters({{QStringLiteral("N1"), 80}});
-			QCOMPARE(in->nominalDiameter(), 80);
-			QVERIFY(in->hasDiameterGap());
-			QCOMPARE(dn(before), 150);
+		void theEditorKeepsThatALineRunsThrough()
+		{
+			QDomDocument doc;
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+								  QStringLiteral("pipe_inline=\"true\" ")));
+			ElementData data;
+			data.fromXml(doc.documentElement());
+			QVERIFY(data.m_pipe_inline);
+			ElementScene scene(nullptr);
+			scene.fromXml(doc, QPointF(), true);
+			QCOMPARE(scene.toXml().documentElement().attribute(QStringLiteral("pipe_inline")),
+					 QStringLiteral("true"));
+
+				// and writes nothing for any other symbol
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0));
+			ElementData other;
+			other.fromXml(doc.documentElement());
+			QVERIFY(!other.m_pipe_inline);
+			ElementScene other_scene(nullptr);
+			other_scene.fromXml(doc, QPointF(), true);
+			QVERIFY(!other_scene.toXml().documentElement().hasAttribute(QStringLiteral("pipe_inline")));
 		}
 
 		void aDifferenceIsMarkedNotCorrected()
@@ -392,6 +575,16 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(n2->hasDiameterGap());
 			QVERIFY(n1->hasDiameterGap());
 			QVERIFY(n1->toolTip().contains(QStringLiteral("200")));
+
+				// the mark is over the pipe, which would hide a mark of the element
+			QImage image(700, 300, QImage::Format_ARGB32);
+			image.fill(Qt::white);
+			QPainter painter(&image);
+			painter.translate(pipe->pos());
+			QStyleOptionGraphicsItem options;
+			pipe->paint(&painter, &options, nullptr);
+			painter.end();
+			QCOMPARE(image.pixelColor(n2->dockConductor().toPoint()), QColor(255, 140, 0));
 
 				// emptied by hand, a pipe stays empty: nothing to compare
 			setDn(pipe, 0);
@@ -629,6 +822,55 @@ class tst_nozzlediameter : public QObject
 			QVERIFY2(inked >= int(150 * zoom), qPrintable(QString::number(inked)));
 		}
 
+			// ---- the preferred values ----
+		void theListHasThePreferredValuesOfIso6708()
+		{
+			const QList<int> expected{
+				10, 15, 20, 25, 32, 40, 50, 60, 65, 80, 100, 125, 150, 200,
+				250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1400,
+				1500, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 3600, 3800, 4000};
+			QCOMPARE(PipeProperties::preferredDiameters(), expected);
+		}
+
+		void aDiameterIsPickedInTheListOrTyped()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = place(folio, addTank(project));
+			QVERIFY(tank);
+			ElementNozzlesWidget tab(tank);
+			tab.setLiveEdit(true);
+			QLineEdit *n1 = tab.fieldFor(QStringLiteral("N1"));
+			QVERIFY(n1);
+			auto *list = qobject_cast<QComboBox *>(n1->parentWidget());
+			QVERIFY(list);
+				// no DN, then the preferred values
+			QCOMPARE(list->count(), PipeProperties::preferredDiameters().size() + 1);
+			QVERIFY(list->itemText(0).isEmpty());
+
+				// picked in the list
+			const int index = list->findText(QStringLiteral("150"));
+			QVERIFY(index > 0);
+			list->setCurrentIndex(index);
+			emit list->activated(index);
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), 150);
+
+				// another value stays possible, and is kept as typed: no
+				// completion turns 12 into 125
+			n1->setText(QStringLiteral("12"));
+			QVERIFY(n1->hasAcceptableInput());
+			emit n1->editingFinished();
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), 12);
+			QVERIFY(!list->completer());
+
+				// neither text nor a zero in front
+			int position = 0;
+			QString text = QStringLiteral("DN80");
+			QCOMPARE(list->validator()->validate(text, position), QValidator::Invalid);
+			text = QStringLiteral("0");
+			QCOMPARE(list->validator()->validate(text, position), QValidator::Invalid);
+		}
+
 			// ---- the Nozzles tab of the properties of an element ----
 		void theNozzlesTabChangesWithUndo()
 		{
@@ -667,8 +909,10 @@ class tst_nozzlediameter : public QObject
 			folio->undoStack().redo();
 			QCOMPARE(n1->text(), QStringLiteral("100"));
 
-				// emptied, or written as in the symbol: nothing of its own
+				// emptied, or written as in the symbol: nothing of its own.
+				// Empty is a finished value: else the field would not apply it
 			n1->clear();
+			QVERIFY(n1->hasAcceptableInput());
 			emit n1->editingFinished();
 			QVERIFY(tank->nozzleDiameters().isEmpty());
 			n1->setText(QStringLiteral("80"));

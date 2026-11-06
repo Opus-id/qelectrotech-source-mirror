@@ -194,6 +194,8 @@ class Conductor : public QGraphicsObject
 			/// See the definition; to call again on a new pipe after giving
 			/// it other properties
 		void takeNozzleDiameter();
+		QList<Conductor *> inlineRun();
+		void drawDiameterGaps(QPainter *painter) const;
 		bool potentialTypeFormat(PotentialType *type) const;
 
 	private:
