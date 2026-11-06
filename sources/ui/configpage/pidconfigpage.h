@@ -23,6 +23,7 @@
 
 #include <functional>
 
+class QLabel;
 class QPushButton;
 class QTableWidget;
 
@@ -55,6 +56,9 @@ class PidConfigPage : public ProjectConfigPage
 			/// What asks a colour, the colour dialog unless a test says
 			/// otherwise; it answers an invalid colour when cancelled
 		void setColorAsker(const std::function<QColor(const QColor &)> &asker) { m_ask_color = asker; }
+			/// Keep the colours of this page as those of the new projects,
+			/// or none when it has none; other projects stay as they are
+		void saveAsDefaultPalette();
 
 	protected:
 		void initWidgets() override;
@@ -72,6 +76,8 @@ class PidConfigPage : public ProjectConfigPage
 		QTableWidget *m_table = nullptr;
 		QPushButton *m_choose = nullptr;
 		QPushButton *m_clear = nullptr;
+		QPushButton *m_save_palette = nullptr;
+		QLabel *m_palette_saved = nullptr;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
 		std::function<QColor(const QColor &)> m_ask_color;

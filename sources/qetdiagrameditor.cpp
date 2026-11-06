@@ -2428,6 +2428,7 @@ void QETDiagramEditor::saveAs()
 bool QETDiagramEditor::newProject()
 {
 	auto new_project = new QETProject(this);
+	new_project -> takeDefaultPidPalette();
 
 	// add new diagram
 	new_project -> addNewDiagram();
@@ -2444,6 +2445,7 @@ bool QETDiagramEditor::newProject()
 bool QETDiagramEditor::newAutoConnectProject()
 {
 	auto new_project = new QETProject(this);
+	new_project -> takeDefaultPidPalette();
 	new_project -> setLiveAutoConnect(true);
 	new_project -> addNewDiagram();
 

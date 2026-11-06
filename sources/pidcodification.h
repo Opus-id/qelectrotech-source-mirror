@@ -107,6 +107,10 @@ class PidCodification
 			/// is skipped, and so is a line that cannot be read, counted in
 			/// @p skipped. Returns the codification read, empty when none.
 		static PidCodification fromCsv(const QString &text, int *skipped = nullptr);
+			/// The colours alone, as lines fromCsv() reads: the palette kept
+			/// in the settings, for new projects. The codes stay out, each
+			/// project has its own
+		QString colorsToCsv() const;
 
 		bool operator==(const PidCodification &other) const;
 		bool operator!=(const PidCodification &other) const { return !(*this == other); }

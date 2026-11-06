@@ -189,6 +189,25 @@ void PidCodification::fromXml(const QDomElement &parent)
 }
 
 /**
+	@brief PidCodification::colorsToCsv
+	See the declaration
+*/
+QString PidCodification::colorsToCsv() const
+{
+	QString text;
+	auto write = [&text](const QString &kind, const QMap<QString, QColor> &colors) {
+		for (auto it = colors.cbegin() ; it != colors.cend() ; ++it) {
+			text += kind + QLatin1Char(';') + it.key() + QLatin1Char(';')
+					+ it.value().name() + QLatin1Char('\n');
+		}
+	};
+	write(QStringLiteral("fluid_color"), fluid_family_colors);
+	write(QStringLiteral("object_color"), object_colors);
+	write(QStringLiteral("status_color"), status_colors);
+	return text;
+}
+
+/**
 	@brief PidCodification::fromCsv
 	See the declaration for the format.
 	@param text : the content of the file

@@ -20,6 +20,7 @@
 #include "../../qeticons.h"
 #include "../../qetproject.h"
 #include "../../undocommand/changepidcodificationcommand.h"
+#include "../../utils/qetsettings.h"
 
 #include <QApplication>
 #include <QColorDialog>
@@ -106,6 +107,13 @@ void PidConfigPage::initWidgets()
 	m_clear = new QPushButton(tr("No color"), this);
 	connect(m_choose, &QPushButton::clicked, this, &PidConfigPage::chooseColor);
 	connect(m_clear, &QPushButton::clicked, this, [this]() { setColorOfSelection(QColor()); });
+
+	m_save_palette = new QPushButton(tr("Save as default palette"), this);
+	m_save_palette->setObjectName(QStringLiteral("save_palette"));
+	m_save_palette->setToolTip(tr("New projects will start with these colors. "
+								  "Projects that already exist do not change."));
+	connect(m_save_palette, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultPalette);
+	m_palette_saved = new QLabel(this);
 }
 
 void PidConfigPage::initLayout()
@@ -114,6 +122,8 @@ void PidConfigPage::initLayout()
 	buttons->addWidget(m_choose);
 	buttons->addWidget(m_clear);
 	buttons->addStretch();
+	buttons->addWidget(m_palette_saved);
+	buttons->addWidget(m_save_palette);
 
 	auto *colors_tab = new QWidget(this);
 	auto *layout = new QVBoxLayout(colors_tab);
@@ -143,6 +153,17 @@ void PidConfigPage::adjustReadOnly()
 	m_table->setEnabled(!read_only);
 	m_choose->setEnabled(!read_only);
 	m_clear->setEnabled(!read_only);
+}
+
+/**
+	@brief PidConfigPage::saveAsDefaultPalette
+	See the declaration
+*/
+void PidConfigPage::saveAsDefaultPalette()
+{
+	QetSettings::setPidPalette(m_codification.colorsToCsv());
+	m_palette_saved->setText(m_codification.hasColors() ? tr("Palette saved")
+														: tr("Default palette removed"));
 }
 
 /**

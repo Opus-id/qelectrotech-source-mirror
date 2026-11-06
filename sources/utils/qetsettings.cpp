@@ -226,6 +226,22 @@ namespace QetSettings
 		if (!enabled) settings.remove("scripting/live_skip_warning");
 	}
 
+	QString pidPalette()
+	{
+		QSettings settings;
+		return settings.value("pid/default_palette").toString();
+	}
+
+	void setPidPalette(const QString &palette)
+	{
+		QSettings settings;
+		if (palette.isEmpty()) {
+			settings.remove("pid/default_palette");
+		} else {
+			settings.setValue("pid/default_palette", palette);
+		}
+	}
+
 	/**
 	* @brief liveSkipStartWarning
 	* @return true when the user ticked "don't ask again" in live mode's

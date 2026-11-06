@@ -619,6 +619,7 @@ QJsonObject LiveServer::newProject(const QJsonObject &request)
 	}
 
 	auto project = new QETProject(e);
+	project->takeDefaultPidPalette();
 	for (int i = 0; i < folios; ++i) project->addNewDiagram();
 	const QString title = request.value(QStringLiteral("title")).toString().trimmed();
 	if (!title.isEmpty()) project->setTitle(title);

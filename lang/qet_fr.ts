@@ -12120,6 +12120,26 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Aucune couleur</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="112"/>
+        <source>Save as default palette</source>
+        <translation>Enregistrer comme palette par défaut</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="114"/>
+        <source>New projects will start with these colors. Projects that already exist do not change.</source>
+        <translation>Les nouveaux projets commenceront avec ces couleurs. Les projets existants ne changent pas.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="160"/>
+        <source>Palette saved</source>
+        <translation>Palette enregistrée</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="161"/>
+        <source>Default palette removed</source>
+        <translation>Palette par défaut retirée</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
         <source>What has no color here is drawn in black. A status comes first, then a color set on a pipe line, then its fluid, then the family of the object.</source>
         <translation>Ce qui n&apos;a pas de couleur ici est dessiné en noir. Le statut passe d&apos;abord, puis la couleur posée sur une tuyauterie, puis son fluide, puis la famille de l&apos;objet.</translation>

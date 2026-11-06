@@ -56,6 +56,7 @@
 #include "qetversion.h"
 #include "undocommand/adddiagramcommand.h"
 #include "utils/previousversions.h"
+#include "utils/qetsettings.h"
 
 #include <QCryptographicHash>
 #include <QElapsedTimer>
@@ -4673,6 +4674,20 @@ void QETProject::setPidCodification(const PidCodification &codification)
 	}
 	setModified(true);
 	emit pidCodificationChanged();
+}
+
+/**
+	@brief QETProject::takeDefaultPidPalette
+	See the declaration
+*/
+void QETProject::takeDefaultPidPalette()
+{
+	const PidCodification palette = PidCodification::fromCsv(QetSettings::pidPalette());
+	if (!palette.hasColors()) {
+		return;
+	}
+	setPidCodification(palette);
+	setModified(false);
 }
 
 /**

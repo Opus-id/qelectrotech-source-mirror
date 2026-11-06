@@ -17,6 +17,7 @@
 #include "ui/configpage/pidconfigpage.h"
 #include "ui/elementoptionswidget.h"
 #include "ui/pipepropertieswidget.h"
+#include "utils/qetsettings.h"
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -591,6 +592,54 @@ class tst_pidcolors : public QObject
 			QCOMPARE(c.fluid_family_colors.value(QStringLiteral("E")), QColor(0, 0, 255));
 			QVERIFY(c.object_colors.isEmpty());
 			QCOMPARE(c.status_colors.value(QStringLiteral("existing")), QColor(2, 2, 2));
+			m_project.setPidCodification(PidCodification());
+		}
+
+		void aNewProjectStartsFromTheDefaultPalette()
+		{
+			QETDiagramEditor *editor = QetAppTest::editor();
+			QVERIFY(editor);
+			const QColor olive(0x80, 0x80, 0), grey(0x80, 0x80, 0x80), blue(0, 0, 255);
+
+				// nothing saved: as before
+			QVERIFY(QetSettings::pidPalette().isEmpty());
+			QVERIFY(editor->newProject());
+			QVERIFY(editor->currentProject()->pidCodification().isEmpty());
+
+				// the colours of the page, not its codes
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Raw water;E\n")));
+			{
+				PidConfigPage page(&m_project);
+				page.setColor(PidConfigPage::FluidFamily, QStringLiteral("E"), blue);
+				page.setColor(PidConfigPage::ObjectFamily, QStringLiteral("valve"), olive);
+				page.setColor(PidConfigPage::Status, QStringLiteral("existing"), grey);
+				auto *save = page.findChild<QPushButton *>(QStringLiteral("save_palette"));
+				QVERIFY(save);
+				save->click();
+			}
+				// saving changes neither this project nor another one
+			QVERIFY(!m_project.pidCodification().hasColors());
+
+			QVERIFY(editor->newProject());
+			QETProject *project = editor->currentProject();
+			const PidCodification c = project->pidCodification();
+			QCOMPARE(c.fluid_family_colors.value(QStringLiteral("E")), blue);
+			QCOMPARE(c.object_colors.value(QStringLiteral("valve")), olive);
+			QCOMPARE(c.status_colors.value(QStringLiteral("existing")), grey);
+			QVERIFY(!c.hasCodes());
+				// nothing to save yet, and the palette is its own copy
+			QVERIFY(!project->projectOptionsWereModified());
+			QetSettings::setPidPalette(QString());
+			QVERIFY(project->pidCodification().hasColors());
+
+				// a page without colours takes the palette away
+			{
+				PidConfigPage page(&m_project);
+				page.setColor(PidConfigPage::FluidFamily, QStringLiteral("E"), QColor());
+				page.saveAsDefaultPalette();
+			}
+			QVERIFY(QetSettings::pidPalette().isEmpty());
 			m_project.setPidCodification(PidCodification());
 		}
 

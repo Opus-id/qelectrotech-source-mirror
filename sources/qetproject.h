@@ -154,6 +154,10 @@ class QETProject : public QObject
 			/// project (PidCodification), saved with it; empty by default
 		PidCodification pidCodification() const {return m_pid_codification;}
 		void setPidCodification(const PidCodification &codification);
+			/// For a project just created: take the colours saved as the
+			/// default palette (QetSettings::pidPalette()), if any. It stays
+			/// unmodified, and keeps its own copy from then on.
+		void takeDefaultPidPalette();
 		bool deferringFolios() const {return m_deferring_folios;}
 		int unloadedFolioCount() const;
 		QList<Diagram *> builtFolios() const;
