@@ -88,6 +88,24 @@ tag `pipe-connector-freeze-2026-11-03`.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
   through its run and keeps its branch free.
 
+**Nominal diameters**
+- A nozzle may have a diameter in its symbol (`dn` attribute of `<terminal>`,
+  set in the element editor), changed on a placed symbol in a *Nozzles* tab
+  of its properties (`<nozzles>` block of `<element>`, written only when
+  set; undoable). It is shown under the name of the nozzle, when terminal
+  names are shown. A `.qetdb` file refuses it, as it refuses the options.
+- The diameter fields offer the preferred values of ISO 6708; another value
+  can still be typed for now.
+- A diameter fills what is empty and never replaces a value: a new pipe
+  without a diameter takes that of its nozzle, once; a nozzle without a
+  diameter of its own follows its pipe, nothing being saved.
+- A difference is marked without being blocked: an orange diamond in front
+  of the pipe, on screen only, and a tooltip. No reducer is ever inserted.
+- An inline symbol (`pipe_inline` attribute of the `.elmt`, exactly two
+  nozzles) has one diameter. A change made on the page of a pipe goes through
+  these symbols, in one undo step, and replaces the diameter of the pipes
+  it reaches. It stops at tees, equipment and three-way valves.
+
 **Symbols**
 - **Change type**: right-click a placed symbol, *Change type* lists the
   symbols of the same collection folder that have the same size, hotspot
@@ -126,7 +144,11 @@ QElectroTech are saved byte for byte as by master.
 - The line designation shown along a pipe.
 - Placing a tee by dropping a pipe on another, flow direction, crossings
   as ISO 10628-1 draws them.
-- Signal lines, drive links, data of the nozzles, equipment data tables.
+- Signal lines, drive links, kind of connection of the nozzles (flange,
+  thread…), equipment data tables.
+- A list of diameters per project (ISO values plus those of the project,
+  such as outside diameters of plastic pipes), and a way to find the pipes
+  without a diameter.
 - Text sizes per kind of text (equipment, valve and instrument tags, line
   designations, nozzles), set in the project.
 - Declaring options and conditions in the element editor (they are written
