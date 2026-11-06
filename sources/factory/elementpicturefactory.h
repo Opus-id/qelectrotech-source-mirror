@@ -141,6 +141,8 @@ class ElementPictureFactory
 		QTransform m_build_texts_undo;
 			/// See inkChoice(), for the drawing being built
 		QColor m_build_ink;
+			/// The drawing being built is that of a P&ID symbol (pid_family)
+		bool m_build_pid = false;
 		QHash<QUuid, QPixmap> m_pixmap_H;
 		QHash<QUuid, primitives> m_primitives_H;
 			/// The keys of the drawings of a symbol with options chosen

@@ -18,7 +18,11 @@
 #include "qetapptest.h"
 
 #include "editor/graphicspart/partline.h"
+#include "ElementsCollection/elementslocation.h"
+#include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementpicturefactory.h"
+#include "NameList/nameslist.h"
+#include "qetproject.h"
 
 #include <QDomDocument>
 #include <QImage>
@@ -118,6 +122,53 @@ class tst_elementlinecap : public QObject
 	static bool inTheCorner(const QImage &i) { return inked(i, 32.2, 7.8); }
 		// the line itself, to be sure something is drawn
 	static bool onTheLine(const QImage &i) { return inked(i, 20.0, 10.0); }
+
+		// How many pixels wide a line of this @a weight is on the screen just
+		// below 50 %, where a placed element uses its low zoom drawing, in a
+		// P&ID symbol (@a family) or any other (no family)
+	static int widthBelowHalf(const QString &weight, const QString &family = QString())
+	{
+		QETProject project;
+		project.embeddedElementCollection()->createDir(
+					QStringLiteral("import"), QStringLiteral("zoom"), NamesList());
+		QDomDocument doc;
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"width=\"40\" height=\"20\" hotspot_x=\"0\" hotspot_y=\"0\"%3>"
+			"<uuid uuid=\"%1\"/><names><name lang=\"en\">Line</name></names>"
+			"<description><line x1=\"10\" y1=\"10\" x2=\"30\" y2=\"10\" end1=\"none\" "
+			"end2=\"none\" length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
+			"style=\"line-style:normal;line-weight:%2;filling:none;color:black\"/>"
+			"</description></definition>")
+			.arg(QUuid::createUuid().toString(), weight,
+				 family.isEmpty() ? QString()
+								  : QStringLiteral(" pid_family=\"%1\"").arg(family)));
+		project.embeddedElementCollection()->addElementDefinition(
+					QStringLiteral("import/zoom"), QStringLiteral("line.elmt"),
+					doc.documentElement());
+
+		QPicture picture;
+		QPicture low_picture;
+		ElementPictureFactory::instance()->getPictures(
+					ElementsLocation(QStringLiteral("embed://import/zoom/line.elmt"), &project),
+					picture, low_picture);
+
+		QImage image(100, 100, QImage::Format_ARGB32);
+		image.fill(Qt::white);
+		QPainter painter(&image);
+		painter.scale(0.49, 0.49);
+		painter.translate(0, 40);
+		painter.drawPicture(0, 0, low_picture);
+		painter.end();
+
+		int width = 0;
+		for (int y = 0 ; y < image.height() ; ++y) {
+			if (qGray(image.pixel(10, y)) < 128) {
+				++width;
+			}
+		}
+		return width;
+	}
 
 private slots:
 	void noStyleIsASquareCap()
@@ -278,6 +329,25 @@ private slots:
 		PartLine line(nullptr);
 		QCOMPARE(int(line.lineCap()), int(CustomElementGraphicPart::SquareLineCap));
 		QCOMPARE(int(line.lineJoin()), int(CustomElementGraphicPart::DefaultLineJoin));
+	}
+
+		// Just above 50 % a line of 2 units is one pixel wide: in a P&ID
+		// symbol it must not double when the zoom goes just below
+	void aWideLineOfAPidSymbolDoesNotSwellBelowHalfZoom()
+	{
+		const QString family = QStringLiteral("equipment");
+		QCOMPARE(widthBelowHalf(QStringLiteral("normal"), family), 1);
+		QCOMPARE(widthBelowHalf(QStringLiteral("hight"), family), 1);
+		const int very_wide = widthBelowHalf(QStringLiteral("eleve"), family);
+		QVERIFY2(very_wide >= 2 && very_wide <= 3, qPrintable(QString::number(very_wide)));
+	}
+
+		// The other symbols keep the widths they always had
+	void aSymbolOutsideThePidKeepsItsWidthBelowHalfZoom()
+	{
+		QCOMPARE(widthBelowHalf(QStringLiteral("normal")), 1);
+		QVERIFY(widthBelowHalf(QStringLiteral("hight")) >= 2);
+		QVERIFY(widthBelowHalf(QStringLiteral("eleve")) >= 5);
 	}
 };
 

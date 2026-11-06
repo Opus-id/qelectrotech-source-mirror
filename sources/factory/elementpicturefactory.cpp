@@ -403,6 +403,7 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 
 	m_build_texts_undo = texts_transform.inverted();
 	m_build_ink = QColor(choices.value(inkChoice()));
+	m_build_pid = dom.hasAttribute(QStringLiteral("pid_family"));
 
 	//scroll of the Children of the Definition: Parts of the Drawing
 	// Extract PLC master data for rendering plc_table parts
@@ -460,6 +461,7 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 	low_painter.end();
 	m_build_texts_undo = QTransform();
 	m_build_ink = QColor();
+	m_build_pid = false;
 	qDeleteAll(low_primitives.m_texts);
 
 	const auto uuid_ = cacheKey(location, choices);
@@ -1396,6 +1398,15 @@ void ElementPictureFactory::setPainterStyle(const QDomElement &dom, QPainter &pa
 		if (brush.color() == QColor(Qt::black)) {
 			brush.setColor(m_build_ink);
 		}
+	}
+
+		//The low zoom drawing has a cosmetic pen, whose width is in pixels at
+		//any zoom. It takes over below 50 %: halved, a wide line of a P&ID
+		//symbol keeps there the width it just had instead of doubling, and
+		//never goes below the one pixel of a normal line. The other symbols
+		//are drawn as they always were.
+	if (m_build_pid && pen.isCosmetic() && pen.widthF() > 1.0) {
+		pen.setWidthF(qMax(1.0, pen.widthF() * 0.5));
 	}
 
 	painter.setPen(pen);
