@@ -667,8 +667,7 @@ int BorderTitleBlock::rowAt(int i) const
 /**
 	@brief BorderTitleBlock::updateRectangles
 	This method update the diagram rect according
-	to the value of rows and columns (number and size), read from the
-	project's store: a change has to be stored first.
+	to the value of rows and columns (number and size)
 */
 void BorderTitleBlock::updateRectangles()
 {
@@ -935,6 +934,7 @@ void BorderTitleBlock::drawDxf(
 void BorderTitleBlock::setColumnsCount(int nb_c) {
 	if (nb_c == columnsCount()) return;
 	columns_count_ = qMax(MIN_COLUMN_COUNT , nb_c);
+	//Store first: the getters read the store, and updateRectangles() uses them
 	storeBorder();
 	updateRectangles();
 }
@@ -955,6 +955,7 @@ void BorderTitleBlock::setColumnsCount(int nb_c) {
 void BorderTitleBlock::setColumnsWidth(const qreal &new_cw) {
 	if (new_cw == columnsWidth()) return;
 	columns_width_ = qMax(MIN_COLUMN_WIDTH , new_cw);
+	//Store first: the getters read the store, and updateRectangles() uses them
 	storeBorder();
 	updateRectangles();
 }
@@ -971,6 +972,7 @@ void BorderTitleBlock::setColumnsWidth(const qreal &new_cw) {
 */
 void BorderTitleBlock::setColumnsHeaderHeight(const qreal &new_chh) {
 	columns_header_height_ = qBound(qreal(5.0), new_chh, qreal(50.0));
+	//Store first: the getters read the store, and updateRectangles() uses them
 	storeBorder();
 	updateRectangles();
 }
@@ -991,6 +993,7 @@ void BorderTitleBlock::setColumnsHeaderHeight(const qreal &new_chh) {
 void BorderTitleBlock::setRowsCount(int nb_r) {
 	if (nb_r == rowsCount()) return;
 	rows_count_ = qMax(MIN_ROW_COUNT, nb_r);
+	//Store first: the getters read the store, and updateRectangles() uses them
 	storeBorder();
 	updateRectangles();
 }
@@ -1011,6 +1014,7 @@ void BorderTitleBlock::setRowsCount(int nb_r) {
 void BorderTitleBlock::setRowsHeight(const qreal &new_rh) {
 	if (new_rh == rowsHeight()) return;
 	rows_height_ = qMax(MIN_ROW_HEIGHT, new_rh);
+	//Store first: the getters read the store, and updateRectangles() uses them
 	storeBorder();
 	updateRectangles();
 }
@@ -1027,6 +1031,7 @@ void BorderTitleBlock::setRowsHeight(const qreal &new_rh) {
 */
 void BorderTitleBlock::setRowsHeaderWidth(const qreal &new_rhw) {
 	rows_header_width_ = qBound(qreal(5.0), new_rhw, qreal(50.0));
+	//Store first: the getters read the store, and updateRectangles() uses them
 	storeBorder();
 	updateRectangles();
 }
