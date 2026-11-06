@@ -82,7 +82,9 @@ DiagramPropertiesDialog::DiagramPropertiesDialog(Diagram *diagram, QWidget *pare
 	connect(m_cpw->editAutonumPushButton(), &QPushButton::clicked, this, &DiagramPropertiesDialog::editAutonum);
 
 		// Buttons
-	QDialogButtonBox boutons(diagram_is_read_only ? QDialogButtonBox::Ok : QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+	QDialogButtonBox boutons(diagram_is_read_only
+							 ? QDialogButtonBox::Ok
+							 : QDialogButtonBox::Ok | QDialogButtonBox::Apply | QDialogButtonBox::Cancel);
 	connect(&boutons, &QDialogButtonBox::accepted, this, &DiagramPropertiesDialog::accept);
 	connect(&boutons, &QDialogButtonBox::rejected, this, &DiagramPropertiesDialog::reject);
 
@@ -97,21 +99,31 @@ DiagramPropertiesDialog::DiagramPropertiesDialog(Diagram *diagram, QWidget *pare
 
 	QET::trackDialogGeometry(this);
 
-	// if dialog is accepted
-	if (this -> exec() == QDialog::Accepted && !diagram_is_read_only)
+		// What is applied becomes the reference: a second Apply, or OK after
+		// it, adds nothing to the undo stack unless something changed again.
+	auto apply_changes = [&]()
 	{
 		TitleBlockProperties new_titleblock = titleblock_infos  -> properties();
 		BorderProperties     new_border     = border_infos -> properties();
 		ConductorProperties  new_conductors = m_cpw -> properties();
 
+			// The widget edits neither of these: left empty, they would
+			// count as a change of the title block each time.
+		new_titleblock.version = titleblock.version;
+		if (new_titleblock.template_name.isEmpty()) {
+			new_titleblock.collection = titleblock.collection;
+		}
+
 		// Title block have change
 		if (new_titleblock != titleblock) {
 			diagram -> undoStack().push(new ChangeTitleBlockCommand(diagram, titleblock, new_titleblock));
+			titleblock = new_titleblock;
 		}
 
 		// Border have change
 		if (new_border != border) {
 			diagram -> undoStack().push(new ChangeBorderCommand(diagram, border, new_border));
+			border = new_border;
 		}
 
 		// Conducteur have change
@@ -133,6 +145,7 @@ DiagramPropertiesDialog::DiagramPropertiesDialog(Diagram *diagram, QWidget *pare
 				for (Conductor *c : conductor_list)
 					c -> calculateTextItemPosition();
 			}
+			conductors = new_conductors;
 		}
 
 			// Conductor autonum name
@@ -141,6 +154,16 @@ DiagramPropertiesDialog::DiagramPropertiesDialog(Diagram *diagram, QWidget *pare
 			diagram->setConductorsAutonumName (autonum_combobox->currentText());
 			diagram->project()->conductorAutoNumChanged();
 		}
+	};
+
+	if (!diagram_is_read_only) {
+		connect(boutons.button(QDialogButtonBox::Apply), &QPushButton::clicked,
+				this, apply_changes);
+	}
+
+	// if dialog is accepted
+	if (this -> exec() == QDialog::Accepted && !diagram_is_read_only) {
+		apply_changes();
 	}
 }
 
