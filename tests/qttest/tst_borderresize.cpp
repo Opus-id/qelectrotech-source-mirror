@@ -8,6 +8,7 @@
 #include "ui/diagrampropertiesdialog.h"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QPushButton>
 #include <QSpinBox>
@@ -112,6 +113,65 @@ class tst_borderresize : public QObject
 			QCOMPARE(folio->border_and_titleblock.rowsCount(), rows);
 			folio->undoStack().undo();
 			QCOMPARE(folio->border_and_titleblock.rowsCount(), rows - 3);
+		}
+
+		void aPaperSizeAppliedFromTheDialogGivesAFrameThatAddsUp_data()
+		{
+			QTest::addColumn<QString>("paper");
+			QTest::addColumn<int>("page_width");
+			QTest::addColumn<int>("page_height");
+				// at 96 dots per inch, as the PDF export draws a folio
+			QTest::newRow("A1") << "A1" << 3178 << 2245;
+			QTest::newRow("A3") << "A3" << 1587 << 1122;
+			QTest::newRow("A0") << "A0" << 4493 << 3178;
+		}
+
+		void aPaperSizeAppliedFromTheDialogGivesAFrameThatAddsUp()
+		{
+			QFETCH(QString, paper);
+			QFETCH(int, page_width);
+			QFETCH(int, page_height);
+
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			BorderTitleBlock &border = folio->border_and_titleblock;
+			bool applied = false;
+
+			QTimer::singleShot(0, this, [&] {
+				QWidget *dialog = QApplication::activeModalWidget();
+				if (!dialog) {
+					return;
+				}
+				auto *format = dialog->findChild<QComboBox *>("m_paper_cb");
+				QPushButton *apply = buttonOf(dialog, QDialogButtonBox::Apply);
+				const int index = format ? format->findText(paper) : -1;
+				if (apply && index >= 0) {
+					format->setCurrentIndex(index);
+					emit format->activated(index);
+					apply->click();
+					applied = true;
+				}
+				buttonOf(dialog, QDialogButtonBox::Cancel)->click();
+			});
+			DiagramPropertiesDialog::diagramPropertiesDialog(folio);
+			QVERIFY(applied);
+
+				// The rows end where the title block starts, the columns where it ends
+			const QRectF title_block = border.titleBlockRect();
+			const qreal rows_end = Diagram::margin + border.columnsHeaderHeight()
+					+ border.rowsCount() * border.rowsHeight();
+			QCOMPARE(title_block.top(), rows_end);
+			QCOMPARE(title_block.width(),
+					 border.rowsHeaderWidth() + border.columnsCount() * border.columnsWidth());
+
+				// And the whole folio has about the size of the paper, its line
+				// included: whole cells do not always fill it, A1 from the
+				// default folio is 4 pixels short
+			const QRectF whole = border.borderAndTitleBlockRect();
+			QVERIFY2(qAbs(whole.width() + 1 - page_width) <= 5,
+					 qPrintable(QString::number(whole.width())));
+			QVERIFY2(qAbs(whole.height() + 1 - page_height) <= 5,
+					 qPrintable(QString::number(whole.height())));
 		}
 
 		void okAfterApplyAddsNothing()
