@@ -94,6 +94,10 @@ tag `pipe-connector-freeze-2026-11-03`.
   and terminals (name, place and medium). The symbol is swapped in place,
   keeping its position, information and connections; undoable. A generic
   symbol (a valve, a pump) can be placed first and made precise later.
+- **Create similar**: right-click a placed symbol, *Create similar* starts
+  the usual placement mode with the same symbol, options, status of works
+  and rotation (label and device information are not copied). Automatic
+  connections apply as usual.
 - **Ends and corners of lines**: the element editor can draw the ends of a
   line round or flat and its corners round, mitred or bevelled (`line-cap`
   and `line-join` in the style of a part; nothing written for the default).
