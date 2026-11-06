@@ -129,6 +129,16 @@ void ElementPropertiesWidget::setElement(Element *element)
 	Element *previous_element = m_element;
 	m_element = element;
 
+		//Its options and its name change with its symbol, under an open panel
+	if (previous_element) {
+		disconnect(previous_element, &Element::symbolChanged,
+				   this, &ElementPropertiesWidget::updateUi);
+	}
+	if (m_element) {
+		connect(m_element, &Element::symbolChanged,
+				this, &ElementPropertiesWidget::updateUi);
+	}
+
 	if (previous_element)
 	{
 			//If previous element is same type as new element we just call setElement for each editor

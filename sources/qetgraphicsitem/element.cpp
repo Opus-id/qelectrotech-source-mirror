@@ -573,6 +573,7 @@ void Element::takePictures()
 	if (!picture.isNull()) {
 		m_picture = picture;
 		m_low_zoom_picture = low_zoom_picture;
+		updateDrawnRect();
 	}
 	updateSymbolPictures(true);
 	update();
@@ -3675,9 +3676,11 @@ bool Element::changeLocation(const ElementsLocation &location)
 	m_location = location;
 	m_picture = picture;
 	m_low_zoom_picture = low_zoom_picture;
+	updateDrawnRect();
 	setToolTip(name());
 	updateSymbolPictures(true);
 	update();
+	emit symbolChanged();
 	return true;
 }
 

@@ -123,6 +123,8 @@ class Element : public QetGraphicsItem
 			/// The options of the symbol were given other values
 			/// (setOptionChoices())
 		void optionChoicesChanged();
+			/// The element took another symbol (changeLocation())
+		void symbolChanged();
 
 	public slots:
 		void updateConductorTexts();

@@ -8,6 +8,8 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "ui/elementoptionswidget.h"
+#include "ui/elementpropertieswidget.h"
 #include "undocommand/changeelementlocationcommand.h"
 
 #include <QDomDocument>
@@ -37,6 +39,21 @@ class tst_elementchangetype : public QObject
 			.arg(width).arg(uuid, name, shape, t1, t2).arg(x2).arg(attr);
 		doc.setContent(xml);
 		return doc.documentElement();
+	}
+
+	// @p definition, offering an option @p name
+	static QDomElement withOption(QDomDocument &doc, const QString &name, QDomElement definition)
+	{
+		QDomDocument options;
+		options.setContent(QStringLiteral(
+			"<options><option name=\"%1\" default=\"one\">"
+			"<names><name lang=\"en\">%1</name></names>"
+			"<value name=\"one\"><names><name lang=\"en\">One</name></names></value>"
+			"<value name=\"two\"><names><name lang=\"en\">Two</name></names></value>"
+			"</option></options>").arg(name));
+		definition.insertBefore(doc.importNode(options.documentElement(), true),
+					definition.firstChildElement(QStringLiteral("description")));
+		return definition;
 	}
 
 	// A project whose embedded collection holds a, b (same family), c (a
@@ -170,6 +187,111 @@ class tst_elementchangetype : public QObject
 			QCOMPARE(wire->terminal1, from);
 			QCOMPARE(from->uuid().toString(QUuid::WithoutBraces),
 				 QStringLiteral("a0000000-0000-0000-0000-000000000002"));
+		}
+
+			// QGraphicsView repaints an item only within boundingRect(): a part
+			// of the new symbol beyond its frame must not be cut off
+		void aDrawingBeyondTheFrameIsNotCutOff()
+		{
+			QDomDocument doc;
+			const ElementsLocation wide = add("f.elmt", definition(doc, "66666666-6666-6666-6666-666666666666", "F",
+				"<ellipse x=\"40\" y=\"-5\" width=\"20\" height=\"10\" style=\"line-style:normal;"
+				"line-weight:normal;filling:none;color:black\" antialias=\"false\"/>",
+				"f0000000-0000-0000-0000-000000000001", "f0000000-0000-0000-0000-000000000002"));
+
+				// the swap above ended on a
+			const QRectF before = m_element->boundingRect();
+			QVERIFY(before.right() < 60);
+			QVERIFY(m_element->changeLocation(wide));
+			QVERIFY(m_element->boundingRect().right() >= 60);
+			QVERIFY(m_element->changeLocation(m_a));
+			QCOMPARE(m_element->boundingRect(), before);
+		}
+
+			// The same when an option shows that part
+		void anOptionDrawingBeyondTheFrameIsNotCutOff()
+		{
+			const QString style = QStringLiteral(
+				"style=\"line-style:normal;line-weight:normal;filling:none;color:black\" "
+				"antialias=\"false\"");
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+				"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+				"<uuid uuid=\"{77777777-7777-7777-7777-777777777777}\"/>"
+				"<names><name lang=\"en\">G</name></names>"
+				"<options><option name=\"reach\" default=\"short\">"
+				"<names><name lang=\"en\">Reach</name></names>"
+				"<value name=\"short\"><names><name lang=\"en\">Short</name></names></value>"
+				"<value name=\"long\"><names><name lang=\"en\">Long</name></names></value>"
+				"</option></options>"
+				"<description>"
+				"<ellipse x=\"-5\" y=\"-5\" width=\"10\" height=\"10\" %1/>"
+				"<ellipse x=\"40\" y=\"-5\" width=\"20\" height=\"10\" show-if=\"reach=long\" %1/>"
+				"</description></definition>").arg(style));
+			const ElementsLocation location = add("g.elmt", doc.documentElement());
+
+			int state = 0;
+			Element *element = ElementFactory::Instance()->createElement(location, nullptr, &state);
+			QVERIFY(element);
+			m_folio->addItem(element);
+
+			QVERIFY(element->boundingRect().right() < 60);
+			element->setOptionChoices({{QStringLiteral("reach"), QStringLiteral("long")}});
+			QVERIFY(element->boundingRect().right() >= 60);
+			element->setOptionChoices({});
+			QVERIFY(element->boundingRect().right() < 60);
+		}
+
+			// A free end draws nothing at all, and it can be swapped to
+		void aSymbolThatDrawsNothingIsAccepted()
+		{
+			QDomDocument doc;
+			const ElementsLocation empty = add("h.elmt", definition(doc, "88888888-8888-8888-8888-888888888888", "H",
+				QString(),
+				"80000000-0000-0000-0000-000000000001", "80000000-0000-0000-0000-000000000002"));
+			QVERIFY(m_element->canChangeLocationTo(empty));
+			QVERIFY(m_element->changeLocation(empty));
+			QCOMPARE(m_element->location(), empty);
+			QVERIFY(m_element->changeLocation(m_a));
+		}
+
+			// The panel left open on the element follows its new symbol: its
+			// options, and the Options tab that comes and goes with them
+		void theOpenPanelFollowsTheNewSymbol()
+		{
+			QDomDocument first_doc, second_doc;
+			const ElementsLocation first = add("i.elmt", withOption(first_doc, "first",
+				definition(first_doc, "99999999-9999-9999-9999-999999999991", "I",
+					QStringLiteral("<ellipse x=\"-5\" y=\"-5\" width=\"10\" height=\"10\" "
+						"style=\"line-style:normal;line-weight:normal;filling:none;color:black\" "
+						"antialias=\"false\"/>"),
+					"90000000-0000-0000-0000-000000000001", "90000000-0000-0000-0000-000000000002")));
+			const ElementsLocation second = add("j.elmt", withOption(second_doc, "second",
+				definition(second_doc, "99999999-9999-9999-9999-999999999992", "J",
+					QStringLiteral("<ellipse x=\"-4\" y=\"-4\" width=\"8\" height=\"8\" "
+						"style=\"line-style:normal;line-weight:normal;filling:none;color:black\" "
+						"antialias=\"false\"/>"),
+					"91000000-0000-0000-0000-000000000001", "91000000-0000-0000-0000-000000000002")));
+
+			int state = 0;
+			Element *element = ElementFactory::Instance()->createElement(first, nullptr, &state);
+			QVERIFY(element);
+			m_folio->addItem(element);
+
+			ElementPropertiesWidget panel(element);
+			auto *options = panel.findChild<ElementOptionsWidget *>();
+			QVERIFY(options);
+			QVERIFY(options->comboFor(QStringLiteral("first")));
+
+			QVERIFY(element->changeLocation(second));
+			options = panel.findChild<ElementOptionsWidget *>();
+			QVERIFY(options);
+			QVERIFY(!options->comboFor(QStringLiteral("first")));
+			QVERIFY(options->comboFor(QStringLiteral("second")));
+
+			QVERIFY(element->changeLocation(m_a));
+			QVERIFY(!panel.findChild<ElementOptionsWidget *>());
 		}
 };
 
