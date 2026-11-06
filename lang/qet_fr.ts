@@ -12333,6 +12333,11 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <source>(several values)</source>
         <translation>(plusieurs valeurs)</translation>
     </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="266"/>
+        <source>(None)</source>
+        <translation>(Aucun)</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="262"/>
         <source>%n pipe line(s) selected</source>

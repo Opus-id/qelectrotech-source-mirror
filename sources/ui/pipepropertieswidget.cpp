@@ -219,6 +219,9 @@ QComboBox *PipePropertiesWidget::addListField(
 	auto apply = [this, list, set]() {
 		const QString code = codeOf(list, list->currentText());
 		applyChange([set, code](PipeProperties &p) { set(p, code); });
+			//Even when nothing changed: "(None)" picked on an empty field
+			//must not stay written in it
+		updateUi();
 	};
 	connect(list, &QComboBox::activated, this, apply);
 	connect(list->lineEdit(), &QLineEdit::editingFinished, this, [list, apply]() {
@@ -251,17 +254,19 @@ QString PipePropertiesWidget::codeOf(const QComboBox *list, const QString &text)
 
 /**
 	@brief PipePropertiesWidget::fillLists
-	Offer in the lists of fluids and materials the codification of the
-	project; without one, the default fluids as free text, and no material
+	Offer in the lists of fluids and materials "(None)", to clear the field,
+	then the codification of the project; without one, the default fluids as
+	free text, and no material
 */
 void PipePropertiesWidget::fillLists()
 {
 	const PidCodification codification = m_project ? m_project->pidCodification()
 												   : PidCodification();
-	auto fill = [](QComboBox *list, const QList<PidCodification::Entry> &entries,
-				   const QStringList &fallback) {
+	auto fill = [this](QComboBox *list, const QList<PidCodification::Entry> &entries,
+					   const QStringList &fallback) {
 		const QSignalBlocker blocker(list);
 		list->clear();
+		list->addItem(tr("(None)"), QString());
 		for (const PidCodification::Entry &entry : entries) {
 			list->addItem(entry.name.isEmpty() ? entry.code
 											   : entry.code + QStringLiteral(" – ") + entry.name,
@@ -381,8 +386,11 @@ void PipePropertiesWidget::updateUi()
 	for (const auto &field : std::as_const(m_text_fields)) {
 		showText(field.first, field.second);
 	}
-		//A code shown with its name, as the list offers it
+		//A code shown with its name, as the list offers it; no code, nothing
 	auto shown = [](const QComboBox *list, const QString &code) {
+		if (code.isEmpty()) {
+			return QString();
+		}
 		const int index = list->findData(code);
 		return index >= 0 ? list->itemText(index) : code;
 	};

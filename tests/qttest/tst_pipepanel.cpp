@@ -367,12 +367,12 @@ class tst_pipepanel : public QObject
 			auto *fluid = page.findChild<QComboBox *>(QStringLiteral("fluid"));
 			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
 			QVERIFY(fluid && material);
-			QCOMPARE(fluid->count(), 2);
-			QCOMPARE(material->count(), 1);
+			QCOMPARE(fluid->count(), 3);
+			QCOMPARE(material->count(), 2);
 
 				// the pipe keeps the code, the page shows it with its name
-			fluid->setCurrentIndex(1);
-			emit fluid->activated(1);
+			fluid->setCurrentIndex(2);
+			emit fluid->activated(2);
 			QCOMPARE(pipe->properties().m_pipe.fluid, QStringLiteral("SL1"));
 			QVERIFY(fluid->currentText().startsWith(QStringLiteral("SL1")));
 			QVERIFY(fluid->currentText().contains(QStringLiteral("Sludge")));
@@ -386,11 +386,56 @@ class tst_pipepanel : public QObject
 				// a new codification reaches the open page, the pipe keeps its code
 			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
 				"fluid;W01;Water;E\n")));
-			QCOMPARE(fluid->count(), 1);
+			QCOMPARE(fluid->count(), 2);
 			QCOMPARE(pipe->properties().m_pipe.fluid, QStringLiteral("Something else"));
 
 			m_project.setPidCodification(saved);
-			QVERIFY(fluid->count() > 1);
+			QVERIFY(fluid->count() > 2);
+		}
+
+		void noneIsOfferedFirstInTheLists()
+		{
+			const PidCodification saved = m_project.pidCodification();
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Raw water;E\nmaterial;M01;Steel\n")));
+			Conductor *a = draw(m_nozzles);
+			Conductor *b = draw(m_nozzles);
+			QVERIFY(a && b);
+			for (Conductor *pipe : {a, b}) {
+				ConductorProperties p = pipe->properties();
+				p.m_pipe.fluid = QStringLiteral("W01");
+				p.m_pipe.material = QStringLiteral("M01");
+				pipe->setProperties(p);
+			}
+			PipePropertiesWidget page({a, b});
+			auto *fluid = page.findChild<QComboBox *>(QStringLiteral("fluid"));
+			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
+			QVERIFY(fluid && material);
+			QVERIFY(fluid->itemData(0).toString().isEmpty());
+			QVERIFY(material->itemData(0).toString().isEmpty());
+
+				// it clears the fluid of all the pipes, in one step, and
+				// leaves the material alone
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.index();
+			fluid->setCurrentIndex(0);
+			emit fluid->activated(0);
+			QCOMPARE(stack.index(), steps + 1);
+			QVERIFY(a->properties().m_pipe.fluid.isEmpty());
+			QVERIFY(b->properties().m_pipe.fluid.isEmpty());
+			QCOMPARE(a->properties().m_pipe.material, QStringLiteral("M01"));
+			QVERIFY(fluid->currentText().isEmpty());
+
+				// on an empty field it changes nothing, and is not left written
+			fluid->setCurrentIndex(0);
+			emit fluid->activated(0);
+			QCOMPARE(stack.index(), steps + 1);
+			QVERIFY(fluid->currentText().isEmpty());
+
+			stack.undo();
+			QCOMPARE(a->properties().m_pipe.fluid, QStringLiteral("W01"));
+			QVERIFY(fluid->currentText().startsWith(QStringLiteral("W01")));
+			m_project.setPidCodification(saved);
 		}
 
 		void aPipeRemovedFromTheFolioLeavesThePageUsable()
