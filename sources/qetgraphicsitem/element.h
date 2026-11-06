@@ -415,6 +415,7 @@ class Element : public QetGraphicsItem
 	QList <Terminal *> m_terminals;
 	ElementOptions::Choices inkedChoices(const ElementOptions &options, const QString &family) const;
 	const Conductor *leadingPipe() const;
+	void drawFreeNozzles(QPainter *painter) const;
 	void takePictures();
 
 	QPicture m_picture;

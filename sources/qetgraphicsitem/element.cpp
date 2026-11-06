@@ -810,10 +810,43 @@ void Element::paint(
 			drawPlcTable(painter);
 	}
 
+	if (followsPipes()) {
+		drawFreeNozzles(painter);
+	}
+
 		//Draw the selection rectangle
 	if ( isSelected() || m_mouse_over ) {
 		QGIUtility::drawBoundingRectSelection(this, painter);
 	}
+}
+
+/**
+	@brief Element::drawFreeNozzles
+	Draw a ring around each nozzle without a pipe of a fitting, whose drawing
+	may be nothing at all: a tee without its branch would otherwise be lost
+	on the line it cuts. The ring is wider than a pipe, which is drawn over
+	it. Like the terminals, it is on the screen only.
+	@param painter
+*/
+void Element::drawFreeNozzles(QPainter *painter) const
+{
+	const Diagram *folio = diagram();
+	if (!folio || !folio->drawTerminals()) {
+		return;
+	}
+	painter->save();
+	QPen pen(Terminal::stemColor(TerminalData::Pipe));
+	pen.setCosmetic(true);
+	painter->setPen(pen);
+	painter->setBrush(Qt::NoBrush);
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	for (const Terminal *terminal : m_terminals)
+	{
+		if (terminal->medium() == TerminalData::Pipe && terminal->conductors().isEmpty()) {
+			painter->drawEllipse(mapFromScene(terminal->dockConductor()), 6.0, 6.0);
+		}
+	}
+	painter->restore();
 }
 
 /**

@@ -598,6 +598,41 @@ class tst_pidcolors : public QObject
 			m_project.setPidCodification(PidCodification());
 		}
 
+		void aFreeNozzleOfAFittingIsMarkedOnTheScreen()
+		{
+			m_next_y += 100;
+			Element *tee = place(m_fitting, QPointF(0, m_next_y));
+			Element *end = place(m_nozzles, QPointF(200, m_next_y));
+			QVERIFY(tee && end);
+				// the bottom of a ring around the point @p x, @p y
+			auto ringAround = [](Element *element, int x, int y) {
+				const QImage image = render(element);
+				for (int i = (x - 2 + 20) * 4; i <= (x + 2 + 20) * 4; ++i) {
+					for (int j = (y + 4 + 20) * 4; j <= (y + 8 + 20) * 4; ++j) {
+						if (image.pixelColor(i, j) != QColor(Qt::white)) return true;
+					}
+				}
+				return false;
+			};
+
+				// N3, free, then not on what is exported or printed
+			QVERIFY(ringAround(tee, 0, 10));
+			m_folio->setDrawTerminals(false);
+			QVERIFY(!ringAround(tee, 0, 10));
+			m_folio->setDrawTerminals(true);
+
+				// gone with its pipe, back when the pipe leaves
+			auto *branch = new Conductor(nozzle(tee, QStringLiteral("N3")), end->terminals().at(0));
+			m_folio->addItem(branch);
+			QVERIFY(!ringAround(tee, 0, 10));
+			m_folio->removeItem(branch);
+			QVERIFY(ringAround(tee, 0, 10));
+			delete branch;
+
+				// a symbol that is not a fitting shows its nozzles as before
+			QVERIFY(!ringAround(end, -10, 0));
+		}
+
 		void aFittingIsDrawnAfterItsPipeOnceReopened_data()
 		{
 			QTest::addColumn<QString>("suffix");
