@@ -29,6 +29,7 @@
 #include "../qeticons.h"
 #include "dynamicelementtextitemeditor.h"
 #include "elementinfowidget.h"
+#include "elementnozzleswidget.h"
 #include "elementoptionswidget.h"
 #include "linksingleelementwidget.h"
 #include "masterpropertieswidget.h"
@@ -142,10 +143,13 @@ void ElementPropertiesWidget::setElement(Element *element)
 	if (previous_element)
 	{
 			//If previous element is same type as new element we just call setElement for each editor
-			//(and both have options, or neither: the Options tab comes and goes with them)
+			//(and both have options, or neither: the Options tab comes and goes with them;
+			//the same for the Nozzles tab)
 		if(previous_element->linkType() == m_element->linkType()
 		   && ElementOptionsWidget::hasOptions(previous_element)
-				== ElementOptionsWidget::hasOptions(m_element))
+				== ElementOptionsWidget::hasOptions(m_element)
+		   && ElementNozzlesWidget::hasNozzles(previous_element)
+				== ElementNozzlesWidget::hasNozzles(m_element))
 		{
 			bool chained_changed = false;
 			if (m_element->linkType() & Element::AllReport) {
@@ -390,6 +394,9 @@ void ElementPropertiesWidget::updateUi()
 		//The options of its symbol, such as the motor of a pump
 	if (ElementOptionsWidget::hasOptions(m_element))
 		m_list_editor << new ElementOptionsWidget(m_element, this);
+		//The nominal diameters of its nozzles
+	if (ElementNozzlesWidget::hasNozzles(m_element))
+		m_list_editor << new ElementNozzlesWidget(m_element, this);
 	m_list_editor << new DynamicElementTextItemEditor(m_element, this);
 
 		//Add each editors in tab widget

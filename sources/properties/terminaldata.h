@@ -23,7 +23,9 @@
 
 #include <QColor>
 #include <QFont>
+#include <QFontMetrics>
 #include <QPointF>
+#include <QSizeF>
 #include <QStringList>
 #include <QUuid>
 
@@ -105,6 +107,27 @@ class TerminalData : public PropertiesInterface
 			if (string == QLatin1String("drive"))  return Drive;
 			return Electrical;
 		}
+			/// The nominal diameter written in @a string; anything but a
+			/// positive whole number is none (0)
+		static int dnFromString(const QString &string)
+		{
+			bool ok = false;
+			const int dn = string.toInt(&ok);
+			return (ok && dn > 0) ? dn : 0;
+		}
+			/// The text shown at a terminal: its @a name, and under it the
+			/// nominal diameter of a nozzle (@a dn, 0 for none)
+		static QString labelText(const QString &name, int dn)
+		{
+			if (dn <= 0) return name;
+			const QString diameter = QString::number(dn);
+			return name.isEmpty() ? diameter : name + QLatin1Char('\n') + diameter;
+		}
+			/// The size of a labelText() in the font of @a metrics
+		static QSizeF labelSize(const QFontMetrics &metrics, const QString &text)
+		{
+			return metrics.size(text.contains(QLatin1Char('\n')) ? 0 : int(Qt::TextSingleLine), text);
+		}
 		static QString namePrefix(TerminalData::Medium medium);
 		static QString suggestedName(TerminalData::Medium medium,
 					     const QString &current,
@@ -176,6 +199,10 @@ class TerminalData : public PropertiesInterface
 			/// The medium the terminal connects, see Medium. Kept apart from
 			/// m_type, which tells terminal blocks and contacts apart.
 		TerminalData::Medium m_medium = TerminalData::Electrical;
+			/// The nominal diameter of a nozzle (a terminal of the Pipe
+			/// medium), 0 for none. Nothing links it to the DN of the pipe
+			/// connected there.
+		int m_dn = 0;
 
 		/// Whether to display the terminal name as a text label
 		bool m_show_name = false;

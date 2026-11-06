@@ -149,7 +149,7 @@ class QETProject : public QObject
 		QList<Diagram *> folios() const;
 			/// Whether a folio has symbols given a value of their options,
 			/// which a .qetdb does not keep yet (write())
-		bool hasOptionChoices() const;
+		bool hasSymbolChoices() const;
 			/// The codes of the fluids and materials of the pipes of this
 			/// project (PidCodification), saved with it; empty by default
 		PidCodification pidCodification() const {return m_pid_codification;}

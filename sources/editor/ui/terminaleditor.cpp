@@ -25,6 +25,7 @@
 
 #include <QColorDialog>
 #include <QFontDialog>
+#include <QIntValidator>
 #include "../elementscene.h"
 #include "qetelementeditor.h"
 
@@ -94,6 +95,11 @@ void TerminalEditor::updateForm()
 	ui->label_potential->setVisible(electrical);
 	ui->m_potential_le->setVisible(electrical);
 	ui->m_potential_le->setText(m_part->potential());
+		//Only a nozzle has a nominal diameter
+	const bool nozzle = m_part->medium() == TerminalData::Pipe;
+	ui->label_dn->setVisible(nozzle);
+	ui->m_dn_le->setVisible(nozzle);
+	ui->m_dn_le->setText(m_part->dn() > 0 ? QString::number(m_part->dn()) : QString());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());
 	ui->m_label_x_dsb->setValue(m_part->labelPos().x());
@@ -200,6 +206,8 @@ void TerminalEditor::init()
 	ui->m_medium_cb->addItem(tr("Pipe (nozzle)", "terminal medium"),   TerminalData::Pipe);
 	ui->m_medium_cb->addItem(tr("Signal", "terminal medium"),          TerminalData::Signal);
 	ui->m_medium_cb->addItem(tr("Drive (shaft)", "terminal medium"),   TerminalData::Drive);
+
+	ui->m_dn_le->setValidator(new QIntValidator(1, 99999, ui->m_dn_le));
 
 	ui->m_text_props_gb->setEnabled(false);
 
@@ -310,6 +318,27 @@ void TerminalEditor::typeEdited()
 	if (type != m_part->terminalType()) {
 		auto undo = new QPropertyUndoCommand(m_part, "terminal_type", m_part->terminalType(), type);
 		undo->setText(tr("Change the type of a terminal"));
+		undoStack().push(undo);
+	}
+	m_locked = false;
+}
+
+/**
+	@brief TerminalEditor::dnEdited
+	The nominal diameter of a nozzle, the default of the placed symbols
+*/
+void TerminalEditor::dnEdited()
+{
+	if (m_locked) {
+		return;
+	}
+	m_locked = true;
+
+	const int dn = TerminalData::dnFromString(ui->m_dn_le->text());
+	if (m_part->dn() != dn)
+	{
+		auto undo = new QPropertyUndoCommand(m_part, "dn", m_part->dn(), dn);
+		undo->setText(tr("Change the nominal diameter of a nozzle"));
 		undoStack().push(undo);
 	}
 	m_locked = false;
@@ -521,6 +550,8 @@ void TerminalEditor::activeConnections(bool active)
 										this, &TerminalEditor::typeEdited);
 		m_editor_connections << connect(ui->m_medium_cb, QOverload<int>::of(&QComboBox::activated),
 										this, &TerminalEditor::mediumEdited);
+		m_editor_connections << connect(ui->m_dn_le, &QLineEdit::editingFinished,
+										this, &TerminalEditor::dnEdited);
 		m_editor_connections << connect(ui->m_show_name_cb, &QCheckBox::toggled,
 										this, &TerminalEditor::showNameEdited);
 		m_editor_connections << connect(ui->m_label_x_dsb, QOverload<qreal>::of(&QDoubleSpinBox::valueChanged),
@@ -561,6 +592,7 @@ void TerminalEditor::activeChangeConnections(bool active)
 		m_change_connections << connect(m_part, &PartTerminal::nameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::terminalTypeChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::mediumChanged, this, &TerminalEditor::updateForm);
+		m_change_connections << connect(m_part, &PartTerminal::dnChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::showNameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelPosChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelFontChanged, this, &TerminalEditor::updateForm);

@@ -560,6 +560,49 @@ void Element::setOptionChoices(const ElementOptions::Choices &choices)
 }
 
 /**
+	@brief Element::setNozzleDiameters
+	Give nozzles of this element nominal diameters of their own, shown under
+	their names. Nothing goes to the pipes connected there.
+	@param diameters : by name of nozzle
+*/
+void Element::setNozzleDiameters(const QMap<QString, int> &diameters)
+{
+	if (diameters == m_nozzle_diameters) {
+		return;
+	}
+	for (Terminal *terminal : std::as_const(m_terminals)) {
+		terminal->prepareLabelChange();
+	}
+	m_nozzle_diameters = diameters;
+	for (Terminal *terminal : std::as_const(m_terminals)) {
+		terminal->update();
+	}
+	emit nozzleDiametersChanged();
+}
+
+/**
+	@brief Element::nozzleDiametersFromXml
+	@param element : an <element> of a project
+	@return the diameters of its <nozzles> block; a nozzle without a name or
+	a diameter is left out
+*/
+QMap<QString, int> Element::nozzleDiametersFromXml(const QDomElement &element)
+{
+	QMap<QString, int> diameters;
+	const QDomElement nozzles = element.firstChildElement(QStringLiteral("nozzles"));
+	for (QDomElement nozzle = nozzles.firstChildElement(QStringLiteral("nozzle")) ;
+		 !nozzle.isNull() ; nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle")))
+	{
+		const QString name = nozzle.attribute(QStringLiteral("name"));
+		const int dn = TerminalData::dnFromString(nozzle.attribute(QStringLiteral("dn")));
+		if (!name.isEmpty() && dn > 0) {
+			diameters.insert(name, dn);
+		}
+	}
+	return diameters;
+}
+
+/**
 	@brief Element::takePictures
 	Take the drawing of the symbol for the options chosen and the colour of
 	this element
@@ -1737,6 +1780,7 @@ bool Element::fromXml(QDomElement &e,
 
 		//The options of the symbol chosen for this element, drawn after them
 	setOptionChoices(ElementOptions::choicesFromXml(e));
+	setNozzleDiameters(nozzleDiametersFromXml(e));
 
 		//Last, so that the texts and groups loaded above are kept readable
 	const QString mirror = e.attribute(QStringLiteral("mirror"));
@@ -1877,6 +1921,21 @@ QDomElement Element::toXml(
 	const QDomElement options = ElementOptions::choicesToXml(document, m_option_choices);
 	if (!options.isNull())
 		element.appendChild(options);
+
+		//The diameters given to its nozzles; none written for an element
+		//that keeps those of its symbol, which saves as before
+	if (!m_nozzle_diameters.isEmpty())
+	{
+		QDomElement nozzles = document.createElement(QStringLiteral("nozzles"));
+		for (auto it = m_nozzle_diameters.cbegin() ; it != m_nozzle_diameters.cend() ; ++it)
+		{
+			QDomElement nozzle = document.createElement(QStringLiteral("nozzle"));
+			nozzle.setAttribute(QStringLiteral("dn"), it.value());
+			nozzle.setAttribute(QStringLiteral("name"), it.key());
+			nozzles.appendChild(nozzle);
+		}
+		element.appendChild(nozzles);
+	}
 
 	appendDataXml(document, element);
 
@@ -3743,6 +3802,8 @@ bool Element::changeLocation(const ElementsLocation &location)
 				const QPointF pos = mapFromScene(terminal->dockConductor());
 				if (qAbs(pos.x() - x) < 0.01 && qAbs(pos.y() - y) < 0.01) {
 					terminal->setUuid(uuid);
+					terminal->setSymbolDiameter(
+							TerminalData::dnFromString(part.attribute(QStringLiteral("dn"))));
 				}
 			}
 		}

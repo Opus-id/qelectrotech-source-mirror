@@ -267,7 +267,12 @@ void Terminal::paint(
 {
 	// en dessous d'un certain zoom, les bornes ne sont plus dessinees
 	// below a certain zoom level, the terminals are no longer drawn
-	if (options && options->levelOfDetailFromTransform(painter->worldTransform()) < 0.5)
+	// A terminal of a P&ID keeps its help lines: a sheet of that size is
+	// often worked on below that zoom
+	const bool low_zoom = options
+			&& options->levelOfDetailFromTransform(painter->worldTransform()) < 0.5;
+	const bool electrical = d->m_medium == TerminalData::Electrical;
+	if (low_zoom && electrical)
 		return;
 	painter -> save();
 
@@ -292,7 +297,7 @@ void Terminal::paint(
 
 	// dessin de la borne en rouge
 	// draw the terminal in red, or in the color of its medium
-	if (!diagram() || diagram()->drawTerminals()) {
+	if (!low_zoom && (!diagram() || diagram()->drawTerminals())) {
 		t.setColor(takesConductorColor() && !m_conductors_list.isEmpty()
 				   ? m_conductors_list.first()->drawnColor()
 				   : stemColor(d->m_medium));
@@ -321,6 +326,7 @@ void Terminal::paint(
 				m_help_line = new QGraphicsLineItem(this);
 			QPen pen;
 			pen.setColor(Qt::darkBlue);
+			pen.setCosmetic(!electrical); // one pixel at any zoom
 
 			QLineF line(HelpLine());
 
@@ -347,6 +353,7 @@ void Terminal::paint(
 			m_help_line_a = new QGraphicsLineItem(this);
 			QPen pen;
 			pen.setColor(Diagram::background_color == Qt::darkGray ? Qt::lightGray : Qt::darkGray);
+			pen.setCosmetic(!electrical);
 			m_help_line_a -> setPen(pen);
 		}
 
@@ -371,8 +378,8 @@ void Terminal::paint(
 	}
 
 	// Draw label if show_name is enabled and terminal names are allowed
-	const QString display_name = name();
-	if (d->m_show_name && !display_name.isEmpty()
+	const QString display_name = labelText();
+	if (!low_zoom && d->m_show_name && !display_name.isEmpty()
 		&& (!diagram() || diagram()->drawTerminalNames())) {
 		painter->setRenderHint(QPainter::Antialiasing, true);
 		painter->setRenderHint(QPainter::TextAntialiasing, true);
@@ -381,7 +388,7 @@ void Terminal::paint(
 
 		QPointF label_pos = d->m_pos + d->m_label_pos;
 		QFontMetrics fm(d->m_label_font);
-		QSizeF text_size = fm.size(Qt::TextSingleLine, display_name);
+		QSizeF text_size = TerminalData::labelSize(fm, display_name);
 
 			// When the element mirrors its symbol, or turns it in a project
 			// that keeps symbol texts horizontal, undo that on the name
@@ -508,13 +515,13 @@ QLineF Terminal::HelpLine() const
 	@return Le rectangle (en precision flottante) delimitant la borne et ses alentours.
 */
 QRectF Terminal::boundingRect() const {
-	const QString display_name = name();
+	const QString display_name = labelText();
 	if (!d->m_show_name || display_name.isEmpty()) {
 		return m_br;
 	}
 
 	QFontMetrics fm(d->m_label_font);
-	QSizeF text_size = fm.size(Qt::TextSingleLine, display_name);
+	QSizeF text_size = TerminalData::labelSize(fm, display_name);
 	QPointF label_pos = d->m_pos + d->m_label_pos;
 
 	qreal dx = 0, dy = 0;
@@ -1148,6 +1155,38 @@ QUuid Terminal::derivedUuid() const
 void Terminal::setPlaceRank(int rank)
 {
 	m_place_rank = rank;
+}
+
+int Terminal::nominalDiameter() const
+{
+	if (d->m_medium != TerminalData::Pipe) {
+		return 0;
+	}
+	if (parent_element_) {
+		const QMap<QString, int> own = parent_element_->nozzleDiameters();
+		const auto it = own.constFind(d->m_name);
+		if (it != own.constEnd()) {
+			return it.value();
+		}
+	}
+	return d->m_dn;
+}
+
+void Terminal::setSymbolDiameter(int dn)
+{
+	prepareGeometryChange();
+	d->m_dn = dn;
+	update();
+}
+
+QString Terminal::labelText() const
+{
+	return TerminalData::labelText(name(), nominalDiameter());
+}
+
+void Terminal::prepareLabelChange()
+{
+	prepareGeometryChange();
 }
 
 QString Terminal::name() const

@@ -906,6 +906,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/elementinfopartwidget.h
   ${QET_DIR}/sources/ui/elementinfowidget.cpp
   ${QET_DIR}/sources/ui/elementinfowidget.h
+  ${QET_DIR}/sources/ui/elementnozzleswidget.cpp
+  ${QET_DIR}/sources/ui/elementnozzleswidget.h
   ${QET_DIR}/sources/ui/elementoptionswidget.cpp
   ${QET_DIR}/sources/ui/elementoptionswidget.h
   ${QET_DIR}/sources/ui/multielementinfowidget.cpp
@@ -1008,6 +1010,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/undocommand/changeelementlocationcommand.h
   ${QET_DIR}/sources/undocommand/changeelementoptionscommand.cpp
   ${QET_DIR}/sources/undocommand/changeelementoptionscommand.h
+  ${QET_DIR}/sources/undocommand/changenozzlediameterscommand.cpp
+  ${QET_DIR}/sources/undocommand/changenozzlediameterscommand.h
   ${QET_DIR}/sources/undocommand/changepidcodificationcommand.cpp
   ${QET_DIR}/sources/undocommand/changepidcodificationcommand.h
   ${QET_DIR}/sources/undocommand/changeelementinformationcommand.cpp

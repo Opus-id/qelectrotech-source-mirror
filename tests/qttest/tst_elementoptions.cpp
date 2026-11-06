@@ -411,7 +411,7 @@ class tst_elementoptions : public QObject
 
 			QETProject back(qet);
 				// told before any folio is built
-			QVERIFY(back.hasOptionChoices());
+			QVERIFY(back.hasSymbolChoices());
 			back.setFilePath(qetdb);
 			const QETResult refused = back.write();
 			QVERIFY(!refused.isOk());
@@ -422,7 +422,7 @@ class tst_elementoptions : public QObject
 			for (QGraphicsItem *item : back.diagrams().first()->items())
 				if (auto *element = qgraphicsitem_cast<Element *>(item))
 					element->setOptionChoices({});
-			QVERIFY(!back.hasOptionChoices());
+			QVERIFY(!back.hasSymbolChoices());
 			QVERIFY(back.write().isOk());
 			QVERIFY(QFile::exists(qetdb));
 		}

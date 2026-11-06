@@ -69,6 +69,8 @@ class DiagramEventAddElement : public DiagramEventInterface
 		QString m_integrate_path;
 			/// Options (and status) every copy takes, see setLike()
 		ElementOptions::Choices m_like_choices;
+			/// Diameters of nozzles every copy takes, see setLike()
+		QMap<QString, int> m_like_nozzles;
 		QPointer<QStatusBar> m_status_bar;
 
 			/// Placing along a drag

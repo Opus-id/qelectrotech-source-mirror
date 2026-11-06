@@ -244,7 +244,8 @@ void DiagramEventAddElement::init()
 /**
 	@brief DiagramEventAddElement::setLike
 	Make the symbol being placed, and every copy dropped from now on, look
-	like @a source: same options (status of works included) and same rotation.
+	like @a source: same options (status of works included), same diameters of
+	its nozzles and same rotation.
 	What belongs to the device itself -- label, information -- is not copied.
 */
 void DiagramEventAddElement::setLike(const Element *source)
@@ -254,6 +255,8 @@ void DiagramEventAddElement::setLike(const Element *source)
 	}
 	m_like_choices = source->optionChoices();
 	m_element->setOptionChoices(m_like_choices);
+	m_like_nozzles = source->nozzleDiameters();
+	m_element->setNozzleDiameters(m_like_nozzles);
 	m_element->setRotation(source->rotation());
 }
 
@@ -368,6 +371,9 @@ Element *DiagramEventAddElement::createElement() const
 	}
 	if (!m_like_choices.isEmpty()) {
 		element->setOptionChoices(m_like_choices);
+	}
+	if (!m_like_nozzles.isEmpty()) {
+		element->setNozzleDiameters(m_like_nozzles);
 	}
 	return element;
 }

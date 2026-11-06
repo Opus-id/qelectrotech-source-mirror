@@ -5795,6 +5795,20 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
 </context>
 <context>
+    <name>ElementNozzlesWidget</name>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="112"/>
+        <source>%1:</source>
+        <comment>label of the DN of a nozzle</comment>
+        <translation>%1 :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="222"/>
+        <source>Nozzles</source>
+        <translation>Piquages</translation>
+    </message>
+</context>
+<context>
     <name>ElementOptionsWidget</name>
     <message>
         <location filename="../sources/ui/elementoptionswidget.cpp" line="100"/>
@@ -13723,17 +13737,17 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
     <name>ProjectView</name>
     <message>
         <location filename="../sources/projectview.cpp" line="402"/>
-        <source>Options of symbols not kept</source>
+        <source>Data of symbols not kept</source>
         <comment>message box title</comment>
-        <translation>Options des symboles non enregistrées</translation>
+        <translation>Données des symboles non enregistrées</translation>
     </message>
     <message>
         <location filename="../sources/projectview.cpp" line="403"/>
-        <source>This project has symbols given a value of their options, which a .qetdb file does not keep yet.
+        <source>This project has symbols given a value of their options or a nominal diameter of their nozzles, which a .qetdb file does not keep yet.
 
 Save it as a .qet or a .qetz file.</source>
         <comment>message box content</comment>
-        <translation>Ce projet contient des symboles dont les options ont été choisies, ce que le format .qetdb n&apos;enregistre pas encore.
+        <translation>Ce projet contient des symboles dont les options ou le DN des piquages ont été choisis, ce que le format .qetdb n&apos;enregistre pas encore.
 
 Enregistrez-le au format .qet ou .qetz.</translation>
     </message>
@@ -18258,8 +18272,8 @@ les conditions requises ne sont pas valides</translation>
     <name>QETProject</name>
     <message>
         <location filename="../sources/qetproject.cpp" line="3289"/>
-        <source>this project has symbols given a value of their options, which a .qetdb file does not keep yet. Save it as a .qet or a .qetz file with Save As.</source>
-        <translation>ce projet contient des symboles dont les options ont été choisies, ce que le format .qetdb n&apos;enregistre pas encore. Enregistrez-le au format .qet ou .qetz avec « Enregistrer sous ».</translation>
+        <source>this project has symbols given a value of their options or a nominal diameter of their nozzles, which a .qetdb file does not keep yet. Save it as a .qet or a .qetz file with Save As.</source>
+        <translation>ce projet contient des symboles dont les options ou le DN des piquages ont été choisis, ce que le format .qetdb n&apos;enregistre pas encore. Enregistrez-le au format .qet ou .qetz avec « Enregistrer sous ».</translation>
     </message>
     <message>
         <source>Chained Folio Reports</source>
@@ -20439,6 +20453,11 @@ Voulez-vous la remplacer ?</translation>
         <location filename="../sources/undocommand/changeelementoptionscommand.cpp" line="31"/>
         <source>Change the options of an element</source>
         <translation>Modifier les options d&apos;un élément</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/changenozzlediameterscommand.cpp" line="31"/>
+        <source>Change the nominal diameter of a nozzle</source>
+        <translation>Modifier le DN d&apos;un piquage</translation>
     </message>
     <message>
         <location filename="../sources/undocommand/changepidcodificationcommand.cpp" line="32"/>
@@ -26405,6 +26424,21 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="82"/>
         <source>Medium:</source>
         <translation>Médium :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="111"/>
+        <source>DN:</source>
+        <translation>DN :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="118"/>
+        <source>The nominal diameter of this nozzle, shown under its name. Each placed symbol can change it. Leave it empty if the symbol has no usual size.</source>
+        <translation>Le diamètre nominal de ce piquage, affiché sous son nom. Chaque symbole posé peut le modifier. Laissez vide si le symbole n&apos;a pas de taille habituelle.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="343"/>
+        <source>Change the nominal diameter of a nozzle</source>
+        <translation>Modifier le DN d&apos;un piquage</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="90"/>

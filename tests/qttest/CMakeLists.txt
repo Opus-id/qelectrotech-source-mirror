@@ -592,6 +592,11 @@ qet_add_app_test(tst_selectionpanelheight tst_selectionpanelheight.cpp)
 # is saved with the project and the element editor keeps both.
 qet_add_app_test(tst_elementoptions tst_elementoptions.cpp)
 
+# The nominal diameter of a nozzle: a default in the symbol, shown under the
+# name of the nozzle, that a placed element can change. Saved with the project
+# only when it differs, and never passed on to the pipe connected there.
+qet_add_app_test(tst_nozzlediameter tst_nozzlediameter.cpp)
+
 # The Auto numbering panel's Increment spin boxes get the width their style
 # asks for; a fixed 55 px cut the number off on Windows (#1566).
 qet_add_app_test(tst_autonumincrementwidth tst_autonumincrementwidth.cpp)

@@ -108,7 +108,7 @@ void PartTerminal::paint(
 	if (m_hovered)
 		drawShadowShape(painter);
 
-	if (d->m_show_name && !d->m_name.isEmpty()) {
+	if (d->m_show_name && !labelText().isEmpty()) {
 		painter->save();
 		painter->setFont(d->m_label_font);
 		painter->setPen(d->m_label_color);
@@ -118,7 +118,8 @@ void PartTerminal::paint(
 		QPointF label_pos = d->m_label_pos;
 		QRectF text_rect;
 		QFontMetrics fm(d->m_label_font);
-		QSizeF text_size = fm.size(Qt::TextSingleLine, d->m_name);
+		const QString label = labelText();
+		QSizeF text_size = TerminalData::labelSize(fm, label);
 
 		auto compute_rect = [&]() {
 			qreal dx = 0, dy = 0;
@@ -139,13 +140,13 @@ void PartTerminal::paint(
 			if (d->m_label_frame) {
 				painter->drawRect(text_rect.adjusted(-1, -1, 1, 1));
 			}
-			painter->drawText(text_rect, static_cast<int>(d->m_label_halignment | d->m_label_valignment), d->m_name);
+			painter->drawText(text_rect, static_cast<int>(d->m_label_halignment | d->m_label_valignment), label);
 		} else {
 			text_rect = compute_rect();
 			if (d->m_label_frame) {
 				painter->drawRect(text_rect.adjusted(-1, -1, 1, 1));
 			}
-			painter->drawText(text_rect, static_cast<int>(Qt::AlignLeft | Qt::AlignTop), d->m_name);
+			painter->drawText(text_rect, static_cast<int>(Qt::AlignLeft | Qt::AlignTop), label);
 		}
 
 		if (isSelected() || m_hovered) {
@@ -177,7 +178,7 @@ QPainterPath PartTerminal::shape() const
 
 	QPainterPath path = pps.createStroke(shape);
 
-	if (d->m_show_name && !d->m_name.isEmpty()) {
+	if (d->m_show_name && !labelText().isEmpty()) {
 		path.addRect(labelRect());
 	}
 
@@ -210,7 +211,7 @@ QRectF PartTerminal::boundingRect() const
 	qreal adjust = (SHADOWS_HEIGHT + 1) / 2;
 	br.adjust(-adjust, -adjust, adjust, adjust);
 
-	if (d->m_show_name && !d->m_name.isEmpty()) {
+	if (d->m_show_name && !labelText().isEmpty()) {
 		br = br.united(labelRect());
 	}
 
@@ -224,11 +225,11 @@ QRectF PartTerminal::boundingRect() const
 */
 QRectF PartTerminal::labelRect() const
 {
-	if (!d->m_show_name || d->m_name.isEmpty())
+	if (!d->m_show_name || labelText().isEmpty())
 		return QRectF();
 
 	QFontMetrics fm(d->m_label_font);
-	QSizeF text_size = fm.size(Qt::TextSingleLine, d->m_name);
+	QSizeF text_size = TerminalData::labelSize(fm, labelText());
 	QPointF label_pos = d->m_label_pos;
 
 	qreal dx = 0, dy = 0;
@@ -400,10 +401,39 @@ void PartTerminal::setMedium(TerminalData::Medium medium)
 	if (d->m_medium == medium) {
 		return;
 	}
+		//only a nozzle shows a nominal diameter: the label may change
+	prepareGeometryChange();
 	d->m_medium = medium;
 		//its stem takes the color of its medium
 	update();
 	emit mediumChanged();
+}
+
+/**
+	@brief PartTerminal::setDn
+	Set the nominal diameter of this nozzle, the default of the elements of
+	this symbol
+	@param dn : 0 for none
+*/
+void PartTerminal::setDn(int dn)
+{
+	if (d->m_dn == dn) {
+		return;
+	}
+	prepareGeometryChange();
+	d->m_dn = dn;
+	update();
+	emit dnChanged();
+}
+
+/**
+	@brief PartTerminal::labelText
+	@return the text shown at the terminal: its name, and the DN of a nozzle
+*/
+QString PartTerminal::labelText() const
+{
+	return TerminalData::labelText(d->m_name,
+								   d->m_medium == TerminalData::Pipe ? d->m_dn : 0);
 }
 
 void PartTerminal::setNewUuid()

@@ -59,6 +59,7 @@ class TerminalEditor : public ElementItemEditor
 		void nameEdited();
 		void typeEdited();
 		void mediumEdited();
+		void dnEdited();
 		void potentialEdited();
 		void showNameEdited();
 		void labelPosEdited();

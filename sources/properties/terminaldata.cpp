@@ -121,6 +121,10 @@ QDomElement TerminalData::toXml(QDomDocument &xml_document) const
 	if (m_medium != Electrical)
 		xml_element.setAttribute("medium", mediumToString(m_medium));
 
+		//Only a nozzle has a nominal diameter, and only when it is given
+	if (m_medium == Pipe && m_dn > 0)
+		xml_element.setAttribute("dn", m_dn);
+
 	if (m_show_name) {
 		xml_element.setAttribute("show_name", "true");
 		xml_element.setAttribute("label_x", QString::number(m_label_pos.x()));
@@ -191,6 +195,7 @@ bool TerminalData::fromXml (const QDomElement &xml_element)
 
 	m_type = typeFromString(xml_element.attribute("type"));
 	m_medium = mediumFromString(xml_element.attribute("medium"));
+	m_dn = m_medium == Pipe ? dnFromString(xml_element.attribute("dn")) : 0;
 
 	m_show_name = (xml_element.attribute("show_name") == QLatin1String("true"));
 	if (m_show_name) {

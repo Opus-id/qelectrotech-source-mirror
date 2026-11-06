@@ -123,6 +123,8 @@ class Element : public QetGraphicsItem
 			/// The options of the symbol were given other values
 			/// (setOptionChoices())
 		void optionChoicesChanged();
+			/// Its nozzles were given other diameters (setNozzleDiameters())
+		void nozzleDiametersChanged();
 			/// The element took another symbol (changeLocation())
 		void symbolChanged();
 
@@ -226,6 +228,12 @@ class Element : public QetGraphicsItem
 		void setOptionChoices(const ElementOptions::Choices &choices);
 			/// The value of every option of the symbol for this element
 		ElementOptions::Choices resolvedOptions() const;
+			/// The nominal diameters this element gives its nozzles, by name
+			/// of nozzle; any other has the one of its symbol
+		QMap<QString, int> nozzleDiameters() const { return m_nozzle_diameters; }
+		void setNozzleDiameters(const QMap<QString, int> &diameters);
+			/// Those of the <nozzles> block of @p element
+		static QMap<QString, int> nozzleDiametersFromXml(const QDomElement &element);
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// True for a fitting (a tee, the end of a pipe), drawn after
@@ -432,6 +440,8 @@ class Element : public QetGraphicsItem
 	ElementData m_data;
 		/// See optionChoices()
 	ElementOptions::Choices m_option_choices;
+		/// See nozzleDiameters()
+	QMap<QString, int> m_nozzle_diameters;
 	QList<QPointF> m_plc_table_positions;  // Positions of plc_table parts in the element definition
 
 	void drawPlcTable(QPainter *painter);
