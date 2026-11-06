@@ -20405,6 +20405,11 @@ Voulez-vous la remplacer ?</translation>
         <translation>Modifier les options d&apos;un élément</translation>
     </message>
     <message>
+        <location filename="../sources/undocommand/changepidcodificationcommand.cpp" line="32"/>
+        <source>Change the colors and the codification of the project</source>
+        <translation>Modifier les couleurs et la codification du projet</translation>
+    </message>
+    <message>
         <location filename="../sources/TerminalStrip/UndoCommand/bridgeterminalscommand.cpp" line="28"/>
         <source>Bridging terminals together</source>
         <translation>Ponter des bornes entre-elles</translation>

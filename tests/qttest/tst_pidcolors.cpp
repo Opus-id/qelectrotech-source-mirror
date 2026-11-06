@@ -593,6 +593,40 @@ class tst_pidcolors : public QObject
 			QCOMPARE(c.status_colors.value(QStringLiteral("existing")), QColor(2, 2, 2));
 			m_project.setPidCodification(PidCodification());
 		}
+
+			// Undo takes back the colours just applied, not the last thing drawn
+		void theColorsOfThePageAreUndone()
+		{
+			m_project.setPidCodification(PidCodification());
+			m_next_y += 100;
+			Element *valve = place(m_valve, QPointF(0, m_next_y));
+			QVERIFY(valve);
+			const QColor black(Qt::black), olive(0x80, 0x80, 0);
+			QUndoStack *stack = m_project.undoStack();
+			const int steps = stack->count();
+
+			PidConfigPage page(&m_project);
+			page.setColor(PidConfigPage::ObjectFamily, QStringLiteral("valve"), olive);
+			page.applyProjectConf();
+			QCOMPARE(stack->count(), steps + 1);
+			QCOMPARE(at(render(valve), -10, -10), olive);
+
+				// applied a second time, or OK after Apply: no new step
+			page.applyProjectConf();
+			QCOMPARE(stack->count(), steps + 1);
+
+			stack->undo();
+			QVERIFY(!m_project.pidCodification().hasColors());
+			QCOMPARE(at(render(valve), -10, -10), black);
+			QVERIFY(m_folio->elements().contains(valve));
+
+			stack->redo();
+			QCOMPARE(m_project.pidCodification().object_colors.value(QStringLiteral("valve")), olive);
+			QCOMPARE(at(render(valve), -10, -10), olive);
+
+			stack->undo();
+			m_project.setPidCodification(PidCodification());
+		}
 };
 
 QET_APP_TEST_MAIN(tst_pidcolors)

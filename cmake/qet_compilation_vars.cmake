@@ -1008,6 +1008,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/undocommand/changeelementlocationcommand.h
   ${QET_DIR}/sources/undocommand/changeelementoptionscommand.cpp
   ${QET_DIR}/sources/undocommand/changeelementoptionscommand.h
+  ${QET_DIR}/sources/undocommand/changepidcodificationcommand.cpp
+  ${QET_DIR}/sources/undocommand/changepidcodificationcommand.h
   ${QET_DIR}/sources/undocommand/changeelementinformationcommand.cpp
   ${QET_DIR}/sources/undocommand/changeelementinformationcommand.h
   ${QET_DIR}/sources/undocommand/changetitleblockcommand.cpp

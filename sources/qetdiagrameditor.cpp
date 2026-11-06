@@ -104,6 +104,7 @@
 #include "ui/dialogwaiting.h"
 #include "undocommand/addelementtextcommand.h"
 #include "undocommand/changeelementinformationcommand.h"
+#include "undocommand/changepidcodificationcommand.h"
 #include "qetinformation.h"
 #include "utils/qetsettings.h"
 #include "utils/qetutils.h"
@@ -1185,7 +1186,8 @@ void QETDiagramEditor::setUpActions()
 				   QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) {
 			return;
 		}
-		project->setPidCodification(codification.completedWith(project->pidCodification()));
+		project->undoStack()->push(new ChangePidCodificationCommand(
+			project, codification.completedWith(project->pidCodification())));
 		QET::QetMessageBox::information(
 					this, tr("Import a P&ID codification"),
 					tr("%1 fluids and %2 materials imported.").arg(codification.fluids.size())

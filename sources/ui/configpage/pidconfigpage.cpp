@@ -19,6 +19,7 @@
 
 #include "../../qeticons.h"
 #include "../../qetproject.h"
+#include "../../undocommand/changepidcodificationcommand.h"
 
 #include <QApplication>
 #include <QColorDialog>
@@ -30,6 +31,7 @@
 #include <QSet>
 #include <QTabWidget>
 #include <QTableWidget>
+#include <QUndoStack>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -73,7 +75,7 @@ QIcon PidConfigPage::icon() const
 */
 void PidConfigPage::applyProjectConf()
 {
-	m_project->setPidCodification(m_codification);
+	m_project->undoStack()->push(new ChangePidCodificationCommand(m_project, m_codification));
 }
 
 void PidConfigPage::initWidgets()
