@@ -4312,17 +4312,6 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
     </message>
     <message>
         <location filename="../sources/diagramview.cpp" line="157"/>
-        <source>Create similar</source>
-        <comment>context menu action</comment>
-        <translation>Copie similaire</translation>
-    </message>
-    <message>
-        <location filename="../sources/diagramview.cpp" line="157"/>
-        <source>Place another copy of the selected symbol, with the same options and status, and the next P&amp;ID tag</source>
-        <translation>Poser une autre copie du symbole sélectionné, avec les mêmes options et le même statut, et le repère P&amp;ID suivant</translation>
-    </message>
-    <message>
-        <location filename="../sources/diagramview.cpp" line="157"/>
         <source>Change type</source>
         <comment>context menu action</comment>
         <translation>Changer de type</translation>
@@ -15364,6 +15353,17 @@ Chaque ligne doit avoir la forme : nature;code;nom;famille, la nature étant « 
         <location filename="../sources/qetdiagrameditor.cpp" line="776"/>
         <source>Configure duplication...</source>
         <translation>Configurer la duplication...</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="790"/>
+        <source>Create similar</source>
+        <comment>context menu action</comment>
+        <translation>Copie similaire</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="792"/>
+        <source>Place another copy of the selected symbol, with the same options and status, and the next P&amp;ID tag</source>
+        <translation>Poser une autre copie du symbole sélectionné, avec les mêmes options et le même statut, et le repère P&amp;ID suivant</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="778"/>

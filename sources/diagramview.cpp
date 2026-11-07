@@ -169,15 +169,6 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 		//Filled each time the context menu opens, see updateFolioReportMenu()
 	m_folio_report_menu = new QMenu(tr("Sheet reference"), this);
 
-	m_create_similar = new QAction(tr("Create similar", "context menu action"), this);
-	m_create_similar->setStatusTip(tr("Place another copy of the selected symbol, with the same options and status, and the next P&ID tag"));
-	connect(m_create_similar, &QAction::triggered, this, [this]() {
-		const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
-		if (selected.size() == 1) {
-			startSimilarPlacement(qgraphicsitem_cast<Element *>(selected.first()));
-		}
-	});
-
 		//Filled each time the context menu opens, see updateChangeTypeMenu()
 	m_change_type_menu = new QMenu(tr("Change type", "context menu action"), this);
 		//Filled each time the context menu opens, see updateStatusMenu()
@@ -416,6 +407,23 @@ bool DiagramView::startSimilarPlacement(const Element *source)
 		event->setLike(source);
 	}
 	return true;
+}
+
+/**
+	@brief DiagramView::similarSource
+	@return the symbol "Create similar" would copy: the only item selected,
+	when it is a symbol whose definition can still be found, on a folio
+	that can be changed; nullptr otherwise.
+*/
+const Element *DiagramView::similarSource() const
+{
+	if (!m_diagram || m_diagram->isReadOnly()) {
+		return nullptr;
+	}
+	const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+	const Element *one = selected.size() == 1
+		? qgraphicsitem_cast<Element *>(selected.first()) : nullptr;
+	return one && one->location().exist() ? one : nullptr;
 }
 
 /**
@@ -3025,7 +3033,7 @@ QList<QAction *> DiagramView::contextMenuActions() const
 					return element && hasCabinetInfo(element->elementInformations());
 				}));
 			list << m_generate_cabinet_thumbnail;
-			list << m_create_similar;
+			list << qde->m_create_similar;
 			list << m_change_type_menu->menuAction();
 			list << m_status_menu->menuAction();
 			list << qde->m_conductor_reset;
@@ -3207,12 +3215,9 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 	{
 		updateChangeTypeMenu();
 		updateStatusMenu();
-		{
-			const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
-			const Element *one = selected.size() == 1
-				? qgraphicsitem_cast<Element *>(selected.first()) : nullptr;
-			m_create_similar->setEnabled(one && !m_diagram->isReadOnly()
-				&& one->location().exist());
+			//The selection may just have changed under the mouse
+		if (QETDiagramEditor *qde = diagramEditor()) {
+			qde->m_create_similar->setEnabled(similarSource() != nullptr);
 		}
 	}
 

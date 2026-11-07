@@ -784,6 +784,19 @@ void QETDiagramEditor::setUpActions()
 		}
 	});
 
+		//Create similar: a new symbol of the same type as the one selected,
+		//set like it (options, status, rotation, P&ID tag), placed with the
+		//mouse. Beside Duplicate in the Edit menu and the context menu.
+	m_create_similar = new QAction(tr("Create similar", "context menu action"), this);
+	m_create_similar->setObjectName(QStringLiteral("createSimilar"));
+	ShortcutManager::instance().registerAction(m_create_similar, "diagrameditor.create_similar", tr("Diagram editors"), Qt::CTRL | Qt::ALT | Qt::Key_D);
+	m_create_similar->setStatusTip(tr("Place another copy of the selected symbol, with the same options and status, and the next P&ID tag"));
+	connect(m_create_similar, &QAction::triggered, this, [this]() {
+		if (DiagramView *dv = currentDiagramView()) {
+			dv->startSimilarPlacement(dv->similarSource());
+		}
+	});
+
 		//Reset conductor path
 	m_conductor_reset = new QAction(QET::Icons::ConductorSettings,     tr("Reset conductors"),        this);
 	ShortcutManager::instance().registerAction(m_conductor_reset, "diagrameditor.conductor_reset", tr("Diagram editors"), Qt::CTRL | Qt::Key_K);
@@ -2167,6 +2180,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_edition -> addAction(m_paste_element_info);
 	menu_edition -> addAction(m_duplicate);
 	menu_edition -> addAction(m_configure_duplicate);
+	menu_edition -> addAction(m_create_similar);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_insert_last_element);
 	menu_edition -> addAction(m_show_element_picker);
@@ -3950,6 +3964,7 @@ void QETDiagramEditor::slot_updateComplexActions()
 			    << m_copy
 			    << m_paste_element_info
 			    << m_duplicate
+			    << m_create_similar
 			    << m_delete_selection
 			    << m_rotate_selection
 			    << m_rotate_group_selection
@@ -4016,6 +4031,7 @@ void QETDiagramEditor::slot_updateComplexActions()
 	m_cut              -> setEnabled(!ro && copiable_items);
 	m_copy             -> setEnabled(copiable_items);
 	m_duplicate        -> setEnabled(!ro && copiable_items);
+	m_create_similar   -> setEnabled(dv->similarSource() != nullptr);
 	updatePasteElementInfoAction();
 	m_delete_selection -> setEnabled(!ro && deletable_items);
 	m_rotate_selection -> setEnabled(!ro && diagram_->canRotateSelection());

@@ -27,6 +27,7 @@
 #include "projectview.h"
 #include "diagramview.h"
 
+#include <QAction>
 /**
 	While a symbol is placed, the folio knows which one follows the mouse,
 	so the crosshair can leave it out, and Space turns it.
@@ -111,6 +112,54 @@ class tst_pendingelement : public QObject
 			QCOMPARE(dropped->rotation(), 90.0);
 			QCOMPARE(model->optionChoices(), choices);
 
+			QTest::keyClick(view, Qt::Key_Escape);
+			QVERIFY(!diagram->pendingElement());
+		}
+
+			//"Create similar" is a command of the editor with its own
+			//shortcut, Ctrl+Alt+D, usable when one symbol is selected
+		void createSimilarHasAShortcut()
+		{
+			QETDiagramEditor *editor = QetAppTest::editor();
+			QVERIFY(editor);
+			editor->resize(1400, 1000);
+			editor->show();
+			QVERIFY(QTest::qWaitForWindowExposed(editor));
+			const QString copy = m_dir.filePath("similar_shortcut.qet");
+			QVERIFY(QFile::copy(QFINDTESTDATA("fixtures/every_feature.qet"), copy));
+			QVERIFY(editor->openAndAddProject(copy, false));
+			DiagramView *view = editor->currentProjectView()->currentDiagram();
+			Diagram *diagram = view->diagram();
+			QVERIFY(diagram->elements().size() >= 2);
+			Element *model = diagram->elements().at(0);
+			Element *other = diagram->elements().at(1);
+
+			QAction *action = editor->findChild<QAction *>(QStringLiteral("createSimilar"));
+			QVERIFY(action);
+			QCOMPARE(action->shortcut(), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_D));
+
+				//nothing selected, then two symbols: nothing to copy
+			diagram->clearSelection();
+			QCoreApplication::processEvents();
+			QVERIFY(!action->isEnabled());
+			model->setSelected(true);
+			other->setSelected(true);
+			QCoreApplication::processEvents();
+			QVERIFY(!action->isEnabled());
+			QVERIFY(!view->similarSource());
+
+				//one symbol: the command places a copy of it
+			other->setSelected(false);
+			QCoreApplication::processEvents();
+			QCOMPARE(view->similarSource(), model);
+			QVERIFY(action->isEnabled());
+			action->trigger();
+			Element *pending = diagram->pendingElement();
+			QVERIFY(pending);
+			QVERIFY(pending != model);
+			QCOMPARE(pending->location(), model->location());
+
+			view->setFocus();
 			QTest::keyClick(view, Qt::Key_Escape);
 			QVERIFY(!diagram->pendingElement());
 		}

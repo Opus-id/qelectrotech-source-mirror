@@ -64,7 +64,6 @@ class DiagramView : public PaletteGraphicsView
 		QAction          *m_create_template = nullptr;
 		QAction          *m_generate_cabinet_thumbnail = nullptr;
 		QMenu            *m_folio_report_menu = nullptr;
-		QAction          *m_create_similar = nullptr;
 		QMenu            *m_change_type_menu = nullptr;
 		QMenu            *m_status_menu = nullptr;
 		QPoint            m_paste_here_pos;
@@ -154,6 +153,7 @@ class DiagramView : public PaletteGraphicsView
 					   const QPointF &scene_pos);
 		QPointF defaultPlacementPos() const;
 		bool startSimilarPlacement(const Element *source);
+		const Element *similarSource() const;
 		void setCellRulersShown(bool shown);
 		void setCellLinesShown(bool shown);
 			/// The folio-wide crosshair under the mouse (Display menu),
