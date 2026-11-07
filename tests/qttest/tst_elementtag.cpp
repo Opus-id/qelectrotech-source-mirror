@@ -292,9 +292,16 @@ class tst_elementtag : public QObject
 			QCOMPARE(a->getPrefix(), QStringLiteral("BB"));
 			QCOMPARE(shownLabel(a), QStringLiteral("U02 BB 203"));
 			QCOMPARE(a->dynamicTextItems().size(), 1);
-				// a symbol that gives no identifier keeps the one there is
+				// a symbol that gives no identifier: none, as when it is
+				// placed -- never the identifier of the old type
 			m_folio->undoStack().push(new ChangeElementLocationCommand(a, m_n));
+			QCOMPARE(a->getPrefix(), QString());
+			QCOMPARE(shownLabel(a), QStringLiteral("U02 203"));
+			m_folio->undoStack().undo();
 			QCOMPARE(a->getPrefix(), QStringLiteral("BB"));
+			QCOMPARE(shownLabel(a), QStringLiteral("U02 BB 203"));
+			m_folio->undoStack().redo();
+			QCOMPARE(a->getPrefix(), QString());
 
 			m_folio->undoStack().undo();
 			m_folio->undoStack().undo();

@@ -4091,12 +4091,13 @@ bool Element::changeLocation(const ElementsLocation &location)
 	m_location = location;
 	m_picture = picture;
 	m_low_zoom_picture = low_zoom_picture;
-		//The identifier of the new type, when its symbol gives one: the tag
-		//keeps its unit, its train and its order
+		//The identifier of the new type, found as when it is placed: the one
+		//of its symbol, else the one of its folder, else none -- never the
+		//identifier of the old type. The tag keeps its unit, its train and
+		//its order
 	m_data.m_prefix = location.xml().attribute(QStringLiteral("prefix")).trimmed();
-	if (!m_data.m_prefix.isEmpty()) {
-		setPrefix(m_data.m_prefix);
-	}
+	setPrefix(m_data.m_prefix.isEmpty() ? autonum::elementPrefixForLocation(location)
+										: m_data.m_prefix);
 	updatePidLabel();
 	updateDrawnRect();
 	setToolTip(name());
