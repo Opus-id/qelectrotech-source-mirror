@@ -17,11 +17,11 @@
 */
 #include "projectpropertiesdialog.h"
 
-#include "../configdialog.h"
+#include <configdialog.h>
 #include "configpage/configpages.h"
 #include "configpage/pidconfigpage.h"
 #include "configpage/projectconfigpages.h"
-#include "../TerminalStrip/ui/ConfigPage/terminalstripprojectconfigpage.h"
+#include <TerminalStrip/ui/ConfigPage/terminalstripprojectconfigpage.h>
 
 #include <QObject>
 

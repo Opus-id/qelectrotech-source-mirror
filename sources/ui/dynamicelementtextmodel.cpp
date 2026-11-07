@@ -17,17 +17,17 @@
 */
 #include "dynamicelementtextmodel.h"
 
-#include "../QPropertyUndoCommand/qpropertyundocommand.h"
-#include "../diagram.h"
-#include "../qetapp.h"
-#include "../qetgraphicsitem/conductor.h"
-#include "../qetgraphicsitem/dynamicelementtextitem.h"
-#include "../qetgraphicsitem/element.h"
-#include "../qetgraphicsitem/elementtextitemgroup.h"
-#include "../qetgraphicsitem/terminal.h"
-#include "../qeticons.h"
-#include "../qetinformation.h"
-#include "../undocommand/addelementtextcommand.h"
+#include <QPropertyUndoCommand/qpropertyundocommand.h>
+#include <diagram.h>
+#include <qetapp.h>
+#include <qetgraphicsitem/conductor.h>
+#include <qetgraphicsitem/dynamicelementtextitem.h>
+#include <qetgraphicsitem/element.h>
+#include <qetgraphicsitem/elementtextitemgroup.h>
+#include <qetgraphicsitem/terminal.h>
+#include <qeticons.h>
+#include <qetinformation.h>
+#include <undocommand/addelementtextcommand.h>
 #include "alignmenttextdialog.h"
 #include "compositetexteditdialog.h"
 
@@ -2080,6 +2080,10 @@ QStringList DynamicTextItemDelegate::availableInfo(
 			if(dc.contains(info))
 				qstrl << info;
 		}
+
+			//Read from the wires, never stored (#1585)
+		if (elmt->elementData().m_type == ElementData::Terminal)
+			qstrl << QETInformation::terminalConductorInfoKeys(elmt->terminals().size());
 	}
 	return qstrl;
 }

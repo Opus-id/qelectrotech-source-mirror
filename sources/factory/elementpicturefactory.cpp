@@ -17,13 +17,13 @@
 */
 #include "elementpicturefactory.h"
 
-#include "../ElementsCollection/elementslocation.h"
-#include "../editor/graphicspart/partline.h"
-#include "../properties/elementdata.h"
-#include "../properties/elementoptions.h"
-#include "../qetapp.h"
-#include "../qetversion.h"
-#include "../utils/qetutils.h"
+#include <ElementsCollection/elementslocation.h>
+#include <editor/graphicspart/partline.h>
+#include <properties/elementdata.h>
+#include <qetapp.h>
+#include <qetversion.h>
+#include <utils/qetutils.h>
+#include <properties/elementoptions.h>
 
 #include <QAbstractTextDocumentLayout>
 #include <QDomElement>

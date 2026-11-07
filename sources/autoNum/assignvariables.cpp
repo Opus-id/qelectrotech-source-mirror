@@ -15,19 +15,19 @@
 	You should have received a copy of the GNU General Public License
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "../bordercelllabels.h"
+#include <bordercelllabels.h>
 #include "assignvariables.h"
 
 #include <QRegularExpression>
 
-#include "../diagram.h"
-#include "../diagramposition.h"
-#include "../qetapp.h"
-#include "../qetgraphicsitem/conductor.h"
-#include "../qetgraphicsitem/element.h"
-#include "../qetxml.h"
-#include "../qetproject.h"
-#include "../ElementsCollection/qetlabelsfile.h"
+#include <diagram.h>
+#include <diagramposition.h>
+#include <qetapp.h>
+#include <qetgraphicsitem/conductor.h>
+#include <qetgraphicsitem/element.h>
+#include <qetxml.h>
+#include <qetproject.h>
+#include <ElementsCollection/qetlabelsfile.h>
 #include <QDir>
 #include <QDomDocument>
 #include <QStringList>
@@ -355,6 +355,19 @@ namespace autonum
 		str.replace("%{conductor_section}", dc.value("conductor_section").toString());
 		str.replace("%{conductor_color}", dc.value("conductor_color").toString());
 		str.replace("%{conductor_text}", dc.value("conductor_text").toString());
+			//The wires of one connection point of a terminal symbol
+			//(@sa QETInformation::terminalConductorInfoKeys)
+		if (str.contains(QLatin1String("%{conductor_"))) {
+			static const QRegularExpression rx(
+						QStringLiteral("%\\{(conductor_(?:text|color|section)_[1-9]\\d*)\\}"));
+			QRegularExpressionMatch match;
+			int from = 0;
+			while ((match = rx.match(str, from)).hasMatch()) {
+				const QString value = dc.value(match.captured(1)).toString();
+				str.replace(match.capturedStart(), match.capturedLength(), value);
+				from = match.capturedStart() + value.size();
+			}
+		}
 
 		str.replace("%{void}", QString());
 

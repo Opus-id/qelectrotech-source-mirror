@@ -17,16 +17,16 @@
 */
 #include "terminaleditor.h"
 #include "ui_terminaleditor.h"
-#include "../../qeticons.h"
-#include "../../qet.h"
-#include "../graphicspart/partterminal.h"
-#include "../../QPropertyUndoCommand/qpropertyundocommand.h"
-#include "../../ui/alignmenttextdialog.h"
+#include <qeticons.h>
+#include <qet.h>
+#include <editor/graphicspart/partterminal.h>
+#include <QPropertyUndoCommand/qpropertyundocommand.h>
+#include <ui/alignmenttextdialog.h>
 
 #include <QColorDialog>
 #include <QFontDialog>
-#include "../../ui/diameterlist.h"
-#include "../elementscene.h"
+#include <editor/elementscene.h>
+#include <ui/diameterlist.h>
 #include "qetelementeditor.h"
 
 /**

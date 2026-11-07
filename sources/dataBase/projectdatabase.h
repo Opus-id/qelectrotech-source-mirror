@@ -36,15 +36,16 @@
 
 #include <optional>
 
-#include "../diagramcontext.h"
-#include "../titleblockproperties.h"
-#include "../borderproperties.h"
-#include "../conductorproperties.h"
+#include <diagramcontext.h>
+#include <titleblockproperties.h>
+#include <borderproperties.h>
+#include <conductorproperties.h>
+#include <properties/potentialtypes.h>
 #include "conductorlayout.h"
 #include "conductorpath.h"
 #include "elementplacement.h"
-#include "../autoNum/assignvariables.h"
-#include "../autoNum/numerotationcontext.h"
+#include <autoNum/assignvariables.h>
+#include <autoNum/numerotationcontext.h>
 
 class Element;
 class QETProject;
@@ -469,6 +470,60 @@ class projectDataBase : public QObject
 		QString elementLabel(const QUuid &element) const;
 		QString terminalName(const QUuid &terminal, const QUuid &element) const;
 		std::optional<QSet<QUuid>> potentialWires(const QUuid &wire) const;
+			/// Every potential of the project at once: wire -> group
+			/// number, and the groups whose extent is not known
+		struct PotentialGroups {
+			QHash<QUuid, int> group_of;
+			QSet<int> unknown;
+			int count = 0;
+			bool isUnknown(const QUuid &wire) const {return unknown.contains(group_of.value(wire, -1));}
+		};
+		PotentialGroups potentialGroups() const;
+			/// The same from the tables of @p db alone, so a .qetdb read by
+			/// itself, without opening the project, gives the project's answer
+		static PotentialGroups potentialGroupsOf(const QSqlDatabase &db,
+												 const QSet<QUuid> *other_media = nullptr);
+			/// The wires of another medium than electrical (pipes...),
+			/// which have no potential: from the conductor_properties table
+			/// of @p db, and for otherMediumWires() from the properties
+			/// this database holds in memory as well
+		static QSet<QUuid> otherMediumWiresOf(const QSqlDatabase &db);
+		QSet<QUuid> otherMediumWires() const;
+			/// A potential that reaches more than one potential type
+		struct PotentialMismatch {
+			int potential = 0;
+			QStringList types;      ///< the different types, sorted
+			QList<QUuid> wires;     ///< the typed wires of the potential; all its wires when two sources disagree
+		};
+		QList<PotentialMismatch> potentialTypeMismatches();
+			/// The types wires take from the source terminals of placed
+			/// symbols (PotentialTypes::Mode::AtSource): wire -> type, for
+			/// each potential whose sources all name one type, and the
+			/// potentials whose sources name more than one. Nothing for a
+			/// potential whose extent is unknown. Worked out from the
+			/// tables on each call, never stored.
+		struct DerivedPotentialTypes {
+			QHash<QUuid, QString> type_of;
+			QHash<int, QStringList> conflicts;   ///< potential -> the types, sorted
+		};
+		DerivedPotentialTypes derivedPotentialTypes();
+		static DerivedPotentialTypes derivedPotentialTypesOf(const QSqlDatabase &db,
+															   const PotentialGroups &groups);
+			/// The mode the project_setting rows of @p db name
+		static PotentialTypes::Mode potentialModeOf(const QSqlDatabase &db);
+			/// (Re)build the TEMP table potential_member and the TEMP view
+			/// wire_potential_view; neither is ever saved
+		void refreshPotentialMembers();
+			/// The same on the tables of @p db alone. They do not write what
+			/// the project still holds back (a wire's edited properties):
+			/// on the project's own connection use the members above, which
+			/// do. @p ok, if given, tells whether the TEMP objects could be
+			/// built; false means the answer is not to be trusted.
+			/// @p conflicts, if given, gets the potentials whose sources
+			/// disagree (DerivedPotentialTypes::conflicts)
+		static bool refreshPotentialMembersOf(QSqlDatabase db, QHash<int, QStringList> *conflicts = nullptr);
+		static QList<PotentialBond> potentialBondsOf(const QSqlDatabase &db);
+		static QList<PotentialMismatch> potentialTypeMismatchesOf(QSqlDatabase db, bool *ok = nullptr);
 		static QVariant sequenceValue(const autonum::sequentialNumbers &sequence);
 		static autonum::sequentialNumbers sequenceFromValue(const QVariant &value);
 

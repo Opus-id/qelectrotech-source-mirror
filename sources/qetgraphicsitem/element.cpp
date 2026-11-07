@@ -17,34 +17,33 @@
 */
 #include "element.h"
 
-#include "../pidstatus.h"
-
-#include "../bridge/bridgemanager.h"
-#include "../qetapp.h"
-#include "../qetproject.h"
-#include "../dataBase/projectdatabase.h"
-#include "../ElementsCollection/terminaluuids.h"
-#include "../PropertiesEditor/propertieseditordialog.h"
-#include "../autoNum/assignvariables.h"
-#include "../autoNum/elementautonumschemecommand.h"
-#include "../autoNum/numerotationcontextcommands.h"
-#include "../diagram.h"
-#include "../diagramcommands.h"
-#include "../diagramcontext.h"
-#include "../diagramposition.h"
-#include "../elementprovider.h"
-#include "../factory/elementpicturefactory.h"
-#include "../properties/terminaldata.h"
-#include "../properties/xrefproperties.h"
-#include "../qetinformation.h"
-#include "../qetgraphicsitem/conductor.h"
-#include "../qetgraphicsitem/terminal.h"
-#include "../ui/elementpropertieswidget.h"
-#include "../undocommand/changeelementinformationcommand.h"
-#include "../undocommand/setautonumcontextcommand.h"
+#include <bridge/bridgemanager.h>
+#include <qetapp.h>
+#include <qetproject.h>
+#include <dataBase/projectdatabase.h>
+#include <ElementsCollection/terminaluuids.h>
+#include <PropertiesEditor/propertieseditordialog.h>
+#include <autoNum/assignvariables.h>
+#include <autoNum/elementautonumschemecommand.h>
+#include <autoNum/numerotationcontextcommands.h>
+#include <diagram.h>
+#include <diagramcommands.h>
+#include <diagramcontext.h>
+#include <diagramposition.h>
+#include <elementprovider.h>
+#include <factory/elementpicturefactory.h>
+#include <properties/terminaldata.h>
+#include <properties/xrefproperties.h>
+#include <qetinformation.h>
+#include <qetgraphicsitem/conductor.h>
+#include <qetgraphicsitem/terminal.h>
+#include <ui/elementpropertieswidget.h>
+#include <undocommand/changeelementinformationcommand.h>
+#include <undocommand/setautonumcontextcommand.h>
+#include <pidstatus.h>
 #include "crossrefitem.h"
 #include "terminalelement.h"
-#include "../TerminalStrip/terminalstrip.h"
+#include <TerminalStrip/terminalstrip.h>
 #include "dynamicelementtextitem.h"
 #include "elementtextitemgroup.h"
 #include "iostream"
@@ -58,7 +57,7 @@
 #include <QTextDocument>
 #include <QTimer>
 #include <QPointer>
-#include "../diagramview.h"
+#include <diagramview.h>
 
 static const QString plcTerminalKeys[] = {
 	QETInformation::ELMT_PLC_T1,
@@ -66,10 +65,10 @@ static const QString plcTerminalKeys[] = {
 	QETInformation::ELMT_PLC_T3,
 	QETInformation::ELMT_PLC_T4
 };
-#include "../qetxml.h"
-#include "../utils/qetutils.h"
-#include "../positionorder.h"
-#include "../qetversion.h"
+#include <qetxml.h>
+#include <positionorder.h>
+#include <qetversion.h>
+#include <utils/qetutils.h>
 #include "qgraphicsitemutility.h"
 #include <QDebug>
 
@@ -1861,6 +1860,15 @@ bool Element::fromXml(QDomElement &e,
 		}
 	}
 
+		//The potential types set on its terminals (PotentialTypes::Mode::AtSource)
+	m_potential_sources.clear();
+	for (const QDomElement &source : QETXML::subChild(e, QStringLiteral("potentialSources"), QStringLiteral("source"))) {
+		const QUuid terminal(source.attribute(QStringLiteral("terminal")));
+		const QString type = source.attribute(QStringLiteral("type"));
+		if (!terminal.isNull() && !type.isEmpty())
+			m_potential_sources.insert(terminal, type);
+	}
+
 		//Load PLC master data override from diagram XML
 	if (m_data.m_type == ElementData::Master &&
 		m_data.m_master_type == ElementData::PLC)
@@ -2922,6 +2930,33 @@ void Element::appendDataXml(QDomDocument &document, QDomElement &element) const
 		element.appendChild(properties);
 	}
 
+		//The potential types set on its terminals, in terminal order, then
+		//any whose terminal the definition no longer has, kept as read.
+		//Written only when there is one, so a symbol without saves as before
+	if (!m_potential_sources.isEmpty())
+	{
+		QDomElement sources = document.createElement(QStringLiteral("potentialSources"));
+		QHash<QUuid, QString> left = m_potential_sources;
+		const auto write = [&](const QUuid &terminal, const QString &type) {
+			QDomElement source = document.createElement(QStringLiteral("source"));
+			source.setAttribute(QStringLiteral("terminal"), terminal.toString());
+			source.setAttribute(QStringLiteral("type"), type);
+			sources.appendChild(source);
+		};
+		for (const Terminal *terminal : terminals()) {
+			const QUuid uuid = terminal->stableUuid();
+			const auto found = left.constFind(uuid);
+			if (found == left.constEnd()) continue;
+			write(uuid, found.value());
+			left.remove(uuid);
+		}
+		QList<QUuid> rest = left.keys();
+		std::sort(rest.begin(), rest.end(), [](const QUuid &a, const QUuid &b) {return a.toString() < b.toString();});
+		for (const QUuid &uuid : std::as_const(rest))
+			write(uuid, left.value(uuid));
+		element.appendChild(sources);
+	}
+
 		//Save PLC master data override for elements on diagram
 	if (m_data.m_type == ElementData::Master &&
 		m_data.m_master_type == ElementData::PLC)
@@ -2956,6 +2991,43 @@ QDomElement Element::ownValuesXml(QDomDocument &document) const
 	element.setAttribute(QStringLiteral("is_movable"), bool(is_movable_));
 	appendDataXml(document, element);
 	return element;
+}
+
+/**
+	@brief Element::setPotentialSources
+	Set the potential types of this symbol's terminals, keyed by
+	Terminal::stableUuid(); an empty type name is no type. The project
+	database learns it with the symbol's other values, and a project that
+	takes its types from the sources works them out again.
+*/
+void Element::setPotentialSources(const QHash<QUuid, QString> &sources)
+{
+	QHash<QUuid, QString> clean;
+	for (auto it = sources.constBegin() ; it != sources.constEnd() ; ++it)
+		if (!it.key().isNull() && !it.value().isEmpty())
+			clean.insert(it.key(), it.value());
+	if (clean == m_potential_sources)
+		return;
+	m_potential_sources = clean;
+	scheduleTextsStore();
+	if (diagram() && diagram()->project())
+		diagram()->project()->scheduleDerivedPotentialTypes();
+}
+
+QVariantMap Element::potentialSourcesMap() const
+{
+	QVariantMap map;
+	for (auto it = m_potential_sources.constBegin() ; it != m_potential_sources.constEnd() ; ++it)
+		map.insert(it.key().toString(), it.value());
+	return map;
+}
+
+void Element::setPotentialSourcesMap(const QVariantMap &sources)
+{
+	QHash<QUuid, QString> hash;
+	for (auto it = sources.constBegin() ; it != sources.constEnd() ; ++it)
+		hash.insert(QUuid(it.key()), it.value().toString());
+	setPotentialSources(hash);
 }
 
 /**
@@ -3653,6 +3725,10 @@ QString Element::infoForDisplay(const QString &info_name)
 	if (info_name == QETInformation::ELMT_CONDUCTOR_TEXT) {
 		return conductorTextForDisplay();
 	}
+	if (m_data.m_type == ElementData::Terminal
+		&& QETInformation::isTerminalConductorInfo(info_name)) {
+		return conductorInfoForDisplay(info_name);
+	}
 
 	return m_data.m_informations.value(info_name).toString();
 }
@@ -3665,20 +3741,44 @@ QString Element::infoForDisplay(const QString &info_name)
 */
 QString Element::conductorTextForDisplay()
 {
-	if (m_data.m_type != ElementData::Terminal) {
+	return conductorInfoForDisplay(QETInformation::ELMT_CONDUCTOR_TEXT);
+}
+
+/**
+	@brief Element::conductorInfoForDisplay
+	@param info_name : one of QETInformation::terminalConductorInfoKeys()
+	@return the distinct values of the wire property @p info_name reads,
+	on every terminal of this terminal symbol or only on the connection
+	point it names, in the order of its terminals and joined with a
+	space; empty for any other symbol. Display only, nothing is stored.
+*/
+QString Element::conductorInfoForDisplay(const QString &info_name)
+{
+	QString property;
+	int connection = 0;
+	if (m_data.m_type != ElementData::Terminal
+		|| !QETInformation::isTerminalConductorInfo(info_name, &property, &connection)
+		|| connection > m_terminals.size()) {
 		return QString();
 	}
 
-	QStringList texts;
-	for (Terminal *terminal : m_terminals) {
+	const QList<Terminal *> terminals = connection
+			? QList<Terminal *>{m_terminals.at(connection - 1)}
+			: m_terminals;
+
+	QStringList values;
+	for (Terminal *terminal : terminals) {
 		for (Conductor *conductor : terminal->conductors()) {
-			const QString text = conductor->properties().text;
-			if (!text.isEmpty() && !texts.contains(text)) {
-				texts << text;
+			const ConductorProperties p = conductor->properties();
+			const QString value = property == QETInformation::COND_COLOR   ? p.m_wire_color
+								: property == QETInformation::COND_SECTION ? p.m_wire_section
+																			: p.text;
+			if (!value.isEmpty() && !values.contains(value)) {
+				values << value;
 			}
 		}
 	}
-	return texts.join(QLatin1Char(' '));
+	return values.join(QLatin1Char(' '));
 }
 
 /**
@@ -3690,6 +3790,13 @@ void Element::addDisplayValues(DiagramContext &dc)
 	dc.addValue(QETInformation::ELMT_LABEL,            labelForDisplay());
 	dc.addValue(QETInformation::ELMT_TERMINAL_NUMBER, terminalNumberForDisplay());
 	dc.addValue(QETInformation::ELMT_CONDUCTOR_TEXT,  conductorTextForDisplay());
+
+	if (m_data.m_type == ElementData::Terminal) {
+		for (const QString &key
+			 : QETInformation::terminalConductorInfoKeys(m_terminals.size())) {
+			dc.addValue(key, conductorInfoForDisplay(key));
+		}
+	}
 }
 
 /**
@@ -4041,11 +4148,11 @@ void Element::updateConductorTexts()
 {
 	if (m_data.m_type == ElementData::Terminal)
 	{
-			//Only the texts which read the wire number: the others
-			//have nothing to refresh
+			//Only the texts which read the wires: the others have
+			//nothing to refresh
 		for (DynamicElementTextItem *deti : m_dynamic_text_list) {
-			if (deti && (deti->infoName() == QETInformation::ELMT_CONDUCTOR_TEXT
-						 || deti->compositeText().contains(QETInformation::ELMT_CONDUCTOR_TEXT))) {
+			if (deti && (QETInformation::isTerminalConductorInfo(deti->infoName())
+						 || QETInformation::usesTerminalConductorInfo(deti->compositeText()))) {
 				deti->refreshConductorText();
 			}
 		}

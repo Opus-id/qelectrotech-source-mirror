@@ -17,10 +17,10 @@
 */
 #include "replaceconductordialog.h"
 
-#include "../searchandreplaceworker.h"
+#include <SearchAndReplace/searchandreplaceworker.h>
 #include "ui_replaceconductordialog.h"
 
-#include "../../qet.h"
+#include <qet.h>
 #include <QColorDialog>
 #include <QPainter>
 
@@ -38,6 +38,7 @@ ReplaceConductorDialog::ReplaceConductorDialog(
 	ui(new Ui::ReplaceConductorDialog)
 {
 	ui->setupUi(this);
+	setWindowTitle(tr("Replace conductor properties"));
 	QET::trackDialogGeometry(this);
 	initWidget();
 	setProperties(properties);

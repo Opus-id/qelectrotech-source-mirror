@@ -17,9 +17,9 @@
 */
 #include "replacefoliowidget.h"
 
-#include "../../ui/diagramcontextwidget.h"
-#include "../../qet.h"
-#include "../searchandreplaceworker.h"
+#include <ui/diagramcontextwidget.h>
+#include <qet.h>
+#include <SearchAndReplace/searchandreplaceworker.h>
 #include "ui_replacefoliowidget.h"
 
 #include <QDialogButtonBox>
@@ -119,6 +119,7 @@ void ReplaceFolioWidget::setTitleBlockProperties(
 ReplaceFolioDialog::ReplaceFolioDialog(QWidget *parent) : 
 	QDialog(parent)
 {
+	setWindowTitle(tr("Replace sheet properties"));
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	layout->addWidget(m_widget = new ReplaceFolioWidget(this));
 	layout->addWidget(m_button_box = new QDialogButtonBox(

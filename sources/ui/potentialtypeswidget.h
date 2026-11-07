@@ -19,17 +19,19 @@
 #ifndef POTENTIALTYPESWIDGET_H
 #define POTENTIALTYPESWIDGET_H
 
-#include "../properties/potentialtypes.h"
+#include <properties/potentialtypes.h>
 
 #include <QWidget>
 
-class QCheckBox;
+class QComboBox;
+class QListWidget;
 class QTableWidget;
 
 /**
 	@brief The PotentialTypesWidget class
 	Edits the potential types of a project: whether its conductors are
-	drawn from them, and the name, colour, line style and width of each.
+	drawn from them, the name, colour, line style and width of each, and
+	the pairs of types joined on purpose.
 */
 class PotentialTypesWidget : public QWidget
 {
@@ -45,9 +47,15 @@ class PotentialTypesWidget : public QWidget
 		void addRow(const PotentialType &type);
 		void chooseColor(QWidget *button);
 		void setTypes(const QList<PotentialType> &types);
+		void setBonds(const QList<PotentialBond> &bonds);
+		void addBondItem(const PotentialBond &bond);
+		void refreshBondChoices();
 
-		QCheckBox *m_enabled_cb = nullptr;
+		QComboBox *m_mode_cb = nullptr;
 		QTableWidget *m_table = nullptr;
+		QComboBox *m_bond_a_cb = nullptr;
+		QComboBox *m_bond_b_cb = nullptr;
+		QListWidget *m_bond_list = nullptr;
 };
 
 #endif // POTENTIALTYPESWIDGET_H

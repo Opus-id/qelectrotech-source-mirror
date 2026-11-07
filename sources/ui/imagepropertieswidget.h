@@ -18,7 +18,7 @@
 #ifndef IMAGEPROPERTIESWIDGET_H
 #define IMAGEPROPERTIESWIDGET_H
 
-#include "../PropertiesEditor/propertieseditorwidget.h"
+#include <PropertiesEditor/propertieseditorwidget.h>
 
 class DiagramImageItem;
 
@@ -43,6 +43,7 @@ class ImagePropertiesWidget : public PropertiesEditorWidget
 		void reset() override;
 		bool setLiveEdit(bool live_edit) override;
 		QUndoCommand* associatedUndo() const override;
+		QString title() const override {return tr("Picture properties");}
 	protected:
 		bool event(QEvent *event) override;
 

@@ -15,29 +15,29 @@
 	You should have received a copy of the GNU General Public License
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "../qetgraphicsitem/conductor.h"
-#include "../palettegraphicsview.h"
-#include "../shownkinds.h"
-#include "../lastusedstyle.h"
-#include "../qetproject.h"
-#include "../QPropertyUndoCommand/qpropertyundocommand.h"
-#include "../autoNum/numerotationcontextcommands.h"
-#include "../conductorautonumerotation.h"
-#include "../conductorsegment.h"
-#include "../conductorsegmentprofile.h"
-#include "../diagram.h"
-#include "../dataBase/projectdatabase.h"
-#include "../diagramcommands.h"
-#include "../qetdiagrameditor.h"
-#include "../qetgraphicsitem/terminal.h"
-#include "../ui/conductorpropertiesdialog.h"
-#include "../ui/pipepropertieswidget.h"
+#include <qetgraphicsitem/conductor.h>
+#include <palettegraphicsview.h>
+#include <shownkinds.h>
+#include <lastusedstyle.h>
+#include <qetproject.h>
+#include <QPropertyUndoCommand/qpropertyundocommand.h>
+#include <autoNum/numerotationcontextcommands.h>
+#include <conductorautonumerotation.h>
+#include <conductorsegment.h>
+#include <conductorsegmentprofile.h>
+#include <diagram.h>
+#include <dataBase/projectdatabase.h>
+#include <diagramcommands.h>
+#include <qetdiagrameditor.h>
+#include <qetgraphicsitem/terminal.h>
+#include <ui/conductorpropertiesdialog.h>
+#include <ui/pipepropertieswidget.h>
 #include "conductortextitem.h"
 #include "conductordefinitionmark.h"
 #include "element.h"
-#include "../QetGraphicsItemModeler/qetgraphicshandleritem.h"
-#include "../utils/qetutils.h"
-#include "../wirehops.h"
+#include <QetGraphicsItemModeler/qetgraphicshandleritem.h>
+#include <utils/qetutils.h>
+#include <wirehops.h>
 
 #include <QMultiHash>
 #include <QtDebug>
@@ -2694,18 +2694,22 @@ QList<Conductor *> Conductor::inlineRun()
 	The format the project gives the potential of this conductor.
 	@param type : receives the type when there is one
 	@return true when the project draws its conductors from potential
-	types, and this conductor's type is one of them. False leaves the
-	conductor drawn from its own stored style.
+	types, and this conductor's type is one of them: its own, or, in the
+	mode that takes types from where the potential starts and when it has
+	none of its own, the one its potential takes from a source terminal.
+	False leaves the conductor drawn from its own stored style.
 */
 bool Conductor::potentialTypeFormat(PotentialType *type) const
 {
-	if (m_properties.m_potential_type.isEmpty())
-		return false;
 	const Diagram *parent_diagram = diagram();
-	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+	QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
 	if (!project || !project->potentialTypes().isEnabled())
 		return false;
-	return project->potentialTypes().find(m_properties.m_potential_type, type);
+	if (!m_properties.m_potential_type.isEmpty())
+		return project->potentialTypes().find(m_properties.m_potential_type, type);
+	if (project->potentialTypes().mode() != PotentialTypes::Mode::AtSource)
+		return false;
+	return project->potentialTypes().find(project->derivedPotentialType(uuid()), type);
 }
 
 /**

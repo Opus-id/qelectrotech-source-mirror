@@ -16,17 +16,18 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "elementpropertieswidget.h"
+#include "potentialsourceswidget.h"
 
-#include "../diagram.h"
-#include "../diagramposition.h"
-#include "../qetapp.h"
-#include "../qetproject.h"
+#include <diagram.h>
+#include <diagramposition.h>
+#include <qetapp.h>
+#include <qetproject.h>
 #include <QSettings>
-#include "../qetgraphicsitem/dynamicelementtextitem.h"
-#include "../qetgraphicsitem/element.h"
-#include "../qetgraphicsitem/elementtextitemgroup.h"
-#include "../qetgraphicsitem/masterelement.h"
-#include "../qeticons.h"
+#include <qetgraphicsitem/dynamicelementtextitem.h>
+#include <qetgraphicsitem/element.h>
+#include <qetgraphicsitem/elementtextitemgroup.h>
+#include <qetgraphicsitem/masterelement.h>
+#include <qeticons.h>
 #include "dynamicelementtextitemeditor.h"
 #include "elementinfowidget.h"
 #include "elementnozzleswidget.h"
@@ -36,7 +37,7 @@
 #include "plclinkwidget.h"
 #include "dockfit.h"
 
-#include "../dataBase/qetdbfile.h"
+#include <dataBase/qetdbfile.h>
 
 #include <QCheckBox>
 #include <QDateTime>
@@ -397,6 +398,9 @@ void ElementPropertiesWidget::updateUi()
 		//The nominal diameters of its nozzles
 	if (ElementNozzlesWidget::hasNozzles(m_element))
 		m_list_editor << new ElementNozzlesWidget(m_element, this);
+		//The types its terminals give, in a project that takes them there
+	if (PotentialSourcesWidget::isWanted(m_element))
+		m_list_editor << new PotentialSourcesWidget(m_element, this);
 	m_list_editor << new DynamicElementTextItemEditor(m_element, this);
 
 		//Add each editors in tab widget

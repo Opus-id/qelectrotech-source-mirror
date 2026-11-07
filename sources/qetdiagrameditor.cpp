@@ -97,6 +97,7 @@
 #include "ui/conductorcolortoolbutton.h"
 #include "ui/diagrambgcolorbutton.h"
 #include "ui/duplicatelabelsdialog.h"
+#include "ui/potentialcheckdialog.h"
 #include "ui/duplicateoffsetdialog.h"
 #include "ui/jumptoelementdialog.h"
 #include "ui/diagrampropertieseditordockwidget.h"
@@ -1131,6 +1132,17 @@ void QETDiagramEditor::setUpActions()
 				dialog->show();
 			}
 		});
+	// Mixed potential types on one potential
+	m_check_potentials = new QAction(tr("Check potential types..."), this);
+	m_check_potentials->setObjectName(QStringLiteral("checkPotentialTypes"));
+	ShortcutManager::instance().registerAction(m_check_potentials, "diagrameditor.check_potential_types", tr("Diagram editors"), QKeySequence());
+	connect(m_check_potentials, &QAction::triggered, this, [this]() {
+		if (ProjectView *view = currentProjectView()) {
+			auto *dialog = new PotentialCheckDialog(view->project(), this);
+			dialog->setAttribute(Qt::WA_DeleteOnClose);
+			dialog->show();
+		}
+	});
 		//The texts of the project in other languages
 	m_project_languages = new QAction(tr("Project languages..."), this);
 	m_project_languages->setStatusTip(tr("Show the texts of the project in another language"));
@@ -2234,6 +2246,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_remove_diagram_from_project);
 	menu_project -> addAction(m_clean_project);
 	menu_project->addAction(m_find_duplicate_labels);
+	menu_project->addAction(m_check_potentials);
 	menu_project->addAction(m_project_languages);
 	menu_project->addAction(m_import_pid_codification);
 	menu_project -> addSeparator();
@@ -3840,6 +3853,7 @@ void QETDiagramEditor::slot_updateActions()
 		//Project menu
 	m_project_edit_properties     -> setEnabled(opened_project);
 	m_find_duplicate_labels->setEnabled(opened_project);
+	m_check_potentials->setEnabled(opened_project);
 	m_project_languages->setEnabled(opened_project);
 	m_import_pid_codification->setEnabled(opened_project);
 	m_project_history             -> setEnabled(opened_project);
