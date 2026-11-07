@@ -125,10 +125,19 @@ tag `pipe-connector-freeze-2026-11-03`.
   project is told. Without a model, the label is typed by hand as before.
   The functional units and the models come with the codification of the
   project (CSV lines `unit;U01;Lifting` and `tag_model;equipment;...`).
+- **Tags numbered automatically**: the order is one more than the highest
+  held by the same functional unit, identifier and train in the project
+  (a number freed below it is not given again; no counter is saved, the
+  project is read each time). The *Tag* tab fills an empty order as soon
+  as the unit is there, and *Next number* gives it on demand; an order
+  typed is never changed. When the model shows the train, a numbered tag
+  always has one (0 for none). A pasted copy whose tag is taken gets the
+  next order (a cut and paste keeps its own).
 - **Create similar**: right-click a placed symbol, *Create similar* starts
   the usual placement mode with the same symbol, options, status of works
-  and rotation (label and device information are not copied). Automatic
-  connections apply as usual.
+  and rotation. Device information is not copied; a P&ID tag takes the
+  same functional unit and train, and the next order at each drop.
+  Automatic connections apply as usual.
 - **Ends and corners of lines**: the element editor can draw the ends of a
   line round or flat and its corners round, mitred or bevelled (`line-cap`
   and `line-join` in the style of a part; nothing written for the default).
@@ -166,8 +175,8 @@ QElectroTech are saved byte for byte as by master.
 - A list of diameters per project (ISO values plus those of the project,
   such as outside diameters of plastic pipes), and a way to find the pipes
   without a diameter.
-- Numbering the tags automatically (one counter per functional unit,
-  identifier and train).
+- Keeping the tags of an issued drawing set: once issued, a deleted tag
+  should never be given again.
 - Declaring options and conditions in the element editor (they are written
   by hand or by script for now, and kept by the editor).
 - A library of P&ID symbols (symbols are drawn *inspired by* ISO 10628-2,
