@@ -261,6 +261,17 @@ class Element : public QetGraphicsItem
 			/// Give the labels of this new element the size of its family,
 			/// if @p codification sets one
 		void takeLabelSize(const PidCodification &codification);
+			/// The model of the tags of the family of this P&ID symbol in
+			/// its project (PidTag), empty when there is none
+		QString pidTagModel() const;
+			/// @p information with the label the model makes of its tag
+			/// fields and the identifier of this element; as it is when
+			/// it has no field or the project no model
+		DiagramContext withPidLabel(const DiagramContext &information) const;
+			/// Give this element the label its tag makes now: after its
+			/// identifier or the model of its project changed. Nothing to
+			/// undo, the label follows them
+		void updatePidLabel();
 			/// True for a fitting (a tee, the end of a pipe), drawn after
 			/// the pipe it is connected to
 		bool followsPipes() const;

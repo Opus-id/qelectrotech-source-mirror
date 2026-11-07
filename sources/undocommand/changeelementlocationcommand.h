@@ -43,6 +43,9 @@ class ChangeElementLocationCommand : public QUndoCommand
 	private:
 		QPointer<Element> m_element;
 		ElementsLocation m_old_location, m_new_location;
+			/// The identifier of the element before, which its old symbol
+			/// may not give (Element::getPrefix())
+		QString m_old_prefix;
 };
 
 #endif // CHANGEELEMENTLOCATIONCOMMAND_H

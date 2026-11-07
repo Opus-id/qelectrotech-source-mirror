@@ -58,6 +58,7 @@ bool ElementData::fromXml(const QDomElement &xml_element)
 	m_options.fromXml(xml_element);
 	m_pid_family = xml_element.attribute(QStringLiteral("pid_family"));
 	m_pipe_inline = xml_element.attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
+	m_prefix = xml_element.attribute(QStringLiteral("prefix")).trimmed();
 
 	auto xml_draw_info = xml_element.firstChildElement(QStringLiteral("informations"));
 	if(xml_draw_info.tagName() == QLatin1String("informations")) {
@@ -702,7 +703,8 @@ bool ElementData::operator==(const ElementData &data) const
 		return false;
 	}
 
-	if (data.m_options != m_options || data.m_pid_family != m_pid_family) {
+	if (data.m_options != m_options || data.m_pid_family != m_pid_family
+		|| data.m_prefix != m_prefix) {
 		return false;
 	}
 

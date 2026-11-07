@@ -4693,6 +4693,8 @@ void QETProject::setPidCodification(const PidCodification &codification)
 		for (QGraphicsItem *item : folio->items()) {
 			if (auto *element = qgraphicsitem_cast<Element *>(item)) {
 				element->updateInk();
+					//and the labels its models of tags make
+				element->updatePidLabel();
 			}
 		}
 		folio->update();

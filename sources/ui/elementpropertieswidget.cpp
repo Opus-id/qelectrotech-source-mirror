@@ -32,6 +32,7 @@
 #include "elementinfowidget.h"
 #include "elementnozzleswidget.h"
 #include "elementoptionswidget.h"
+#include "elementtagwidget.h"
 #include "linksingleelementwidget.h"
 #include "masterpropertieswidget.h"
 #include "plclinkwidget.h"
@@ -150,7 +151,9 @@ void ElementPropertiesWidget::setElement(Element *element)
 		   && ElementOptionsWidget::hasOptions(previous_element)
 				== ElementOptionsWidget::hasOptions(m_element)
 		   && ElementNozzlesWidget::hasNozzles(previous_element)
-				== ElementNozzlesWidget::hasNozzles(m_element))
+				== ElementNozzlesWidget::hasNozzles(m_element)
+		   && ElementTagWidget::isWanted(previous_element)
+				== ElementTagWidget::isWanted(m_element))
 		{
 			bool chained_changed = false;
 			if (m_element->linkType() & Element::AllReport) {
@@ -392,6 +395,9 @@ void ElementPropertiesWidget::updateUi()
 		default:
 			break;
 	}
+		//The tag of a P&ID symbol, made of fields
+	if (ElementTagWidget::isWanted(m_element))
+		m_list_editor << new ElementTagWidget(m_element, this);
 		//The options of its symbol, such as the motor of a pump
 	if (ElementOptionsWidget::hasOptions(m_element))
 		m_list_editor << new ElementOptionsWidget(m_element, this);

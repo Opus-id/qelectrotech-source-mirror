@@ -346,6 +346,11 @@ class ElementData : public PropertiesInterface
 			/// A line runs through this symbol, as through a valve: it has one
 			/// DN, and a change of DN goes through it (Element::isPipeInline())
 		bool m_pipe_inline = false;
+			/// The identifier this symbol gives the label of a placed
+			/// element (Element::getPrefix()), such as "PC" for a pump:
+			/// when it has one, it is taken before the one of its folder
+			/// (qet_labels.xml)
+		QString m_prefix;
 
 	private:
 		ElementData::TerminalType m_override_terminal_type = ElementData::TTGeneric;

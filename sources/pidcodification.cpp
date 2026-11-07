@@ -158,6 +158,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 	if (!hasCodes()) {
 		result.fluids = other.fluids;
 		result.materials = other.materials;
+		result.functional_units = other.functional_units;
 	}
 	if (!hasColors()) {
 		result.fluid_family_colors = other.fluid_family_colors;
@@ -168,6 +169,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.text_sizes = other.text_sizes;
 		result.colored_labels = other.colored_labels;
 		result.nozzle_texts_on_paper = other.nozzle_texts_on_paper;
+		result.tag_models = other.tag_models;
 	}
 	return result;
 }
@@ -187,6 +189,14 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	QDomElement block = document.createElement(block_tag);
 	writeList(document, block, QStringLiteral("fluid"), fluids);
 	writeList(document, block, QStringLiteral("material"), materials);
+	writeList(document, block, QStringLiteral("functional_unit"), functional_units);
+	for (auto it = tag_models.cbegin() ; it != tag_models.cend() ; ++it)
+	{
+		QDomElement e = document.createElement(QStringLiteral("tag_model"));
+		e.setAttribute(QStringLiteral("family"), it.key());
+		e.setAttribute(QStringLiteral("value"), it.value());
+		block.appendChild(e);
+	}
 	writeColors(document, block, QStringLiteral("fluid_family"), fluid_family_colors);
 	writeColors(document, block, QStringLiteral("object"), object_colors);
 	writeColors(document, block, QStringLiteral("status"), status_colors);
@@ -215,6 +225,18 @@ void PidCodification::fromXml(const QDomElement &parent)
 	const QDomElement block = parent.firstChildElement(block_tag);
 	fluids = readList(block, QStringLiteral("fluid"));
 	materials = readList(block, QStringLiteral("material"));
+	functional_units = readList(block, QStringLiteral("functional_unit"));
+	tag_models.clear();
+	const QString model_tag = QStringLiteral("tag_model");
+	for (QDomElement e = block.firstChildElement(model_tag) ; !e.isNull() ;
+		 e = e.nextSiblingElement(model_tag))
+	{
+		const QString family = e.attribute(QStringLiteral("family")).trimmed();
+		const QString model = e.attribute(QStringLiteral("value"));
+		if (!family.isEmpty() && !model.trimmed().isEmpty() && !tag_models.contains(family)) {
+			tag_models.insert(family, model);
+		}
+	}
 	fluid_family_colors = readColors(block, QStringLiteral("fluid_family"));
 	object_colors = readColors(block, QStringLiteral("object"));
 	status_colors = readColors(block, QStringLiteral("status"));
@@ -260,6 +282,9 @@ QString PidCodification::paletteToCsv() const
 	if (!nozzle_texts_on_paper) {
 		text += QStringLiteral("text_option;") + nozzle_texts_word + QStringLiteral(";false\n");
 	}
+	for (auto it = tag_models.cbegin() ; it != tag_models.cend() ; ++it) {
+		text += QStringLiteral("tag_model;") + it.key() + QLatin1Char(';') + it.value() + QLatin1Char('\n');
+	}
 	return text;
 }
 
@@ -274,7 +299,7 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 {
 	PidCodification codification;
 	int left_out = 0;
-	QSet<QString> fluid_codes, material_codes;
+	QSet<QString> fluid_codes, material_codes, unit_codes;
 	const QStringList lines = text.split(QLatin1Char('\n'));
 	for (int i = 0 ; i < lines.size() ; ++i)
 	{
@@ -342,28 +367,50 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 			}
 			continue;
 		}
+		if (kind == QLatin1String("tag_model") || kind == QStringLiteral("modèle_repère")
+			|| kind == QLatin1String("modele_repere"))
+		{
+				//The model may hold the separator: what follows the family
+			const QString family = fields.value(1);
+			const int start = line.indexOf(separator, line.indexOf(separator) + 1);
+			QString model = start < 0 ? QString() : line.mid(start + 1).trimmed();
+			if (model.size() >= 2 && model.startsWith(QLatin1Char('"')) && model.endsWith(QLatin1Char('"'))) {
+				model = model.mid(1, model.size() - 2).replace(QStringLiteral("\"\""), QStringLiteral("\""));
+			}
+			if (family.isEmpty() || model.isEmpty() || codification.tag_models.contains(family)) {
+				++left_out;
+			} else {
+				codification.tag_models.insert(family, model);
+			}
+			continue;
+		}
 		const bool is_fluid = kind == QLatin1String("fluid") || kind == QLatin1String("fluide");
 		const bool is_material = kind == QLatin1String("material") || kind == QStringLiteral("matériau")
 							   || kind == QLatin1String("materiau");
+		const bool is_unit = kind == QLatin1String("unit") || kind == QLatin1String("functional_unit")
+							 || kind == QStringLiteral("unité") || kind == QLatin1String("unite")
+							 || kind == QStringLiteral("unité_fonctionnelle")
+							 || kind == QLatin1String("unite_fonctionnelle");
 		Entry entry;
 		entry.code = fields.value(1);
 		entry.name = fields.value(2);
 		entry.family = fields.value(3);
-		if ((!is_fluid && !is_material) || entry.code.isEmpty())
+		if ((!is_fluid && !is_material && !is_unit) || entry.code.isEmpty())
 		{
 				//A first line naming the columns is not a line left out
-			if (i > 0 || is_fluid || is_material) {
+			if (i > 0 || is_fluid || is_material || is_unit) {
 				++left_out;
 			}
 			continue;
 		}
-		QSet<QString> &codes = is_fluid ? fluid_codes : material_codes;
+		QSet<QString> &codes = is_fluid ? fluid_codes : is_material ? material_codes : unit_codes;
 		if (codes.contains(entry.code)) {
 			++left_out;
 			continue;
 		}
 		codes.insert(entry.code);
-		(is_fluid ? codification.fluids : codification.materials) << entry;
+		(is_fluid ? codification.fluids
+				  : is_material ? codification.materials : codification.functional_units) << entry;
 	}
 	if (skipped) {
 		*skipped = left_out;
@@ -374,6 +421,8 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 bool PidCodification::operator==(const PidCodification &other) const
 {
 	return fluids == other.fluids && materials == other.materials
+			&& functional_units == other.functional_units
+			&& tag_models == other.tag_models
 			&& fluid_family_colors == other.fluid_family_colors
 			&& object_colors == other.object_colors
 			&& status_colors == other.status_colors

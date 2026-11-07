@@ -41,6 +41,7 @@
 #include <undocommand/changeelementinformationcommand.h>
 #include <undocommand/setautonumcontextcommand.h>
 #include <pidstatus.h>
+#include <pidtag.h>
 #include "crossrefitem.h"
 #include "terminalelement.h"
 #include <TerminalStrip/terminalstrip.h>
@@ -163,7 +164,9 @@ Element::Element(
 		*state = 0;
 	}
 
-	setPrefix(autonum::elementPrefixForLocation(location));
+		//The identifier of its symbol, else the one of its folder
+	setPrefix(m_data.m_prefix.isEmpty() ? autonum::elementPrefixForLocation(location)
+										: m_data.m_prefix);
 	m_uuid = QUuid::createUuid();
 	setZValue(10);
 	setFlags(QGraphicsItem::ItemIsMovable
@@ -734,6 +737,55 @@ void Element::takeLabelSize(const PidCodification &codification)
 		QFont font = text->font();
 		font.setPointSize(size);
 		text->setFont(font);
+	}
+}
+
+/**
+	@brief Element::pidTagModel
+	See the declaration
+*/
+QString Element::pidTagModel() const
+{
+	const Diagram *folio = diagram();
+	if (m_data.m_pid_family.isEmpty() || !folio || !folio->project()) {
+		return QString();
+	}
+	return folio->project()->pidCodification().tag_models.value(m_data.m_pid_family);
+}
+
+/**
+	@brief Element::withPidLabel
+	See the declaration
+*/
+DiagramContext Element::withPidLabel(const DiagramContext &information) const
+{
+	const QString model = pidTagModel();
+	if (model.isEmpty() || !PidTag::hasFields(information)) {
+		return information;
+	}
+	DiagramContext result = information;
+	result.addValue(QStringLiteral("label"),
+					PidTag::label(model,
+								  information.value(PidTag::unitKey()).toString(),
+								  getPrefix(),
+								  information.value(PidTag::trainKey()).toString(),
+								  information.value(PidTag::orderKey()).toString()));
+		//A formula would make another label (actualLabel())
+	if (result.contains(QStringLiteral("formula"))) {
+		result.addValue(QStringLiteral("formula"), QString());
+	}
+	return result;
+}
+
+/**
+	@brief Element::updatePidLabel
+	See the declaration
+*/
+void Element::updatePidLabel()
+{
+	const DiagramContext information = withPidLabel(m_data.m_informations);
+	if (information != m_data.m_informations) {
+		setElementInformations(information);
 	}
 }
 
@@ -3901,14 +3953,17 @@ Element::ReloadPictureResult Element::reloadPicture(bool adopt_frame)
 	valves of a family: same size, same hotspot, and the same terminals
 	(same names at the same places), so that conductors stay attached and
 	nothing has to be moved. Only a simple element, with no text of its own
-	and a definition with none either, can be swapped.
+	and a definition with none either, can be swapped; but a P&ID symbol
+	(pid_family) keeps its texts, such as its tag, for another P&ID symbol:
+	the texts of a placed element are its own, saved with it.
 	@param location : the definition to swap to
 	@return true if changeLocation() would accept @p location
 */
 bool Element::canChangeLocationTo(const ElementsLocation &location) const
 {
+	const bool pid = !m_data.m_pid_family.isEmpty();
 	if (m_data.m_type != ElementData::Simple
-		|| !dynamicTextItems().isEmpty()
+		|| (!pid && !dynamicTextItems().isEmpty())
 		|| location == m_location
 		|| !location.isElement()
 		|| !location.exist()) {
@@ -3919,7 +3974,8 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 	if (definition.isNull()
 		|| definition.attribute(QStringLiteral("link_type"), QStringLiteral("simple"))
 			!= QLatin1String("simple")
-		|| !definitionGeometryMatches(definition)) {
+		|| !definitionGeometryMatches(definition)
+		|| (pid && definition.attribute(QStringLiteral("pid_family")).isEmpty())) {
 		return false;
 	}
 
@@ -3936,7 +3992,7 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 		{
 			const QDomElement part = node.toElement();
 			if (part.tagName() == QLatin1String("input")
-				|| part.tagName() == QLatin1String("dynamic_text")) {
+				|| (!pid && part.tagName() == QLatin1String("dynamic_text"))) {
 				return false;
 			}
 			qreal x = 0.0, y = 0.0;
@@ -4035,6 +4091,13 @@ bool Element::changeLocation(const ElementsLocation &location)
 	m_location = location;
 	m_picture = picture;
 	m_low_zoom_picture = low_zoom_picture;
+		//The identifier of the new type, when its symbol gives one: the tag
+		//keeps its unit, its train and its order
+	m_data.m_prefix = location.xml().attribute(QStringLiteral("prefix")).trimmed();
+	if (!m_data.m_prefix.isEmpty()) {
+		setPrefix(m_data.m_prefix);
+	}
+	updatePidLabel();
 	updateDrawnRect();
 	setToolTip(name());
 	updateSymbolPictures(true);

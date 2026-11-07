@@ -5850,6 +5850,79 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
 </context>
 <context>
+    <name>ElementTagWidget</name>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="48"/>
+        <source>The functional unit the element belongs to, picked in the list of the project or typed</source>
+        <translation>L&apos;unité fonctionnelle à laquelle appartient l&apos;élément, choisie dans la liste du projet ou saisie</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="49"/>
+        <source>Functional unit:</source>
+        <translation>Unité fonctionnelle :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="52"/>
+        <source>The identifier of the type of the element, given by its symbol</source>
+        <translation>L&apos;identifiant du type de l&apos;élément, donné par son symbole</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="53"/>
+        <source>Identifier:</source>
+        <translation>Identifiant :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="60"/>
+        <source>The number of the train, 0 when there is none</source>
+        <translation>Le numéro de file, 0 s&apos;il n&apos;y en a pas</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="61"/>
+        <source>Train:</source>
+        <translation>File :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="66"/>
+        <source>Order:</source>
+        <translation>Ordre :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="71"/>
+        <source>Label:</source>
+        <translation>Repère :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="190"/>
+        <source>The project has no model of tag for this family: the label is typed in the Informations tab.</source>
+        <translation>Le projet n&apos;a pas de modèle de repère pour cette famille : le repère se saisit dans l&apos;onglet Informations.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="195"/>
+        <source>(none)</source>
+        <translation>(aucun)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="202"/>
+        <source>Another element of the project already has this label.</source>
+        <translation>Un autre élément du projet porte déjà ce repère.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="233"/>
+        <source>(none: the symbol gives none)</source>
+        <translation>(aucun : le symbole n&apos;en donne pas)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="260"/>
+        <source>Change the tag of an element</source>
+        <translation>Modifier le repère d&apos;un élément</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="297"/>
+        <source>Tag</source>
+        <translation>Repère</translation>
+    </message>
+</context>
+<context>
     <name>ElementOptionsWidget</name>
     <message>
         <location filename="../sources/ui/elementoptionswidget.cpp" line="100"/>

@@ -523,6 +523,9 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 	if (m_element_data.m_pipe_inline) {
 		root.setAttribute(QStringLiteral("pipe_inline"), QStringLiteral("true"));
 	}
+	if (!m_element_data.m_prefix.isEmpty()) {
+		root.setAttribute(QStringLiteral("prefix"), m_element_data.m_prefix);
+	}
 
 	//Uuid used to compare two elements
 	QDomElement uuid = xml_document.createElement("uuid");

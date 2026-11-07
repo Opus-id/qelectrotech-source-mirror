@@ -62,6 +62,13 @@ class PidCodification
 
 		QList<Entry> fluids;
 		QList<Entry> materials;
+			/// The functional units of the plant, which the tags of its
+			/// symbols name (PidTag): each project has its own
+		QList<Entry> functional_units;
+			/// The model of the tags of a family of objects (equipment,
+			/// valve, instrument), see PidTag::label(): a convention of the
+			/// company, kept with the colours in the palette
+		QMap<QString, QString> tag_models;
 			/// The colour of a family of fluids (Entry::family)
 		QMap<QString, QColor> fluid_family_colors;
 			/// The colour of a family of objects, see objectFamilies()
@@ -77,13 +84,16 @@ class PidCodification
 			/// exported, whatever is asked for the names of the terminals
 		bool nozzle_texts_on_paper = true;
 
-		bool hasCodes() const { return !fluids.isEmpty() || !materials.isEmpty(); }
+		bool hasCodes() const {
+			return !fluids.isEmpty() || !materials.isEmpty() || !functional_units.isEmpty();
+		}
 		bool hasColors() const {
 			return !fluid_family_colors.isEmpty() || !object_colors.isEmpty()
 					|| !status_colors.isEmpty();
 		}
 		bool hasTextSettings() const {
-			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper;
+			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
+					|| !tag_models.isEmpty();
 		}
 		bool isEmpty() const { return !hasCodes() && !hasColors() && !hasTextSettings(); }
 
@@ -116,7 +126,9 @@ class PidCodification
 		void fromXml(const QDomElement &parent);
 
 			/// Reads a text file of lines "kind;code;name;family", kind being
-			/// "fluid" or "material" (or their French words), and of lines
+			/// "fluid", "material" or "unit" (a functional unit; or their
+			/// French words), of lines "tag_model;family;model"
+			/// ("modele_repere"), and of lines
 			/// "kind;key;color", kind being "fluid_color", "object_color" or
 			/// "status_color" ("couleur_fluide", "couleur_objet",
 			/// "couleur_statut"), key a family or a status, of lines

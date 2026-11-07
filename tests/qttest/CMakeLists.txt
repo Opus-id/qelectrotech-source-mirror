@@ -636,6 +636,9 @@ qet_add_app_test(tst_elementspanelprojectopen tst_elementspanelprojectopen.cpp)
 # The symbol of a placed element swapped for another of its family: place,
 # terminals, uuids and wires stay, and the swap undoes.
 qet_add_app_test(tst_elementchangetype tst_elementchangetype.cpp)
+# The tag of a P&ID symbol: identifier given by the symbol, unit, train and
+# order of the placed element, label made by the model of the project.
+qet_add_app_test(tst_elementtag tst_elementtag.cpp)
 # The optional "line-cap" style of element primitives (round or flat ends of
 # lines); square, the former behaviour, stays the default.
 qet_add_app_test(tst_elementlinecap tst_elementlinecap.cpp)
