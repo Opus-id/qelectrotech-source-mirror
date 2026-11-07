@@ -27,8 +27,10 @@
 
 #include <QComboBox>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QRegularExpressionValidator>
 #include <QSignalBlocker>
 
@@ -58,13 +60,19 @@ ElementTagWidget::ElementTagWidget(Element *element, QWidget *parent) :
 	m_train = new QLineEdit(this);
 	m_train->setObjectName(QStringLiteral("train"));
 	m_train->setValidator(digits);
-	m_train->setToolTip(tr("The number of the train, 0 when there is none"));
-	layout->addRow(tr("Train:"), m_train);
+	m_train->setToolTip(tr("The number of the train, 0 when there is none"));	layout->addRow(tr("Train:"), m_train);
 
 	m_order = new QLineEdit(this);
 	m_order->setObjectName(QStringLiteral("order"));
 	m_order->setValidator(digits);
-	layout->addRow(tr("Order:"), m_order);
+	m_next = new QPushButton(tr("Next number"), this);
+	m_next->setObjectName(QStringLiteral("next"));
+	m_next->setToolTip(tr("The order after the highest one of this functional unit, "
+						  "identifier and train in the project"));
+	auto *order_row = new QHBoxLayout();
+	order_row->addWidget(m_order);
+	order_row->addWidget(m_next);
+	layout->addRow(tr("Order:"), order_row);
 
 	m_label = new QLabel(this);
 	m_label->setObjectName(QStringLiteral("label"));
@@ -77,10 +85,16 @@ ElementTagWidget::ElementTagWidget(Element *element, QWidget *parent) :
 	m_duplicate->setStyleSheet(QStringLiteral("color: #c05000"));
 	layout->addRow(m_duplicate);
 
-	connect(m_unit, &QComboBox::activated, this, &ElementTagWidget::applyIfLive);
-	connect(m_unit->lineEdit(), &QLineEdit::editingFinished, this, &ElementTagWidget::applyIfLive);
-	connect(m_train, &QLineEdit::editingFinished, this, &ElementTagWidget::applyIfLive);
+	connect(m_unit, &QComboBox::activated, this, &ElementTagWidget::keyFieldDone);
+	connect(m_unit->lineEdit(), &QLineEdit::editingFinished, this, &ElementTagWidget::keyFieldDone);
+	connect(m_train, &QLineEdit::editingFinished, this, &ElementTagWidget::keyFieldDone);
 	connect(m_order, &QLineEdit::editingFinished, this, &ElementTagWidget::applyIfLive);
+		//An order typed is the user's: it no longer follows the unit
+	connect(m_order, &QLineEdit::textEdited, this, [this]() { m_auto_order.clear(); });
+	connect(m_next, &QPushButton::clicked, this, [this]() {
+		fillOrder(true);
+		applyIfLive();
+	});
 		//The label follows what is typed, before it is applied
 	for (QLineEdit *field : {m_unit->lineEdit(), m_train, m_order}) {
 		connect(field, &QLineEdit::textEdited, this, [this]() { showLabel(edited()); });
@@ -117,6 +131,7 @@ void ElementTagWidget::setElement(Element *element)
 		disconnect(m_project, nullptr, this, nullptr);
 	}
 	m_element = element;
+	m_auto_order.clear();
 	m_project = (element && element->diagram()) ? element->diagram()->project() : nullptr;
 	if (m_element) {
 			//Undone, redone, changed in the Informations tab, or a new type
@@ -188,9 +203,15 @@ DiagramContext ElementTagWidget::edited() const
 		return DiagramContext();
 	}
 	DiagramContext information = m_element->elementInformations();
+	const QString order = m_order->text().trimmed();
+	QString train = m_train->text().trimmed();
+		//A numbered tag whose model shows the train has one: 0 for none
+	if (train.isEmpty() && !order.isEmpty() && PidTag::showsTrain(m_element->pidTagModel())) {
+		train = QStringLiteral("0");
+	}
 	information.addValue(PidTag::unitKey(), unitCode());
-	information.addValue(PidTag::trainKey(), m_train->text().trimmed());
-	information.addValue(PidTag::orderKey(), m_order->text().trimmed());
+	information.addValue(PidTag::trainKey(), train);
+	information.addValue(PidTag::orderKey(), order);
 	return m_element->withPidLabel(information);
 }
 
@@ -244,7 +265,58 @@ void ElementTagWidget::updateUi()
 	}
 	const QString identifier = m_element->getPrefix();
 	m_identifier->setText(identifier.isEmpty() ? tr("(none: the symbol gives none)") : identifier);
+	m_next->setEnabled(!m_element->pidTagModel().isEmpty());
 	showLabel(information);
+}
+
+/**
+	@brief ElementTagWidget::fillOrder
+	Give the order field the next order of the unit, identifier and train
+	of the fields (PidTag::nextOrder()). Unless @p asked (the "Next number"
+	button), only an empty order, or the one this tab put in, is changed,
+	and only when there is a unit; the unit gone, the order this tab put
+	in goes too. Nothing without a model of tag.
+*/
+void ElementTagWidget::fillOrder(bool asked)
+{
+	if (!m_element || m_element->pidTagModel().isEmpty()) {
+		return;
+	}
+	const QString unit = unitCode();
+	const QString order = m_order->text().trimmed();
+	if (!asked)
+	{
+		const bool ours = !order.isEmpty() && order == m_auto_order;
+		if (!order.isEmpty() && !ours) {
+			return;
+		}
+		if (unit.isEmpty()) {
+			if (ours) {
+				m_order->clear();
+				m_auto_order.clear();
+				showLabel(edited());
+			}
+			return;
+		}
+	}
+	m_auto_order = QString::number(PidTag::nextOrder(m_project, unit, m_element->getPrefix(),
+													 m_train->text(), m_element));
+	m_order->setText(m_auto_order);
+	if (m_train->text().trimmed().isEmpty() && PidTag::showsTrain(m_element->pidTagModel())) {
+		m_train->setText(QStringLiteral("0"));
+	}
+	showLabel(edited());
+}
+
+/**
+	@brief ElementTagWidget::keyFieldDone
+	The unit or the train is left: the order follows, then the fields are
+	applied when live
+*/
+void ElementTagWidget::keyFieldDone()
+{
+	fillOrder(false);
+	applyIfLive();
 }
 
 /**

@@ -21,6 +21,7 @@
 #include "qetgraphicsitem/conductor.h"
 #include "editor/ui/qetelementeditor.h"
 #include "elementscategoryeditor.h"
+#include "pidtag.h"
 #include "qetapp.h"
 #include "qeticons.h"
 #include "qetproject.h"
@@ -869,6 +870,9 @@ void ElementsPanelWidget::duplicateDiagram()
 				numbering.redo();
 			}
 		}
+			// P&ID tags: the copies of a folio hold the tags of its source,
+			// they get the next orders (PidTag::numberPasted())
+		PidTag::numberPasted(project, new_elements, autonumber);
 
 			// Groups too: a group of the copy is its own, so selecting it
 			// is the same on both folios but the database tells them apart.

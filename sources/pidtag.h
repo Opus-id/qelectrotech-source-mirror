@@ -18,9 +18,12 @@
 #ifndef PID_TAG_H
 #define PID_TAG_H
 
+#include <QList>
 #include <QString>
 
 class DiagramContext;
+class Element;
+class QETProject;
 
 /**
 	@brief The PidTag namespace
@@ -46,6 +49,11 @@ namespace PidTag
 		/// @p information holds at least one field of a tag
 	bool hasFields(const DiagramContext &information);
 
+		/// @p model shows the train ({train} or {train:N}): then a tag with
+		/// an order always has a train, 0 when there is none, so that all
+		/// the tags of the project have as many digits
+	bool showsTrain(const QString &model);
+
 		/**
 			The label @p model gives: {unit}, {id}, {train} and {order} are
 			replaced by the fields, {order:N} by the order with N digits at
@@ -59,6 +67,39 @@ namespace PidTag
 				  const QString &id,
 				  const QString &train,
 				  const QString &order);
+
+		/**
+			The order the next element of @p unit, @p id and @p train gets in
+			@p project: one more than the highest order these hold, 1 when
+			there is none. A number freed by a deletion is not given again
+			while a higher one is held: it may stand on a document already
+			sent. Orders which are no number do not count, and "05" is 5;
+			no train counts as train 0.
+			@p besides, the element being numbered, is left out. The folios
+			not built yet (lazy folios) count, read from the project database.
+			No counter is kept anywhere: the project is read each time.
+		*/
+	int nextOrder(QETProject *project,
+				  const QString &unit,
+				  const QString &id,
+				  const QString &train,
+				  const Element *besides = nullptr);
+
+		/**
+			After a paste or the copy of a folio: a pasted element whose tag
+			(unit, identifier, train, order) another element of @p project
+			holds gets the next order (nextOrder()), when @p renumber; one
+			which holds it alone keeps it (a cut and paste). Folio by folio,
+			then from left to right and from top to bottom. Every pasted
+			element with a tag and a model then writes its label again, which
+			the "erase the label on copy" preference may have emptied. Only
+			for elements that are not in an undo stack yet: nothing here is
+			undone on its own.
+			@return how many elements were given another order
+		*/
+	int numberPasted(QETProject *project,
+					 const QList<Element *> &pasted,
+					 bool renumber = true);
 }
 
 #endif

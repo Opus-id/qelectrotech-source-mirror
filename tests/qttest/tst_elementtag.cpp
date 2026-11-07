@@ -2,6 +2,8 @@
 #include "qetapptest.h"
 
 #include "diagram.h"
+#include "diagramcommands.h"
+#include "diagramcontent.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
@@ -18,6 +20,7 @@
 #include <QDomDocument>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QTemporaryDir>
 
 // The tag of a P&ID symbol is made of fields: the functional unit, the
@@ -78,6 +81,41 @@ class tst_elementtag : public QObject
 			if (text->infoName() == QLatin1String("label")) return text->toPlainText();
 		}
 		return QStringLiteral("<no text>");
+	}
+
+		// Give @p element a tag, its label made by the model of its project
+	static Element *tag(Element *element, const QString &unit, const QString &train, const QString &order)
+	{
+		DiagramContext information = element->elementInformations();
+		information.addValue(PidTag::unitKey(), unit);
+		information.addValue(PidTag::trainKey(), train);
+		information.addValue(PidTag::orderKey(), order);
+		element->setElementInformations(element->withPidLabel(information));
+		return element;
+	}
+
+		// The copy of @p elements, as Ctrl+C makes it
+	QDomDocument copyOf(const QList<Element *> &elements)
+	{
+		m_folio->clearSelection();
+		for (Element *element : elements) element->setSelected(true);
+		const QDomDocument document = m_folio->toXml(false, true);
+		m_folio->clearSelection();
+		return document;
+	}
+
+		// Paste @p document at @p position, as Ctrl+V does
+	QList<Element *> pasteDocument(QDomDocument document, const QPointF &position)
+	{
+		DiagramContent pasted;
+		m_folio->fromXml(document, position, false, &pasted);
+		m_folio->undoStack().push(new PasteDiagramCommand(m_folio, pasted));
+		return pasted.m_elements;
+	}
+
+	QList<Element *> paste(const QList<Element *> &elements, const QPointF &position)
+	{
+		return pasteDocument(copyOf(elements), position);
 	}
 
 	static PidCodification withModel(const QString &model)
@@ -352,7 +390,219 @@ class tst_elementtag : public QObject
 					 QStringLiteral("{unit} {id} {train}{order:2}"));
 		}
 
-			// The panel shows the Tag tab for a P&ID equipment only
+				// R3: the order of a tag is counted by unit, identifier and train,
+			// one more than the highest held; no counter is kept
+		void theNextOrderCountsPerUnitIdentifierAndTrain()
+		{
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			Element *a3 = tag(place(m_folio, m_a), "U01", "1", "3");
+			Element *a7 = tag(place(m_folio, m_a), "U01", "1", "07");
+			tag(place(m_folio, m_a), "U01", "2", "9");
+			tag(place(m_folio, m_b), "U01", "1", "20");
+			tag(place(m_folio, m_a), "U02", "1", "50");
+			tag(place(m_folio, m_a), "U01", "1", "A");   // no number: not counted
+			tag(place(m_folio, m_e), "U01", "1", "40");  // no identifier: another key
+
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", "1"), 8);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", "01"), 8);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", "2"), 10);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "BB", "1"), 21);
+			QCOMPARE(PidTag::nextOrder(m_project, "U02", "AA", "1"), 51);
+			QCOMPARE(PidTag::nextOrder(m_project, "U03", "AA", "1"), 1);
+				// the element numbered is left out
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", "1", a7), 4);
+
+				// a number freed below the highest is not given again
+			m_folio->removeItem(a3);
+			delete a3;
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", "1"), 8);
+		}
+
+			// The tab gives an empty order the next one, which follows the unit
+			// and the train until it is typed; an order there is kept
+		void theTabNumbersAnEmptyOrder()
+		{
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			tag(place(m_folio, m_a), "U01", "1", "4");
+			Element *a = place(m_folio, m_a);
+			a->setPos(200, 0);
+
+			ElementTagWidget tab(a);
+			tab.setLiveEdit(true);
+			QVERIFY(tab.nextButton()->isEnabled());
+			tab.trainField()->setText(QStringLiteral("1"));
+			emit tab.trainField()->editingFinished();
+			QCOMPARE(tab.orderField()->text(), QString());   // no unit yet
+			tab.unitField()->setCurrentIndex(1);             // U01
+			emit tab.unitField()->activated(1);
+			QCOMPARE(tab.orderField()->text(), QStringLiteral("5"));
+			QCOMPARE(shownLabel(a), QStringLiteral("U01 AA 105"));
+				// one step to undo
+			m_folio->undoStack().undo();
+			QVERIFY(a->elementInformations().value(PidTag::orderKey()).toString().isEmpty());
+			m_folio->undoStack().redo();
+			QCOMPARE(shownLabel(a), QStringLiteral("U01 AA 105"));
+
+				// untouched, it follows the train
+			tab.trainField()->setText(QStringLiteral("2"));
+			emit tab.trainField()->editingFinished();
+			QCOMPARE(tab.orderField()->text(), QStringLiteral("1"));
+			QCOMPARE(shownLabel(a), QStringLiteral("U01 AA 201"));
+
+				// typed, it stays
+			tab.orderField()->setText(QStringLiteral("9"));
+			emit tab.orderField()->textEdited(QStringLiteral("9"));
+			emit tab.orderField()->editingFinished();
+			tab.unitField()->setCurrentIndex(2);             // U02
+			emit tab.unitField()->activated(2);
+			QCOMPARE(tab.orderField()->text(), QStringLiteral("9"));
+			QCOMPARE(shownLabel(a), QStringLiteral("U02 AA 209"));
+
+				// "Next number" gives it on demand
+			tab.nextButton()->click();
+			QCOMPARE(tab.orderField()->text(), QStringLiteral("1"));
+			QCOMPARE(shownLabel(a), QStringLiteral("U02 AA 201"));
+
+				// an element numbered already keeps its order
+			Element *kept = tag(place(m_folio, m_a), "U01", "1", "4");
+			ElementTagWidget other(kept);
+			other.setLiveEdit(true);
+			other.unitField()->setCurrentIndex(2);
+			emit other.unitField()->activated(2);
+			QCOMPARE(other.orderField()->text(), QStringLiteral("4"));
+
+				// without a model, nothing is numbered
+			m_project->setPidCodification(PidCodification());
+			Element *plain = place(m_folio, m_a);
+			ElementTagWidget none(plain);
+			QVERIFY(!none.nextButton()->isEnabled());
+		}
+
+			// A model that shows the train: a numbered tag always has one, 0
+			// when there is none, and no train counts as train 0
+		void aNumberedTagHasATrain()
+		{
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			QVERIFY(PidTag::showsTrain(QStringLiteral("{unit} {id} {train}{order:2}")));
+			QVERIFY(PidTag::showsTrain(QStringLiteral("{train:1}-{order}")));
+			QVERIFY(!PidTag::showsTrain(QStringLiteral("{id}-{unit}-{order:3}")));
+
+				// a tag numbered before the rule, with no train
+			tag(place(m_folio, m_a), "U01", "", "5");
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", "0"), 6);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", ""), 6);
+
+				// numbered by the tab: the train gets 0
+			Element *a = place(m_folio, m_a);
+			ElementTagWidget tab(a);
+			tab.setLiveEdit(true);
+			tab.unitField()->setCurrentIndex(1);
+			emit tab.unitField()->activated(1);
+			QCOMPARE(tab.orderField()->text(), QStringLiteral("6"));
+			QCOMPARE(tab.trainField()->text(), QStringLiteral("0"));
+			QCOMPARE(a->elementInformations().value(PidTag::trainKey()).toString(), QStringLiteral("0"));
+			QCOMPARE(shownLabel(a), QStringLiteral("U01 AA 006"));
+
+				// an order typed with no train: 0 too
+			Element *typed = place(m_folio, m_a);
+			ElementTagWidget other(typed);
+			other.setLiveEdit(true);
+			other.orderField()->setText(QStringLiteral("12"));
+			emit other.orderField()->textEdited(QStringLiteral("12"));
+			emit other.orderField()->editingFinished();
+			QCOMPARE(typed->elementInformations().value(PidTag::trainKey()).toString(), QStringLiteral("0"));
+			QCOMPARE(shownLabel(typed), QStringLiteral("AA 012"));
+
+				// no order, no train
+			Element *blank = place(m_folio, m_a);
+			ElementTagWidget empty(blank);
+			empty.setLiveEdit(true);
+			empty.trainField()->setText(QString());
+			emit empty.trainField()->editingFinished();
+			QVERIFY(blank->elementInformations().value(PidTag::trainKey()).toString().isEmpty());
+
+				// a model without the train adds none
+			m_project->setPidCodification(withModel(QStringLiteral("{id}-{unit}-{order:3}")));
+			Element *plain = place(m_folio, m_a);
+			ElementTagWidget third(plain);
+			third.setLiveEdit(true);
+			third.unitField()->setCurrentIndex(2);
+			emit third.unitField()->activated(2);
+			QCOMPARE(third.orderField()->text(), QStringLiteral("1"));
+			QVERIFY(third.trainField()->text().isEmpty());
+			QCOMPARE(shownLabel(plain), QStringLiteral("AA-U02-001"));
+		}
+
+			// A copy gets the next order of its unit, identifier and train, in
+			// folio, left to right order; a cut and paste keeps its own
+		void aPastedTagGetsTheNextOrder()
+		{
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			Element *first = tag(place(m_folio, m_a), "U01", "1", "1");
+			Element *second = tag(place(m_folio, m_a), "U01", "1", "2");
+			second->setPos(100, 0);
+			Element *other_unit = tag(place(m_folio, m_a), "U02", "1", "1");
+			other_unit->setPos(200, 0);
+			tag(place(m_folio, m_a), "U01", "1", "6")->setPos(0, 300);
+
+			const QList<Element *> copied = paste({second, first, other_unit}, QPointF(0, 500));
+			QCOMPARE(copied.size(), 3);
+			QStringList labels;
+			for (Element *element : copied) labels << shownLabel(element);
+			labels.sort();
+				// first (left) gets 7, second 8; U02 has its own counter
+			QCOMPARE(labels, QStringList({"U01 AA 107", "U01 AA 108", "U02 AA 102"}));
+			Element *left = copied.first();
+			for (Element *element : copied) {
+				if (element->pos().x() < left->pos().x()) left = element;
+			}
+			QCOMPARE(shownLabel(left), QStringLiteral("U01 AA 107"));
+
+				// undone with the paste
+			m_folio->undoStack().undo();
+			QVERIFY(!copied.first()->scene());
+			m_folio->undoStack().redo();
+			QCOMPARE(shownLabel(left), QStringLiteral("U01 AA 107"));
+
+				// cut and paste: the original gone, the copy keeps its tag
+			Element *alone = tag(place(m_folio, m_b), "U03", "0", "4");
+			alone->setPos(400, 0);
+			QDomDocument document = copyOf({alone});
+			m_folio->removeItem(alone);
+			delete alone;
+			const QList<Element *> moved = pasteDocument(document, QPointF(400, 500));
+			QCOMPARE(moved.size(), 1);
+			QCOMPARE(shownLabel(moved.first()), QStringLiteral("U03 BB 004"));
+		}
+
+			// The folios not built yet (a .qetdb opens with them) count, read
+			// from the database, and are not built for it
+		void theNextOrderCountsTheFoliosNotBuilt()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString path = dir.filePath(QStringLiteral("orders.qetdb"));
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			tag(place(m_folio, m_a), "U01", "1", "3");
+			Diagram *second = m_project->addNewDiagram();
+			tag(place(second, m_b), "U01", "1", "12");
+			m_project->setFilePath(path);
+			QVERIFY(m_project->write().isOk());
+
+			QETProject back(path);
+			QCOMPARE(back.folios().size(), 2);
+			QVERIFY(back.unloadedFolioCount() > 0);
+			const int unloaded = back.unloadedFolioCount();
+			QCOMPARE(PidTag::nextOrder(&back, "U01", "AA", "1"), 4);
+			QCOMPARE(PidTag::nextOrder(&back, "U01", "BB", "1"), 13);
+			QCOMPARE(back.unloadedFolioCount(), unloaded);   // nothing built
+			back.folios().at(0)->ensureLoaded();
+			back.folios().at(1)->ensureLoaded();
+			QCOMPARE(PidTag::nextOrder(&back, "U01", "AA", "1"), 4);
+			QCOMPARE(PidTag::nextOrder(&back, "U01", "BB", "1"), 13);
+		}
+
+		// The panel shows the Tag tab for a P&ID equipment only
 		void thePanelHasATagTab()
 		{
 			Element *a = place(m_folio, m_a);

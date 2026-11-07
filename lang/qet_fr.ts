@@ -5852,6 +5852,16 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
 <context>
     <name>ElementTagWidget</name>
     <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="70"/>
+        <source>Next number</source>
+        <translation>Numéro suivant</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="72"/>
+        <source>The order after the highest one of this functional unit, identifier and train in the project</source>
+        <translation>L&apos;ordre qui suit le plus grand de cette unité fonctionnelle, de cet identifiant et de cette file dans le projet</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementtagwidget.cpp" line="48"/>
         <source>The functional unit the element belongs to, picked in the list of the project or typed</source>
         <translation>L&apos;unité fonctionnelle à laquelle appartient l&apos;élément, choisie dans la liste du projet ou saisie</translation>

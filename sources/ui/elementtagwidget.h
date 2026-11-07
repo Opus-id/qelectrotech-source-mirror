@@ -27,6 +27,7 @@
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QETProject;
 
 /**
@@ -37,6 +38,13 @@ class QETProject;
 	The tab shows the label the model of the project makes of them, and
 	tells when another element of the project already has it. Live, a field
 	is applied when it is left, with undo.
+
+	When the project has a model of tag for the family, an empty order is
+	given the next one of its unit, identifier and train
+	(PidTag::nextOrder()) as soon as the unit is there, and follows them
+	while it is untouched; "Next number" gives it again on demand. An order
+	typed is never changed. When the model shows the train, a tag with an
+	order and no train gets train 0, so that all tags have as many digits.
 */
 class ElementTagWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -62,6 +70,7 @@ class ElementTagWidget : public AbstractElementPropertiesEditorWidget
 		QComboBox *unitField() const { return m_unit; }
 		QLineEdit *trainField() const { return m_train; }
 		QLineEdit *orderField() const { return m_order; }
+		QPushButton *nextButton() const { return m_next; }
 		QLabel *labelShown() const { return m_label; }
 		QLabel *duplicateShown() const { return m_duplicate; }
 
@@ -70,11 +79,17 @@ class ElementTagWidget : public AbstractElementPropertiesEditorWidget
 		QString unitCode() const;
 		void showLabel(const DiagramContext &information);
 		void applyIfLive();
+		void fillOrder(bool asked);
+		void keyFieldDone();
 
 		QComboBox *m_unit = nullptr;
 		QLabel *m_identifier = nullptr;
 		QLineEdit *m_train = nullptr;
 		QLineEdit *m_order = nullptr;
+		QPushButton *m_next = nullptr;
+			/// The order this tab put in, while it is untouched: it follows
+			/// the unit and the train; an order typed is never changed
+		QString m_auto_order;
 		QLabel *m_label = nullptr;
 		QLabel *m_duplicate = nullptr;
 		QPointer<QETProject> m_project;

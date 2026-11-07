@@ -20,6 +20,7 @@
 #include "autoNum/elementautonumschemecommand.h"
 #include "diagram.h"
 #include "itemgroups.h"
+#include "pidtag.h"
 #include "qetproject.h"
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/diagramimageitem.h"
@@ -291,6 +292,13 @@ void PasteDiagramCommand::redo()
 			if (!pasted_schemes.isEmpty()) {
 				ElementAutoNumSchemeCommand::numberPasted(project, pasted_schemes, this);
 			}
+				//A P&ID tag that another element holds gets the next order
+				//of its unit, identifier and train (a cut and paste keeps
+				//its own), and every tag writes its label again, which the
+				//erase preference may have emptied. Not m_autonumber: the
+				//multi-paste turns it off for the numberings it does itself.
+			PidTag::numberPasted(project, elmts_list, settings.value(
+									 "diagramcommands/autonumber-pasted-elements", true).toBool());
 		}
 
 			//Pasted groups become new groups: the members of one source
