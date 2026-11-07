@@ -253,7 +253,9 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(n2->labelText(), QStringLiteral("N2\n50"));
 				// the room for a second line was there before it came
 			QCOMPARE(n2->boundingRect(), room);
-			const QFontMetrics metrics{QFont()};
+				//measured in the font the label is drawn with, not the
+				//default font of the application
+			const QFontMetrics metrics{n2->labelFont()};
 			QVERIFY(room.height() >= TerminalData::labelSize(metrics, n2->labelText()).height());
 				// each element its own, from the same symbol
 			QCOMPARE(terminal(b, QStringLiteral("N1"))->nominalDiameter(), 80);
