@@ -111,7 +111,20 @@ tag `pipe-connector-freeze-2026-11-03`.
   symbols of the same collection folder that have the same size, hotspot
   and terminals (name, place and medium). The symbol is swapped in place,
   keeping its position, information and connections; undoable. A generic
-  symbol (a valve, a pump) can be placed first and made precise later.
+  symbol (a valve, a pump) can be placed first and made precise later. A
+  P&ID symbol keeps its texts (its tag) and takes the identifier of the new
+  symbol.
+- **Tags made of fields**: a P&ID symbol may give the identifier of its
+  type (`prefix` attribute of `<definition>`, e.g. `PC`). A placed
+  equipment or valve has a *Tag* tab: functional unit (picked in the list
+  of the project, or typed), train and order, saved as information of the
+  element. The model of its family in the project, for instance
+  `{unit} {id} {train}{order:2}`, makes its label (`U01 PC 105`); `\n`
+  starts a new line, for the three lines of an instrument bubble. The label
+  follows a change of model or of type, and a label held twice in the
+  project is told. Without a model, the label is typed by hand as before.
+  The functional units and the models come with the codification of the
+  project (CSV lines `unit;U01;Lifting` and `tag_model;equipment;...`).
 - **Create similar**: right-click a placed symbol, *Create similar* starts
   the usual placement mode with the same symbol, options, status of works
   and rotation (label and device information are not copied). Automatic
@@ -135,6 +148,10 @@ tag `pipe-connector-freeze-2026-11-03`.
   properties (A0 to A3 suit a P&ID): widths and symbols come out at about
   106 % of their nominal size, and a P&ID is not drawn to scale anyway. The
   default of a new folio is set in the project properties, *New sheet*.
+- The *P&ID* page of the project properties sets the size of the tags of
+  equipment, valves and instruments and of the names and diameters of the
+  nozzles (none set: the size of the symbol), and whether those of the
+  nozzles are printed and exported.
 
 **Checks**: every step has its tests, and the example projects of
 QElectroTech are saved byte for byte as by master.
@@ -149,8 +166,8 @@ QElectroTech are saved byte for byte as by master.
 - A list of diameters per project (ISO values plus those of the project,
   such as outside diameters of plastic pipes), and a way to find the pipes
   without a diameter.
-- Text sizes per kind of text (equipment, valve and instrument tags, line
-  designations, nozzles), set in the project.
+- Numbering the tags automatically (one counter per functional unit,
+  identifier and train).
 - Declaring options and conditions in the element editor (they are written
   by hand or by script for now, and kept by the editor).
 - A library of P&ID symbols (symbols are drawn *inspired by* ISO 10628-2,
