@@ -62,6 +62,7 @@ class DiagramEventAddElement : public DiagramEventInterface
 		void updateDrag(const QPointF &to);
 		void endDrag();
 		void addElements(const QList<QPointF> &positions);
+		void tagLike(Element *element) const;
 
 	private:
 		ElementsLocation m_location;
@@ -71,6 +72,11 @@ class DiagramEventAddElement : public DiagramEventInterface
 		ElementOptions::Choices m_like_choices;
 			/// Diameters of nozzles every copy takes, see setLike()
 		QMap<QString, int> m_like_nozzles;
+			/// Functional unit and train of the P&ID tag every copy takes,
+			/// with the next order (see setLike()); none when m_like_unit
+			/// is empty
+		QString m_like_unit;
+		QString m_like_train;
 		QPointer<QStatusBar> m_status_bar;
 
 			/// Placing along a drag

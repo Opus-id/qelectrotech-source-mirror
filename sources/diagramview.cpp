@@ -170,7 +170,7 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 	m_folio_report_menu = new QMenu(tr("Sheet reference"), this);
 
 	m_create_similar = new QAction(tr("Create similar", "context menu action"), this);
-	m_create_similar->setStatusTip(tr("Place another copy of the selected symbol, with the same options and status"));
+	m_create_similar->setStatusTip(tr("Place another copy of the selected symbol, with the same options and status, and the next P&ID tag"));
 	connect(m_create_similar, &QAction::triggered, this, [this]() {
 		const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
 		if (selected.size() == 1) {

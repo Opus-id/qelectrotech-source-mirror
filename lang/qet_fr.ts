@@ -4318,8 +4318,8 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
     </message>
     <message>
         <location filename="../sources/diagramview.cpp" line="157"/>
-        <source>Place another copy of the selected symbol, with the same options and status</source>
-        <translation>Poser une autre copie du symbole sélectionné, avec les mêmes options et le même statut</translation>
+        <source>Place another copy of the selected symbol, with the same options and status, and the next P&amp;ID tag</source>
+        <translation>Poser une autre copie du symbole sélectionné, avec les mêmes options et le même statut, et le repère P&amp;ID suivant</translation>
     </message>
     <message>
         <location filename="../sources/diagramview.cpp" line="157"/>
