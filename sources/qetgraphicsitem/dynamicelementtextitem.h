@@ -125,6 +125,8 @@ class DynamicElementTextItem : public DiagramTextItem
 			/// True when this text shows the label of its element
 		bool isLabel() const;
 		Element *linkedElementShown() const;
+		/// The element whose label this text draws: its master for a slave.
+		Element *labelSource() const;
 			/// Shaded blue for a moment: its symbol is where a jump landed
 		void setJumpHighlight(bool on);
 		bool isJumpHighlighted() const {return m_jump_highlight;}
@@ -184,6 +186,10 @@ class DynamicElementTextItem : public DiagramTextItem
 		void removeConnectionForReportFormula(const QString &formula);
 		void setupFormulaConnection();
 		void clearFormulaConnection();
+		/// Whether this text draws a label, and not the terminal number or another information
+		bool drawsLabel() const;
+		/// Watch the element the label this text draws comes from (@sa labelSource())
+		void watchLabelSource();
 		void updateReportFormulaConnection();
 		void updateReportText();
 		void updateLabel();
@@ -220,6 +226,9 @@ class DynamicElementTextItem : public DiagramTextItem
 		DynamicElementTextItem::TextFrom m_text_from = UserText;
 		QUuid m_uuid;
 		QMetaObject::Connection m_report_formula_con;
+			/// The element whose label this text draws, when it is not the
+			/// element itself (a slave's master, @sa labelSource())
+		QMetaObject::Connection m_label_source_con;
 		QList<QMetaObject::Connection>
 		m_formula_connection,
 		m_update_slave_Xref_connection;

@@ -544,6 +544,9 @@ qet_add_app_test(tst_collectionitemafterquit tst_collectionitemafterquit.cpp)
 qet_add_app_test(tst_collectionmodelquit tst_collectionmodelquit.cpp)
 target_compile_definitions(tst_collectionmodelquit PRIVATE
   "QET_ELEMENTS_DIR=\"${QET_DIR}/elements\"")
+# The first call of QETApp::langFromSetting() can come from several of the
+# collection's loading threads at once.
+qet_add_app_test(tst_langfromsettingthreads tst_langfromsettingthreads.cpp)
 
 # Accepting the settings dialog writes qet-assistant.json with the
 # collection paths just chosen, not the ones they replace.
@@ -568,6 +571,12 @@ qet_add_app_test(tst_terminalcableauto tst_terminalcableauto.cpp)
 # the whole label.
 qet_add_app_test(tst_terminallabeldisplay tst_terminallabeldisplay.cpp)
 qet_add_app_test(tst_terminalconductortext tst_terminalconductortext.cpp)
+
+# A PLC contact draws its master's BMK: the master's label comes from its
+# numbering formula, which holds the page number, so a folio moved to
+# another place changes it -- the contact shows the new label at once, the
+# way a contact of a coil shows the coil's.
+qet_add_app_test(tst_plcslavelabel tst_plcslavelabel.cpp)
 
 # The bridge drawn over terminals: what a bridge holds (colour, how many
 # terminals it may take, its sections), which terminals a line about to be
@@ -594,6 +603,11 @@ qet_add_app_test(tst_selectionrectangle tst_selectionrectangle.cpp)
 # Duplicate repeating the move of the copy (a setting), and Ctrl+Shift+D
 qet_add_app_test(tst_duplicaterepeatmove tst_duplicaterepeatmove.cpp)
 qet_add_app_test(tst_terminalcolor tst_terminalcolor.cpp)
+
+# The element editor's collections dock: an element dropped on the drawing
+# pastes its parts, centred on the drop and on the grid; double-clicked, the
+# user chooses where; a read-only element refuses the drag.
+qet_add_app_test(tst_elementeditorcollection tst_elementeditorcollection.cpp)
 
 # A folio's pictures, decoded in parallel, each come back with its own
 # pixels and position; an <image> with no picture does not stop the others.
@@ -2347,6 +2361,20 @@ else()
   cmake_language(DEFER CALL qet_apply_test_settings)
 endif()
 
+# Built without KDE Frameworks, the colour buttons are QElectroTech's own:
+# in every style they show their colour as it is, with its name readable.
+if(NOT BUILD_WITH_KF)
+  add_executable(tst_nokdecolorbutton tst_nokdecolorbutton.cpp
+    ${QET_DIR}/sources/ui/nokde/kcolorbutton.cpp
+    ${QET_DIR}/sources/ui/nokde/kcolorbutton.h)
+  add_test(NAME tst_nokdecolorbutton COMMAND tst_nokdecolorbutton)
+  set_tests_properties(tst_nokdecolorbutton PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  target_include_directories(tst_nokdecolorbutton PRIVATE
+    ${QET_DIR}/sources/ui/nokde)
+  target_link_libraries(tst_nokdecolorbutton PRIVATE Qt::Test Qt::Widgets)
+endif()
+
 # The folio properties dialog's paper size: choosing A4, A3 and A4 again
 # must give the first A4 back (issue 1662). QETApp and the title block
 # are stubbed in the test.
@@ -2360,3 +2388,17 @@ add_test(NAME tst_borderpropertiespaper COMMAND tst_borderpropertiespaper)
 set_tests_properties(tst_borderpropertiespaper PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 target_include_directories(tst_borderpropertiespaper PRIVATE ${QET_DIR}/sources ${QET_DIR}/sources/ui)
 target_link_libraries(tst_borderpropertiespaper PRIVATE Qt::Test Qt::Widgets Qt::Xml Qt::Svg Qt::Sql Qt::PrintSupport Qt::Concurrent pugixml::pugixml)
+
+# Built without KDE Frameworks, the colour lists are QElectroTech's own:
+# each colour shows a square of the colour beside its name.
+if(NOT BUILD_WITH_KF)
+  add_executable(tst_nokdecolorcombo tst_nokdecolorcombo.cpp
+    ${QET_DIR}/sources/ui/nokde/kcolorcombo.cpp
+    ${QET_DIR}/sources/ui/nokde/kcolorcombo.h)
+  add_test(NAME tst_nokdecolorcombo COMMAND tst_nokdecolorcombo)
+  set_tests_properties(tst_nokdecolorcombo PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  target_include_directories(tst_nokdecolorcombo PRIVATE
+    ${QET_DIR}/sources/ui/nokde)
+  target_link_libraries(tst_nokdecolorcombo PRIVATE Qt::Test Qt::Widgets)
+endif()
