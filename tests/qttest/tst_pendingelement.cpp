@@ -114,16 +114,36 @@ class tst_pendingelement : public QObject
 			QVERIFY(!diagram->pendingElement());
 		}
 
+			//The order of the model, and the labels of the two copies dropped
+			//after it: a model without an order yet gives numbered copies too
+		void similarPlacementNumbersTheTag_data()
+		{
+			QTest::addColumn<QString>("model_order");
+			QTest::addColumn<QString>("first");
+			QTest::addColumn<QString>("second");
+			QTest::addColumn<int>("next_after_undo");
+			QTest::newRow("numbered") << QStringLiteral("1")
+									  << QStringLiteral("U01 PP 002") << QStringLiteral("U01 PP 003") << 3;
+			QTest::newRow("no order yet") << QString()
+										  << QStringLiteral("U01 PP 001") << QStringLiteral("U01 PP 002") << 2;
+		}
+
 			//A P&ID symbol placed with "Create similar" takes the functional
 			//unit and the train of its model, and the next order at each drop
 		void similarPlacementNumbersTheTag()
 		{
+			QFETCH(QString, model_order);
+			QFETCH(QString, first);
+			QFETCH(QString, second);
+			QFETCH(int, next_after_undo);
+
 			QETDiagramEditor *editor = QetAppTest::editor();
 			QVERIFY(editor);
 			editor->resize(1400, 1000);
 			editor->show();
 			QVERIFY(QTest::qWaitForWindowExposed(editor));
-			const QString copy = m_dir.filePath("similar_tag.qet");
+			const QString copy = m_dir.filePath(
+						QStringLiteral("similar_tag_%1.qet").arg(QString::fromLatin1(QTest::currentDataTag()).replace(' ', '_')));
 			QVERIFY(QFile::copy(QFINDTESTDATA("fixtures/every_feature.qet"), copy));
 			QVERIFY(editor->openAndAddProject(copy, false));
 			DiagramView *view = editor->currentProjectView()->currentDiagram();
@@ -160,7 +180,7 @@ class tst_pendingelement : public QObject
 			model->setPos(-400, -400);
 			DiagramContext information = model->elementInformations();
 			information.addValue(PidTag::unitKey(), QStringLiteral("U01"));
-			information.addValue(PidTag::orderKey(), QStringLiteral("1"));
+			information.addValue(PidTag::orderKey(), model_order);
 			model->setElementInformations(model->withPidLabel(information));
 
 			QVERIFY(view->startSimilarPlacement(model));
@@ -184,18 +204,18 @@ class tst_pendingelement : public QObject
 			}
 			QCOMPARE(dropped.size(), 2);
 			std::sort(dropped.begin(), dropped.end(), [](Element *a, Element *b) { return a->pos().x() < b->pos().x(); });
-			QCOMPARE(dropped.at(0)->elementInformations().value(QStringLiteral("label")).toString(), QStringLiteral("U01 PP 002"));
-			QCOMPARE(dropped.at(1)->elementInformations().value(QStringLiteral("label")).toString(), QStringLiteral("U01 PP 003"));
+			QCOMPARE(dropped.at(0)->elementInformations().value(QStringLiteral("label")).toString(), first);
+			QCOMPARE(dropped.at(1)->elementInformations().value(QStringLiteral("label")).toString(), second);
 			QCOMPARE(dropped.at(1)->elementInformations().value(PidTag::trainKey()).toString(), QStringLiteral("0"));
 				//the model keeps its own tag
-			QCOMPARE(model->elementInformations().value(PidTag::orderKey()).toString(), QStringLiteral("1"));
+			QCOMPARE(model->elementInformations().value(PidTag::orderKey()).toString(), model_order);
 
 			QTest::keyClick(view, Qt::Key_Escape);
 			QVERIFY(!diagram->pendingElement());
 				//one drop, one undo step
 			diagram->undoStack().undo();
 			QVERIFY(!dropped.at(1)->scene());
-			QCOMPARE(PidTag::nextOrder(project, QStringLiteral("U01"), QStringLiteral("PP"), QStringLiteral("0")), 3);
+			QCOMPARE(PidTag::nextOrder(project, QStringLiteral("U01"), QStringLiteral("PP"), QStringLiteral("0")), next_after_undo);
 		}
 };
 

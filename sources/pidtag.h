@@ -95,11 +95,15 @@ namespace PidTag
 			the "erase the label on copy" preference may have emptied. Only
 			for elements that are not in an undo stack yet: nothing here is
 			undone on its own.
+			With @p fresh (the copies of a "Create similar", new devices),
+			every pasted element with a tag gets the next order, the one
+			without an order too, whatever @p renumber says.
 			@return how many elements were given another order
 		*/
 	int numberPasted(QETProject *project,
 					 const QList<Element *> &pasted,
-					 bool renumber = true);
+					 bool renumber = true,
+					 bool fresh = false);
 }
 
 #endif

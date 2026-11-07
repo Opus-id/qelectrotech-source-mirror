@@ -36,7 +36,6 @@
 #include <QGraphicsLineItem>
 #include <QGraphicsPathItem>
 #include <QPainterPath>
-#include <algorithm>
 #include <limits>
 
 /**
@@ -275,28 +274,36 @@ void DiagramEventAddElement::setLike(const Element *source)
 
 /**
 	@brief DiagramEventAddElement::tagLike
-	Give @a element, just dropped on the folio by a "Create similar", the
-	functional unit and the train of its model and the next order of them
-	(PidTag::nextOrder()), and the label they make. Only the copies dropped
-	get it: neither the symbol that follows the mouse nor the previews of a
-	drag, which would count in the next order.
+	Give @a elements, just dropped on the folio by a "Create similar", the
+	functional unit and the train of their model, then the next orders of
+	them and the label they make, as a paste numbers its copies
+	(PidTag::numberPasted(), from left to right then from top to bottom).
+	Only the copies dropped get it: neither the symbol that follows the mouse
+	nor the previews of a drag, which would count in the next order.
 */
-void DiagramEventAddElement::tagLike(Element *element) const
+void DiagramEventAddElement::tagLike(const QList<Element *> &elements) const
 {
-	if (m_like_unit.isEmpty() || !element || element->pidTagModel().isEmpty()) {
+	if (m_like_unit.isEmpty()) {
 		return;
 	}
-	QString train = m_like_train;
-	if (train.isEmpty() && PidTag::showsTrain(element->pidTagModel())) {
-		train = QStringLiteral("0");
+	QList<Element *> tagged;
+	for (Element *element : elements)
+	{
+		if (!element || element->pidTagModel().isEmpty()) {
+			continue;
+		}
+		QString train = m_like_train;
+		if (train.isEmpty() && PidTag::showsTrain(element->pidTagModel())) {
+			train = QStringLiteral("0");
+		}
+		DiagramContext information = element->elementInformations();
+		information.addValue(PidTag::unitKey(), m_like_unit);
+		information.addValue(PidTag::trainKey(), train);
+		information.addValue(PidTag::orderKey(), QString());
+		element->setElementInformations(information);
+		tagged << element;
 	}
-	DiagramContext information = element->elementInformations();
-	information.addValue(PidTag::unitKey(), m_like_unit);
-	information.addValue(PidTag::trainKey(), train);
-	information.addValue(PidTag::orderKey(),
-						 QString::number(PidTag::nextOrder(m_diagram->project(), m_like_unit,
-														   element->getPrefix(), train, element)));
-	element->setElementInformations(element->withPidLabel(information));
+	PidTag::numberPasted(m_diagram->project(), tagged, true, true);
 }
 
 /**
@@ -485,7 +492,7 @@ void DiagramEventAddElement::addElement()
 		//leaving the counter advanced).
 	element->setUpFormula(true, undo_object);
 		//After the numbering of QElectroTech: a P&ID tag makes the label
-	tagLike(element);
+	tagLike({element});
 
 	m_diagram -> undoStack().push(undo_object);
 	element->freezeNewAddedElement();
@@ -628,13 +635,7 @@ void DiagramEventAddElement::addElements(const QList<QPointF> &positions)
 	for (Element *element : std::as_const(added))
 		element->setUpFormula(true, undo_object);
 		//P&ID tags from left to right, then from top to bottom
-	QList<Element *> by_position = added;
-	std::stable_sort(by_position.begin(), by_position.end(), [](Element *a, Element *b) {
-		if (!qFuzzyCompare(a->pos().x() + 1, b->pos().x() + 1)) return a->pos().x() < b->pos().x();
-		return a->pos().y() < b->pos().y();
-	});
-	for (Element *element : std::as_const(by_position))
-		tagLike(element);
+	tagLike(added);
 	m_diagram->undoStack().push(undo_object);
 	for (Element *element : std::as_const(added))
 		element->freezeNewAddedElement();

@@ -62,7 +62,7 @@ class DiagramEventAddElement : public DiagramEventInterface
 		void updateDrag(const QPointF &to);
 		void endDrag();
 		void addElements(const QList<QPointF> &positions);
-		void tagLike(Element *element) const;
+		void tagLike(const QList<Element *> &elements) const;
 
 	private:
 		ElementsLocation m_location;

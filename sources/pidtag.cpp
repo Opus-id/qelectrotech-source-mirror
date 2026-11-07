@@ -215,7 +215,8 @@ int PidTag::nextOrder(QETProject *project,
 
 int PidTag::numberPasted(QETProject *project,
 						 const QList<Element *> &pasted,
-						 bool renumber)
+						 bool renumber,
+						 bool fresh)
 {
 	if (!project) {
 		return 0;
@@ -261,6 +262,11 @@ int PidTag::numberPasted(QETProject *project,
 	QList<Element *> clashing;
 	for (Element *element : std::as_const(tagged))
 	{
+			//A new device: the next order, in the order of the sort above
+		if (fresh) {
+			clashing << element;
+			continue;
+		}
 		const DiagramContext &information = element->elementInformations();
 		const QString order = information.value(orderKey()).toString();
 		if (order.trimmed().isEmpty()) continue;
