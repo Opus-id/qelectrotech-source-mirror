@@ -764,9 +764,14 @@ void QETDiagramEditor::setUpActions()
 		if (!DuplicateOffsetDialog::hasSavedStepOffset()) {
 			DuplicateOffsetDialog dialog(this);
 			if (dialog.exec() != QDialog::Accepted) return;
-			DuplicateOffsetDialog::saveStepOffset(dialog.stepOffset());
+			dialog.save();
 		}
-		dv->duplicate(DuplicateOffsetDialog::savedStepOffset());
+			//A setting, off by default: once the copy just made is moved,
+			//the next press repeats that move instead of the spacing
+		if (DuplicateOffsetDialog::savedRepeatsMove())
+			dv->duplicateRepeatingMove(DuplicateOffsetDialog::savedStepOffset());
+		else
+			dv->duplicate(DuplicateOffsetDialog::savedStepOffset());
 	});
 
 		//Reopens the dialog above on demand, to change the spacing or
@@ -780,8 +785,24 @@ void QETDiagramEditor::setUpActions()
 	connect(m_configure_duplicate, &QAction::triggered, [this]() {
 		DuplicateOffsetDialog dialog(this);
 		if (dialog.exec() == QDialog::Accepted) {
-			DuplicateOffsetDialog::saveStepOffset(dialog.stepOffset());
+			dialog.save();
 		}
+	});
+
+		//The same dialog, then a duplicate at the spacing just chosen:
+		//changing the spacing in the middle of laying out copies, in one
+		//go. The new spacing starts a new run, whatever the copy was
+		//moved by.
+	m_duplicate_with_spacing = new QAction(tr("Duplicate with another spacing..."), this);
+	ShortcutManager::instance().registerAction(m_duplicate_with_spacing, "diagrameditor.duplicate_with_spacing", tr("Diagram editors"), Qt::CTRL | Qt::SHIFT | Qt::Key_D);
+	m_duplicate_with_spacing->setStatusTip(tr("Choose the spacing and direction, then duplicate the selection", "status bar tip"));
+	connect(m_duplicate_with_spacing, &QAction::triggered, [this]() {
+		auto *dv = currentDiagramView();
+		if (!dv || !dv->diagram()) return;
+		DuplicateOffsetDialog dialog(this);
+		if (dialog.exec() != QDialog::Accepted) return;
+		dialog.save();
+		dv->duplicate(dialog.stepOffset());
 	});
 
 		//Create similar: a new symbol of the same type as the one selected,
@@ -2179,6 +2200,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_edition -> addAction(m_paste_origin);
 	menu_edition -> addAction(m_paste_element_info);
 	menu_edition -> addAction(m_duplicate);
+	menu_edition -> addAction(m_duplicate_with_spacing);
 	menu_edition -> addAction(m_configure_duplicate);
 	menu_edition -> addAction(m_create_similar);
 	menu_edition -> addSeparator();
@@ -3964,6 +3986,7 @@ void QETDiagramEditor::slot_updateComplexActions()
 			    << m_copy
 			    << m_paste_element_info
 			    << m_duplicate
+			    << m_duplicate_with_spacing
 			    << m_create_similar
 			    << m_delete_selection
 			    << m_rotate_selection
@@ -4031,6 +4054,7 @@ void QETDiagramEditor::slot_updateComplexActions()
 	m_cut              -> setEnabled(!ro && copiable_items);
 	m_copy             -> setEnabled(copiable_items);
 	m_duplicate        -> setEnabled(!ro && copiable_items);
+	m_duplicate_with_spacing->setEnabled(!ro && copiable_items);
 	m_create_similar   -> setEnabled(dv->similarSource() != nullptr);
 	updatePasteElementInfoAction();
 	m_delete_selection -> setEnabled(!ro && deletable_items);
