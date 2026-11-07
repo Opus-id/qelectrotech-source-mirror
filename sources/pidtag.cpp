@@ -299,7 +299,15 @@ int PidTag::numberPasted(QETProject *project,
 			information.addValue(orderKey(), new_orders.value(element));
 		}
 		information = element->withPidLabel(information);
-		if (information != element->elementInformations()) {
+		if (information == element->elementInformations()) {
+			continue;
+		}
+			//A pasted text stays where it was put; the text of a new device
+			//still has to take its place around its anchor, as on any
+			//symbol placed from the collection
+		if (fresh) {
+			element->setElementInformations(information);
+		} else {
 			setInformation(element, information);
 		}
 	}

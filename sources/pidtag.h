@@ -97,7 +97,8 @@ namespace PidTag
 			undone on its own.
 			With @p fresh (the copies of a "Create similar", new devices),
 			every pasted element with a tag gets the next order, the one
-			without an order too, whatever @p renumber says.
+			without an order too, whatever @p renumber says, and its texts
+			take their place around their anchor as the label grows.
 			@return how many elements were given another order
 		*/
 	int numberPasted(QETProject *project,

@@ -21,6 +21,7 @@
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
 #include "pidtag.h"
+#include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetproject.h"
 #include "projectview.h"
@@ -163,6 +164,10 @@ class tst_pendingelement : public QObject
 				"orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
 				"<terminal uuid=\"{6a1f3c52-3333-4c2e-9a77-0b8d2f6e1a01}\" name=\"N2\" x=\"10\" y=\"0\" "
 				"orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>"
+				"<dynamic_text x=\"0\" y=\"15\" z=\"1\" text_width=\"-1\" Halignment=\"AlignHCenter\" Valignment=\"AlignTop\" "
+				"frame=\"false\" rotation=\"0\" keep_visual_rotation=\"true\" text_from=\"ElementInfo\" "
+				"uuid=\"{6a1f3c52-4444-4c2e-9a77-0b8d2f6e1a01}\" font=\"Liberation Sans,9,-1,5,50,0,0,0,0,0,Regular\">"
+				"<text></text><info_name>label</info_name></dynamic_text>"
 				"</description></definition>")));
 			project->embeddedElementCollection()->addElementDefinition(
 						QStringLiteral("import/pidtest"), QStringLiteral("pump.elmt"), definition.documentElement());
@@ -189,26 +194,38 @@ class tst_pendingelement : public QObject
 				//the symbol that follows the mouse has no tag: it would count
 			QVERIFY(!PidTag::hasFields(pending->elementInformations()));
 
-			const QPoint at = view->mapFromScene(pending->scenePos());
-			QTest::mouseMove(view->viewport(), at);
-			QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, at);
-			const QPoint further = at + QPoint(150, 0);
-			QTest::mouseMove(view->viewport(), further);
-			QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, further);
-
+				//Each copy is told apart when it is dropped, not by where it
+				//stands: the view may scroll between two clicks
 			QList<Element *> dropped;
-			for (Element *e : diagram->elements()) {
-				if (e != model && e != diagram->pendingElement() && e->location() == model->location()) {
-					dropped << e;
+			auto dropAt = [&](const QPoint &where) {
+				QTest::mouseMove(view->viewport(), where);
+				QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, where);
+				for (Element *e : diagram->elements()) {
+					if (e != model && e != diagram->pendingElement()
+							&& e->location() == model->location() && !dropped.contains(e)) {
+						dropped << e;
+					}
 				}
-			}
+			};
+			const QPoint at = view->mapFromScene(pending->scenePos());
+			dropAt(at);
+			QCOMPARE(dropped.size(), 1);
+			dropAt(at + QPoint(150, 0));
 			QCOMPARE(dropped.size(), 2);
-			std::sort(dropped.begin(), dropped.end(), [](Element *a, Element *b) { return a->pos().x() < b->pos().x(); });
 			QCOMPARE(dropped.at(0)->elementInformations().value(QStringLiteral("label")).toString(), first);
 			QCOMPARE(dropped.at(1)->elementInformations().value(QStringLiteral("label")).toString(), second);
 			QCOMPARE(dropped.at(1)->elementInformations().value(PidTag::trainKey()).toString(), QStringLiteral("0"));
 				//the model keeps its own tag
 			QCOMPARE(model->elementInformations().value(PidTag::orderKey()).toString(), model_order);
+				//the label of a copy is centred under it, as the model's is
+				//(it once grew to the right from where the empty text stood)
+			auto labelCentre = [](Element *element) {
+				const QList<DynamicElementTextItem *> texts = element->dynamicTextItems();
+				return texts.isEmpty() ? qreal(-1000)
+									   : texts.first()->pos().x() + texts.first()->boundingRect().width() / 2;
+			};
+			QVERIFY(qAbs(labelCentre(dropped.at(0)) - labelCentre(model)) < 1.0);
+			QVERIFY(qAbs(labelCentre(dropped.at(1)) - labelCentre(model)) < 1.0);
 
 			QTest::keyClick(view, Qt::Key_Escape);
 			QVERIFY(!diagram->pendingElement());
