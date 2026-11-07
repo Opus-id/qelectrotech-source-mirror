@@ -75,7 +75,8 @@ ExportDialog::ExportDialog(
 
 	// options d'export, dans le widget epw
 	epw = new ExportPropertiesWidget(default_export_properties);
-	
+	epw -> offerNozzleNames(project_ -> pidCodification().nozzle_texts_on_paper);
+
 	// le dialogue comporte deux boutons
 	buttons = new QDialogButtonBox(this);
 	buttons -> setOrientation(Qt::Horizontal);

@@ -49,8 +49,9 @@ namespace QetSettings
 	bool liveAskFirst();
 	void setLiveAskFirst(bool ask);
 
-		// The colours new projects start from, as PidCodification::colorsToCsv()
-		// writes them; empty when none was saved: they start without colours
+		// The colours and the settings of texts new projects start from, as
+		// PidCodification::paletteToCsv() writes them; empty when none was
+		// saved: they start without any
 	QString pidPalette();
 	void setPidPalette(const QString &palette);
 

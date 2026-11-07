@@ -41,7 +41,8 @@
 	fluids (PipeProperties::defaultFluids()) as free text.
 
 	It also holds the colours of the project: QElectroTech knows none, and
-	what has none is drawn in black, as before.
+	what has none is drawn in black, as before. The same goes for the sizes
+	of its texts: what has none keeps the size of its symbol.
 */
 class PidCodification
 {
@@ -67,13 +68,24 @@ class PidCodification
 		QMap<QString, QColor> object_colors;
 			/// The colour of a status of works, see statuses()
 		QMap<QString, QColor> status_colors;
+			/// The size in points of a category of texts, see textCategories()
+		QMap<QString, int> text_sizes;
+			/// The labels of the symbols are drawn in the colour of their
+			/// symbol, nothing being written in the text itself
+		bool colored_labels = false;
+			/// The names and diameters of the nozzles are printed and
+			/// exported, whatever is asked for the names of the terminals
+		bool nozzle_texts_on_paper = true;
 
 		bool hasCodes() const { return !fluids.isEmpty() || !materials.isEmpty(); }
 		bool hasColors() const {
 			return !fluid_family_colors.isEmpty() || !object_colors.isEmpty()
 					|| !status_colors.isEmpty();
 		}
-		bool isEmpty() const { return !hasCodes() && !hasColors(); }
+		bool hasTextSettings() const {
+			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper;
+		}
+		bool isEmpty() const { return !hasCodes() && !hasColors() && !hasTextSettings(); }
 
 			/// The fluid / material of code @p code, or nullptr
 		const Entry *fluid(const QString &code) const;
@@ -86,10 +98,15 @@ class PidCodification
 			/// works which have a colour, in the order they are offered
 		static QStringList objectFamilies();
 		static QStringList statuses();
+			/// The words of the categories of texts which have a size: the
+			/// labels of a family of objects, then nozzleTexts()
+		static QStringList textCategories();
+		static QString nozzleTexts() { return QStringLiteral("nozzle"); }
 
 			/// This codification, with the codes of @p other when it has
-			/// none and its colours when it has none: a file of codes does
-			/// not take the colours of a project away, nor the reverse
+			/// none, its colours when it has none and its settings of texts
+			/// when it has none: a file of codes does not take the colours of
+			/// a project away, nor the reverse
 		PidCodification completedWith(const PidCodification &other) const;
 
 			/// The <pid_codification> block, a null element when empty
@@ -102,15 +119,18 @@ class PidCodification
 			/// "fluid" or "material" (or their French words), and of lines
 			/// "kind;key;color", kind being "fluid_color", "object_color" or
 			/// "status_color" ("couleur_fluide", "couleur_objet",
-			/// "couleur_statut"), key a family or a status; the separator
+			/// "couleur_statut"), key a family or a status, of lines
+			/// "text_size;category;points" ("taille_texte") and of lines
+			/// "text_option;name;true" ("option_texte"), name being
+			/// "colored_labels" or "nozzle_texts_on_paper"; the separator
 			/// may also be a tab or a comma, a first line naming the columns
 			/// is skipped, and so is a line that cannot be read, counted in
 			/// @p skipped. Returns the codification read, empty when none.
 		static PidCodification fromCsv(const QString &text, int *skipped = nullptr);
-			/// The colours alone, as lines fromCsv() reads: the palette kept
-			/// in the settings, for new projects. The codes stay out, each
-			/// project has its own
-		QString colorsToCsv() const;
+			/// The colours and the settings of texts, as lines fromCsv()
+			/// reads: the palette kept in the settings, for new projects. The
+			/// codes stay out, each project has its own
+		QString paletteToCsv() const;
 
 		bool operator==(const PidCodification &other) const;
 		bool operator!=(const PidCodification &other) const { return !(*this == other); }

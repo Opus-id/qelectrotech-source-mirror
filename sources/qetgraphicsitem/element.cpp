@@ -67,6 +67,7 @@ static const QString plcTerminalKeys[] = {
 	QETInformation::ELMT_PLC_T4
 };
 #include "../qetxml.h"
+#include "../utils/qetutils.h"
 #include "../positionorder.h"
 #include "../qetversion.h"
 #include "qgraphicsitemutility.h"
@@ -648,6 +649,96 @@ void Element::updateInk()
 }
 
 /**
+	@brief Element::labelInk
+	See the declaration. It is the ink of the symbol: a status of works comes
+	before the family, and a folio drawn in black has none.
+*/
+QColor Element::labelInk() const
+{
+	const Diagram *folio = diagram();
+	if (m_data.m_pid_family.isEmpty() || !folio || !folio->project()
+		|| !folio->project()->pidCodification().colored_labels) {
+		return QColor();
+	}
+	const QString ink = inkedChoices(m_data.m_options, m_data.m_pid_family)
+			.value(ElementPictureFactory::inkChoice());
+	return ink.isEmpty() ? QColor() : QColor(ink);
+}
+
+/**
+	@brief Element::labelTexts
+	See the declaration
+*/
+QList<DynamicElementTextItem *> Element::labelTexts() const
+{
+	QList<DynamicElementTextItem *> texts = dynamicTextItems();
+	for (const ElementTextItemGroup *group : textGroups()) {
+		texts << group->texts();
+	}
+	texts.erase(std::remove_if(texts.begin(), texts.end(),
+							   [](const DynamicElementTextItem *text) { return !text->isLabel(); }),
+				texts.end());
+	return texts;
+}
+
+namespace {
+	/// The size of the label a symbol describes, else that of a new text
+	int labelSizeOfSymbol(const QDomElement &definition)
+	{
+		const QString tag = QStringLiteral("dynamic_text");
+		const QDomElement description = definition.firstChildElement(QStringLiteral("description"));
+		for (QDomElement text = description.firstChildElement(tag) ; !text.isNull() ;
+			 text = text.nextSiblingElement(tag))
+		{
+			const bool label =
+					text.firstChildElement(QStringLiteral("info_name")).text() == QLatin1String("label")
+					|| text.firstChildElement(QStringLiteral("composite_text")).text()
+						.contains(QLatin1String("%{label}"));
+			if (!label) {
+				continue;
+			}
+			if (text.hasAttribute(QStringLiteral("font"))) {
+				QFont font;
+				QETUtils::fontFromString(font, text.attribute(QStringLiteral("font")));
+				return font.pointSize();
+			}
+			return text.attribute(QStringLiteral("font_size"), QString::number(9)).toInt();
+		}
+		return QETApp::dynamicTextsItemFont().pointSize();
+	}
+}
+
+/**
+	@brief Element::labelSize
+	See the declaration
+*/
+int Element::labelSize(const PidCodification &codification) const
+{
+	if (m_data.m_pid_family.isEmpty()) {
+		return 0;
+	}
+	const int size = codification.text_sizes.value(m_data.m_pid_family);
+	return size > 0 ? size : labelSizeOfSymbol(m_location.xml());
+}
+
+/**
+	@brief Element::takeLabelSize
+	See the declaration
+*/
+void Element::takeLabelSize(const PidCodification &codification)
+{
+	const int size = codification.text_sizes.value(m_data.m_pid_family);
+	if (size <= 0) {
+		return;
+	}
+	for (DynamicElementTextItem *text : labelTexts()) {
+		QFont font = text->font();
+		font.setPointSize(size);
+		text->setFont(font);
+	}
+}
+
+/**
 	@brief Element::followsPipes
 	See the declaration
 */
@@ -707,7 +798,7 @@ ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 	if (!project) {
 		return choices;
 	}
-	const PidCodification codification = project->pidCodification();
+	const PidCodification &codification = project->pidCodification();
 	QColor ink = codification.status_colors.value(m_option_choices.value(PidStatus::option()));
 	if (!ink.isValid() && family == QLatin1String("pipe")) {
 		if (const Conductor *pipe = leadingPipe()) {

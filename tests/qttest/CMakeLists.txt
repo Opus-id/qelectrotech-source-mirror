@@ -493,6 +493,9 @@ qet_add_app_test(tst_pipepanel tst_pipepanel.cpp)
 # The colours of a P&ID: set for a project, none known by the code; on a pipe
 # its own colour first, then its fluid, then its family of object.
 qet_add_app_test(tst_pidcolors tst_pidcolors.cpp)
+# The texts of a P&ID: their size by category, set for a project, and the
+# names and diameters of the nozzles on paper. A wire is not concerned.
+qet_add_app_test(tst_pidtexts tst_pidtexts.cpp)
 # The frame of a folio follows a new size at once.
 qet_add_app_test(tst_borderresize tst_borderresize.cpp)
 # A quick second click on the same spot reaches the shape tools as a

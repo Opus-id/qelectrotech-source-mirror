@@ -152,7 +152,7 @@ class QETProject : public QObject
 		bool hasSymbolChoices() const;
 			/// The codes of the fluids and materials of the pipes of this
 			/// project (PidCodification), saved with it; empty by default
-		PidCodification pidCodification() const {return m_pid_codification;}
+		const PidCodification &pidCodification() const {return m_pid_codification;}
 		void setPidCodification(const PidCodification &codification);
 			/// For a project just created: take the colours saved as the
 			/// default palette (QetSettings::pidPalette()), if any. It stays

@@ -122,6 +122,8 @@ class DynamicElementTextItem : public DiagramTextItem
 		QTransform readingFlip() const;
 		void setInfoName(const QString &info_name);
 		QString infoName() const;
+			/// True when this text shows the label of its element
+		bool isLabel() const;
 		Element *linkedElementShown() const;
 			/// Shaded blue for a moment: its symbol is where a jump landed
 		void setJumpHighlight(bool on);
@@ -169,6 +171,7 @@ class DynamicElementTextItem : public DiagramTextItem
 		void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;
 		void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
 		void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+		QColor drawnColor() const override;
 		QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
 		bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
 

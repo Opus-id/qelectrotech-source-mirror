@@ -47,7 +47,8 @@ class ExportProperties {
 	bool draw_border;               ///< Whether to render the border (along with rows/columns headers)
 	bool draw_titleblock;           ///< Whether to render the title block
 	bool draw_terminals;            ///< Whether to render terminals
-	bool draw_terminal_names;       ///< Whether to render terminal names/labels
+	bool draw_terminal_names;       ///< Whether to render terminal names/labels, nozzles apart
+	bool draw_nozzle_names;         ///< Whether to render the names and DN of the nozzles; its start comes from the project, it is not kept in the settings
 	bool draw_bg_transparent;       ///< Whether to use transparency for SVG-Export
 	bool draw_colored_conductors;   ///< Whether to render conductors colors
 	bool dxf_blocks;                ///< DXF: each symbol as a block, placed with an INSERT

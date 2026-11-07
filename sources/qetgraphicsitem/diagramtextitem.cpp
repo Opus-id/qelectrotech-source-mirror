@@ -399,13 +399,14 @@ const QTextDocument *DiagramTextItem::translatedDocument() const
 void DiagramTextItem::paintText(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
 	const QTextDocument *translated = translatedDocument();
-	if (!translated) {
+	const QColor drawn = drawnColor();
+	if (!translated && !drawn.isValid()) {
 		QGraphicsTextItem::paint(painter, option, widget);
 		return;
 	}
 	QAbstractTextDocumentLayout::PaintContext context;
-	context.palette.setColor(QPalette::Text, defaultTextColor());
-	translated->documentLayout()->draw(painter, context);
+	context.palette.setColor(QPalette::Text, drawn.isValid() ? drawn : defaultTextColor());
+	(translated ? translated : document())->documentLayout()->draw(painter, context);
 }
 
 /**

@@ -106,6 +106,14 @@ class Terminal : public QGraphicsObject
 		void setSymbolDiameter(int dn);
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
+			/// The font of labelText(): the one of the symbol, at the size
+			/// the project sets for the texts of the nozzles
+		QFont labelFont() const;
+			/// False when the folio is drawn without the names of its
+			/// terminals, unless the project keeps those of its nozzles
+		bool labelIsDrawn() const;
+			/// To call before labelFont() changes its size
+		void prepareLabelChange() { prepareGeometryChange(); }
 		QString potential() const;
 		bool useMasterLabel() const { return d->m_use_master_label; }
 		void setUseMasterLabel(bool use);

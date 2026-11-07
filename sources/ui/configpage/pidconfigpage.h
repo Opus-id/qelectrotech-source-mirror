@@ -23,8 +23,10 @@
 
 #include <functional>
 
+class QCheckBox;
 class QLabel;
 class QPushButton;
+class QSpinBox;
 class QTableWidget;
 
 /**
@@ -32,7 +34,8 @@ class QTableWidget;
 	What is set for the P&IDs of a project, in tabs. Its colours, by family
 	of fluid, by family of object and by status of works (PidCodification):
 	the code knows no colour of its own, what has none is drawn in black, as
-	before.
+	before. The size of its texts by category: what has none keeps the size
+	of its symbol.
 */
 class PidConfigPage : public ProjectConfigPage
 {
@@ -56,8 +59,9 @@ class PidConfigPage : public ProjectConfigPage
 			/// What asks a colour, the colour dialog unless a test says
 			/// otherwise; it answers an invalid colour when cancelled
 		void setColorAsker(const std::function<QColor(const QColor &)> &asker) { m_ask_color = asker; }
-			/// Keep the colours of this page as those of the new projects,
-			/// or none when it has none; other projects stay as they are
+			/// Keep the colours and the settings of texts of this page as
+			/// those of the new projects, or none when it has none; other
+			/// projects stay as they are
 		void saveAsDefaultPalette();
 
 	protected:
@@ -72,12 +76,21 @@ class PidConfigPage : public ProjectConfigPage
 		void chooseColor();
 		QList<int> selectedRows() const;
 		QMap<QString, QColor> &colors(Group group);
+		void readTextWidgets();
+		void undoLastChange();
+		void redoLastChange();
 
 		QTableWidget *m_table = nullptr;
 		QPushButton *m_choose = nullptr;
 		QPushButton *m_clear = nullptr;
 		QPushButton *m_save_palette = nullptr;
 		QLabel *m_palette_saved = nullptr;
+			/// The size of each category of texts, 0 for that of the symbol
+		QMap<QString, QSpinBox *> m_text_sizes;
+			/// What gives each category of texts back the size of the symbol
+		QMap<QString, QPushButton *> m_text_size_resets;
+		QCheckBox *m_colored_labels = nullptr;
+		QCheckBox *m_nozzle_texts_on_paper = nullptr;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
 		std::function<QColor(const QColor &)> m_ask_color;

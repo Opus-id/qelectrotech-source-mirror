@@ -148,6 +148,7 @@ ProjectPrintWindow::ProjectPrintWindow(QETProject *project, QPrinter *printer, Q
 	ui->m_draw_titleblock_cb->setChecked(exp.draw_titleblock);
 	ui->m_draw_terminal_cb->setChecked(exp.draw_terminals);
 	ui->m_draw_terminal_names_cb->setChecked(exp.draw_terminal_names);
+	ui->m_draw_nozzle_names_cb->setChecked(m_project->pidCodification().nozzle_texts_on_paper);
 	ui->m_keep_conductor_color_cb->setChecked(exp.draw_colored_conductors);
 
 	QSettings settings;
@@ -538,6 +539,7 @@ ExportProperties ProjectPrintWindow::exportProperties() const
 	exp.draw_titleblock         = ui->m_draw_titleblock_cb->isChecked();
 	exp.draw_terminals          = ui->m_draw_terminal_cb->isChecked();
 	exp.draw_terminal_names     = ui->m_draw_terminal_names_cb->isChecked();
+	exp.draw_nozzle_names       = ui->m_draw_nozzle_names_cb->isChecked();
 	exp.draw_colored_conductors = ui->m_keep_conductor_color_cb->isChecked();
 	exp.draw_grid = false;
 	exp.draw_guides = false;
@@ -756,6 +758,7 @@ void ProjectPrintWindow::on_m_draw_titleblock_cb_clicked()      { m_preview->upd
 void ProjectPrintWindow::on_m_keep_conductor_color_cb_clicked() { m_preview->updatePreview(); }
 void ProjectPrintWindow::on_m_draw_terminal_cb_clicked()        { m_preview->updatePreview(); }
 void ProjectPrintWindow::on_m_draw_terminal_names_cb_clicked()  { m_preview->updatePreview(); }
+void ProjectPrintWindow::on_m_draw_nozzle_names_cb_clicked()    { m_preview->updatePreview(); }
 void ProjectPrintWindow::on_m_component_info_cb_clicked()       { m_preview->updatePreview(); }
 void ProjectPrintWindow::on_m_fit_in_page_cb_clicked()          { m_preview->updatePreview(); }
 void ProjectPrintWindow::on_m_use_full_page_cb_clicked()

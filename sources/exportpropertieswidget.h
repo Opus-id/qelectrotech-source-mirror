@@ -39,7 +39,10 @@ class ExportPropertiesWidget : public QWidget {
 	void setExportProperties(const ExportProperties &);
 	ExportProperties exportProperties() const;
 	void setPrintingMode(bool);
-	
+		/// Show the box of the nozzles, hidden where no project is known,
+		/// ticked or not as the project asks
+	void offerNozzleNames(bool checked);
+
 	public slots:
 	void slot_chooseADirectory();
 	
@@ -63,6 +66,7 @@ class ExportPropertiesWidget : public QWidget {
 	QCheckBox *draw_titleblock;
 	QCheckBox *draw_terminals;
 	QCheckBox *draw_terminal_names;
+	QCheckBox *draw_nozzle_names;
 	QCheckBox *draw_bg_transparent;
 	QCheckBox *draw_colored_conductors;
 	QCheckBox *dxf_blocks;

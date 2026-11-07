@@ -20,6 +20,9 @@
 
 #include "../pidcodification.h"
 
+#include "../qetgraphicsitem/dynamicelementtextitem.h"
+
+#include <QList>
 #include <QPointer>
 #include <QUndoCommand>
 
@@ -27,10 +30,12 @@ class QETProject;
 
 /**
 	@brief The ChangePidCodificationCommand class
-	Give a project another P&ID codification, its codes and its colours, and
-	give the former one back on undo. Everything that changes the codification
-	of an open project goes through it: a change kept out of the undo stack
-	would be lost when an earlier one is undone.
+	Give a project another P&ID codification, its codes, its colours and the
+	sizes of its texts, and give the former one back on undo. Everything that
+	changes the codification of an open project goes through it: a change
+	kept out of the undo stack would be lost when an earlier one is undone.
+	A label placed follows the size of its family as long as it has the
+	former one: a size set by hand stays.
 	Pushed with the codification the project already has, it adds no step.
 */
 class ChangePidCodificationCommand : public QUndoCommand
@@ -43,8 +48,19 @@ class ChangePidCodificationCommand : public QUndoCommand
 		void redo() override;
 
 	private:
+		struct LabelSize
+		{
+			QPointer<DynamicElementTextItem> text;
+			int old_size;
+			int new_size;
+		};
+
+		void findLabels();
+		static void setSize(DynamicElementTextItem *text, int size);
+
 		QPointer<QETProject> m_project;
 		PidCodification m_old_codification, m_new_codification;
+		QList<LabelSize> m_labels;
 };
 
 #endif // CHANGEPIDCODIFICATIONCOMMAND_H

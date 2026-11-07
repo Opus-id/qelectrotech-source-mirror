@@ -379,15 +379,19 @@ void Terminal::paint(
 
 	// Draw label if show_name is enabled and terminal names are allowed
 	const QString display_name = labelText();
-	if (!low_zoom && d->m_show_name && !display_name.isEmpty()
-		&& (!diagram() || diagram()->drawTerminalNames())) {
+		// A small image of a folio keeps the texts its paper would have
+	const bool on_screen = painter->device()
+			&& painter->device()->devType() == QInternal::Widget;
+	if ((!low_zoom || !on_screen) && d->m_show_name && !display_name.isEmpty()
+		&& labelIsDrawn()) {
 		painter->setRenderHint(QPainter::Antialiasing, true);
 		painter->setRenderHint(QPainter::TextAntialiasing, true);
-		painter->setFont(d->m_label_font);
+		const QFont label_font = labelFont();
+		painter->setFont(label_font);
 		painter->setPen(d->m_label_color);
 
 		QPointF label_pos = d->m_pos + d->m_label_pos;
-		QFontMetrics fm(d->m_label_font);
+		QFontMetrics fm(label_font);
 		QSizeF text_size = TerminalData::labelSize(fm, display_name);
 
 			// When the element mirrors its symbol, or turns it in a project
@@ -523,7 +527,7 @@ QRectF Terminal::boundingRect() const {
 		return m_br;
 	}
 
-	QFontMetrics fm(d->m_label_font);
+	QFontMetrics fm(labelFont());
 	QSizeF text_size = TerminalData::labelSize(fm, display_name);
 	QPointF label_pos = d->m_pos + d->m_label_pos;
 
@@ -1279,6 +1283,31 @@ void Terminal::setSymbolDiameter(int dn)
 QString Terminal::labelText() const
 {
 	return TerminalData::labelText(name(), nominalDiameter());
+}
+
+QFont Terminal::labelFont() const
+{
+	QFont font = d->m_label_font;
+	const Diagram *folio = diagram();
+	if (d->m_medium == TerminalData::Pipe && folio && folio->project())
+	{
+		const int size = folio->project()->pidCodification().text_sizes.value(
+					PidCodification::nozzleTexts());
+		if (size > 0) {
+			font.setPointSize(size);
+		}
+	}
+	return font;
+}
+
+bool Terminal::labelIsDrawn() const
+{
+	const Diagram *folio = diagram();
+	if (!folio) {
+		return true;
+	}
+	return d->m_medium == TerminalData::Pipe ? folio->drawNozzleNames()
+											 : folio->drawTerminalNames();
 }
 
 QString Terminal::name() const

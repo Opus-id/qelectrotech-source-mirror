@@ -23,6 +23,14 @@
 namespace
 {
 	const QString block_tag = QStringLiteral("pid_codification");
+	const QString colored_labels_word = QStringLiteral("colored_labels");
+	const QString nozzle_texts_word = QStringLiteral("nozzle_texts_on_paper");
+	constexpr int largest_text_size = 200;
+
+	bool isTextSize(int size)
+	{
+		return size > 0 && size <= largest_text_size;
+	}
 
 	const PidCodification::Entry *find(const QList<PidCodification::Entry> &list,
 									   const QString &code)
@@ -134,6 +142,12 @@ QStringList PidCodification::statuses()
 	return {QStringLiteral("existing"), QStringLiteral("demolished")};
 }
 
+QStringList PidCodification::textCategories()
+{
+	return {QStringLiteral("equipment"), QStringLiteral("valve"),
+			QStringLiteral("instrument"), nozzleTexts()};
+}
+
 /**
 	@brief PidCodification::completedWith
 	See the declaration
@@ -149,6 +163,11 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.fluid_family_colors = other.fluid_family_colors;
 		result.object_colors = other.object_colors;
 		result.status_colors = other.status_colors;
+	}
+	if (!hasTextSettings()) {
+		result.text_sizes = other.text_sizes;
+		result.colored_labels = other.colored_labels;
+		result.nozzle_texts_on_paper = other.nozzle_texts_on_paper;
 	}
 	return result;
 }
@@ -171,6 +190,19 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	writeColors(document, block, QStringLiteral("fluid_family"), fluid_family_colors);
 	writeColors(document, block, QStringLiteral("object"), object_colors);
 	writeColors(document, block, QStringLiteral("status"), status_colors);
+	for (auto it = text_sizes.cbegin() ; it != text_sizes.cend() ; ++it)
+	{
+		QDomElement e = document.createElement(QStringLiteral("text_size"));
+		e.setAttribute(QStringLiteral("category"), it.key());
+		e.setAttribute(QStringLiteral("points"), it.value());
+		block.appendChild(e);
+	}
+	if (colored_labels) {
+		block.setAttribute(colored_labels_word, QStringLiteral("true"));
+	}
+	if (!nozzle_texts_on_paper) {
+		block.setAttribute(nozzle_texts_word, QStringLiteral("false"));
+	}
 	return block;
 }
 
@@ -186,13 +218,27 @@ void PidCodification::fromXml(const QDomElement &parent)
 	fluid_family_colors = readColors(block, QStringLiteral("fluid_family"));
 	object_colors = readColors(block, QStringLiteral("object"));
 	status_colors = readColors(block, QStringLiteral("status"));
+
+	text_sizes.clear();
+	const QString tag = QStringLiteral("text_size");
+	for (QDomElement e = block.firstChildElement(tag) ; !e.isNull() ;
+		 e = e.nextSiblingElement(tag))
+	{
+		const QString category = e.attribute(QStringLiteral("category")).trimmed();
+		const int size = e.attribute(QStringLiteral("points")).toInt();
+		if (!category.isEmpty() && isTextSize(size)) {
+			text_sizes.insert(category, size);
+		}
+	}
+	colored_labels = block.attribute(colored_labels_word) == QLatin1String("true");
+	nozzle_texts_on_paper = block.attribute(nozzle_texts_word) != QLatin1String("false");
 }
 
 /**
-	@brief PidCodification::colorsToCsv
+	@brief PidCodification::paletteToCsv
 	See the declaration
 */
-QString PidCodification::colorsToCsv() const
+QString PidCodification::paletteToCsv() const
 {
 	QString text;
 	auto write = [&text](const QString &kind, const QMap<QString, QColor> &colors) {
@@ -204,6 +250,16 @@ QString PidCodification::colorsToCsv() const
 	write(QStringLiteral("fluid_color"), fluid_family_colors);
 	write(QStringLiteral("object_color"), object_colors);
 	write(QStringLiteral("status_color"), status_colors);
+	for (auto it = text_sizes.cbegin() ; it != text_sizes.cend() ; ++it) {
+		text += QStringLiteral("text_size;") + it.key() + QLatin1Char(';')
+				+ QString::number(it.value()) + QLatin1Char('\n');
+	}
+	if (colored_labels) {
+		text += QStringLiteral("text_option;") + colored_labels_word + QStringLiteral(";true\n");
+	}
+	if (!nozzle_texts_on_paper) {
+		text += QStringLiteral("text_option;") + nozzle_texts_word + QStringLiteral(";false\n");
+	}
 	return text;
 }
 
@@ -260,6 +316,32 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 			}
 			continue;
 		}
+		if (kind == QLatin1String("text_size") || kind == QLatin1String("taille_texte"))
+		{
+			const QString category = fields.value(1);
+			const int size = fields.value(2).toInt();
+			if (category.isEmpty() || !isTextSize(size) || codification.text_sizes.contains(category)) {
+				++left_out;
+			} else {
+				codification.text_sizes.insert(category, size);
+			}
+			continue;
+		}
+		if (kind == QLatin1String("text_option") || kind == QLatin1String("option_texte"))
+		{
+			const QString value = fields.value(2).toLower();
+			const bool yes = value == QLatin1String("true");
+			if (!yes && value != QLatin1String("false")) {
+				++left_out;
+			} else if (fields.value(1) == colored_labels_word) {
+				codification.colored_labels = yes;
+			} else if (fields.value(1) == nozzle_texts_word) {
+				codification.nozzle_texts_on_paper = yes;
+			} else {
+				++left_out;
+			}
+			continue;
+		}
 		const bool is_fluid = kind == QLatin1String("fluid") || kind == QLatin1String("fluide");
 		const bool is_material = kind == QLatin1String("material") || kind == QStringLiteral("matériau")
 							   || kind == QLatin1String("materiau");
@@ -294,5 +376,8 @@ bool PidCodification::operator==(const PidCodification &other) const
 	return fluids == other.fluids && materials == other.materials
 			&& fluid_family_colors == other.fluid_family_colors
 			&& object_colors == other.object_colors
-			&& status_colors == other.status_colors;
+			&& status_colors == other.status_colors
+			&& text_sizes == other.text_sizes
+			&& colored_labels == other.colored_labels
+			&& nozzle_texts_on_paper == other.nozzle_texts_on_paper;
 }

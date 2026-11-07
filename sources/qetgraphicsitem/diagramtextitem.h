@@ -102,6 +102,9 @@ class DiagramTextItem : public QGraphicsTextItem
 
 		void paintText(QPainter *, const QStyleOptionGraphicsItem *, QWidget *);
 		const QTextDocument *translatedDocument() const;
+			/// A colour to draw this text in instead of its own, which stays
+			/// the one saved; none by default
+		virtual QColor drawnColor() const { return QColor(); }
 
 		void paint(QPainter *,
 			   const QStyleOptionGraphicsItem *,

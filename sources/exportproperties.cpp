@@ -35,6 +35,7 @@ ExportProperties::ExportProperties() :
 	draw_titleblock(true),
 	draw_terminals(false),
 	draw_terminal_names(false),
+	draw_nozzle_names(true),
 	draw_bg_transparent(false),
 	draw_colored_conductors(true),
 	dxf_blocks(false),

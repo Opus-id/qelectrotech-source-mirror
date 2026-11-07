@@ -23,13 +23,17 @@
 #include "../../utils/qetsettings.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QColorDialog>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QSet>
+#include <QShortcut>
+#include <QSpinBox>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QUndoStack>
@@ -52,6 +56,51 @@ PidConfigPage::PidConfigPage(QETProject *project, QWidget *parent) :
 	ProjectConfigPage(project, parent)
 {
 	init();
+
+		//The window of the properties of the project blocks the editor, and
+		//its undo, as long as it is open: what was applied here can be taken
+		//back from here. Only that: another step could take a folio away
+		//from under the other pages of the window.
+	connect(new QShortcut(QKeySequence::Undo, this), &QShortcut::activated,
+			this, &PidConfigPage::undoLastChange);
+	connect(new QShortcut(QKeySequence::Redo, this), &QShortcut::activated,
+			this, &PidConfigPage::redoLastChange);
+	if (m_project) {
+		connect(m_project, &QETProject::pidCodificationChanged,
+				this, &PidConfigPage::readValuesFromProject);
+	}
+}
+
+/**
+	@brief PidConfigPage::undoLastChange
+	Undo the last step of the project if it is a change of this page
+*/
+void PidConfigPage::undoLastChange()
+{
+	if (!m_project) {
+		return;
+	}
+	QUndoStack *stack = m_project->undoStack();
+	const int index = stack->index();
+	if (index > 0 && dynamic_cast<const ChangePidCodificationCommand *>(stack->command(index - 1))) {
+		stack->undo();
+	}
+}
+
+/**
+	@brief PidConfigPage::redoLastChange
+	Redo the next step of the project if it is a change of this page
+*/
+void PidConfigPage::redoLastChange()
+{
+	if (!m_project) {
+		return;
+	}
+	QUndoStack *stack = m_project->undoStack();
+	const int index = stack->index();
+	if (index < stack->count() && dynamic_cast<const ChangePidCodificationCommand *>(stack->command(index))) {
+		stack->redo();
+	}
 }
 
 /**
@@ -87,7 +136,7 @@ void PidConfigPage::initWidgets()
 	m_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	m_table->verticalHeader()->hide();
-	m_table->horizontalHeader()->setStretchLastSection(true);
+	m_table->horizontalHeader()->setStretchLastSection(false);
 		//A click in the colour of a line asks it at once; with Ctrl or Shift
 		//it is a selection, for the buttons
 	connect(m_table, &QTableWidget::cellClicked, this, [this](int, int column) {
@@ -110,10 +159,35 @@ void PidConfigPage::initWidgets()
 
 	m_save_palette = new QPushButton(tr("Save as default palette"), this);
 	m_save_palette->setObjectName(QStringLiteral("save_palette"));
-	m_save_palette->setToolTip(tr("New projects will start with these colors. "
+	m_save_palette->setToolTip(tr("New projects will start with these colors and these texts. "
 								  "Projects that already exist do not change."));
 	connect(m_save_palette, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultPalette);
 	m_palette_saved = new QLabel(this);
+
+	for (const QString &category : PidCodification::textCategories())
+	{
+		auto *size = new QSpinBox(this);
+		size->setObjectName(QStringLiteral("text_size_") + category);
+		size->setRange(0, 200);
+		size->setSuffix(tr(" pt"));
+		size->setSpecialValueText(tr("Size of the symbol"));
+		connect(size, &QSpinBox::valueChanged, this, &PidConfigPage::readTextWidgets);
+		m_text_sizes.insert(category, size);
+
+			//Emptying the field gives its former value back: 0 is not obvious
+		auto *reset = new QPushButton(tr("Back to the size of the symbol"), this);
+		reset->setObjectName(QStringLiteral("text_size_reset_") + category);
+		connect(reset, &QPushButton::clicked, size, [size]() { size->setValue(0); });
+		m_text_size_resets.insert(category, reset);
+	}
+	m_colored_labels = new QCheckBox(tr("Labels take the color of their symbol"), this);
+	m_colored_labels->setObjectName(QStringLiteral("colored_labels"));
+	connect(m_colored_labels, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
+	m_nozzle_texts_on_paper = new QCheckBox(tr("Print and export the names and DN of the nozzles"), this);
+	m_nozzle_texts_on_paper->setObjectName(QStringLiteral("nozzle_texts_on_paper"));
+	m_nozzle_texts_on_paper->setToolTip(tr("How the box \"Draw the names and DN of the nozzles\" starts "
+										   "in each print and export."));
+	connect(m_nozzle_texts_on_paper, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
 }
 
 void PidConfigPage::initLayout()
@@ -122,8 +196,6 @@ void PidConfigPage::initLayout()
 	buttons->addWidget(m_choose);
 	buttons->addWidget(m_clear);
 	buttons->addStretch();
-	buttons->addWidget(m_palette_saved);
-	buttons->addWidget(m_save_palette);
 
 	auto *colors_tab = new QWidget(this);
 	auto *layout = new QVBoxLayout(colors_tab);
@@ -135,16 +207,57 @@ void PidConfigPage::initLayout()
 	layout->addWidget(m_table);
 	layout->addLayout(buttons);
 
+	auto *texts_tab = new QWidget(this);
+	auto *texts_layout = new QVBoxLayout(texts_tab);
+	auto *texts_help = new QLabel(tr("A label placed follows its category as long as it has its former "
+									 "size: a size set by hand stays."), texts_tab);
+	texts_help->setWordWrap(true);
+	texts_layout->addWidget(texts_help);
+	auto *sizes = new QFormLayout();
+	const QStringList names{tr("Labels of equipment:"), tr("Labels of valves:"),
+							tr("Labels of instruments:"), tr("Names and DN of nozzles:")};
+	const QStringList categories = PidCodification::textCategories();
+	for (int i = 0 ; i < categories.size() ; ++i) {
+		auto *row = new QHBoxLayout();
+		row->addWidget(m_text_sizes.value(categories.at(i)));
+		row->addWidget(m_text_size_resets.value(categories.at(i)));
+		row->addStretch();
+		sizes->addRow(names.at(i), row);
+	}
+	texts_layout->addLayout(sizes);
+	texts_layout->addWidget(m_colored_labels);
+	texts_layout->addWidget(m_nozzle_texts_on_paper);
+	texts_layout->addStretch();
+
 	auto *tabs = new QTabWidget(this);
 	tabs->addTab(colors_tab, tr("Colors"));
+	tabs->addTab(texts_tab, tr("Texts"));
+
+	auto *palette = new QHBoxLayout();
+	palette->addStretch();
+	palette->addWidget(m_palette_saved);
+	palette->addWidget(m_save_palette);
+
 	auto *page_layout = new QVBoxLayout(this);
 	page_layout->addWidget(tabs);
+	page_layout->addLayout(palette);
 }
 
 void PidConfigPage::readValuesFromProject()
 {
 	m_codification = m_project->pidCodification();
 	fillTable();
+
+		//Each change of a widget reads them all: they are all set first
+	const PidCodification codification = m_codification;
+	for (auto it = m_text_sizes.cbegin() ; it != m_text_sizes.cend() ; ++it) {
+		const QSignalBlocker blocker(it.value());
+		it.value()->setValue(codification.text_sizes.value(it.key()));
+	}
+	const QSignalBlocker colored_blocker(m_colored_labels);
+	m_colored_labels->setChecked(codification.colored_labels);
+	const QSignalBlocker paper_blocker(m_nozzle_texts_on_paper);
+	m_nozzle_texts_on_paper->setChecked(codification.nozzle_texts_on_paper);
 }
 
 void PidConfigPage::adjustReadOnly()
@@ -153,6 +266,30 @@ void PidConfigPage::adjustReadOnly()
 	m_table->setEnabled(!read_only);
 	m_choose->setEnabled(!read_only);
 	m_clear->setEnabled(!read_only);
+	for (QSpinBox *size : std::as_const(m_text_sizes)) {
+		size->setEnabled(!read_only);
+	}
+	for (QPushButton *reset : std::as_const(m_text_size_resets)) {
+		reset->setEnabled(!read_only);
+	}
+	m_colored_labels->setEnabled(!read_only);
+	m_nozzle_texts_on_paper->setEnabled(!read_only);
+}
+
+/**
+	@brief PidConfigPage::readTextWidgets
+	Take what the tab of the texts shows
+*/
+void PidConfigPage::readTextWidgets()
+{
+	m_codification.text_sizes.clear();
+	for (auto it = m_text_sizes.cbegin() ; it != m_text_sizes.cend() ; ++it) {
+		if (it.value()->value() > 0) {
+			m_codification.text_sizes.insert(it.key(), it.value()->value());
+		}
+	}
+	m_codification.colored_labels = m_colored_labels->isChecked();
+	m_codification.nozzle_texts_on_paper = m_nozzle_texts_on_paper->isChecked();
 }
 
 /**
@@ -161,9 +298,9 @@ void PidConfigPage::adjustReadOnly()
 */
 void PidConfigPage::saveAsDefaultPalette()
 {
-	QetSettings::setPidPalette(m_codification.colorsToCsv());
-	m_palette_saved->setText(m_codification.hasColors() ? tr("Palette saved")
-														: tr("Default palette removed"));
+	QetSettings::setPidPalette(m_codification.paletteToCsv());
+	m_palette_saved->setText(m_codification.hasColors() || m_codification.hasTextSettings()
+							 ? tr("Palette saved") : tr("Default palette removed"));
 }
 
 /**
@@ -254,6 +391,9 @@ void PidConfigPage::fillTable()
 	m_table->resizeColumnsToContents();
 		//The lines keep their place: what was selected stays so
 	for (int row : rows_selected) {
+		if (row >= m_table->rowCount()) {
+			continue;
+		}
 		for (int column = 0 ; column < m_table->columnCount() ; ++column) {
 			m_table->item(row, column)->setSelected(true);
 		}

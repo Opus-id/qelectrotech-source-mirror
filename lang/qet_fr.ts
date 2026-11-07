@@ -7801,6 +7801,11 @@ En important ce fichier, vous confirmez que :
         <translation>Dessiner les noms des bornes</translation>
     </message>
     <message>
+        <location filename="../sources/exportpropertieswidget.cpp" line="235"/>
+        <source>Draw the names and DN of the nozzles</source>
+        <translation>Dessiner les noms et DN des piquages</translation>
+    </message>
+    <message>
         <location filename="../sources/exportpropertieswidget.cpp" line="224"/>
         <source>Keep conductors colors</source>
         <translation>Conserver les couleurs</translation>
@@ -12151,8 +12156,68 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="114"/>
-        <source>New projects will start with these colors. Projects that already exist do not change.</source>
-        <translation>Les nouveaux projets commenceront avec ces couleurs. Les projets existants ne changent pas.</translation>
+        <source>New projects will start with these colors and these texts. Projects that already exist do not change.</source>
+        <translation>Les nouveaux projets commenceront avec ces couleurs et ces textes. Les projets existants ne changent pas.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="125"/>
+        <source> pt</source>
+        <translation> pt</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="126"/>
+        <source>Size of the symbol</source>
+        <translation>Taille du symbole</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="133"/>
+        <source>Back to the size of the symbol</source>
+        <translation>Revenir à la taille du symbole</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>Labels take the color of their symbol</source>
+        <translation>Les repères prennent la couleur de leur symbole</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="133"/>
+        <source>Print and export the names and DN of the nozzles</source>
+        <translation>Imprimer et exporter les noms et DN des piquages</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="135"/>
+        <source>How the box &quot;Draw the names and DN of the nozzles&quot; starts in each print and export.</source>
+        <translation>État de départ de la case « Dessiner les noms et DN des piquages » à chaque impression et à chaque export.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>A label placed follows its category as long as it has its former size: a size set by hand stays.</source>
+        <translation>Un repère posé suit sa catégorie tant qu&apos;il a son ancienne taille : une taille réglée à la main reste.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="163"/>
+        <source>Labels of equipment:</source>
+        <translation>Repères d&apos;équipement :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="163"/>
+        <source>Labels of valves:</source>
+        <translation>Repères de robinetterie :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="164"/>
+        <source>Labels of instruments:</source>
+        <translation>Repères d&apos;instrument :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="164"/>
+        <source>Names and DN of nozzles:</source>
+        <translation>Noms et DN des piquages :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="175"/>
+        <source>Texts</source>
+        <translation>Textes</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="160"/>
@@ -13584,6 +13649,11 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <location filename="../sources/print/projectprintwindow.ui" line="188"/>
         <source>Draw the names of the terminals</source>
         <translation>Dessiner les noms des bornes</translation>
+    </message>
+    <message>
+        <location filename="../sources/print/projectprintwindow.ui" line="197"/>
+        <source>Draw the names and DN of the nozzles</source>
+        <translation>Dessiner les noms et DN des piquages</translation>
     </message>
     <message>
         <location filename="../sources/print/projectprintwindow.ui" line="198"/>

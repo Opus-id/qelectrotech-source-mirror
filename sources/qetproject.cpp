@@ -4652,6 +4652,18 @@ void QETProject::setPidCodification(const PidCodification &codification)
 	if (codification == m_pid_codification) {
 		return;
 	}
+		//The texts of the nozzles take another room
+	if (codification.text_sizes.value(PidCodification::nozzleTexts())
+		!= m_pid_codification.text_sizes.value(PidCodification::nozzleTexts()))
+	{
+		for (Diagram *folio : std::as_const(m_diagrams_list)) {
+			for (Element *element : folio->elements()) {
+				for (Terminal *terminal : element->terminals()) {
+					terminal->prepareLabelChange();
+				}
+			}
+		}
+	}
 	m_pid_codification = codification;
 
 	const QString owner = QString::fromLatin1(projectDataBase::project_owner);
@@ -4690,7 +4702,7 @@ void QETProject::setPidCodification(const PidCodification &codification)
 void QETProject::takeDefaultPidPalette()
 {
 	const PidCodification palette = PidCodification::fromCsv(QetSettings::pidPalette());
-	if (!palette.hasColors()) {
+	if (!palette.hasColors() && !palette.hasTextSettings()) {
 		return;
 	}
 	setPidCodification(palette);

@@ -64,6 +64,7 @@ ExportProperties ExportPropertiesWidget::exportProperties() const
 	export_properties.draw_titleblock         = draw_titleblock     -> isChecked();
 	export_properties.draw_terminals          = draw_terminals -> isChecked();
 	export_properties.draw_terminal_names     = draw_terminal_names -> isChecked();
+	export_properties.draw_nozzle_names       = draw_nozzle_names -> isChecked();
 	export_properties.draw_bg_transparent     = draw_bg_transparent -> isChecked();
 	export_properties.draw_colored_conductors = draw_colored_conductors -> isChecked();
 	export_properties.dxf_blocks              = dxf_blocks -> isChecked();
@@ -90,6 +91,7 @@ void ExportPropertiesWidget::setExportProperties(const ExportProperties &export_
 	draw_titleblock         -> setChecked(export_properties.draw_titleblock);
 	draw_terminals          -> setChecked(export_properties.draw_terminals);
 	draw_terminal_names     -> setChecked(export_properties.draw_terminal_names);
+	draw_nozzle_names       -> setChecked(export_properties.draw_nozzle_names);
 	draw_bg_transparent     -> setChecked(export_properties.draw_bg_transparent);
 	draw_colored_conductors -> setChecked(export_properties.draw_colored_conductors);
 	dxf_blocks              -> setChecked(export_properties.dxf_blocks);
@@ -102,6 +104,16 @@ void ExportPropertiesWidget::setExportProperties(const ExportProperties &export_
 	} else {
 		export_elements -> setChecked(true);
 	}
+}
+
+/**
+	@brief ExportPropertiesWidget::offerNozzleNames
+	See the declaration
+*/
+void ExportPropertiesWidget::offerNozzleNames(bool checked)
+{
+	draw_nozzle_names -> setChecked(checked);
+	draw_nozzle_names -> setVisible(true);
 }
 
 /**
@@ -219,30 +231,37 @@ void ExportPropertiesWidget::build()
 	// dessiner les noms des bornes
 	draw_terminal_names = new QCheckBox(tr("Draw the names of the terminals"), groupbox_options);
 	optionshlayout -> addWidget(draw_terminal_names, 3, 0);
-	
+
+	// the names and diameters of the nozzles, set apart from those of the
+	// terminals; hidden where no project gives its start
+	draw_nozzle_names = new QCheckBox(tr("Draw the names and DN of the nozzles"), groupbox_options);
+	draw_nozzle_names -> setObjectName(QStringLiteral("draw_nozzle_names"));
+	draw_nozzle_names -> setVisible(false);
+	optionshlayout -> addWidget(draw_nozzle_names, 4, 0);
+
 	// conserver les couleurs des conducteurs
 	draw_colored_conductors = new QCheckBox(tr("Keep conductors colors"), groupbox_options);
 	optionshlayout -> addWidget(draw_colored_conductors, 3, 1);
 	
 	// use transparent background for SVG-Export
 	draw_bg_transparent = new QCheckBox(tr("SVG-background transparent"), groupbox_options);
-	optionshlayout -> addWidget(draw_bg_transparent, 4, 0);
+	optionshlayout -> addWidget(draw_bg_transparent, 5, 0);
 
 	// each symbol as a DXF block (issue #1339)
 	dxf_blocks = new QCheckBox(tr("DXF: symbols as blocks"), groupbox_options);
 	dxf_blocks -> setToolTip(tr("Each symbol becomes a DXF block, selectable with one click in CAD software"));
-	optionshlayout -> addWidget(dxf_blocks, 4, 1);
+	optionshlayout -> addWidget(dxf_blocks, 5, 1);
 
 	// with blocks, a symbol's texts as attributes of its block
 	dxf_attributes = new QCheckBox(tr("DXF: symbol texts as attributes"), groupbox_options);
 	dxf_attributes -> setToolTip(tr("A symbol's texts (label, function...) become attributes of its block. LibreCAD does not show attributes."));
-	optionshlayout -> addWidget(dxf_attributes, 5, 1);
+	optionshlayout -> addWidget(dxf_attributes, 6, 1);
 	connect(dxf_blocks, &QCheckBox::toggled, dxf_attributes, &QCheckBox::setEnabled);
 
 	// pictures not at full resolution in an SVG: a much smaller file
 	svg_small_pictures = new QCheckBox(tr("SVG: smaller pictures"), groupbox_options);
 	svg_small_pictures -> setToolTip(tr("Pictures are stored at four times the size they have on the folio instead of their full resolution: a much smaller file, still sharp when printed"));
-	optionshlayout -> addWidget(svg_small_pictures, 5, 0);
+	optionshlayout -> addWidget(svg_small_pictures, 6, 0);
 	
 	vboxLayout -> addWidget(groupbox_options);
 	
@@ -274,6 +293,7 @@ void ExportPropertiesWidget::build()
 	connect(draw_titleblock, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_terminals, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_terminal_names, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
+	connect(draw_nozzle_names, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_bg_transparent, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_colored_conductors, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(dxf_blocks, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
@@ -285,6 +305,7 @@ void ExportPropertiesWidget::build()
 	connect(draw_titleblock, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_terminals, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_terminal_names, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
+	connect(draw_nozzle_names, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_bg_transparent, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_colored_conductors, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(dxf_blocks, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);

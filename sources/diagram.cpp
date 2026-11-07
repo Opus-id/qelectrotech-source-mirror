@@ -3894,6 +3894,7 @@ ExportProperties Diagram::applyProperties(
 	old_properties.draw_titleblock = border_and_titleblock.titleBlockIsDisplayed();
 	old_properties.draw_terminals          = drawTerminals();
 	old_properties.draw_terminal_names     = drawTerminalNames();
+	old_properties.draw_nozzle_names       = drawNozzleNames();
 	old_properties.draw_colored_conductors = drawColoredConductors();
 	old_properties.exported_area = useBorder() ? QET::BorderArea
 						   : QET::ElementsArea;
@@ -3903,6 +3904,7 @@ ExportProperties Diagram::applyProperties(
 	setUseBorder             (new_properties.exported_area == QET::BorderArea);
 	setDrawTerminals         (new_properties.draw_terminals);
 	setDrawTerminalNames     (new_properties.draw_terminal_names);
+	setDrawNozzleNames       (new_properties.draw_nozzle_names);
 	setDrawColoredConductors (new_properties.draw_colored_conductors);
 	setDisplayGrid           (new_properties.draw_grid);
 	setDisplayGuides         (new_properties.draw_guides);
@@ -4027,6 +4029,20 @@ void Diagram::setDrawTerminals(bool dt) {
 */
 void Diagram::setDrawTerminalNames(bool dt) {
 	draw_terminal_names_ = dt;
+	foreach(QGraphicsItem *qgi, items()) {
+		if (Terminal *t = qgraphicsitem_cast<Terminal *>(qgi)) {
+			t -> update();
+		}
+	}
+}
+
+/**
+	@brief Diagram::setDrawNozzleNames
+	Defines whether or not to display the names and diameters of the nozzles
+	@param draw : true to display them, false otherwise
+*/
+void Diagram::setDrawNozzleNames(bool draw) {
+	m_draw_nozzle_names = draw;
 	foreach(QGraphicsItem *qgi, items()) {
 		if (Terminal *t = qgraphicsitem_cast<Terminal *>(qgi)) {
 			t -> update();

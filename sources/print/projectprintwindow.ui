@@ -193,6 +193,13 @@
           </widget>
         </item>
         <item>
+          <widget class="QCheckBox" name="m_draw_nozzle_names_cb">
+           <property name="text">
+            <string>Draw the names and DN of the nozzles</string>
+           </property>
+          </widget>
+        </item>
+        <item>
           <widget class="QCheckBox" name="m_component_info_cb">
            <property name="text">
             <string>Enter the component details</string>

@@ -157,15 +157,20 @@ void renderDiagram(Diagram *diagram, QPainter &painter, const QRectF &target,
 	const bool was_drawing_guides = diagram->displayGuides();
 	const bool was_drawing_terminals = diagram->drawTerminals();
 	const bool was_drawing_terminal_names = diagram->drawTerminalNames();
+	const bool was_drawing_nozzle_names = diagram->drawNozzleNames();
 	diagram->setDisplayGrid(false);
 	diagram->setDisplayGuides(false);
 	diagram->setDrawTerminals(showTerminals);
 	diagram->setDrawTerminalNames(showTerminals);
+	diagram->setDrawNozzleNames(showTerminals
+								|| (diagram->project()
+									&& diagram->project()->pidCodification().nozzle_texts_on_paper));
 	diagram->render(&painter, target, source, Qt::KeepAspectRatio);
 	diagram->setDisplayGrid(was_drawing_grid);
 	diagram->setDisplayGuides(was_drawing_guides);
 	diagram->setDrawTerminals(was_drawing_terminals);
 	diagram->setDrawTerminalNames(was_drawing_terminal_names);
+	diagram->setDrawNozzleNames(was_drawing_nozzle_names);
 }
 
 /// The time SOURCE_DATE_EPOCH names, in seconds since 1970 UTC, or an

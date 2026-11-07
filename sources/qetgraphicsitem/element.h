@@ -37,6 +37,7 @@ class Terminal;
 class Conductor;
 class DynamicElementTextItem;
 class ElementTextItemGroup;
+class PidCodification;
 class QUndoCommand;
 
 /**
@@ -237,6 +238,18 @@ class Element : public QetGraphicsItem
 		bool isPipeInline() const;
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
+			/// The colour of the label of this symbol when the project draws
+			/// labels in the colour of their symbol, else none
+		QColor labelInk() const;
+			/// The texts of this element showing its label, grouped or not
+		QList<DynamicElementTextItem *> labelTexts() const;
+			/// The size of the labels of this symbol under @p codification:
+			/// the one of its family, else the one of the symbol. 0 for a
+			/// symbol which is not of a P&ID
+		int labelSize(const PidCodification &codification) const;
+			/// Give the labels of this new element the size of its family,
+			/// if @p codification sets one
+		void takeLabelSize(const PidCodification &codification);
 			/// True for a fitting (a tee, the end of a pipe), drawn after
 			/// the pipe it is connected to
 		bool followsPipes() const;

@@ -136,6 +136,7 @@ class Diagram : public QGraphicsScene
 		QList<Diagram::Guide> m_guides_list;
 		bool draw_terminals_;
 		bool draw_terminal_names_;
+		bool m_draw_nozzle_names = true;
 		bool draw_colored_conductors_;
 		bool m_small_pictures = false;
 
@@ -359,6 +360,8 @@ class Diagram : public QGraphicsScene
 		void setDrawTerminals(bool);
 		bool drawTerminalNames() const;
 		void setDrawTerminalNames(bool);
+		bool drawNozzleNames() const;
+		void setDrawNozzleNames(bool);
 		bool drawColoredConductors() const;
 		void setDrawColoredConductors(bool);
 			/// While true, pictures draw a copy of a few times the size
@@ -607,6 +610,15 @@ inline bool Diagram::drawTerminals() const
 inline bool Diagram::drawTerminalNames() const
 {
 	return(draw_terminal_names_);
+}
+
+/**
+	@brief Diagram::drawNozzleNames
+	@return true if the names and diameters of the nozzles are rendered
+*/
+inline bool Diagram::drawNozzleNames() const
+{
+	return(m_draw_nozzle_names);
 }
 
 /**

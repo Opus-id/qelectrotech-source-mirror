@@ -283,6 +283,7 @@ bool DiagramEventAddElement::buildElement()
 		delete m_element;
 		return(false);
 	}
+	m_element->takeLabelSize(m_diagram->project()->pidCodification());
 		//Everything is good
 	return true;
 }
@@ -375,6 +376,7 @@ Element *DiagramEventAddElement::createElement() const
 	if (!m_like_nozzles.isEmpty()) {
 		element->setNozzleDiameters(m_like_nozzles);
 	}
+	element->takeLabelSize(m_diagram->project()->pidCodification());
 	return element;
 }
 

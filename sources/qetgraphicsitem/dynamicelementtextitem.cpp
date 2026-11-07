@@ -1026,6 +1026,32 @@ void DynamicElementTextItem::paint(QPainter *painter, const QStyleOptionGraphics
 	}
 }
 
+/**
+	@brief DynamicElementTextItem::isLabel
+	See the declaration
+*/
+bool DynamicElementTextItem::isLabel() const
+{
+	return (m_text_from == ElementInfo && m_info_name == QLatin1String("label"))
+			|| (m_text_from == CompositeText
+				&& m_composite_text.contains(QLatin1String("%{label}")));
+}
+
+/**
+	@brief DynamicElementTextItem::drawnColor
+	@return the colour the project gives the label of a symbol of P&ID, if
+	any. Not while the text is edited, nor while it is shown as a link
+	(m_user_color keeps its colour for that time).
+*/
+QColor DynamicElementTextItem::drawnColor() const
+{
+	const Element *element = parentElement();
+	if (!element || !isLabel() || isEditing() || m_user_color.isValid()) {
+		return QColor();
+	}
+	return element->labelInk();
+}
+
 QVariant DynamicElementTextItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant &value)
 {
 	if (change == QGraphicsItem::ItemSceneHasChanged)
