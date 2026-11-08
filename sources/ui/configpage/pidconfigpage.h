@@ -19,6 +19,7 @@
 #define PIDCONFIGPAGE_H
 
 #include "../../pidcodification.h"
+#include "../../undocommand/changepidcodificationcommand.h"
 #include "projectconfigpages.h"
 
 #include <functional>
@@ -27,11 +28,18 @@ class QCheckBox;
 class QLabel;
 class QPushButton;
 class QSpinBox;
+class QTabWidget;
 class QTableWidget;
+class QTableWidgetItem;
 
 /**
 	@brief The PidConfigPage class
-	What is set for the P&IDs of a project, in tabs. Its colours, by family
+	What is set for the P&IDs of a project, in tabs. Its codification: the
+	codes of its fluids, materials and functional units, edited in a table
+	or read from a file. A pipe line keeps a code: a name changed touches no
+	pipe, a code changed is given to the pipes and symbols bearing it when
+	the page is applied, a code removed stays on them as free text, and a
+	code is unique in its list. Its colours, by family
 	of fluid, by family of object and by status of works (PidCodification):
 	the code knows no colour of its own, what has none is drawn in black, as
 	before. The size of its texts by category: what has none keeps the size
@@ -64,6 +72,28 @@ class PidConfigPage : public ProjectConfigPage
 			/// projects stay as they are
 		void saveAsDefaultPalette();
 
+			/// Read the file @p path in this page: its codes replace those of
+			/// the page, its colours and texts those of the page when it has
+			/// some; the project takes them when the page is applied. False
+			/// when nothing could be read, or when the user said no.
+		bool importCsv(const QString &path);
+			/// Write the codification of this page, codes then palette, in
+			/// the file @p path, which importCsv() reads back
+		bool exportCsv(const QString &path);
+			/// The codes changed in this page, which the pipes and symbols
+			/// bearing them will take when it is applied
+		ChangePidCodificationCommand::CodeChanges codeChanges() const;
+			/// What asks a question, a message box unless a test says
+			/// otherwise; it answers true for yes
+		void setConfirmer(const std::function<bool(const QString &)> &confirm) { m_confirm = confirm; }
+			/// The table of the list @p list
+		QTableWidget *codeTable(PidCodification::List list) const { return m_code_tables.value(list); }
+			/// Add an empty line to the list shown, and edit its code
+		void addEntry();
+			/// Remove the lines selected of the list shown, after a question
+			/// when pipes or symbols bear their codes
+		void removeSelectedEntries();
+
 	protected:
 		void initWidgets() override;
 		void initLayout() override;
@@ -79,6 +109,21 @@ class PidConfigPage : public ProjectConfigPage
 		void readTextWidgets();
 		void undoLastChange();
 		void redoLastChange();
+		void showCodification(bool fill_codes, bool codes_from_project);
+		void fillCodeTables(bool from_project);
+		void codeItemChanged(QTableWidgetItem *item);
+		void readCodeTable(PidCodification::List list);
+		PidCodification::List shownList() const;
+		bool confirm(const QString &question);
+
+		QTabWidget *m_code_tabs = nullptr;
+		QMap<PidCodification::List, QTableWidget *> m_code_tables;
+		QPushButton *m_add_entry = nullptr;
+		QPushButton *m_remove_entry = nullptr;
+		QPushButton *m_import = nullptr;
+		QPushButton *m_export = nullptr;
+		QLabel *m_code_message = nullptr;
+		std::function<bool(const QString &)> m_confirm;
 
 		QTableWidget *m_table = nullptr;
 		QPushButton *m_choose = nullptr;

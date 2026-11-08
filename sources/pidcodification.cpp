@@ -20,6 +20,8 @@
 #include <QSet>
 #include <QStringList>
 
+#include <algorithm>
+
 namespace
 {
 	const QString block_tag = QStringLiteral("pid_codification");
@@ -85,6 +87,55 @@ namespace
 		return colors;
 	}
 
+		/// The fields of a line of a file of codes: a field between quotes
+		/// may hold the separator, and "" stands for a quote in it
+	QStringList splitFields(const QString &line, QChar separator)
+	{
+		QStringList fields;
+		QString field;
+		bool quoted = false;
+		for (int i = 0 ; i < line.size() ; ++i)
+		{
+			const QChar c = line.at(i);
+			if (quoted)
+			{
+				if (c != QLatin1Char('"')) {
+					field += c;
+				} else if (i + 1 < line.size() && line.at(i + 1) == QLatin1Char('"')) {
+					field += c;
+					++i;
+				} else {
+					quoted = false;
+				}
+			}
+			else if (c == QLatin1Char('"') && field.trimmed().isEmpty()) {
+				field.clear();
+				quoted = true;
+			}
+			else if (c == separator) {
+				fields << field.trimmed();
+				field.clear();
+			}
+			else {
+				field += c;
+			}
+		}
+		fields << field.trimmed();
+		return fields;
+	}
+
+		/// @p field as a field of a line fromCsv() reads back
+	QString csvField(const QString &field)
+	{
+		if (!field.contains(QLatin1Char(';')) && !field.contains(QLatin1Char('"'))
+			&& field.trimmed() == field) {
+			return field;
+		}
+		QString quoted = field;
+		quoted.replace(QStringLiteral("\""), QStringLiteral("\"\""));
+		return QLatin1Char('"') + quoted + QLatin1Char('"');
+	}
+
 	QList<PidCodification::Entry> readList(const QDomElement &block, const QString &tag)
 	{
 		QList<PidCodification::Entry> list;
@@ -109,6 +160,84 @@ namespace
 bool PidCodification::Entry::operator==(const Entry &other) const
 {
 	return code == other.code && name == other.name && family == other.family;
+}
+
+QList<PidCodification::Entry> &PidCodification::entries(List list)
+{
+	switch (list) {
+		case List::Fluids:    return fluids;
+		case List::Materials: return materials;
+		case List::Units:     return functional_units;
+	}
+	return functional_units;
+}
+
+const QList<PidCodification::Entry> &PidCodification::entries(List list) const
+{
+	return const_cast<PidCodification *>(this)->entries(list);
+}
+
+/**
+	@brief PidCodification::codeLessThan
+	See the declaration; two codes which differ only by their case keep an
+	order of their own, so that the order never depends on the list read
+*/
+bool PidCodification::codeLessThan(const QString &a, const QString &b)
+{
+		//By hand rather than by a collator, whose numeric mode some
+		//platforms lack: the order saved must be the same everywhere
+	int i = 0, j = 0;
+	while (i < a.size() && j < b.size())
+	{
+		if (a.at(i).isDigit() && b.at(j).isDigit())
+		{
+			int end_a = i, end_b = j;
+			while (end_a < a.size() && a.at(end_a).isDigit()) ++end_a;
+			while (end_b < b.size() && b.at(end_b).isDigit()) ++end_b;
+				//The numbers without their leading zeros: the longer is the
+				//greater, else the first digit which differs
+			int start_a = i, start_b = j;
+			while (start_a < end_a - 1 && a.at(start_a) == QLatin1Char('0')) ++start_a;
+			while (start_b < end_b - 1 && b.at(start_b) == QLatin1Char('0')) ++start_b;
+			const QStringView number_a = QStringView(a).mid(start_a, end_a - start_a);
+			const QStringView number_b = QStringView(b).mid(start_b, end_b - start_b);
+			if (number_a.size() != number_b.size()) {
+				return number_a.size() < number_b.size();
+			}
+			const int order = number_a.compare(number_b);
+			if (order != 0) {
+				return order < 0;
+			}
+			i = end_a;
+			j = end_b;
+			continue;
+		}
+		const QChar ca = a.at(i).toCaseFolded(), cb = b.at(j).toCaseFolded();
+		if (ca != cb) {
+			return ca < cb;
+		}
+		++i;
+		++j;
+	}
+	if ((a.size() - i) != (b.size() - j)) {
+		return (a.size() - i) < (b.size() - j);
+	}
+		//W2 and W02, w1 and W1: an order of their own all the same
+	return a < b;
+}
+
+/**
+	@brief PidCodification::sortCodes
+	See the declaration
+*/
+void PidCodification::sortCodes()
+{
+	for (List list : {List::Fluids, List::Materials, List::Units}) {
+		QList<Entry> &codes = entries(list);
+		std::stable_sort(codes.begin(), codes.end(), [](const Entry &a, const Entry &b) {
+			return codeLessThan(a.code, b.code);
+		});
+	}
 }
 
 const PidCodification::Entry *PidCodification::fluid(const QString &code) const
@@ -289,6 +418,39 @@ QString PidCodification::paletteToCsv() const
 }
 
 /**
+	@brief PidCodification::toCsv
+	See the declaration
+*/
+QString PidCodification::toCsv() const
+{
+	QString text = QStringLiteral("kind;code;name;family\n");
+	auto write = [&text](const QString &kind, const QList<Entry> &list) {
+		for (const Entry &entry : list) {
+			text += kind + QLatin1Char(';') + csvField(entry.code) + QLatin1Char(';')
+					+ csvField(entry.name);
+			if (!entry.family.isEmpty()) {
+				text += QLatin1Char(';') + csvField(entry.family);
+			}
+			text += QLatin1Char('\n');
+		}
+	};
+	write(QStringLiteral("fluid"), fluids);
+	write(QStringLiteral("material"), materials);
+	write(QStringLiteral("unit"), functional_units);
+	return text + paletteToCsv();
+}
+
+/**
+	@brief PidCodification::textOfFile
+	See the declaration
+*/
+QString PidCodification::textOfFile(const QByteArray &bytes)
+{
+	const QString text = QString::fromUtf8(bytes);
+	return text.contains(QChar::ReplacementCharacter) ? QString::fromLatin1(bytes) : text;
+}
+
+/**
 	@brief PidCodification::fromCsv
 	See the declaration for the format.
 	@param text : the content of the file
@@ -314,13 +476,7 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 		const QChar separator = line.contains(QLatin1Char(';')) ? QLatin1Char(';')
 							  : line.contains(QLatin1Char('\t')) ? QLatin1Char('\t')
 							  : QLatin1Char(',');
-		QStringList fields = line.split(separator);
-		for (QString &field : fields) {
-			field = field.trimmed();
-			if (field.size() >= 2 && field.startsWith(QLatin1Char('"')) && field.endsWith(QLatin1Char('"'))) {
-				field = field.mid(1, field.size() - 2).replace(QStringLiteral("\"\""), QStringLiteral("\""));
-			}
-		}
+		const QStringList fields = splitFields(line, separator);
 		const QString kind = fields.value(0).toLower();
 		QMap<QString, QColor> *colors = nullptr;
 		if (kind == QLatin1String("fluid_color") || kind == QLatin1String("couleur_fluide")) {

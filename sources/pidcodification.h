@@ -18,6 +18,7 @@
 #ifndef PID_CODIFICATION_H
 #define PID_CODIFICATION_H
 
+#include <QByteArray>
 #include <QColor>
 #include <QDomDocument>
 #include <QDomElement>
@@ -60,11 +61,24 @@ class PidCodification
 			bool operator==(const Entry &other) const;
 		};
 
+			/// The lists of codes
+		enum class List { Fluids, Materials, Units };
+
 		QList<Entry> fluids;
 		QList<Entry> materials;
 			/// The functional units of the plant, which the tags of its
 			/// symbols name (PidTag): each project has its own
 		QList<Entry> functional_units;
+
+		QList<Entry> &entries(List list);
+		const QList<Entry> &entries(List list) const;
+
+			/// @p a comes before @p b in a list of codes: in their natural
+			/// order, W2 before W10, without regard to case
+		static bool codeLessThan(const QString &a, const QString &b);
+			/// Put each list of codes in the order of its codes, that of the
+			/// lists offered to the user
+		void sortCodes();
 			/// The model of the tags of a family of objects (equipment,
 			/// valve, instrument), see PidTag::label(): a convention of the
 			/// company, kept with the colours in the palette
@@ -143,6 +157,12 @@ class PidCodification
 			/// reads: the palette kept in the settings, for new projects. The
 			/// codes stay out, each project has its own
 		QString paletteToCsv() const;
+			/// The whole codification, codes then palette, as lines fromCsv()
+			/// reads: what another project imports
+		QString toCsv() const;
+			/// The text of a file of codes: UTF-8, or Latin-1 when it is not,
+			/// as a file saved by a spreadsheet may be
+		static QString textOfFile(const QByteArray &bytes);
 
 		bool operator==(const PidCodification &other) const;
 		bool operator!=(const PidCodification &other) const { return !(*this == other); }

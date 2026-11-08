@@ -25,7 +25,11 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QColorDialog>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
+#include <QMessageBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
@@ -45,6 +49,33 @@ namespace {
 	constexpr int group_role = Qt::UserRole;
 	constexpr int key_role = Qt::UserRole + 1;
 	constexpr int color_column = 2;
+		/// On the code of a line of codes: the code it has in the project,
+		/// none for a line added or imported
+	constexpr int original_role = Qt::UserRole + 2;
+		/// On the code of a line of codes: its last code accepted
+	constexpr int previous_role = Qt::UserRole + 3;
+
+	const QList<PidCodification::List> code_lists{PidCodification::List::Fluids,
+												  PidCodification::List::Materials,
+												  PidCodification::List::Units};
+
+	QString codeOf(const QTableWidget *table, int row)
+	{
+		const QTableWidgetItem *item = table->item(row, 0);
+		return item ? item->text().trimmed() : QString();
+	}
+
+		/// A cell of a table of codes, sorted in the natural order of the
+		/// codes: W2 before W10
+	class CodeItem : public QTableWidgetItem
+	{
+		public:
+			using QTableWidgetItem::QTableWidgetItem;
+			bool operator<(const QTableWidgetItem &other) const override {
+				return PidCodification::codeLessThan(text(), other.text());
+			}
+			QTableWidgetItem *clone() const override { return new CodeItem(*this); }
+	};
 }
 
 /**
@@ -125,11 +156,73 @@ QIcon PidConfigPage::icon() const
 */
 void PidConfigPage::applyProjectConf()
 {
-	m_project->undoStack()->push(new ChangePidCodificationCommand(m_project, m_codification));
+	m_project->undoStack()->push(new ChangePidCodificationCommand(m_project, m_codification,
+																  codeChanges()));
 }
 
 void PidConfigPage::initWidgets()
 {
+	m_code_tabs = new QTabWidget(this);
+	m_code_tabs->setObjectName(QStringLiteral("code_lists"));
+	const QStringList list_names{tr("Fluids"), tr("Materials"), tr("Functional units")};
+	const QStringList object_names{QStringLiteral("fluids"), QStringLiteral("materials"),
+								   QStringLiteral("units")};
+	for (int i = 0 ; i < code_lists.size() ; ++i)
+	{
+		const PidCodification::List list = code_lists.at(i);
+		const bool fluids = list == PidCodification::List::Fluids;
+		auto *table = new QTableWidget(0, fluids ? 3 : 2, this);
+		table->setObjectName(object_names.at(i));
+		table->setHorizontalHeaderLabels(fluids ? QStringList{tr("Code"), tr("Name"), tr("Family")}
+												: QStringList{tr("Code"), tr("Name")});
+		table->setSelectionBehavior(QAbstractItemView::SelectRows);
+		table->setSelectionMode(QAbstractItemView::ExtendedSelection);
+		table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed
+							   | QAbstractItemView::AnyKeyPressed);
+		table->verticalHeader()->hide();
+		table->horizontalHeader()->setStretchLastSection(true);
+			//Sorted by code; a click on a heading sorts by another column
+		table->setItemPrototype(new CodeItem());
+		table->horizontalHeader()->setSortIndicator(0, Qt::AscendingOrder);
+		table->horizontalHeader()->setSortIndicatorShown(true);
+		connect(table, &QTableWidget::itemChanged, this, &PidConfigPage::codeItemChanged);
+		m_code_tables.insert(list, table);
+		m_code_tabs->addTab(table, list_names.at(i));
+	}
+	m_add_entry = new QPushButton(tr("Add"), this);
+	m_add_entry->setObjectName(QStringLiteral("add_entry"));
+	m_remove_entry = new QPushButton(tr("Remove"), this);
+	m_remove_entry->setObjectName(QStringLiteral("remove_entry"));
+	m_import = new QPushButton(tr("Import a CSV file..."), this);
+	m_export = new QPushButton(tr("Export as a CSV file..."), this);
+	m_export->setToolTip(tr("The codes, the colors and the texts of this page, which another "
+							"project can import."));
+	m_code_message = new QLabel(this);
+	m_code_message->setObjectName(QStringLiteral("codification_message"));
+	m_code_message->setWordWrap(true);
+	connect(m_add_entry, &QPushButton::clicked, this, &PidConfigPage::addEntry);
+	connect(m_remove_entry, &QPushButton::clicked, this, &PidConfigPage::removeSelectedEntries);
+	connect(m_import, &QPushButton::clicked, this, [this]() {
+		const QString path = QFileDialog::getOpenFileName(
+					this, tr("Import a P&ID codification"), QString(),
+					tr("CSV files (*.csv *.txt);;All files (*)"));
+		if (!path.isEmpty()) {
+			importCsv(path);
+		}
+	});
+	connect(m_export, &QPushButton::clicked, this, [this]() {
+		QString path = QFileDialog::getSaveFileName(
+					this, tr("Export the P&ID codification"), QString(),
+					tr("CSV files (*.csv)"));
+		if (path.isEmpty()) {
+			return;
+		}
+		if (QFileInfo(path).suffix().isEmpty()) {
+			path += QStringLiteral(".csv");
+		}
+		exportCsv(path);
+	});
+
 	m_table = new QTableWidget(0, 3, this);
 	m_table->setHorizontalHeaderLabels({tr("Applies to"), tr("Name"), tr("Color")});
 	m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -229,7 +322,26 @@ void PidConfigPage::initLayout()
 	texts_layout->addWidget(m_nozzle_texts_on_paper);
 	texts_layout->addStretch();
 
+	auto *codes_tab = new QWidget(this);
+	auto *codes_layout = new QVBoxLayout(codes_tab);
+	auto *codes_help = new QLabel(tr("A pipe line keeps the code of its fluid and of its material: a name "
+									 "changed here touches no pipe, a code changed is given to the pipes "
+									 "and symbols bearing it when this page is applied, a code removed "
+									 "stays on them as free text."), codes_tab);
+	codes_help->setWordWrap(true);
+	codes_layout->addWidget(codes_help);
+	codes_layout->addWidget(m_code_tabs);
+	auto *code_buttons = new QHBoxLayout();
+	code_buttons->addWidget(m_add_entry);
+	code_buttons->addWidget(m_remove_entry);
+	code_buttons->addStretch();
+	code_buttons->addWidget(m_import);
+	code_buttons->addWidget(m_export);
+	codes_layout->addLayout(code_buttons);
+	codes_layout->addWidget(m_code_message);
+
 	auto *tabs = new QTabWidget(this);
+	tabs->addTab(codes_tab, tr("Codification"));
 	tabs->addTab(colors_tab, tr("Colors"));
 	tabs->addTab(texts_tab, tr("Texts"));
 
@@ -246,6 +358,22 @@ void PidConfigPage::initLayout()
 void PidConfigPage::readValuesFromProject()
 {
 	m_codification = m_project->pidCodification();
+	m_code_message->clear();
+	showCodification(true, true);
+}
+
+/**
+	@brief PidConfigPage::showCodification
+	Show the codification of this page in all its tabs
+	@param fill_codes : the tables of codes are filled again
+	@param codes_from_project : its codes are those of the project, which a
+	code changed will be taken from
+*/
+void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
+{
+	if (fill_codes) {
+		fillCodeTables(codes_from_project);
+	}
 	fillTable();
 
 		//Each change of a widget reads them all: they are all set first
@@ -263,6 +391,15 @@ void PidConfigPage::readValuesFromProject()
 void PidConfigPage::adjustReadOnly()
 {
 	const bool read_only = m_project->isReadOnly();
+	for (QTableWidget *table : std::as_const(m_code_tables)) {
+		table->setEditTriggers(read_only ? QAbstractItemView::NoEditTriggers
+										 : QAbstractItemView::DoubleClicked
+										   | QAbstractItemView::EditKeyPressed
+										   | QAbstractItemView::AnyKeyPressed);
+	}
+	m_add_entry->setEnabled(!read_only);
+	m_remove_entry->setEnabled(!read_only);
+	m_import->setEnabled(!read_only);
 	m_table->setEnabled(!read_only);
 	m_choose->setEnabled(!read_only);
 	m_clear->setEnabled(!read_only);
@@ -465,4 +602,278 @@ void PidConfigPage::setColorOfSelection(const QColor &color)
 		}
 	}
 	fillTable();
+}
+
+/**
+	@brief PidConfigPage::fillCodeTables
+	One line per entry of each list of codes of the page
+	@param from_project : the codes are those of the project; otherwise
+	(a file read) no line has a former code, nothing is renamed
+*/
+void PidConfigPage::fillCodeTables(bool from_project)
+{
+	for (PidCodification::List list : code_lists)
+	{
+		QTableWidget *table = m_code_tables.value(list);
+		const QSignalBlocker blocker(table);
+			//A line moved while it is filled would get the cells of another
+		table->setSortingEnabled(false);
+		table->setRowCount(0);
+		for (const PidCodification::Entry &entry : m_codification.entries(list))
+		{
+			const int row = table->rowCount();
+			table->insertRow(row);
+			auto *code = new CodeItem(entry.code);
+			code->setData(original_role, from_project ? entry.code : QString());
+			code->setData(previous_role, entry.code);
+			table->setItem(row, 0, code);
+			table->setItem(row, 1, new CodeItem(entry.name));
+			if (table->columnCount() > 2) {
+				table->setItem(row, 2, new CodeItem(entry.family));
+			}
+		}
+		table->setSortingEnabled(true);
+		table->resizeColumnToContents(0);
+	}
+}
+
+/**
+	@brief PidConfigPage::readCodeTable
+	Take the list @p list from its table; a line without a code yet (just
+	added) is not an entry
+*/
+void PidConfigPage::readCodeTable(PidCodification::List list)
+{
+	const QTableWidget *table = m_code_tables.value(list);
+	QList<PidCodification::Entry> entries;
+	for (int row = 0 ; row < table->rowCount() ; ++row)
+	{
+		PidCodification::Entry entry;
+		entry.code = codeOf(table, row);
+		if (entry.code.isEmpty()) {
+			continue;
+		}
+		const QTableWidgetItem *name = table->item(row, 1);
+		const QTableWidgetItem *family = table->item(row, 2);
+		entry.name = name ? name->text().trimmed() : QString();
+		entry.family = family ? family->text().trimmed() : QString();
+		entries << entry;
+	}
+	m_codification.entries(list) = entries;
+		//The families of the fluids have a colour
+	if (list == PidCodification::List::Fluids) {
+		fillTable();
+	}
+}
+
+/**
+	@brief PidConfigPage::codeItemChanged
+	A code may be neither empty nor twice in its list: it gets its last one
+	back
+*/
+void PidConfigPage::codeItemChanged(QTableWidgetItem *item)
+{
+	QTableWidget *table = item->tableWidget();
+	const PidCodification::List list = m_code_tables.key(table);
+	if (item->column() == 0)
+	{
+		const QString code = item->text().trimmed();
+		const QString previous = item->data(previous_role).toString();
+		QString refused;
+		if (code.isEmpty() && !previous.isEmpty()) {
+			refused = tr("A code cannot be empty.");
+		}
+		for (int row = 0 ; row < table->rowCount() && refused.isEmpty() && !code.isEmpty() ; ++row) {
+			if (row != item->row() && codeOf(table, row) == code) {
+				refused = tr("The code %1 is already in this list.").arg(code);
+			}
+		}
+		const QSignalBlocker blocker(table);
+		if (!refused.isEmpty()) {
+			item->setText(previous);
+			m_code_message->setText(refused);
+			return;
+		}
+		item->setText(code);
+		item->setData(previous_role, code);
+			//A line added takes its place now, and stays in view
+		if (!code.isEmpty() && !table->isSortingEnabled()) {
+			table->setSortingEnabled(true);
+		}
+		table->scrollToItem(item);
+		const QString original = item->data(original_role).toString();
+		m_code_message->setText(!original.isEmpty() && original != code
+								? tr("The pipes and the symbols bearing the code %1 will take the code %2 "
+									 "when this page is applied.").arg(original, code)
+								: QString());
+	}
+	readCodeTable(list);
+}
+
+/**
+	@return the list of codes shown
+*/
+PidCodification::List PidConfigPage::shownList() const
+{
+	return code_lists.value(m_code_tabs->currentIndex(), PidCodification::List::Fluids);
+}
+
+/**
+	@brief PidConfigPage::addEntry
+	See the declaration
+*/
+void PidConfigPage::addEntry()
+{
+	QTableWidget *table = m_code_tables.value(shownList());
+	const int row = table->rowCount();
+	{
+		const QSignalBlocker blocker(table);
+			//The line stays at the bottom until it has its code
+		table->setSortingEnabled(false);
+		table->insertRow(row);
+		for (int column = 0 ; column < table->columnCount() ; ++column) {
+			table->setItem(row, column, new CodeItem());
+		}
+	}
+	table->setCurrentCell(row, 0);
+	table->editItem(table->item(row, 0));
+}
+
+/**
+	@brief PidConfigPage::removeSelectedEntries
+	See the declaration
+*/
+void PidConfigPage::removeSelectedEntries()
+{
+	const PidCodification::List list = shownList();
+	QTableWidget *table = m_code_tables.value(list);
+	QList<int> rows;
+	for (const QModelIndex &index : table->selectionModel()->selectedRows()) {
+		rows << index.row();
+	}
+	if (rows.isEmpty()) {
+		return;
+	}
+	int users = 0;
+	for (int row : std::as_const(rows)) {
+		users += ChangePidCodificationCommand::usersOf(
+					m_project, list, table->item(row, 0)->data(original_role).toString());
+	}
+	if (users)
+	{
+		const QString question =
+				list == PidCodification::List::Fluids
+				? tr("%n pipe line(s) or valve(s) bear the codes removed: they will keep them as "
+					 "free text. Remove them?", "", users)
+				: list == PidCodification::List::Materials
+				  ? tr("%n pipe line(s) bear the codes removed: they will keep them as free text. "
+					   "Remove them?", "", users)
+				  : tr("%n symbol(s) bear the codes removed: they will keep them as free text. "
+					   "Remove them?", "", users);
+		if (!confirm(question)) {
+			return;
+		}
+	}
+	std::sort(rows.begin(), rows.end(), std::greater<int>());
+	{
+		const QSignalBlocker blocker(table);
+		for (int row : std::as_const(rows)) {
+			table->removeRow(row);
+		}
+	}
+	m_code_message->clear();
+	readCodeTable(list);
+}
+
+/**
+	@brief PidConfigPage::codeChanges
+	See the declaration
+*/
+ChangePidCodificationCommand::CodeChanges PidConfigPage::codeChanges() const
+{
+	ChangePidCodificationCommand::CodeChanges changes;
+	for (PidCodification::List list : code_lists)
+	{
+		const QTableWidget *table = m_code_tables.value(list);
+		QMap<QString, QString> &map = list == PidCodification::List::Fluids ? changes.fluids
+									: list == PidCodification::List::Materials ? changes.materials
+																			   : changes.units;
+		for (int row = 0 ; row < table->rowCount() ; ++row)
+		{
+			const QString original = table->item(row, 0)->data(original_role).toString();
+			const QString code = codeOf(table, row);
+			if (!original.isEmpty() && !code.isEmpty() && code != original) {
+				map.insert(original, code);
+			}
+		}
+	}
+	return changes;
+}
+
+/**
+	@brief PidConfigPage::confirm
+	@return the answer of the user to @p question
+*/
+bool PidConfigPage::confirm(const QString &question)
+{
+	if (m_confirm) {
+		return m_confirm(question);
+	}
+	return QMessageBox::question(this, title(), question, QMessageBox::Yes | QMessageBox::No)
+			== QMessageBox::Yes;
+}
+
+/**
+	@brief PidConfigPage::importCsv
+	See the declaration
+*/
+bool PidConfigPage::importCsv(const QString &path)
+{
+	QFile file(path);
+	if (!file.open(QIODevice::ReadOnly)) {
+		m_code_message->setText(tr("The file %1 could not be read.").arg(path));
+		return false;
+	}
+	int skipped = 0;
+	const PidCodification read = PidCodification::fromCsv(PidCodification::textOfFile(file.readAll()),
+														   &skipped);
+	if (read.isEmpty()) {
+		m_code_message->setText(tr("Nothing could be read from %1. Each line is expected as: "
+								   "kind;code;name;family, kind being \"fluid\", \"material\" "
+								   "or \"unit\".").arg(path));
+		return false;
+	}
+	if (read.hasCodes() && m_codification.hasCodes()
+		&& !confirm(tr("Replace the codes of this page with %1 fluids, %2 materials and %3 "
+					   "functional units?").arg(read.fluids.size()).arg(read.materials.size())
+					.arg(read.functional_units.size()))) {
+		return false;
+	}
+	m_codification = read.completedWith(m_codification);
+	showCodification(read.hasCodes(), false);
+	m_code_message->setText(
+				tr("%1 fluids, %2 materials and %3 functional units read: apply this page to keep them.")
+				.arg(read.fluids.size()).arg(read.materials.size()).arg(read.functional_units.size())
+				+ (skipped ? QStringLiteral(" ") + tr("%n line(s) could not be read.", "", skipped)
+						   : QString()));
+	return true;
+}
+
+/**
+	@brief PidConfigPage::exportCsv
+	See the declaration
+*/
+bool PidConfigPage::exportCsv(const QString &path)
+{
+	QFile file(path);
+	if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+		m_code_message->setText(tr("The file %1 could not be written.").arg(path));
+		return false;
+	}
+		//With its mark of UTF-8, a spreadsheet reads the accents
+	file.write("\xEF\xBB\xBF");
+	file.write(m_codification.toCsv().toUtf8());
+	file.close();
+	m_code_message->setText(tr("Codification written in %1.").arg(path));
+	return true;
 }

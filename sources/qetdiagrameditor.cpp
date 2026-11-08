@@ -1195,12 +1195,7 @@ void QETDiagramEditor::setUpActions()
 										tr("The file %1 could not be read.").arg(path));
 			return;
 		}
-		const QByteArray bytes = file.readAll();
-			//A file saved by a spreadsheet may not be in UTF-8
-		QString text = QString::fromUtf8(bytes);
-		if (text.contains(QChar::ReplacementCharacter)) {
-			text = QString::fromLatin1(bytes);
-		}
+		const QString text = PidCodification::textOfFile(file.readAll());
 		int skipped = 0;
 		const PidCodification codification = PidCodification::fromCsv(text, &skipped);
 		if (codification.isEmpty()) {

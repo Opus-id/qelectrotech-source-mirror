@@ -12283,6 +12283,163 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>P&amp;ID</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Fluids</source>
+        <translation>Fluides</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Materials</source>
+        <translation>Matériaux</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Functional units</source>
+        <translation>Unités fonctionnelles</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Code</source>
+        <translation>Code</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Family</source>
+        <translation>Famille</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Add</source>
+        <translation>Ajouter</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Remove</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Import a CSV file...</source>
+        <translation>Importer un fichier CSV...</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Export as a CSV file...</source>
+        <translation>Exporter en fichier CSV...</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>The codes, the colors and the texts of this page, which another project can import.</source>
+        <translation>Les codes, les couleurs et les textes de cette page, qu&apos;un autre projet peut importer.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Import a P&amp;ID codification</source>
+        <translation>Importer une codification P&amp;ID</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>CSV files (*.csv *.txt);;All files (*)</source>
+        <translation>Fichiers CSV (*.csv *.txt);;Tous les fichiers (*)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Export the P&amp;ID codification</source>
+        <translation>Exporter la codification P&amp;ID</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>CSV files (*.csv)</source>
+        <translation>Fichiers CSV (*.csv)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>A pipe line keeps the code of its fluid and of its material: a name changed here touches no pipe, a code changed is given to the pipes and symbols bearing it when this page is applied, a code removed stays on them as free text.</source>
+        <translation>Une tuyauterie retient le code de son fluide et de son matériau : changer un nom ici ne touche aucune tuyauterie, un code changé est donné aux tuyauteries et aux symboles qui le portent quand vous appliquez cette page, un code supprimé leur reste comme texte libre.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Codification</source>
+        <translation>Codification</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>A code cannot be empty.</source>
+        <translation>Un code ne peut pas être vide.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>The code %1 is already in this list.</source>
+        <translation>Le code %1 existe déjà dans cette liste.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>The pipes and the symbols bearing the code %1 will take the code %2 when this page is applied.</source>
+        <translation>Les tuyauteries et les symboles qui portent le code %1 prendront le code %2 quand vous appliquerez cette page.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>%n pipe line(s) or valve(s) bear the codes removed: they will keep them as free text. Remove them?</source>
+        <translation>
+            <numerusform>%n tuyauterie ou vanne porte les codes supprimés : elle les gardera comme texte libre. Les supprimer ?</numerusform>
+            <numerusform>%n tuyauteries ou vannes portent les codes supprimés : elles les garderont comme texte libre. Les supprimer ?</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>%n pipe line(s) bear the codes removed: they will keep them as free text. Remove them?</source>
+        <translation>
+            <numerusform>%n tuyauterie porte les codes supprimés : elle les gardera comme texte libre. Les supprimer ?</numerusform>
+            <numerusform>%n tuyauteries portent les codes supprimés : elles les garderont comme texte libre. Les supprimer ?</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>%n symbol(s) bear the codes removed: they will keep them as free text. Remove them?</source>
+        <translation>
+            <numerusform>%n symbole porte les codes supprimés : il les gardera comme texte libre. Les supprimer ?</numerusform>
+            <numerusform>%n symboles portent les codes supprimés : ils les garderont comme texte libre. Les supprimer ?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>The file %1 could not be read.</source>
+        <translation>Le fichier %1 n&apos;a pas pu être lu.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Nothing could be read from %1. Each line is expected as: kind;code;name;family, kind being &quot;fluid&quot;, &quot;material&quot; or &quot;unit&quot;.</source>
+        <translation>Rien n&apos;a pu être lu dans %1. Chaque ligne doit avoir la forme : genre;code;nom;famille, le genre étant « fluid », « material » ou « unit ».</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Replace the codes of this page with %1 fluids, %2 materials and %3 functional units?</source>
+        <translation>Remplacer les codes de cette page par %1 fluides, %2 matériaux et %3 unités fonctionnelles ?</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>%1 fluids, %2 materials and %3 functional units read: apply this page to keep them.</source>
+        <translation>%1 fluides, %2 matériaux et %3 unités fonctionnelles lus : appliquez cette page pour les garder.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>%n line(s) could not be read.</source>
+        <translation>
+            <numerusform>%n ligne n&apos;a pas pu être lue.</numerusform>
+            <numerusform>%n lignes n&apos;ont pas pu être lues.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>The file %1 could not be written.</source>
+        <translation>Le fichier %1 n&apos;a pas pu être écrit.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>Codification written in %1.</source>
+        <translation>Codification écrite dans %1.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
         <source>Applies to</source>
         <translation>S&apos;applique à</translation>

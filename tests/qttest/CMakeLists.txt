@@ -496,6 +496,9 @@ qet_add_app_test(tst_pidcolors tst_pidcolors.cpp)
 # The texts of a P&ID: their size by category, set for a project, and the
 # names and diameters of the nozzles on paper. A wire is not concerned.
 qet_add_app_test(tst_pidtexts tst_pidtexts.cpp)
+# The codification of a P&ID edited in the page of the project: a code changed
+# reaches the pipes and symbols bearing it in one step, a name changed none.
+qet_add_app_test(tst_pidcodificationeditor tst_pidcodificationeditor.cpp)
 # The frame of a folio follows a new size at once.
 qet_add_app_test(tst_borderresize tst_borderresize.cpp)
 # A quick second click on the same spot reaches the shape tools as a
