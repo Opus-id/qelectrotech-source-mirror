@@ -23,17 +23,31 @@ ChangeNozzleDiametersCommand::ChangeNozzleDiametersCommand(
 		Element *element,
 		const NozzleDiameters &new_diameters,
 		QUndoCommand *parent) :
+	ChangeNozzleDiametersCommand(element, new_diameters,
+								 element->nozzleConnections(), parent)
+{}
+
+ChangeNozzleDiametersCommand::ChangeNozzleDiametersCommand(
+		Element *element,
+		const NozzleDiameters &new_diameters,
+		const NozzleConnections &new_connections,
+		QUndoCommand *parent) :
 	QUndoCommand(parent),
 	m_element(element),
 	m_old_diameters(element->nozzleDiameters()),
-	m_new_diameters(new_diameters)
+	m_new_diameters(new_diameters),
+	m_old_connections(element->nozzleConnections()),
+	m_new_connections(new_connections)
 {
-	setText(QObject::tr("Change the diameter of a nozzle"));
+	setText(m_new_connections == m_old_connections
+			? QObject::tr("Change the diameter of a nozzle")
+			: QObject::tr("Change the connection of a nozzle"));
 }
 
 void ChangeNozzleDiametersCommand::undo()
 {
 	if (m_element) {
+		m_element->setNozzleConnections(m_old_connections);
 		m_element->setNozzleDiameters(m_old_diameters);
 	}
 }
@@ -41,6 +55,7 @@ void ChangeNozzleDiametersCommand::undo()
 void ChangeNozzleDiametersCommand::redo()
 {
 	if (m_element) {
+		m_element->setNozzleConnections(m_new_connections);
 		m_element->setNozzleDiameters(m_new_diameters);
 	}
 }

@@ -20,6 +20,7 @@
 
 #include <qet.h>
 #include "propertiesinterface.h"
+#include "../pipeconnection.h"
 #include "../pipediameter.h"
 
 #include <QColor>
@@ -114,13 +115,19 @@ class TerminalData : public PropertiesInterface
 		{
 			return PipeDiameter::fromXml(e, QStringLiteral("dn"), QStringLiteral("od"));
 		}
+			/// The connection of the nozzle written as @a e, a flange when it
+			/// says nothing
+		static PipeConnection::Type connectionFromXml(const QDomElement &e)
+		{
+			return PipeConnection::fromString(e.attribute(QStringLiteral("connection")));
+		}
 			/// The text shown at a terminal: its @a name, and under it the
-			/// diameter of a nozzle, if it has one
+			/// diameter of a nozzle, if it has one ("DN 100", "Ø 110")
 		static QString labelText(const QString &name, const PipeDiameter &diameter,
 								 const QLocale &locale = QLocale::c())
 		{
 			if (!diameter.isSet()) return name;
-			const QString shown = diameter.label(locale);
+			const QString shown = diameter.text(locale);
 			return name.isEmpty() ? shown : name + QLatin1Char('\n') + shown;
 		}
 			/// The size of a labelText() in the font of @a metrics
@@ -202,6 +209,8 @@ class TerminalData : public PropertiesInterface
 			/// The diameter of a nozzle (a terminal of the Pipe medium): a DN
 			/// (a flange) or an outside diameter (a socket); none by default
 		PipeDiameter m_diameter;
+			/// How a pipe is joined to a nozzle; a flange by default
+		PipeConnection::Type m_connection = PipeConnection::Flange;
 
 		/// Whether to display the terminal name as a text label
 		bool m_show_name = false;

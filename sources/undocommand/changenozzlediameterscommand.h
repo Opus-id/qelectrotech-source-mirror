@@ -18,6 +18,7 @@
 #ifndef CHANGENOZZLEDIAMETERSCOMMAND_H
 #define CHANGENOZZLEDIAMETERSCOMMAND_H
 
+#include "../pipeconnection.h"
 #include "../pipediameter.h"
 
 #include <QMap>
@@ -29,14 +30,20 @@ class Element;
 
 /**
 	@brief The ChangeNozzleDiametersCommand class
-	Give the nozzles of a placed element other nominal diameters
-	(Element::setNozzleDiameters()), and give them back on undo.
+	Give the nozzles of a placed element other diameters
+	(Element::setNozzleDiameters()) and other connections
+	(Element::setNozzleConnections()), and give them back on undo.
 */
 class ChangeNozzleDiametersCommand : public QUndoCommand
 {
 	public:
+			/// Other diameters; the connections stay
 		ChangeNozzleDiametersCommand(Element *element,
 									 const NozzleDiameters &new_diameters,
+									 QUndoCommand *parent = nullptr);
+		ChangeNozzleDiametersCommand(Element *element,
+									 const NozzleDiameters &new_diameters,
+									 const NozzleConnections &new_connections,
 									 QUndoCommand *parent = nullptr);
 		void undo() override;
 		void redo() override;
@@ -44,6 +51,7 @@ class ChangeNozzleDiametersCommand : public QUndoCommand
 	private:
 		QPointer<Element> m_element;
 		NozzleDiameters m_old_diameters, m_new_diameters;
+		NozzleConnections m_old_connections, m_new_connections;
 };
 
 #endif // CHANGENOZZLEDIAMETERSCOMMAND_H

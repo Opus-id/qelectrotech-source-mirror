@@ -5886,6 +5886,21 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>%1 → %2 : la taille la plus proche des listes du projet.</translation>
     </message>
     <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="170"/>
+        <source>%1 does not name a nozzle of this connection (%2).</source>
+        <translation>%1 ne désigne pas un piquage de ce raccord (%2).</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="320"/>
+        <source>%1 → %2: the size the table of the diameters of the project joins to it.</source>
+        <translation>%1 → %2 : la taille que la table des diamètres du projet lui associe.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="324"/>
+        <source>%1 does not name a nozzle of this connection (%2): the nozzle has no size of its own.</source>
+        <translation>%1 ne désigne pas un piquage de ce raccord (%2) : le piquage n&apos;a plus de taille propre.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="222"/>
         <source>Nozzles</source>
         <translation>Piquages</translation>
@@ -12810,6 +12825,49 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/pidstatus.cpp" line="36"/>
         <source>Change the status of works</source>
         <translation>Modifier le statut de travaux</translation>
+    </message>
+</context>
+<context>
+    <name>PipeConnection</name>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="95"/>
+        <source>Flange</source>
+        <translation>Bride</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="97"/>
+        <source>Plain end</source>
+        <translation>Bout lisse</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="99"/>
+        <source>Solvent socket</source>
+        <translation>Emboîtement à coller</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="101"/>
+        <source>Fusion socket</source>
+        <translation>Emboîtement à souder</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="103"/>
+        <source>Gasket socket</source>
+        <translation>Emboîtement à joint</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="105"/>
+        <source>Pipe thread</source>
+        <translation>Filetage gaz</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="107"/>
+        <source>Butt weld</source>
+        <translation>Soudé bout à bout</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="109"/>
+        <source>Grooved</source>
+        <translation>Rainuré</translation>
     </message>
 </context>
 <context>
@@ -21433,6 +21491,11 @@ Voulez-vous la remplacer ?</translation>
         <translation>Modifier le diamètre d&apos;un piquage</translation>
     </message>
     <message>
+        <location filename="../sources/undocommand/changenozzlediameterscommand.cpp" line="45"/>
+        <source>Change the connection of a nozzle</source>
+        <translation>Modifier le raccord d&apos;un piquage</translation>
+    </message>
+    <message>
         <location filename="../sources/undocommand/changepidcodificationcommand.cpp" line="32"/>
         <source>Change the colors and the codification of the project</source>
         <translation>Modifier les couleurs et la codification du projet</translation>
@@ -27441,6 +27504,31 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="347"/>
         <source>%1 → %2: the nearest DN of ISO 6708.</source>
         <translation>%1 → %2 : le DN de l&apos;ISO 6708 le plus proche.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="111"/>
+        <source>Connection:</source>
+        <translation>Raccord :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="118"/>
+        <source>How a pipe is joined to this nozzle; it decides the kind of its size. Each placed symbol can change it.</source>
+        <translation>Comment une tuyauterie est raccordée à ce piquage ; il décide de la sorte de taille. Chaque symbole posé peut le changer.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="360"/>
+        <source>%1 does not name a nozzle of this connection (%2).</source>
+        <translation>%1 ne désigne pas un piquage de ce raccord (%2).</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="420"/>
+        <source>Change the connection of a nozzle</source>
+        <translation>Modifier le raccord d&apos;un piquage</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="426"/>
+        <source>%1 does not name a nozzle of this connection (%2): removed.</source>
+        <translation>%1 ne désigne pas un piquage de ce raccord (%2) : taille retirée.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="90"/>

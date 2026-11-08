@@ -22,6 +22,7 @@
 #include "diagrameventinterface.h"
 
 #include "../properties/elementoptions.h"
+#include "../pipeconnection.h"
 #include "../pipediameter.h"
 #include <QPointF>
 
@@ -73,6 +74,8 @@ class DiagramEventAddElement : public DiagramEventInterface
 		ElementOptions::Choices m_like_choices;
 			/// Diameters of nozzles every copy takes, see setLike()
 		NozzleDiameters m_like_nozzles;
+			/// Connections of nozzles every copy takes, see setLike()
+		NozzleConnections m_like_connections;
 			/// Functional unit and train of the P&ID tag every copy takes,
 			/// with the next order (see setLike()); none when m_like_unit
 			/// is empty

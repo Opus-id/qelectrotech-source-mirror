@@ -261,6 +261,8 @@ void DiagramEventAddElement::setLike(const Element *source)
 	m_element->setOptionChoices(m_like_choices);
 	m_like_nozzles = source->nozzleDiameters();
 	m_element->setNozzleDiameters(m_like_nozzles);
+	m_like_connections = source->nozzleConnections();
+	m_element->setNozzleConnections(m_like_connections);
 	m_element->setRotation(source->rotation());
 	m_like_unit.clear();
 	m_like_train.clear();
@@ -421,6 +423,9 @@ Element *DiagramEventAddElement::createElement() const
 	}
 	if (!m_like_nozzles.isEmpty()) {
 		element->setNozzleDiameters(m_like_nozzles);
+	}
+	if (!m_like_connections.isEmpty()) {
+		element->setNozzleConnections(m_like_connections);
 	}
 	element->takeLabelSize(m_diagram->project()->pidCodification());
 	return element;

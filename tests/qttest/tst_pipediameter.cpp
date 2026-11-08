@@ -103,9 +103,6 @@ class tst_pipediameter : public QObject
 			QCOMPARE(PipeDiameter::outside(88.9).text(point), QStringLiteral("Ø 88.9"));
 			QCOMPARE(PipeDiameter::outside(1200).text(comma), QStringLiteral("Ø 1200"));
 			QVERIFY(PipeDiameter().text().isEmpty());
-				// under a nozzle, a DN as before
-			QCOMPARE(PipeDiameter::nominal(100).label(point), QStringLiteral("100"));
-			QCOMPARE(PipeDiameter::outside(110).label(point), QStringLiteral("Ø110"));
 				// the same number, not the same diameter
 			QVERIFY(PipeDiameter::nominal(110) != PipeDiameter::outside(110));
 			QVERIFY(!PipeDiameter::nominal(0).isSet());

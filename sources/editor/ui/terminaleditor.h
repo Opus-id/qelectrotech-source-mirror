@@ -20,6 +20,7 @@
 
 #include <QWidget>
 #include <editor/elementitemeditor.h>
+#include "../../pipeconnection.h"
 
 #ifdef BUILD_WITHOUT_KF
 #include <QPushButton>
@@ -60,6 +61,8 @@ class TerminalEditor : public ElementItemEditor
 		void typeEdited();
 		void mediumEdited();
 		void dnEdited();
+		void fillKinds(PipeConnection::Type connection);
+		void connectionEdited();
 		void potentialEdited();
 		void showNameEdited();
 		void labelPosEdited();

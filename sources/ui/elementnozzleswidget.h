@@ -20,6 +20,7 @@
 
 #include "abstractelementpropertieseditorwidget.h"
 #include "../pidcodification.h"
+#include "../pipeconnection.h"
 #include "../pipediameter.h"
 
 #include <QList>
@@ -35,10 +36,11 @@ class Terminal;
 /**
 	@brief The ElementNozzlesWidget class
 	The tab of the properties of a placed element where its nozzles are given
-	a diameter: one field per named nozzle, empty for the one of the symbol or
-	else of the pipe connected there, shown in grey. A DN or an outside
-	diameter of the lists of the project only. Live, a value is applied when
-	the field is left, with undo.
+	a connection and a diameter: per named nozzle, a list of connections and
+	a field, empty for the diameter of the symbol or else of the pipe
+	connected there, shown in grey. A DN or an outside diameter of the lists
+	of the project only, of a kind the connection takes. Live, a value is
+	applied when the field is left or the connection picked, with undo.
 */
 class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -60,24 +62,39 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// The diameters the fields give: the one of the symbol is none,
 			/// so that the element is saved as one that changed nothing
 		NozzleDiameters chosen() const;
+			/// The connections the lists give: the one of the symbol is not
+			/// kept, as for the diameters
+		NozzleConnections chosenConnections() const;
 			/// The field of the nozzle @p name, or nullptr
 		QLineEdit *fieldFor(const QString &name) const;
-			/// What was said of the last value refused
+			/// The list of connections of the nozzle @p name, or nullptr
+		QComboBox *connectionFor(const QString &name) const;
+			/// What was said of the last value refused or changed
 		QString message() const;
 
 	private:
 		struct Field {
 			QString name;
 			PipeDiameter symbol_diameter;
+			PipeConnection::Type symbol_connection;
+			QComboBox *connection;
 			QComboBox *list;
 			QLineEdit *edit;
 			const Terminal *terminal;
 		};
 		void buildFields();
 		PidCodification projectCodification() const;
-			/// The value of @p field, if the project accepts it; else gives
-			/// the field its value back and says why
+			/// The connection picked in the list of @p field
+		static PipeConnection::Type pickedConnection(const Field &field);
+			/// The sizes of the project the connection of @p field takes
+		QList<PipeDiameter> sizesFor(const Field &field) const;
+			/// The value of @p field, if the project and the connection
+			/// accept it; else gives the field its value back and says why
 		bool checkField(const Field &field);
+			/// Another connection picked for @p field: its diameter, if the
+			/// connection takes it not, becomes the size the table of the
+			/// project joins to it, if there is one only, else none
+		void connectionPicked(const Field &field);
 		void showField(const Field &field);
 
 		QFormLayout *m_layout = nullptr;

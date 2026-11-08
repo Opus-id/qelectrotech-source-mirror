@@ -101,6 +101,11 @@ void TerminalEditor::updateForm()
 	ui->label_dn->setVisible(nozzle);
 	ui->m_dn_cb->setVisible(nozzle);
 	ui->m_dn_kind_cb->setVisible(nozzle);
+	ui->label_connection->setVisible(nozzle);
+	ui->m_connection_cb->setVisible(nozzle);
+	ui->m_connection_cb->setCurrentIndex(ui->m_connection_cb->findData(int(m_part->connection())));
+		//The kinds of size the connection takes
+	fillKinds(m_part->connection());
 		//The kind of a diameter given; else the one chosen last
 	if (m_part->diameter().isSet()) {
 		ui->m_dn_kind_cb->setCurrentIndex(ui->m_dn_kind_cb->findData(int(m_part->diameter().kind())));
@@ -217,9 +222,11 @@ void TerminalEditor::init()
 	ui->m_medium_cb->addItem(tr("Signal", "terminal medium"),          TerminalData::Signal);
 	ui->m_medium_cb->addItem(tr("Drive (shaft)", "terminal medium"),   TerminalData::Drive);
 
+	for (PipeConnection::Type type : PipeConnection::all()) {
+		ui->m_connection_cb->addItem(PipeConnection::name(type), int(type));
+	}
 	DiameterList::setUp(ui->m_dn_cb, DiameterList::isoSizes(), PidCodification().locale());
-	ui->m_dn_kind_cb->addItem(QStringLiteral("DN"), int(PipeDiameter::Nominal));
-	ui->m_dn_kind_cb->addItem(QString(PipeDiameter::outsideSign()), int(PipeDiameter::Outside));
+	fillKinds(PipeConnection::Flange);
 
 	ui->m_text_props_gb->setEnabled(false);
 
@@ -353,6 +360,16 @@ void TerminalEditor::dnEdited()
 		//A number alone is of the kind chosen beside it
 	const auto kind = PipeDiameter::Kind(ui->m_dn_kind_cb->currentData().toInt());
 	PipeDiameter diameter = PipeDiameter::fromText(typed, kind, &ok);
+	if (ok && !PipeConnection::allows(m_part->connection(), diameter))
+	{
+		ui->m_dn_cb->lineEdit()->setText(m_part->diameterText());
+		QToolTip::showText(ui->m_dn_cb->mapToGlobal(QPoint(0, ui->m_dn_cb->height())),
+						   tr("%1 does not name a nozzle of this connection (%2).")
+						   .arg(typed, PipeConnection::name(m_part->connection())),
+						   ui->m_dn_cb);
+		m_locked = false;
+		return;
+	}
 	if (ok && !PidCodification().acceptsForNozzle(diameter))
 	{
 			//A DN which is none of ISO 6708: the nearest one
@@ -383,6 +400,58 @@ void TerminalEditor::dnEdited()
 		//Written as the lists write it
 	ui->m_dn_cb->lineEdit()->setText(m_part->diameterText());
 	m_locked = false;
+}
+
+/**
+	@brief TerminalEditor::fillKinds
+	Offer beside the diameter the kinds of size a nozzle of @p connection is
+	named by (PipeConnection::kinds()), keeping the one chosen if it is one
+*/
+void TerminalEditor::fillKinds(PipeConnection::Type connection)
+{
+	const QSignalBlocker blocker(ui->m_dn_kind_cb);
+	const QVariant chosen = ui->m_dn_kind_cb->currentData();
+	ui->m_dn_kind_cb->clear();
+	for (PipeDiameter::Kind kind : PipeConnection::kinds(connection)) {
+		ui->m_dn_kind_cb->addItem(kind == PipeDiameter::Outside ? QString(PipeDiameter::outsideSign())
+																: QStringLiteral("DN"),
+								  int(kind));
+	}
+	const int index = ui->m_dn_kind_cb->findData(chosen);
+	ui->m_dn_kind_cb->setCurrentIndex(index < 0 ? 0 : index);
+}
+
+/**
+	@brief TerminalEditor::connectionEdited
+	How a pipe is joined to the nozzle. A diameter of a kind the new
+	connection does not take is removed, in the same undo step: a symbol
+	belongs to no project, whose table could convert it.
+*/
+void TerminalEditor::connectionEdited()
+{
+	if (m_locked) {
+		return;
+	}
+	const auto connection = PipeConnection::Type(ui->m_connection_cb->currentData().toInt());
+	if (connection == m_part->connection()) {
+		return;
+	}
+	m_locked = true;
+	undoStack().beginMacro(tr("Change the connection of a nozzle"));
+	undoStack().push(new QPropertyUndoCommand(m_part, "connection", m_part->connectionWord(),
+											  PipeConnection::toString(connection)));
+	if (!PipeConnection::allows(connection, m_part->diameter()))
+	{
+		QToolTip::showText(ui->m_dn_cb->mapToGlobal(QPoint(0, ui->m_dn_cb->height())),
+						   tr("%1 does not name a nozzle of this connection (%2): removed.")
+						   .arg(m_part->diameterText(), PipeConnection::name(connection)),
+						   ui->m_dn_cb);
+		undoStack().push(new QPropertyUndoCommand(m_part, "diameter", m_part->diameterText(),
+												  QString()));
+	}
+	undoStack().endMacro();
+	m_locked = false;
+	updateForm();
 }
 
 /**
@@ -591,6 +660,8 @@ void TerminalEditor::activeConnections(bool active)
 										this, &TerminalEditor::typeEdited);
 		m_editor_connections << connect(ui->m_medium_cb, QOverload<int>::of(&QComboBox::activated),
 										this, &TerminalEditor::mediumEdited);
+		m_editor_connections << connect(ui->m_connection_cb, QOverload<int>::of(&QComboBox::activated),
+										this, &TerminalEditor::connectionEdited);
 		m_editor_connections << connect(ui->m_dn_cb->lineEdit(), &QLineEdit::editingFinished,
 										this, &TerminalEditor::dnEdited);
 		m_editor_connections << connect(ui->m_dn_cb, QOverload<int>::of(&QComboBox::activated),
@@ -646,6 +717,7 @@ void TerminalEditor::activeChangeConnections(bool active)
 		m_change_connections << connect(m_part, &PartTerminal::terminalTypeChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::mediumChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::diameterChanged, this, &TerminalEditor::updateForm);
+		m_change_connections << connect(m_part, &PartTerminal::connectionChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::showNameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelPosChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelFontChanged, this, &TerminalEditor::updateForm);

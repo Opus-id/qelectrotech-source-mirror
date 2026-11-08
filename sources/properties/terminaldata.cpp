@@ -125,6 +125,10 @@ QDomElement TerminalData::toXml(QDomDocument &xml_document) const
 		//before, or an outside diameter
 	if (m_medium == Pipe)
 		m_diameter.toXml(xml_element, QStringLiteral("dn"), QStringLiteral("od"));
+		//A flange, the default, is not written
+	if (m_medium == Pipe && m_connection != PipeConnection::Flange)
+		xml_element.setAttribute(QStringLiteral("connection"),
+					 PipeConnection::toString(m_connection));
 
 	if (m_show_name) {
 		xml_element.setAttribute("show_name", "true");
@@ -197,6 +201,7 @@ bool TerminalData::fromXml (const QDomElement &xml_element)
 	m_type = typeFromString(xml_element.attribute("type"));
 	m_medium = mediumFromString(xml_element.attribute("medium"));
 	m_diameter = m_medium == Pipe ? diameterFromXml(xml_element) : PipeDiameter();
+	m_connection = m_medium == Pipe ? connectionFromXml(xml_element) : PipeConnection::Flange;
 
 	m_show_name = (xml_element.attribute("show_name") == QLatin1String("true"));
 	if (m_show_name) {

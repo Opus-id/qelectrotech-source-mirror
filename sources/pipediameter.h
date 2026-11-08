@@ -86,23 +86,13 @@ class PipeDiameter
 			return number(tenths, QLocale::c());
 		}
 
-			/// "DN 100", "Ø 88,9", or nothing: how the lists offer it
+			/// "DN 100", "Ø 88,9", or nothing: how the lists offer it, and
+			/// how a nozzle shows it under its name
 		QString text(const QLocale &locale = QLocale()) const
 		{
 			switch (m_kind) {
 				case Nominal: return QStringLiteral("DN ") + number(m_tenths, locale);
 				case Outside: return QString(outsideSign()) + QLatin1Char(' ') + number(m_tenths, locale);
-				case None:    break;
-			}
-			return QString();
-		}
-			/// "100", "Ø88,9", or nothing: how a nozzle shows it under its
-			/// name, a DN as before
-		QString label(const QLocale &locale = QLocale()) const
-		{
-			switch (m_kind) {
-				case Nominal: return number(m_tenths, locale);
-				case Outside: return QString(outsideSign()) + number(m_tenths, locale);
 				case None:    break;
 			}
 			return QString();

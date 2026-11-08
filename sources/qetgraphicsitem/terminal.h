@@ -110,6 +110,12 @@ class Terminal : public QGraphicsObject
 			/// The one its symbol gives this nozzle
 		PipeDiameter symbolDiameter() const { return d->m_diameter; }
 		void setSymbolDiameter(const PipeDiameter &diameter);
+			/// How a pipe is joined to this nozzle: the connection given by
+			/// its element, else by its symbol; a flange by default
+		PipeConnection::Type connection() const;
+			/// The one its symbol gives this nozzle
+		PipeConnection::Type symbolConnection() const { return d->m_connection; }
+		void setSymbolConnection(PipeConnection::Type connection);
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 			/// The font of labelText(): the one of the symbol, at the size
@@ -190,7 +196,8 @@ class Terminal : public QGraphicsObject
 
 	private:
 			/// The diameter given to this nozzle alone, by its element or its
-			/// symbol
+			/// symbol; none when its connection does not take its kind
+			/// (PipeConnection::allows())
 		PipeDiameter givenDiameter() const;
 			/// The diameter of the pipe connected to this nozzle alone
 		PipeDiameter connectedDiameter() const;

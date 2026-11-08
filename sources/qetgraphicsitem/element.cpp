@@ -583,6 +583,25 @@ void Element::setNozzleDiameters(const NozzleDiameters &diameters)
 }
 
 /**
+	@brief Element::setNozzleConnections
+	Give nozzles of this element connections of their own. A diameter of a
+	kind the connection does not take is then ignored (Terminal::givenDiameter()).
+	@param connections : by name of nozzle
+*/
+void Element::setNozzleConnections(const NozzleConnections &connections)
+{
+	if (connections == m_nozzle_connections) {
+		return;
+	}
+	m_nozzle_connections = connections;
+	for (Terminal *terminal : std::as_const(m_terminals)) {
+		terminal->updateDiameterToolTip();
+		terminal->update();
+	}
+	emit nozzleDiametersChanged();
+}
+
+/**
 	@brief Element::isPipeInline
 	@return true if a line runs through this symbol, as through a valve: the
 	symbol says so and has two nozzles. A three-way valve joins lines, as a tee.
@@ -617,6 +636,30 @@ NozzleDiameters Element::nozzleDiametersFromXml(const QDomElement &element)
 		}
 	}
 	return diameters;
+}
+
+/**
+	@brief Element::nozzleConnectionsFromXml
+	@param element : an <element> of a project
+	@return the connections of its <nozzles> block; a nozzle without a name
+	or a connection of the list is left out
+*/
+NozzleConnections Element::nozzleConnectionsFromXml(const QDomElement &element)
+{
+	NozzleConnections connections;
+	const QDomElement nozzles = element.firstChildElement(QStringLiteral("nozzles"));
+	for (QDomElement nozzle = nozzles.firstChildElement(QStringLiteral("nozzle")) ;
+		 !nozzle.isNull() ; nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle")))
+	{
+		const QString name = nozzle.attribute(QStringLiteral("name"));
+		bool known = false;
+		const PipeConnection::Type connection = PipeConnection::fromString(
+					nozzle.attribute(QStringLiteral("connection")), &known);
+		if (!name.isEmpty() && known) {
+			connections.insert(name, connection);
+		}
+	}
+	return connections;
 }
 
 /**
@@ -1946,6 +1989,7 @@ bool Element::fromXml(QDomElement &e,
 		//The options of the symbol chosen for this element, drawn after them
 	setOptionChoices(ElementOptions::choicesFromXml(e));
 	setNozzleDiameters(nozzleDiametersFromXml(e));
+	setNozzleConnections(nozzleConnectionsFromXml(e));
 
 		//Last, so that the texts and groups loaded above are kept readable
 	const QString mirror = e.attribute(QStringLiteral("mirror"));
@@ -2087,16 +2131,24 @@ QDomElement Element::toXml(
 	if (!options.isNull())
 		element.appendChild(options);
 
-		//The diameters given to its nozzles; none written for an element
-		//that keeps those of its symbol, which saves as before
-	if (!m_nozzle_diameters.isEmpty())
+		//The diameters and connections given to its nozzles; none written
+		//for an element that keeps those of its symbol, which saves as before
+	if (!m_nozzle_diameters.isEmpty() || !m_nozzle_connections.isEmpty())
 	{
+		QStringList names = m_nozzle_diameters.keys() + m_nozzle_connections.keys();
+		names.sort();
+		names.removeDuplicates();
 		QDomElement nozzles = document.createElement(QStringLiteral("nozzles"));
-		for (auto it = m_nozzle_diameters.cbegin() ; it != m_nozzle_diameters.cend() ; ++it)
+		for (const QString &name : std::as_const(names))
 		{
 			QDomElement nozzle = document.createElement(QStringLiteral("nozzle"));
-			it.value().toXml(nozzle, QStringLiteral("dn"), QStringLiteral("od"));
-			nozzle.setAttribute(QStringLiteral("name"), it.key());
+			m_nozzle_diameters.value(name).toXml(nozzle, QStringLiteral("dn"), QStringLiteral("od"));
+			const auto connection = m_nozzle_connections.constFind(name);
+			if (connection != m_nozzle_connections.cend()) {
+				nozzle.setAttribute(QStringLiteral("connection"),
+									PipeConnection::toString(connection.value()));
+			}
+			nozzle.setAttribute(QStringLiteral("name"), name);
 			nozzles.appendChild(nozzle);
 		}
 		element.appendChild(nozzles);
@@ -4082,6 +4134,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 				if (qAbs(pos.x() - x) < 0.01 && qAbs(pos.y() - y) < 0.01) {
 					terminal->setUuid(uuid);
 					terminal->setSymbolDiameter(TerminalData::diameterFromXml(part));
+					terminal->setSymbolConnection(TerminalData::connectionFromXml(part));
 				}
 			}
 		}

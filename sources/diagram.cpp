@@ -998,7 +998,8 @@ bool Diagram::hasSymbolChoices() const
 		for (QDomElement element = elements.firstChildElement(QStringLiteral("element")) ;
 			 !element.isNull() ; element = element.nextSiblingElement(QStringLiteral("element"))) {
 			if (!ElementOptions::choicesFromXml(element).isEmpty()
-				|| !Element::nozzleDiametersFromXml(element).isEmpty())
+				|| !Element::nozzleDiametersFromXml(element).isEmpty()
+				|| !Element::nozzleConnectionsFromXml(element).isEmpty())
 				return true;
 		}
 		return false;
@@ -1007,7 +1008,8 @@ bool Diagram::hasSymbolChoices() const
 	return std::any_of(all.cbegin(), all.cend(), [](QGraphicsItem *item) {
 		const Element *element = qgraphicsitem_cast<Element *>(item);
 		return element && (!element->optionChoices().isEmpty()
-						   || !element->nozzleDiameters().isEmpty());
+						   || !element->nozzleDiameters().isEmpty()
+						   || !element->nozzleConnections().isEmpty());
 	});
 }
 

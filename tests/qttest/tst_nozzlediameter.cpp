@@ -49,6 +49,8 @@
 	the terminal), shown under the name of the nozzle, that a placed element
 	can change (<nozzles> block of the element). Nothing goes from a nozzle to
 	the pipe connected there, nor back.
+	The nozzles of the symbols here are plain ends, which take a DN and an
+	outside diameter alike (see tst_nozzleconnection for the others).
 */
 class tst_nozzlediameter : public QObject
 {
@@ -67,16 +69,17 @@ class tst_nozzlediameter : public QObject
 			"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
 			"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
 			"<terminal uuid=\"{7b000000-0000-0000-0000-000000000001}\" name=\"N1\" x=\"-20\" y=\"0\" "
-			"orientation=\"w\" type=\"Generic\" medium=\"pipe\" dn=\"%2\" show_name=\"true\"/>"
+			"orientation=\"w\" type=\"Generic\" medium=\"pipe\" connection=\"plain_end\" dn=\"%2\" "
+			"show_name=\"true\"/>"
 			"<terminal uuid=\"{7b000000-0000-0000-0000-000000000002}\" name=\"N2\" x=\"20\" y=\"0\" "
-			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" show_name=\"true\"/>"
+			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" connection=\"plain_end\" show_name=\"true\"/>"
 			"<terminal uuid=\"{7b000000-0000-0000-0000-000000000003}\" name=\"E1\" x=\"0\" y=\"-10\" "
 			"orientation=\"n\" type=\"Generic\" dn=\"50\" show_name=\"true\"/>"
 			"%4</description></definition>").arg(uuid).arg(n1_dn).arg(extra)
 			.arg(extra.contains(QStringLiteral("three"))
 				 ? QStringLiteral("<terminal uuid=\"{7b000000-0000-0000-0000-000000000004}\" "
 								  "name=\"N3\" x=\"0\" y=\"10\" orientation=\"s\" "
-								  "type=\"Generic\" medium=\"pipe\"/>")
+								  "type=\"Generic\" medium=\"pipe\" connection=\"plain_end\"/>")
 				 : QString());
 	}
 
@@ -192,7 +195,7 @@ class tst_nozzlediameter : public QObject
 			PartTerminal back(nullptr);
 			back.fromXml(written);
 			QCOMPARE(back.diameter(), PipeDiameter::outside(110));
-			QCOMPARE(back.labelText(), QStringLiteral("N1\nØ110"));
+			QCOMPARE(back.labelText(), QStringLiteral("N1\nØ 110"));
 		}
 
 		void onlyANozzleHasADiameter()
@@ -209,7 +212,7 @@ class tst_nozzlediameter : public QObject
 				// kept aside while the terminal is not a nozzle
 			part.setMedium(TerminalData::Pipe);
 			part.setDiameter(PipeDiameter::nominal(100));
-			QCOMPARE(part.labelText(), QStringLiteral("T1\n100"));
+			QCOMPARE(part.labelText(), QStringLiteral("T1\nDN 100"));
 			part.setMedium(TerminalData::Electrical);
 			QCOMPARE(part.labelText(), QStringLiteral("T1"));
 			QDomDocument out2;
@@ -239,17 +242,17 @@ class tst_nozzlediameter : public QObject
 		void theLabelShowsTheDiameterUnderTheName()
 		{
 			QCOMPARE(TerminalData::labelText(QStringLiteral("N1"), PipeDiameter::nominal(80)),
-					 QStringLiteral("N1\n80"));
+					 QStringLiteral("N1\nDN 80"));
 			QCOMPARE(TerminalData::labelText(QStringLiteral("N1"), PipeDiameter()), QStringLiteral("N1"));
-			QCOMPARE(TerminalData::labelText(QString(), PipeDiameter::nominal(80)), QStringLiteral("80"));
+			QCOMPARE(TerminalData::labelText(QString(), PipeDiameter::nominal(80)), QStringLiteral("DN 80"));
 				// an outside diameter keeps its sign: 110 alone would be a DN
 			QCOMPARE(TerminalData::labelText(QStringLiteral("N1"), PipeDiameter::outside(110)),
-					 QStringLiteral("N1\nØ110"));
+					 QStringLiteral("N1\nØ 110"));
 
 				// two lines take the height of two lines, one the height of one
 			const QFontMetrics metrics{QFont()};
 			const QSizeF one = TerminalData::labelSize(metrics, QStringLiteral("N1"));
-			const QSizeF two = TerminalData::labelSize(metrics, QStringLiteral("N1\n80"));
+			const QSizeF two = TerminalData::labelSize(metrics, QStringLiteral("N1\nDN 80"));
 			QCOMPARE(one, QSizeF(metrics.size(Qt::TextSingleLine, QStringLiteral("N1"))));
 			QVERIFY(two.height() > one.height() * 1.5);
 		}
@@ -261,7 +264,7 @@ class tst_nozzlediameter : public QObject
 			Element *tank = place(project.addNewDiagram(), addTank(project));
 			QVERIFY(tank);
 			QCOMPARE(terminal(tank, QStringLiteral("N1"))->diameter().value(), 80.0);
-			QCOMPARE(terminal(tank, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\n80"));
+			QCOMPARE(terminal(tank, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\nDN 80"));
 			QCOMPARE(terminal(tank, QStringLiteral("N2"))->diameter().value(), 0.0);
 			QCOMPARE(terminal(tank, QStringLiteral("N2"))->labelText(), QStringLiteral("N2"));
 				// an electrical terminal shows its name, as it always did
@@ -283,7 +286,7 @@ class tst_nozzlediameter : public QObject
 
 			a->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 50}}));
 			QCOMPARE(n1->diameter().value(), 100.0);
-			QCOMPARE(n2->labelText(), QStringLiteral("N2\n50"));
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 50"));
 				// the room for a second line was there before it came
 			QCOMPARE(n2->boundingRect(), room);
 				//measured in the font the label is drawn with, not the
@@ -365,7 +368,7 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(n2->labelText(), QStringLiteral("N2"));
 
 			setDn(pipe, 150);
-			QCOMPARE(n2->labelText(), QStringLiteral("N2\n150"));
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 150"));
 			QVERIFY(!n2->hasDiameterGap());
 			setDn(pipe, 200);
 			QCOMPARE(n2->diameter().value(), 200.0);
@@ -559,7 +562,7 @@ class tst_nozzlediameter : public QObject
 			setDn(after, 100);
 			QVERIFY(!in->hasDiameterGap());
 			QVERIFY(!out->hasDiameterGap());
-			QVERIFY(in->toolTip().isEmpty());
+			QCOMPARE(in->toolTip(), QStringLiteral("Plain end"));
 		}
 
 		void theEditorKeepsThatALineRunsThrough()
@@ -625,7 +628,7 @@ class tst_nozzlediameter : public QObject
 			setDn(pipe, 0);
 			QCOMPARE(dn(pipe), 0);
 			QVERIFY(!n2->hasDiameterGap());
-			QVERIFY(n2->toolTip().isEmpty());
+			QCOMPARE(n2->toolTip(), QStringLiteral("Plain end"));
 
 				// the same value again: no difference left
 			setDn(pipe, 100);
@@ -659,7 +662,7 @@ class tst_nozzlediameter : public QObject
 			codification.outside_diameters.insert(900, {80});
 			project.setPidCodification(codification);
 			QVERIFY(!n1->hasDiameterGap());
-			QVERIFY(n1->toolTip().isEmpty());
+			QCOMPARE(n1->toolTip(), QStringLiteral("Plain end"));
 
 				// joined to another DN: different
 			codification.outside_diameters.insert(900, {65});
@@ -688,7 +691,7 @@ class tst_nozzlediameter : public QObject
 			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(110)}});
 			Conductor *pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N2"));
 			QCOMPARE(pipe->properties().m_pipe.diameter, PipeDiameter::outside(110));
-			QCOMPARE(terminal(b, QStringLiteral("N2"))->labelText(), QStringLiteral("N2\nØ110"));
+			QCOMPARE(terminal(b, QStringLiteral("N2"))->labelText(), QStringLiteral("N2\nØ 110"));
 		}
 
 			// the DN of the pipe is that of the file, whatever its nozzles say
@@ -1021,7 +1024,7 @@ class tst_nozzlediameter : public QObject
 			emit n1->editingFinished();
 			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::outside(110));
 			QCOMPARE(n1->text(), QStringLiteral("Ø 110"));
-			QCOMPARE(terminal(tank, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\nØ110"));
+			QCOMPARE(terminal(tank, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\nØ 110"));
 				// one the project has not
 			n1->setText(QStringLiteral("Ø 90"));
 			emit n1->editingFinished();
@@ -1041,10 +1044,10 @@ class tst_nozzlediameter : public QObject
 			PidCodification codification;
 			codification.decimal = PidCodification::Decimal::Comma;
 			project.setPidCodification(codification);
-			QCOMPARE(n1->labelText(), QStringLiteral("N1\nØ88,9"));
+			QCOMPARE(n1->labelText(), QStringLiteral("N1\nØ 88,9"));
 			codification.decimal = PidCodification::Decimal::Point;
 			project.setPidCodification(codification);
-			QCOMPARE(n1->labelText(), QStringLiteral("N1\nØ88.9"));
+			QCOMPARE(n1->labelText(), QStringLiteral("N1\nØ 88.9"));
 			codification.show_nozzle_sizes = false;
 			project.setPidCodification(codification);
 			QCOMPARE(n1->labelText(), QStringLiteral("N1"));

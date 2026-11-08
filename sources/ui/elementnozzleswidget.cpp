@@ -30,6 +30,7 @@
 
 #include <QComboBox>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSignalBlocker>
@@ -103,11 +104,17 @@ void ElementNozzlesWidget::buildFields()
 		if (terminal->medium() != TerminalData::Pipe || name.isEmpty()) {
 			continue;
 		}
+		auto *connection = new QComboBox(this);
+		connection->setObjectName(QStringLiteral("connection_list"));
+		for (PipeConnection::Type type : PipeConnection::all()) {
+			connection->addItem(PipeConnection::name(type), int(type));
+		}
 		auto *list = new QComboBox(this);
 			//A nozzle has no material: the DN, then the outside diameters
 		DiameterList::setUp(list, codification.nozzleSizes(), codification.locale());
 		QLineEdit *edit = list->lineEdit();
-		const Field field{name, terminal->symbolDiameter(), list, edit, terminal};
+		const Field field{name, terminal->symbolDiameter(), terminal->symbolConnection(),
+						  connection, list, edit, terminal};
 		const auto applied = [this, field]() {
 			if (checkField(field) && m_live_edit) {
 				apply();
@@ -115,7 +122,16 @@ void ElementNozzlesWidget::buildFields()
 		};
 		connect(edit, &QLineEdit::editingFinished, this, applied);
 		connect(list, &QComboBox::activated, this, applied);
-		m_layout->addRow(tr("%1:", "label of the DN of a nozzle").arg(name), list);
+		connect(connection, &QComboBox::activated, this, [this, field]() {
+			connectionPicked(field);
+			if (m_live_edit) {
+				apply();
+			}
+		});
+		auto *row = new QHBoxLayout();
+		row->addWidget(connection);
+		row->addWidget(list, 1);
+		m_layout->addRow(tr("%1:", "label of the DN of a nozzle").arg(name), row);
 		m_fields.append(field);
 	}
 	m_message = new QLabel(this);
@@ -145,14 +161,22 @@ bool ElementNozzlesWidget::checkField(const Field &field)
 {
 	bool ok = false;
 	const QString text = field.edit->text().trimmed();
-	const PipeDiameter diameter = PipeDiameter::fromText(text, PipeDiameter::Nominal, &ok);
+	const PipeConnection::Type connection = pickedConnection(field);
+	const PipeDiameter diameter = PipeDiameter::fromText(
+				text, PipeConnection::kinds(connection).constFirst(), &ok);
 	const PidCodification codification = projectCodification();
+	if (ok && !PipeConnection::allows(connection, diameter)) {
+		m_message->setText(tr("%1 does not name a nozzle of this connection (%2).")
+						   .arg(text, PipeConnection::name(connection)));
+		showField(field);
+		return false;
+	}
 	if (ok && codification.acceptsForNozzle(diameter)) {
 		m_message->clear();
 		return true;
 	}
 		//A size the lists have not: the nearest one of its kind
-	const PipeDiameter near = ok ? PidCodification::nearest(diameter, codification.nozzleSizes())
+	const PipeDiameter near = ok ? PidCodification::nearest(diameter, sizesFor(field))
 								 : PipeDiameter();
 	if (near.isSet()) {
 		const QSignalBlocker blocker(field.edit);
@@ -184,8 +208,15 @@ void ElementNozzlesWidget::showField(const Field &field)
 {
 	const NozzleDiameters diameters = m_element->nozzleDiameters();
 	const QLocale locale = projectCodification().locale();
+	const PipeConnection::Type connection = field.terminal->connection();
+	{
+		const QSignalBlocker connection_blocker(field.connection);
+		field.connection->setCurrentIndex(field.connection->findData(int(connection)));
+	}
+	DiameterList::fill(field.list, sizesFor(field), locale);
 	const QSignalBlocker blocker(field.edit);
-	field.edit->setText(diameters.value(field.name).text(locale));
+	const PipeDiameter own = diameters.value(field.name);
+	field.edit->setText(PipeConnection::allows(connection, own) ? own.text(locale) : QString());
 		//In grey, what the nozzle has without a value of its own: the
 		//diameter of its symbol, else that of its pipe, which it follows
 	field.edit->setPlaceholderText(field.terminal->diameter().text(locale));
@@ -221,11 +252,15 @@ NozzleDiameters ElementNozzlesWidget::chosen() const
 	for (const Field &field : m_fields)
 	{
 		bool ok = false;
-		const PipeDiameter diameter = PipeDiameter::fromText(field.edit->text(),
-															 PipeDiameter::Nominal, &ok);
-		if (!ok || !codification.acceptsForNozzle(diameter)) {
+		const PipeConnection::Type connection = pickedConnection(field);
+		const PipeDiameter diameter = PipeDiameter::fromText(
+					field.edit->text(), PipeConnection::kinds(connection).constFirst(), &ok);
+		if (!ok || !codification.acceptsForNozzle(diameter)
+			|| !PipeConnection::allows(connection, diameter)) {
 			continue;
 		}
+			//The one of the symbol is kept only if its connection takes it
+			//not: then the element has none, which is no diameter
 		if (!diameter.isSet() || diameter == field.symbol_diameter) {
 			diameters.remove(field.name);
 		} else {
@@ -233,6 +268,89 @@ NozzleDiameters ElementNozzlesWidget::chosen() const
 		}
 	}
 	return diameters;
+}
+
+/**
+	@brief ElementNozzlesWidget::chosenConnections
+	See the declaration
+*/
+NozzleConnections ElementNozzlesWidget::chosenConnections() const
+{
+	if (!m_element) {
+		return {};
+	}
+	NozzleConnections connections = m_element->nozzleConnections();
+	for (const Field &field : m_fields)
+	{
+		const PipeConnection::Type connection = pickedConnection(field);
+		if (connection == field.symbol_connection) {
+			connections.remove(field.name);
+		} else {
+			connections.insert(field.name, connection);
+		}
+	}
+	return connections;
+}
+
+/**
+	@brief ElementNozzlesWidget::pickedConnection
+	See the declaration
+*/
+PipeConnection::Type ElementNozzlesWidget::pickedConnection(const Field &field)
+{
+	return PipeConnection::Type(field.connection->currentData().toInt());
+}
+
+/**
+	@brief ElementNozzlesWidget::sizesFor
+	See the declaration
+*/
+QList<PipeDiameter> ElementNozzlesWidget::sizesFor(const Field &field) const
+{
+	const QList<PipeDiameter::Kind> kinds = PipeConnection::kinds(pickedConnection(field));
+	QList<PipeDiameter> sizes = projectCodification().nozzleSizes();
+	sizes.erase(std::remove_if(sizes.begin(), sizes.end(), [&kinds](const PipeDiameter &size) {
+		return !kinds.contains(size.kind());
+	}), sizes.end());
+	return sizes;
+}
+
+/**
+	@brief ElementNozzlesWidget::connectionPicked
+	See the declaration
+*/
+void ElementNozzlesWidget::connectionPicked(const Field &field)
+{
+	const PidCodification codification = projectCodification();
+	const QLocale locale = codification.locale();
+	const PipeConnection::Type connection = pickedConnection(field);
+	DiameterList::fill(field.list, sizesFor(field), locale);
+		//The diameter of the field, else the one of the symbol
+	PipeDiameter diameter = PipeDiameter::fromText(field.edit->text());
+	if (!diameter.isSet()) {
+		diameter = field.symbol_diameter;
+	}
+	m_message->clear();
+	if (PipeConnection::allows(connection, diameter)) {
+		return;
+	}
+	QList<PipeDiameter> joined;
+	for (const PipeDiameter &size : sizesFor(field)) {
+		if (codification.compare(diameter, size) == PidCodification::DiameterMatch::Same) {
+			joined << size;
+		}
+	}
+	const QSignalBlocker blocker(field.edit);
+	if (joined.size() == 1) {
+		field.edit->setText(joined.constFirst().text(locale));
+		m_message->setText(tr("%1 → %2: the size the table of the diameters of the project "
+							  "joins to it.").arg(diameter.text(locale), joined.constFirst().text(locale)));
+	} else {
+		field.edit->clear();
+		m_message->setText(tr("%1 does not name a nozzle of this connection (%2): the nozzle "
+							  "has no size of its own.")
+						   .arg(diameter.text(locale), PipeConnection::name(connection)));
+	}
 }
 
 /**
@@ -249,6 +367,18 @@ QLineEdit *ElementNozzlesWidget::fieldFor(const QString &name) const
 }
 
 /**
+	@brief ElementNozzlesWidget::connectionFor
+	See the declaration
+*/
+QComboBox *ElementNozzlesWidget::connectionFor(const QString &name) const
+{
+	for (const Field &field : m_fields) {
+		if (field.name == name) return field.connection;
+	}
+	return nullptr;
+}
+
+/**
 	@brief ElementNozzlesWidget::associatedUndo
 	@return the undo command giving the element the diameters of the fields,
 	or nullptr when they are those it has
@@ -259,10 +389,12 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 		return nullptr;
 	}
 	const NozzleDiameters diameters = chosen();
-	if (diameters == m_element->nozzleDiameters()) {
+	const NozzleConnections connections = chosenConnections();
+	if (diameters == m_element->nozzleDiameters()
+		&& connections == m_element->nozzleConnections()) {
 		return nullptr;
 	}
-	return new ChangeNozzleDiametersCommand(m_element, diameters);
+	return new ChangeNozzleDiametersCommand(m_element, diameters, connections);
 }
 
 /**

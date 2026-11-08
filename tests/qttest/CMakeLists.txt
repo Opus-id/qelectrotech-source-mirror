@@ -521,6 +521,10 @@ qet_add_app_test(tst_pidcodificationeditor tst_pidcodificationeditor.cpp)
 # read as the other; the lists of a project, its table joining them, and the
 # materials that say which kind names their pipes.
 qet_add_app_test(tst_pipediameter tst_pipediameter.cpp)
+# How a pipe is joined to a nozzle (flange, socket, thread...): given by the
+# symbol, changed by a placed element; it decides the kind of size of the
+# nozzle, converted by the table of the project when it changes.
+qet_add_app_test(tst_nozzleconnection tst_nozzleconnection.cpp)
 # The frame of a folio follows a new size at once.
 qet_add_app_test(tst_borderresize tst_borderresize.cpp)
 # A quick second click on the same spot reaches the shape tools as a

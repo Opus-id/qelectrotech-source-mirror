@@ -26,6 +26,7 @@
 #include <qet.h>
 #include "qetgraphicsitem.h"
 #include <properties/elementdata.h>
+#include "../pipeconnection.h"
 #include "../pipediameter.h"
 
 #include <QHash>
@@ -127,6 +128,7 @@ class Element : public QetGraphicsItem
 			/// (setOptionChoices())
 		void optionChoicesChanged();
 			/// Its nozzles were given other diameters (setNozzleDiameters())
+			/// or other connections (setNozzleConnections())
 		void nozzleDiametersChanged();
 			/// The element took another symbol (changeLocation())
 		void symbolChanged();
@@ -247,6 +249,12 @@ class Element : public QetGraphicsItem
 		void setNozzleDiameters(const NozzleDiameters &diameters);
 			/// Those of the <nozzles> block of @p element
 		static NozzleDiameters nozzleDiametersFromXml(const QDomElement &element);
+			/// The connections this element gives its nozzles, by name of
+			/// nozzle; any other has the one of its symbol
+		NozzleConnections nozzleConnections() const { return m_nozzle_connections; }
+		void setNozzleConnections(const NozzleConnections &connections);
+			/// Those of the <nozzles> block of @p element
+		static NozzleConnections nozzleConnectionsFromXml(const QDomElement &element);
 		bool isPipeInline() const;
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
@@ -480,6 +488,8 @@ class Element : public QetGraphicsItem
 	ElementOptions::Choices m_option_choices;
 		/// See nozzleDiameters()
 	NozzleDiameters m_nozzle_diameters;
+		/// See nozzleConnections()
+	NozzleConnections m_nozzle_connections;
 	QList<QPointF> m_plc_table_positions;  // Positions of plc_table parts in the element definition
 
 	void drawPlcTable(QPainter *painter);

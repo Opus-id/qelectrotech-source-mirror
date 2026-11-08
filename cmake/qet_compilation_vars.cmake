@@ -215,6 +215,7 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductorproperties.cpp
   ${QET_DIR}/sources/conductorproperties.h
   ${QET_DIR}/sources/pipediameter.h
+  ${QET_DIR}/sources/pipeconnection.h
   ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/pipeproperties.h
   ${QET_DIR}/sources/pidcodification.cpp

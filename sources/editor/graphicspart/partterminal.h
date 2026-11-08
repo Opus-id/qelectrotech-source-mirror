@@ -36,6 +36,7 @@ class PartTerminal : public CustomElementGraphicPart
 	Q_PROPERTY(TerminalData::Type terminal_type READ terminalType WRITE setTerminalType)
 	Q_PROPERTY(TerminalData::Medium medium READ medium WRITE setMedium)
 	Q_PROPERTY(QString diameter READ diameterText WRITE setDiameterText)
+	Q_PROPERTY(QString connection READ connectionWord WRITE setConnectionWord)
 	Q_PROPERTY(bool show_name READ showName WRITE setShowName)
 	Q_PROPERTY(QPointF label_pos READ labelPos WRITE setLabelPos)
 	Q_PROPERTY(QFont label_font READ labelFont WRITE setLabelFont)
@@ -61,6 +62,7 @@ class PartTerminal : public CustomElementGraphicPart
 		void terminalTypeChanged();
 		void mediumChanged();
 		void diameterChanged();
+		void connectionChanged();
 		void potentialChanged();
 		void showNameChanged();
 		void labelPosChanged();
@@ -126,6 +128,13 @@ class PartTerminal : public CustomElementGraphicPart
 			/// property the undo of the editor changes
 		QString diameterText() const;
 		void setDiameterText(const QString &text) {setDiameter(PipeDiameter::fromText(text));}
+			/// How a pipe is joined to a nozzle, a flange by default
+		PipeConnection::Type connection() const {return d->m_connection;}
+		void setConnection(PipeConnection::Type connection);
+			/// connection() as the word of the files: the property the
+			/// undo of the editor changes
+		QString connectionWord() const {return PipeConnection::toString(d->m_connection);}
+		void setConnectionWord(const QString &word) {setConnection(PipeConnection::fromString(word));}
 			/// The text shown at the terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 

@@ -168,6 +168,9 @@ void Terminal::init()
 	setAcceptHoverEvents(true);
 	setAcceptedMouseButtons(Qt::LeftButton);
 	setToolTip(QObject::tr("Terminal", "tooltip"));
+		//A nozzle says how a pipe is joined to it
+	if (d->m_medium == TerminalData::Pipe)
+		setToolTip(PipeConnection::name(d->m_connection));
 	setZValue(Z);
 }
 
@@ -1285,14 +1288,37 @@ PipeDiameter Terminal::givenDiameter() const
 	if (d->m_medium != TerminalData::Pipe) {
 		return PipeDiameter();
 	}
+	PipeDiameter given = d->m_diameter;
 	if (parent_element_) {
 		const NozzleDiameters own = parent_element_->nozzleDiameters();
+		const auto it = own.constFind(d->m_name);
+		if (it != own.constEnd()) {
+			given = it.value();
+		}
+	}
+	return PipeConnection::allows(connection(), given) ? given : PipeDiameter();
+}
+
+PipeConnection::Type Terminal::connection() const
+{
+	if (d->m_medium != TerminalData::Pipe) {
+		return PipeConnection::Flange;
+	}
+	if (parent_element_) {
+		const NozzleConnections own = parent_element_->nozzleConnections();
 		const auto it = own.constFind(d->m_name);
 		if (it != own.constEnd()) {
 			return it.value();
 		}
 	}
-	return d->m_diameter;
+	return d->m_connection;
+}
+
+void Terminal::setSymbolConnection(PipeConnection::Type connection)
+{
+	d->m_connection = connection;
+	updateDiameterToolTip();
+	update();
 }
 
 PipeDiameter Terminal::connectedDiameter() const
@@ -1360,7 +1386,8 @@ bool Terminal::hasDiameterGap() const
 
 /**
 	@brief Terminal::updateDiameterToolTip
-	Say what differs on a nozzle marked by its element (hasDiameterGap())
+	Say how a pipe is joined to a nozzle, and what differs on a nozzle
+	marked by its element (hasDiameterGap())
 */
 void Terminal::updateDiameterToolTip()
 {
@@ -1373,22 +1400,23 @@ void Terminal::updateDiameterToolTip()
 	const PipeDiameter own = ownDiameter();
 	const QLocale locale = sizeLocale();
 	const auto unknown = tr("The table of the diameters of the project does not join %1 to a DN.");
+	QString tip = PipeConnection::name(connection());
+	const auto match = compareDiameters(pipe, other);
 	if (!hasDiameterGap()) {
-		setToolTip(QString());
-	} else if (const auto match = compareDiameters(pipe, other) ; match != PidCodification::DiameterMatch::Same) {
-		QString tip = tr("Inline item between %1 and %2, without a reducer")
-					  .arg(pipe.text(locale), other.text(locale));
+			//The connection alone
+	} else if (match != PidCodification::DiameterMatch::Same) {
+		tip += QLatin1Char('\n') + tr("Inline item between %1 and %2, without a reducer")
+								   .arg(pipe.text(locale), other.text(locale));
 		if (match == PidCodification::DiameterMatch::Unknown) {
 			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : other).text(locale));
 		}
-		setToolTip(tip);
 	} else {
-		QString tip = tr("Nozzle %1, pipe %2").arg(own.text(locale), pipe.text(locale));
+		tip += QLatin1Char('\n') + tr("Nozzle %1, pipe %2").arg(own.text(locale), pipe.text(locale));
 		if (compareDiameters(own, pipe) == PidCodification::DiameterMatch::Unknown) {
 			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : own).text(locale));
 		}
-		setToolTip(tip);
 	}
+	setToolTip(tip);
 		//The pipe draws the mark
 	for (Conductor *conductor : std::as_const(m_conductors_list)) {
 		conductor->update();

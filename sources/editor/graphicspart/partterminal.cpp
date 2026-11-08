@@ -427,6 +427,21 @@ void PartTerminal::setDiameter(const PipeDiameter &diameter)
 }
 
 /**
+	@brief PartTerminal::setConnection
+	Set how a pipe is joined to this nozzle, the default of the elements of
+	this symbol
+	@param connection
+*/
+void PartTerminal::setConnection(PipeConnection::Type connection)
+{
+	if (d->m_connection == connection) {
+		return;
+	}
+	d->m_connection = connection;
+	emit connectionChanged();
+}
+
+/**
 	@brief PartTerminal::labelText
 	@return the text shown at the terminal: its name, and the DN of a nozzle
 */
