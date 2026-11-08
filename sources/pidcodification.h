@@ -263,8 +263,13 @@ class PidCodification
 		static PidCodification fromCsv(const QString &text, int *skipped = nullptr);
 			/// The colours and the settings of texts, as lines fromCsv()
 			/// reads: the palette kept in the settings, for new projects. The
-			/// codes stay out, each project has its own
+			/// codes stay out, kept apart (codesToCsv())
 		QString paletteToCsv() const;
+			/// The codes, the series of the materials and the table of the
+			/// outside diameters, as lines fromCsv() reads: the codification
+			/// kept in the settings, for new projects, apart from the palette,
+			/// as a company may keep its colours with codes of another client
+		QString codesToCsv() const;
 			/// The whole codification, codes then palette, as lines fromCsv()
 			/// reads: what another project imports
 		QString toCsv() const;

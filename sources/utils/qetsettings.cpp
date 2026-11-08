@@ -242,6 +242,22 @@ namespace QetSettings
 		}
 	}
 
+	QString pidDefaultCodification()
+	{
+		QSettings settings;
+		return settings.value("pid/default_codification").toString();
+	}
+
+	void setPidDefaultCodification(const QString &codification)
+	{
+		QSettings settings;
+		if (codification.isEmpty()) {
+			settings.remove("pid/default_codification");
+		} else {
+			settings.setValue("pid/default_codification", codification);
+		}
+	}
+
 	/**
 	* @brief liveSkipStartWarning
 	* @return true when the user ticked "don't ask again" in live mode's

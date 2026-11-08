@@ -4708,16 +4708,19 @@ void QETProject::setPidCodification(const PidCodification &codification)
 }
 
 /**
-	@brief QETProject::takeDefaultPidPalette
+	@brief QETProject::takeDefaultPidSettings
 	See the declaration
 */
-void QETProject::takeDefaultPidPalette()
+void QETProject::takeDefaultPidSettings()
 {
+		//codesToCsv() and paletteToCsv() wrote them: each has only its part
+	const PidCodification codes = PidCodification::fromCsv(QetSettings::pidDefaultCodification());
 	const PidCodification palette = PidCodification::fromCsv(QetSettings::pidPalette());
-	if (!palette.hasColors() && !palette.hasTextSettings()) {
+	const PidCodification start = codes.completedWith(palette);
+	if (start.isEmpty()) {
 		return;
 	}
-	setPidCodification(palette);
+	setPidCodification(start);
 	setModified(false);
 }
 

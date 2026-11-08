@@ -12714,6 +12714,26 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Palette par défaut retirée</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="326"/>
+        <source>Save as default codification</source>
+        <translation>Enregistrer comme codification par défaut</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="328"/>
+        <source>New projects will start with these codes, the series of these materials and this table of diameters; the palette is saved apart. Projects that already exist do not change.</source>
+        <translation>Les nouveaux projets commenceront avec ces codes, les séries de ces matériaux et cette table des diamètres ; la palette s&apos;enregistre à part. Les projets existants ne changent pas.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="592"/>
+        <source>Codification saved</source>
+        <translation>Codification enregistrée</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="592"/>
+        <source>Default codification removed</source>
+        <translation>Codification par défaut retirée</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
         <source>What has no color here is drawn in black. A status comes first, then a color set on a pipe line, then its fluid, then the family of the object.</source>
         <translation>Ce qui n&apos;a pas de couleur ici est dessiné en noir. Le statut passe d&apos;abord, puis la couleur posée sur une tuyauterie, puis son fluide, puis la famille de l&apos;objet.</translation>

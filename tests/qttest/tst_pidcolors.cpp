@@ -857,6 +857,58 @@ class tst_pidcolors : public QObject
 			m_project.setPidCodification(PidCodification());
 		}
 
+		void aNewProjectStartsFromTheDefaultCodification()
+		{
+			QETDiagramEditor *editor = QetAppTest::editor();
+			QVERIFY(editor);
+			const QString codes = QStringLiteral(
+						"fluid;W01;Raw water;E\n"
+						"material;M05;HDPE;od\n"
+						"series;M05;90/110/125\n"
+						"od;110;100\n"
+						"unit;U10;Intake\n");
+			const PidCodification expected = PidCodification::fromCsv(codes);
+			QVERIFY(!expected.materials.isEmpty() && !expected.materials.first().series.isEmpty());
+			QVERIFY(expected.hasDiameters());
+
+				// nothing saved: as before
+			QVERIFY(QetSettings::pidDefaultCodification().isEmpty());
+
+				// the codes of the page, not its colours, kept apart
+			m_project.setPidCodification(PidCodification::fromCsv(codes
+																  + QStringLiteral("fluid_color;E;#0000ff\n")));
+			{
+				PidConfigPage page(&m_project);
+				auto *save = page.findChild<QPushButton *>(QStringLiteral("save_codification"));
+				QVERIFY(save);
+				save->click();
+			}
+			QVERIFY(!QetSettings::pidDefaultCodification().isEmpty());
+			QVERIFY(QetSettings::pidPalette().isEmpty());
+
+			QVERIFY(editor->newProject());
+			QETProject *project = editor->currentProject();
+			QVERIFY(project->pidCodification() == expected);
+				// nothing to save yet
+			QVERIFY(!project->projectOptionsWereModified());
+
+				// with a palette too: a project takes both
+			QetSettings::setPidPalette(QStringLiteral("fluid_color;E;#0000ff\n"));
+			QVERIFY(editor->newProject());
+			const PidCodification both = editor->currentProject()->pidCodification();
+			QCOMPARE(both.fluids.size(), 1);
+			QCOMPARE(both.fluidColor(QStringLiteral("W01")), QColor(0, 0, 255));
+			QetSettings::setPidPalette(QString());
+
+				// a page without codes takes the codification away
+			m_project.setPidCodification(PidCodification());
+			{
+				PidConfigPage page(&m_project);
+				page.saveAsDefaultCodification();
+			}
+			QVERIFY(QetSettings::pidDefaultCodification().isEmpty());
+		}
+
 			// Undo takes back the colours just applied, not the last thing drawn
 		void theColorsOfThePageAreUndone()
 		{

@@ -72,6 +72,11 @@ class PidConfigPage : public ProjectConfigPage
 			/// those of the new projects, or none when it has none; other
 			/// projects stay as they are
 		void saveAsDefaultPalette();
+			/// Keep the codes, the series and the table of the outside
+			/// diameters of this page as those of the new projects, or none
+			/// when it has none; apart from the palette, other projects stay
+			/// as they are
+		void saveAsDefaultCodification();
 
 			/// Read the file @p path in this page: its codes replace those of
 			/// the page, its colours and texts those of the page when it has
@@ -150,7 +155,9 @@ class PidConfigPage : public ProjectConfigPage
 		QPushButton *m_choose = nullptr;
 		QPushButton *m_clear = nullptr;
 		QPushButton *m_save_palette = nullptr;
-		QLabel *m_palette_saved = nullptr;
+		QPushButton *m_save_codification = nullptr;
+			/// What the page says of the last default saved
+		QLabel *m_default_saved = nullptr;
 			/// The size of each category of texts, 0 for that of the symbol
 		QMap<QString, QSpinBox *> m_text_sizes;
 			/// What gives each category of texts back the size of the symbol

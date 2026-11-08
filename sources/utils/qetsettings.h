@@ -54,6 +54,11 @@ namespace QetSettings
 		// saved: they start without any
 	QString pidPalette();
 	void setPidPalette(const QString &palette);
+		// The codes, series and table of outside diameters new projects
+		// start from, as PidCodification::codesToCsv() writes them, apart
+		// from the palette; empty when none was saved
+	QString pidDefaultCodification();
+	void setPidDefaultCodification(const QString &codification);
 
 		// Whether labels differing only in letter case (K1, k1) are distinct
 		// for the duplicate check.

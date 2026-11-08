@@ -765,6 +765,15 @@ QString PidCodification::paletteToCsv() const
 */
 QString PidCodification::toCsv() const
 {
+	return codesToCsv() + paletteToCsv();
+}
+
+/**
+	@brief PidCodification::codesToCsv
+	See the declaration
+*/
+QString PidCodification::codesToCsv() const
+{
 	QString text = QStringLiteral("kind;code;name;family\n");
 	auto write = [&text](const QString &kind, const QList<Entry> &list) {
 		for (const Entry &entry : list) {
@@ -797,7 +806,7 @@ QString PidCodification::toCsv() const
 		}
 		text += QLatin1Char('\n');
 	}
-	return text + paletteToCsv();
+	return text;
 }
 
 /**

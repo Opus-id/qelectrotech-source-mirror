@@ -322,7 +322,13 @@ void PidConfigPage::initWidgets()
 	m_save_palette->setToolTip(tr("New projects will start with these colors and these texts. "
 								  "Projects that already exist do not change."));
 	connect(m_save_palette, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultPalette);
-	m_palette_saved = new QLabel(this);
+	m_save_codification = new QPushButton(tr("Save as default codification"), this);
+	m_save_codification->setObjectName(QStringLiteral("save_codification"));
+	m_save_codification->setToolTip(tr("New projects will start with these codes, the series of these "
+									   "materials and this table of diameters; the palette is saved apart. "
+									   "Projects that already exist do not change."));
+	connect(m_save_codification, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultCodification);
+	m_default_saved = new QLabel(this);
 
 	for (const QString &category : PidCodification::textCategories())
 	{
@@ -428,7 +434,8 @@ void PidConfigPage::initLayout()
 
 	auto *palette = new QHBoxLayout();
 	palette->addStretch();
-	palette->addWidget(m_palette_saved);
+	palette->addWidget(m_default_saved);
+	palette->addWidget(m_save_codification);
 	palette->addWidget(m_save_palette);
 
 	auto *page_layout = new QVBoxLayout(this);
@@ -570,8 +577,19 @@ void PidConfigPage::showSeries()
 void PidConfigPage::saveAsDefaultPalette()
 {
 	QetSettings::setPidPalette(m_codification.paletteToCsv());
-	m_palette_saved->setText(m_codification.hasColors() || m_codification.hasTextSettings()
+	m_default_saved->setText(m_codification.hasColors() || m_codification.hasTextSettings()
 							 ? tr("Palette saved") : tr("Default palette removed"));
+}
+
+/**
+	@brief PidConfigPage::saveAsDefaultCodification
+	See the declaration
+*/
+void PidConfigPage::saveAsDefaultCodification()
+{
+	const bool codes = m_codification.hasCodes();
+	QetSettings::setPidDefaultCodification(codes ? m_codification.codesToCsv() : QString());
+	m_default_saved->setText(codes ? tr("Codification saved") : tr("Default codification removed"));
 }
 
 /**
