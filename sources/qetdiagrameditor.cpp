@@ -48,6 +48,7 @@
 #include "commandsearchpopup.h"
 #include "QWidgetAnimation/qwidgetanimation.h"
 #include "autoNum/ui/autonumberingdockwidget.h"
+#include "ui/devicenavigatordockwidget.h"
 #include "conductornumexport.h"
 #include "diagramcommands.h"
 #include "diagramcontent.h"
@@ -331,6 +332,7 @@ QETDiagramEditor::QETDiagramEditor(const QStringList &files, QWidget *parent) :
 	setUpUndoStack();
 	setUpSelectionPropertiesEditor();
 	setUpAutonumberingWidget();
+	setUpDeviceNavigatorDock();
 
 	setUpActions();
 	setUpToolBar();
@@ -516,6 +518,29 @@ void QETDiagramEditor::setUpAutonumberingWidget()
 				|QDockWidget::DockWidgetMovable
 				|QDockWidget::DockWidgetFloatable);
 	addDockWidget(Qt::RightDockWidgetArea, m_autonumbering_dock);
+}
+
+/**
+	@brief QETDiagramEditor::setUpDeviceNavigatorDock
+	Set up the device navigator dock widget
+*/
+void QETDiagramEditor::setUpDeviceNavigatorDock()
+{
+	m_device_navigator_dock = new DeviceNavigatorDockWidget(this);
+	m_device_navigator_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+	m_device_navigator_dock->setFeatures(
+		QDockWidget::DockWidgetClosable |
+		QDockWidget::DockWidgetMovable |
+		QDockWidget::DockWidgetFloatable);
+	addDockWidget(Qt::LeftDockWidgetArea, m_device_navigator_dock);
+	tabifyDockWidget(qdw_pa, m_device_navigator_dock);
+	m_device_navigator_dock->hide();
+
+	connect(m_device_navigator_dock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+		if (visible && currentProject() && m_device_navigator_dock) {
+			m_device_navigator_dock->setProject(currentProject());
+		}
+	});
 }
 
 /**
@@ -776,13 +801,12 @@ void QETDiagramEditor::setUpActions()
 	});
 
 		//Reopens the dialog above on demand, to change the spacing or
-		//direction a later Ctrl+D should use, or to repeat the move of
-		//the copy. Ctrl+Shift+D: it only ever writes a setting, and
-		//duplicates nothing. Enabled unconditionally (see
-		//slot_updateComplexActions()), so it does not need a diagram open
-		//or anything selected the way m_duplicate itself does.
+		//direction a later Ctrl+D should use. Enabled unconditionally
+		//(see slot_updateComplexActions()): it only ever writes a
+		//setting, so it does not need a diagram open or anything
+		//selected the way m_duplicate itself does. Ctrl+Shift+D, beside
+		//Ctrl+D: it only opens the dialog, it does not duplicate.
 	m_configure_duplicate = new QAction(tr("Configure duplication..."), this);
-	m_configure_duplicate->setObjectName(QStringLiteral("configureDuplicate"));
 	ShortcutManager::instance().registerAction(m_configure_duplicate, "diagrameditor.configure_duplicate", tr("Diagram editors"), Qt::CTRL | Qt::SHIFT | Qt::Key_D);
 	m_configure_duplicate->setStatusTip(tr("Choose the spacing and direction used by Duplicate", "status bar tip"));
 	connect(m_configure_duplicate, &QAction::triggered, [this]() {
@@ -2325,6 +2349,9 @@ void QETDiagramEditor::setUpMenu()
 	diagram_tool_bar      -> toggleViewAction() -> setStatusTip(tr("Display or hide the Diagram toolbar"));
 	qdw_pa           -> toggleViewAction() -> setStatusTip(tr("Show or hide the elements panel"));
 	qdw_undo         -> toggleViewAction() -> setStatusTip(tr("Display or hide the undo list"));
+	if (m_device_navigator_dock) {
+		m_device_navigator_dock->toggleViewAction()->setStatusTip(tr("Show or hide the device navigator"));
+	}
 
 
 	// menu Affichage
@@ -2348,6 +2375,9 @@ void QETDiagramEditor::setUpMenu()
 	menu_affichage -> addMenu(m_shown_kinds_menu);
 	menu_affichage -> addMenu(m_background_color_button->menu());
 	menu_affichage -> addAction(m_background_color_button->darkModeAction());
+	if (m_device_navigator_dock) {
+		menu_affichage -> addAction(m_device_navigator_dock->toggleViewAction());
+	}
 	menu_affichage -> addSeparator();
 	menu_affichage -> addActions(m_zoom_actions_group.actions());
 
@@ -3116,6 +3146,9 @@ bool QETDiagramEditor::addProject(QETProject *project, bool update_panel)
 		pa -> elementsPanel().projectWasOpened(project);
 		if (currentDiagramView() != nullptr)
 		m_autonumbering_dock->setProject(project, project_view);
+		if (m_device_navigator_dock && m_device_navigator_dock->isVisible()) {
+			m_device_navigator_dock->setProject(project);
+		}
 	}
 
 	return(true);
@@ -5115,6 +5148,9 @@ void QETDiagramEditor::subWindowActivated(QMdiSubWindow *subWindows)
 	emit syncElementsPanel();
 	updateUsageTrackersActiveState();
 	updateWindowModifiedState();
+	if (m_device_navigator_dock && m_device_navigator_dock->isVisible()) {
+		m_device_navigator_dock->setProject(currentProject());
+	}
 }
 
 /**

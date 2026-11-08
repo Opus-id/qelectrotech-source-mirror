@@ -54,6 +54,7 @@ class ElementsCollectionWidget;
 class ElementPickerPopup;
 class CommandSearchPopup;
 class AutoNumberingDockWidget;
+class DeviceNavigatorDockWidget;
 class TerminalNumberingDialog;
 
 class KAutoSaveFile;
@@ -117,6 +118,7 @@ class QETDiagramEditor : public QETMainWindow
 		void setUpUndoStack     ();
 		void setUpSelectionPropertiesEditor();
 		void setUpAutonumberingWidget();
+		void setUpDeviceNavigatorDock();
 		void setUpActions       ();
 		void setUpToolBar       ();
 		void setUpMenu          ();
@@ -300,7 +302,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_paste,			///< Paste clipboard content on the current diagram
 		*m_paste_origin,		///< Same, at the copied position, cursor warped to the origin (Ctrl+Shift+V)
 		*m_duplicate,			///< Copy selection, offset by the configured step (#991)
-		*m_configure_duplicate,		///< Reopen the duplicate offset/direction dialog (#991), Ctrl+Shift+D
+		*m_configure_duplicate,		///< Reopen the duplicate offset/direction dialog (#991)
 		*m_auto_conductor,		///< Enable/Disable the use of auto conductor
 		*m_auto_break_conductor,	///< Enable/Disable the use of auto break conductor
 		*m_terminal_strip_labels = nullptr,	///< Show each strip's label at its first terminal
@@ -442,6 +444,7 @@ class QETDiagramEditor : public QETMainWindow
 		
 		QUndoGroup undo_group;
 		AutoNumberingDockWidget *m_autonumbering_dock;
+		DeviceNavigatorDockWidget *m_device_navigator_dock = nullptr;
 		int activeSubWindowIndex;
 		SearchAndReplaceWidget m_search_and_replace_widget;
 };
