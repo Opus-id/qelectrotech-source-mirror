@@ -130,6 +130,17 @@ class Terminal : public QGraphicsObject
 		bool hasRoomForWire() const;
 		bool sameMediumAs(const Terminal *other) const;
 		bool refusesMediumOf(const Terminal *other) const;
+			/// The nozzle a pipe drawn from this nozzle is caught by when it
+			/// is released near it rather than on it
+		Terminal *magnetTarget(const QPointF &scene_pos, qreal radius);
+			/// magnetRadius in units of the folio, at the zoom of the view
+			/// the event comes from
+		static qreal magnetSceneRadius(const QGraphicsSceneMouseEvent *e);
+			/// Draw a conductor from this terminal to @p other, as a release
+			/// of the mouse on @p other does, in one undo step
+		Conductor *connectTo(Terminal *other);
+			/// The hover effect, given from outside (a tool of the folio)
+		void showHover(bool hovered, const QColor &color = Terminal::neutralColor);
 
 		// methods related to XML import/export
 		static bool valideXml(QDomElement  &);
@@ -151,6 +162,9 @@ class Terminal : public QGraphicsObject
 
 		static const qreal terminalSize;
 		static const qreal Z;
+			/// How near a nozzle a pipe is caught by it, in pixels of the
+			/// screen (see magnetTarget())
+		static const qreal magnetRadius;
 		// Various static colors used for hover effects
 		/// default color
 		static QColor neutralColor;

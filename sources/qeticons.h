@@ -46,6 +46,7 @@ namespace QET {
 		extern QIcon BringForward;
 		extern QIcon Cable;
 		extern QIcon Bridge;
+		extern QIcon Pipe;
 		extern QIcon Cancel;
 		extern QIcon Company;
 		extern QIcon Conductor;

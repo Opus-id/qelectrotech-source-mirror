@@ -454,6 +454,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/diagramevent/diagrameventaddcable.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddbridge.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddbridge.h
+  ${QET_DIR}/sources/diagramevent/diagrameventaddpipe.cpp
+  ${QET_DIR}/sources/diagramevent/diagrameventaddpipe.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddtext.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddtext.h
   ${QET_DIR}/sources/diagramevent/diagrameventinterface.cpp

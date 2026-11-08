@@ -3709,6 +3709,33 @@ Continuer ?</translation>
     </message>
 </context>
 <context>
+    <name>DiagramEventAddPipe</name>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="166"/>
+        <source>No free nozzle here: click nearer to a nozzle.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Aucun piquage libre ici : cliquez plus près d&apos;un piquage.</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="183"/>
+        <source>No free nozzle of another symbol here: the pipe waits for its end. Right click or Esc: cancel.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Aucun piquage libre d&apos;un autre symbole ici : la tuyauterie attend son arrivée. Clic droit ou Échap : annuler.</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="340"/>
+        <source>Click or release near another free nozzle: end the pipe; right click or Esc: cancel</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Clic ou relâcher près d&apos;un autre piquage libre : terminer la tuyauterie ; clic droit ou Échap : annuler</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="344"/>
+        <source>Click near a free nozzle: start a pipe; right click or Esc: quit the tool</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Clic près d&apos;un piquage libre : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+    </message>
+</context>
+<context>
     <name>DiagramEventAddBridge</name>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddbridge.cpp" line="148"/>
@@ -16427,6 +16454,16 @@ Maintenir Ctrl pendant le déplacement pour placer librement.</translation>
         <location filename="../sources/qetdiagrameditor.cpp" line="1834"/>
         <source>Draw a bridge</source>
         <translation>Dessiner un pont</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1909"/>
+        <source>Draw a pipe</source>
+        <translation>Tracer une tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="1929"/>
+        <source>Draws pipes from a free nozzle to another: a click near a nozzle is enough</source>
+        <translation>Trace des tuyauteries d&apos;un piquage libre à un autre : un clic près d&apos;un piquage suffit</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="1844"/>

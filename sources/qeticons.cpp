@@ -39,6 +39,7 @@ namespace QET {
 		QIcon BringForward;
 		QIcon Cable;
 		QIcon Bridge;
+		QIcon Pipe;
 		QIcon Cancel;
 		QIcon Company;
 		QIcon Conductor;
@@ -427,6 +428,7 @@ void QET::Icons::initIcons()
 	BringForward        = QIcon::fromTheme("bring_forward");
 	Cable               = QIcon::fromTheme("cable");
 	Bridge              = QIcon::fromTheme("bridge");
+	Pipe                = QIcon::fromTheme("pipe");
 	Cancel              = QIcon::fromTheme("item-cancel");
 	Company             = QIcon::fromTheme("go-company");
 	Conductor           = QIcon::fromTheme("conductor");

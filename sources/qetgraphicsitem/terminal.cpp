@@ -30,6 +30,8 @@
 #include "conductortextitem.h"
 #include <wiringrules.h>
 
+#include <QGraphicsSceneMouseEvent>
+#include <QGraphicsView>
 #include <QSettings>
 #include <QToolTip>
 
@@ -41,6 +43,25 @@ QColor Terminal::allowedColor      = QColor(Qt::darkGreen);
 QColor Terminal::warningColor      = QColor("#ff8000");
 QColor Terminal::forbiddenColor    = QColor(Qt::red);
 const qreal Terminal::terminalSize = 4.0;
+const qreal Terminal::magnetRadius = 20.0;
+
+/**
+	@brief Terminal::magnetSceneRadius
+	@param e : a mouse event of the folio
+	@return Terminal::magnetRadius in units of the folio, at the zoom of
+	the view @p e comes from: the catch stays the same on screen whatever
+	the zoom. Without a view (a test), in the folio's units.
+*/
+qreal Terminal::magnetSceneRadius(const QGraphicsSceneMouseEvent *e)
+{
+	qreal scale = 1.0;
+	if (e && e->widget()) {
+		if (auto *view = qobject_cast<QGraphicsView *>(e->widget()->parentWidget())) {
+			scale = qAbs(view->transform().m11());
+		}
+	}
+	return magnetRadius / qMax(scale, 0.01);
+}
 
 /**
 	@brief Terminal::stemColor
@@ -683,14 +704,18 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 	*/
 	Q_ASSERT_X(!(qgis.isEmpty()), "Terminal::mouseMoveEvent", "La liste d'items ne devrait pas etre vide");
 
-	// s'il n'y rien d'autre que le poseur de conducteur dans la liste, on arrete la
-	if (qgis.size() <= 1) return;
-
 	// sinon on prend le deuxieme element de la liste et on verifie s'il s'agit d'une borne
-	QGraphicsItem *qgi = qgis.at(1);
-	// si le qgi est une borne...
-	Terminal *other_terminal = qgraphicsitem_cast<Terminal *>(qgi);
-	if (!other_terminal) return;
+	Terminal *other_terminal = qgis.size() > 1
+			? qgraphicsitem_cast<Terminal *>(qgis.at(1))
+			: nullptr;
+	if (!other_terminal)
+	{
+			//Not on a terminal: a pipe is caught by a free nozzle nearby,
+			//and the preview shows where it goes
+		other_terminal = magnetTarget(e->scenePos(), magnetSceneRadius(e));
+		if (!other_terminal) return;
+		diag->setConductorStop(other_terminal->dockConductor());
+	}
 	m_previous_terminal = other_terminal;
 
 	// s'il s'agit d'une borne, on lui applique l'effet hover approprie
@@ -723,12 +748,13 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 	//Stop conductor preview
 	diagram() -> setConductor(false);
 
-	//Get item under cursor
+	//Get item under cursor: it must be a terminal
 	QGraphicsItem *qgi = diagram() -> itemAt(e -> scenePos(), QTransform());
-	if (!qgi) return;
-
-	//Element must be a terminal
-	Terminal *other_terminal = qgraphicsitem_cast<Terminal *>(qgi);
+	Terminal *other_terminal = qgi ? qgraphicsitem_cast<Terminal *>(qgi) : nullptr;
+		//else a pipe is caught by a free nozzle nearby (magnetTarget())
+	if (!other_terminal) {
+		other_terminal = magnetTarget(e->scenePos(), magnetSceneRadius(e));
+	}
 	if (!other_terminal) return;
 
 	other_terminal -> m_hovered_color = neutralColor;
@@ -770,6 +796,24 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 						   tr("These terminals connect different media (%1, %2).",
 							  "connection between terminals of different media")
 						   .arg(mediumName(medium()), mediumName(other_terminal->medium())));
+	}
+
+	connectTo(other_terminal);
+}
+
+/**
+	@brief Terminal::connectTo
+	What a release of the mouse on @p other_terminal does once it may be
+	linked to this terminal: a conductor between them, with the properties
+	of its potential or a number of its own, in one undo step. Shared by
+	the drag of the folio and the pipe drawing tool.
+	@param other_terminal : where the conductor ends
+	@return the new conductor, nullptr when they may not be linked
+*/
+Conductor *Terminal::connectTo(Terminal *other_terminal)
+{
+	if (!diagram() || !other_terminal || !canBeLinkedTo(other_terminal)) {
+		return nullptr;
 	}
 
 	//Create conductor
@@ -816,6 +860,19 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 		Conductor *other = conductors_list.values().first();
 		new_conductor->setProperties(other->properties());
 	}
+	return new_conductor;
+}
+
+/**
+	@brief Terminal::showHover
+	@param hovered : whether the terminal is drawn as hovered
+	@param color : the color of the effect
+*/
+void Terminal::showHover(bool hovered, const QColor &color)
+{
+	m_hovered = hovered;
+	m_hovered_color = color;
+	update();
 }
 
 /**
@@ -902,6 +959,51 @@ bool Terminal::refusesMediumOf(const Terminal *other) const
 	}
 	return WiringRules::refusesMixedMedia(parent_diagram->project()->wiringRules(),
 										  WiringRules::masterEnabled());
+}
+
+/**
+	@brief Terminal::magnetTarget
+	Drawing a pipe at a low zoom, hitting a nozzle exactly is hard: a pipe
+	drawn from this nozzle and released near another one, rather than on
+	it, is caught by it. Only nozzles catch pipes, so that the wires keep
+	the behaviour they always had.
+	@param scene_pos : where the mouse is, on the folio
+	@param radius : how near, in units of the folio
+	@return the nozzle nearest to @p scene_pos within @p radius that this
+	one may be linked to (free, of another symbol), or nullptr; always nullptr
+	when this terminal is not a nozzle
+*/
+Terminal *Terminal::magnetTarget(const QPointF &scene_pos, qreal radius)
+{
+	Diagram *parent_diagram = diagram();
+	if (d->m_medium != TerminalData::Pipe || !parent_diagram || radius <= 0) {
+		return nullptr;
+	}
+
+	const QRectF area(scene_pos.x() - radius, scene_pos.y() - radius,
+					  2 * radius, 2 * radius);
+	Terminal *nearest = nullptr;
+	qreal nearest_distance = 0;
+	for (QGraphicsItem *item : parent_diagram->items(area))
+	{
+		Terminal *terminal = qgraphicsitem_cast<Terminal *>(item);
+			//Not the other nozzles of its own symbol: released just off the
+			//nozzle it starts from, a pipe would loop back to its symbol
+		if (!terminal || terminal == this
+				|| terminal->parentElement() == parentElement()
+				|| !sameMediumAs(terminal) || !canBeLinkedTo(terminal)) {
+			continue;
+		}
+		const qreal distance = QLineF(scene_pos, terminal->dockConductor()).length();
+		if (distance > radius) {
+			continue;
+		}
+		if (!nearest || distance < nearest_distance) {
+			nearest = terminal;
+			nearest_distance = distance;
+		}
+	}
+	return nearest;
 }
 
 /**

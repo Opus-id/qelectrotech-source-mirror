@@ -488,6 +488,12 @@ qet_add_app_test(tst_terminalmedium tst_terminalmedium.cpp)
 # The lasso of the folio: a potential for the electrical terminals as
 # before; two nozzles get one pipe, more than two none, never two media.
 qet_add_app_test(tst_lassomedium tst_lassomedium.cpp)
+# The magnet of the nozzles: a pipe released near a free nozzle of the same
+# medium is caught by it; wires keep the behaviour they always had.
+qet_add_app_test(tst_pipemagnet tst_pipemagnet.cpp)
+# The tool which draws pipes: two clicks or a drag near two free nozzles,
+# never a symbol picked nor moved, right click / Esc, wires left alone.
+qet_add_app_test(tst_pipetool tst_pipetool.cpp)
 # The medium of a conductor: taken from the terminal it starts from, kept
 # whatever properties are applied to it, saved only when not electrical.
 qet_add_app_test(tst_conductormedium tst_conductormedium.cpp)

@@ -285,6 +285,21 @@
         <file alias="themes/qet/24x24/cable.svg">themes/generated/traced-24/cable.svg</file>
         <file alias="themes/qet/24x24@2/cable.svg">themes/generated/traced-large-24/cable.svg</file>
         <file alias="themes/qet/scalable/cable.svg">qet/traced/large22/cable.svg</file>
+        <file alias="themes/qet/16x16/pipe.svg">qet/traced/16/pipe.svg</file>
+        <file alias="themes/qet/16x16@2/pipe.svg">qet/traced/large16/pipe.svg</file>
+        <file alias="themes/qet/22x22/pipe.svg">qet/traced/22/pipe.svg</file>
+        <file alias="themes/qet/22x22@2/pipe.svg">qet/traced/large22/pipe.svg</file>
+        <file alias="themes/qet/32x32/pipe.svg">qet/traced/large16/pipe.svg</file>
+        <file alias="themes/qet/32x32@2/pipe.svg">qet/traced/large16/pipe.svg</file>
+        <file alias="themes/qet/48x48/pipe.svg">themes/generated/traced-large-24/pipe.svg</file>
+        <file alias="themes/qet/48x48@2/pipe.svg">themes/generated/traced-large-24/pipe.svg</file>
+        <file alias="themes/qet/64x64/pipe.svg">qet/traced/large16/pipe.svg</file>
+        <file alias="themes/qet/64x64@2/pipe.svg">qet/traced/large16/pipe.svg</file>
+        <file alias="themes/qet/128x128/pipe.svg">qet/traced/large16/pipe.svg</file>
+        <file alias="themes/qet/128x128@2/pipe.svg">qet/traced/large16/pipe.svg</file>
+        <file alias="themes/qet/24x24/pipe.svg">themes/generated/traced-24/pipe.svg</file>
+        <file alias="themes/qet/24x24@2/pipe.svg">themes/generated/traced-large-24/pipe.svg</file>
+        <file alias="themes/qet/scalable/pipe.svg">qet/traced/large22/pipe.svg</file>
         <file alias="themes/qet/16x16/circle.svg">qet/traced/16/circle.svg</file>
         <file alias="themes/qet/16x16@2/circle.svg">qet/traced/large16/circle.svg</file>
         <file alias="themes/qet/22x22/circle.svg">qet/traced/22/circle.svg</file>
@@ -2736,6 +2751,12 @@
         <file>themes/qet-dark/traced/large22/cable.svg</file>
         <file>themes/qet-dark/traced-large-24/cable.svg</file>
         <file>themes/qet-dark/traced-24/cable.svg</file>
+        <file>themes/qet-dark/traced/16/pipe.svg</file>
+        <file>themes/qet-dark/traced/large16/pipe.svg</file>
+        <file>themes/qet-dark/traced/22/pipe.svg</file>
+        <file>themes/qet-dark/traced/large22/pipe.svg</file>
+        <file>themes/qet-dark/traced-large-24/pipe.svg</file>
+        <file>themes/qet-dark/traced-24/pipe.svg</file>
         <file>themes/qet-dark/traced/16/circle.svg</file>
         <file>themes/qet-dark/traced/large16/circle.svg</file>
         <file>themes/qet-dark/traced/22/circle.svg</file>
@@ -3580,6 +3601,21 @@
         <file alias="themes/qet-dark/24x24/cable.svg">themes/qet-dark/traced-24/cable.svg</file>
         <file alias="themes/qet-dark/24x24@2/cable.svg">themes/qet-dark/traced-large-24/cable.svg</file>
         <file alias="themes/qet-dark/scalable/cable.svg">themes/qet-dark/traced/large22/cable.svg</file>
+        <file alias="themes/qet-dark/16x16/pipe.svg">themes/qet-dark/traced/16/pipe.svg</file>
+        <file alias="themes/qet-dark/16x16@2/pipe.svg">themes/qet-dark/traced/large16/pipe.svg</file>
+        <file alias="themes/qet-dark/22x22/pipe.svg">themes/qet-dark/traced/22/pipe.svg</file>
+        <file alias="themes/qet-dark/22x22@2/pipe.svg">themes/qet-dark/traced/large22/pipe.svg</file>
+        <file alias="themes/qet-dark/32x32/pipe.svg">themes/qet-dark/traced/large16/pipe.svg</file>
+        <file alias="themes/qet-dark/32x32@2/pipe.svg">themes/qet-dark/traced/large16/pipe.svg</file>
+        <file alias="themes/qet-dark/48x48/pipe.svg">themes/qet-dark/traced-large-24/pipe.svg</file>
+        <file alias="themes/qet-dark/48x48@2/pipe.svg">themes/qet-dark/traced-large-24/pipe.svg</file>
+        <file alias="themes/qet-dark/64x64/pipe.svg">themes/qet-dark/traced/large16/pipe.svg</file>
+        <file alias="themes/qet-dark/64x64@2/pipe.svg">themes/qet-dark/traced/large16/pipe.svg</file>
+        <file alias="themes/qet-dark/128x128/pipe.svg">themes/qet-dark/traced/large16/pipe.svg</file>
+        <file alias="themes/qet-dark/128x128@2/pipe.svg">themes/qet-dark/traced/large16/pipe.svg</file>
+        <file alias="themes/qet-dark/24x24/pipe.svg">themes/qet-dark/traced-24/pipe.svg</file>
+        <file alias="themes/qet-dark/24x24@2/pipe.svg">themes/qet-dark/traced-large-24/pipe.svg</file>
+        <file alias="themes/qet-dark/scalable/pipe.svg">themes/qet-dark/traced/large22/pipe.svg</file>
         <file alias="themes/qet-dark/16x16/circle.svg">themes/qet-dark/traced/16/circle.svg</file>
         <file alias="themes/qet-dark/16x16@2/circle.svg">themes/qet-dark/traced/large16/circle.svg</file>
         <file alias="themes/qet-dark/22x22/circle.svg">themes/qet-dark/traced/22/circle.svg</file>

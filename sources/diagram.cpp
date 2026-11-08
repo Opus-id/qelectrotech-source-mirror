@@ -33,6 +33,7 @@
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 #include "diagramcontent.h"
 #include "diagramevent/diagrameventaddcable.h"
+#include "diagramevent/diagrameventaddpipe.h"
 #include "diagramevent/diagrameventadddimension.h"
 #include "diagramevent/diagrameventaddelement.h"
 #include "diagramevent/diagrameventinterface.h"
@@ -1365,7 +1366,9 @@ bool Diagram::cableToolIsRunning() const
 {
 	return m_event_interface
 	       && m_event_interface->isRunning()
-	       && qobject_cast<DiagramEventAddCable *>(m_event_interface);
+	       && (qobject_cast<DiagramEventAddCable *>(m_event_interface)
+		       //The pipe tool takes the right button the same way
+		   || qobject_cast<DiagramEventAddPipe *>(m_event_interface));
 }
 
 /**

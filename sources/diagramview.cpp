@@ -37,6 +37,7 @@
 #include "diagramevent/diagrameventadddimension.h"
 #include "diagramevent/diagrameventaddelement.h"
 #include "diagramevent/diagrameventaddmacro.h"
+#include "diagramevent/diagrameventaddpipe.h"
 #include "dvevent/dveventinterface.h"
 #include "projectview.h"
 #include "qetdiagrameditor.h"
@@ -3113,6 +3114,7 @@ QList<QAction *> DiagramView::contextMenuActions() const
 			list << m_paste_here;
 			list << m_separators.at(0);
 			list << qde->m_insert_last_element;
+			list << qde->m_add_pipe;
 			list << m_folio_report_menu->menuAction();
 			list << qde->m_add_item_menu->menuAction();
 			list << m_separators.at(1);
@@ -3139,6 +3141,17 @@ QList<QAction *> DiagramView::contextMenuActions() const
 				}));
 			list << m_generate_cabinet_thumbnail;
 			list << qde->m_create_similar;
+				//P&ID: a symbol with a free nozzle offers the pipe tool
+			if (std::any_of(selected_items.cbegin(), selected_items.cend(),
+							[](QGraphicsItem *qgi) {
+				const Element *element = qgraphicsitem_cast<Element *>(qgi);
+				if (!element) return false;
+				const QList<Terminal *> terminals = element->terminals();
+				return std::any_of(terminals.cbegin(), terminals.cend(),
+								   &DiagramEventAddPipe::isFreeNozzle);
+			})) {
+				list << qde->m_add_pipe;
+			}
 			list << m_change_type_menu->menuAction();
 			list << m_status_menu->menuAction();
 			list << qde->m_conductor_reset;

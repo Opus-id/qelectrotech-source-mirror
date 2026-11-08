@@ -224,7 +224,9 @@ QStringList DiagramToolbarSettings::defaultIds(const QString &name)
 			QStringLiteral("diagrameditor.add_path"),
 			QStringLiteral("diagrameditor.add_fillet"),
 			QStringLiteral("diagrameditor.add_terminal_strip"),
-			QStringLiteral("diagrameditor.add_generic_device")};
+			QStringLiteral("diagrameditor.add_generic_device"),
+				//P&ID: pipes drawn from nozzle to nozzle
+			QStringLiteral("diagrameditor.add_pipe")};
 	}
 	if (name == QLatin1String("connections")) {
 			//ConnectionSymbols::commandId() of each kind

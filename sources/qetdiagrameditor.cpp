@@ -60,6 +60,7 @@
 #include "diagramevent/diagrameventaddpath.h"
 #include "diagramevent/diagrameventaddcable.h"
 #include "diagramevent/diagrameventaddbridge.h"
+#include "diagramevent/diagrameventaddpipe.h"
 #include "diagramevent/diagrameventfillet.h"
 #include "diagramevent/diagrameventaddtext.h"
 #include "cable/cablepart.h"
@@ -1904,6 +1905,8 @@ void QETDiagramEditor::setUpActions()
 		//A bridge across terminals: what it crosses becomes the terminals
 		//the bridge lands on.
 	m_add_bridge	   = m_add_item_actions_group.addAction(QET::Icons::Bridge,     tr("Draw a bridge"));
+		//P&ID: a pipe from a free nozzle to another, caught near them
+	m_add_pipe		   = m_add_item_actions_group.addAction(QET::Icons::Pipe,       tr("Draw a pipe"));
 
 	add_text     ->setStatusTip(tr("Adds a text field to the current sheet"));
 	add_image    ->setStatusTip(tr("Add an image to the current sheet"));
@@ -1923,6 +1926,7 @@ void QETDiagramEditor::setUpActions()
 	m_add_dimension_linear->setStatusTip(tr("Adds a linear dimension to the current sheet"));
 	m_add_dimension_chain ->setStatusTip(tr("Adds a chain dimension to the current sheet"));
 	m_add_bridge    ->setStatusTip(tr("Draws a bridge over terminals: every terminal crossed becomes one of its connections"));
+	m_add_pipe      ->setStatusTip(tr("Draws pipes from a free nozzle to another: a click near a nozzle is enough"));
 
 	add_text     ->setData(QStringLiteral("text"));
 	add_image    ->setData(QStringLiteral("image"));
@@ -1942,6 +1946,7 @@ void QETDiagramEditor::setUpActions()
 	m_add_dimension_linear->setData(QStringLiteral("dimension_linear"));
 	m_add_dimension_chain ->setData(QStringLiteral("dimension_chain"));
 	m_add_bridge    ->setData(QStringLiteral("bridge"));
+	m_add_pipe      ->setData(QStringLiteral("pipe"));
 
 	add_text->setCheckable(true);
 	add_line->setCheckable(true);
@@ -1952,6 +1957,7 @@ void QETDiagramEditor::setUpActions()
 	add_path->setCheckable(true);
 	m_add_cable->setCheckable(true);
 	m_add_bridge->setCheckable(true);
+	m_add_pipe->setCheckable(true);
 	add_fillet->setCheckable(true);
 	m_add_dimension_linear->setCheckable(true);
 	m_add_dimension_chain->setCheckable(true);
@@ -1961,9 +1967,11 @@ void QETDiagramEditor::setUpActions()
 		//search, bound in the Shortcuts page and placed on the shortcut bar,
 		//like every other command.
 	for (QAction *action : m_add_item_actions_group.actions()) {
+			//The pipe tool alone has a key: P, free on its own
 		ShortcutManager::instance().registerAction(
 			action, "diagrameditor.add_" + action->data().toString(),
-			tr("Diagram editors"), QKeySequence());
+			tr("Diagram editors"),
+			action == m_add_pipe ? QKeySequence(Qt::Key_P) : QKeySequence());
 	}
 
 		//Depth action
@@ -3504,6 +3512,10 @@ void QETDiagramEditor::addItemGroupTriggered(QAction *action)
 	else if (value == QLatin1String("bridge"))
 	{
 		diagram_event = new DiagramEventAddBridge(d);
+	}
+	else if (value == QLatin1String("pipe"))
+	{
+		diagram_event = new DiagramEventAddPipe(d);
 	}
 	else if (value == "fillet")
 		diagram_event = new DiagramEventFillet (d);
