@@ -255,6 +255,51 @@ class tst_pipetool : public QObject
 			QCOMPARE(nozzle->conductors().size(), 0);
 		}
 
+			// The right click on a symbol: the free nozzle of the selected
+			// symbols nearest to the click, whatever the distance
+		void theNozzleRightClickedIsTheNearestFreeOne()
+		{
+			const auto ends = row(m_pipe, m_pipe);
+			QVERIFY(ends.first && ends.second);
+			Element *symbol = ends.first;
+			Terminal *west = symbol->terminals().at(0);
+			Terminal *east = symbol->terminals().at(1);
+			const QList<QGraphicsItem *> selected{symbol};
+			QCOMPARE(DiagramEventAddPipe::nearestFreeNozzle(selected, west->dockConductor()
+									+ QPointF(-50, 0)), west);
+			QCOMPARE(DiagramEventAddPipe::nearestFreeNozzle(selected, east->dockConductor()
+									+ QPointF(3, 40)), east);
+				// a connected nozzle is skipped
+			click(nearBelow(east));
+			click(nearBelow(ends.second->terminals().at(0)));
+			QCOMPARE(east->conductors().size(), 1);
+			QCOMPARE(DiagramEventAddPipe::nearestFreeNozzle(selected, east->dockConductor()), west);
+				// no nozzle among wire terminals, nor in what is no symbol
+			const auto wires = row(m_electrical, m_electrical);
+			QVERIFY(wires.first);
+			QCOMPARE(DiagramEventAddPipe::nearestFreeNozzle({wires.first}, QPointF()), nullptr);
+			QCOMPARE(DiagramEventAddPipe::nearestFreeNozzle({}, QPointF()), nullptr);
+		}
+
+		void aPipeStartedFromANozzleEndsWithOneClick()
+		{
+			const auto ends = row(m_pipe, m_pipe);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			Terminal *to = ends.second->terminals().at(0);
+			m_tool->startFrom(from);
+			QCOMPARE(m_tool->startNozzle(), from);
+			click(nearBelow(to));
+			QVERIFY(from->isLinkedTo(to));
+				// not from a wire terminal, nor from a nozzle already connected
+			const auto wires = row(m_electrical, m_electrical);
+			QVERIFY(wires.first);
+			m_tool->startFrom(wires.first->terminals().at(1));
+			QCOMPARE(m_tool->startNozzle(), nullptr);
+			m_tool->startFrom(from);
+			QCOMPARE(m_tool->startNozzle(), nullptr);
+		}
+
 		void aConnectedNozzleIsNeitherMarkedNorAStart()
 		{
 			const auto ends = row(m_pipe, m_pipe);

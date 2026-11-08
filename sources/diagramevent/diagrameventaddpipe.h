@@ -27,6 +27,7 @@
 #include <QPointer>
 
 class QGraphicsEllipseItem;
+class QGraphicsItem;
 
 /**
 	@brief The DiagramEventAddPipe class: the tool which draws pipes.
@@ -61,6 +62,13 @@ class DiagramEventAddPipe : public DiagramEventInterface
 										qreal radius);
 			/// A nozzle which may still take a pipe
 		static bool isFreeNozzle(const Terminal *terminal);
+			/// The free nozzle of the symbols among @p items nearest to
+			/// @p scene_pos, however far; nullptr for none
+		static Terminal *nearestFreeNozzle(const QList<QGraphicsItem *> &items,
+										   const QPointF &scene_pos);
+			/// Start the pipe at @p nozzle, as a first click near it does;
+			/// nothing when it is not a free nozzle of this folio
+		void startFrom(Terminal *nozzle);
 			/// Where the pipe being drawn starts, nullptr before the first click
 		Terminal *startNozzle() const { return m_start; }
 			/// How many free nozzles are marked

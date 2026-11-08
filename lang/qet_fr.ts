@@ -4332,6 +4332,12 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <translation>Créer un template</translation>
     </message>
     <message>
+        <location filename="../sources/diagramview.cpp" line="175"/>
+        <source>Draw a pipe from here</source>
+        <comment>context menu action</comment>
+        <translation>Tracer une tuyauterie depuis ce piquage</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramview.cpp" line="162"/>
         <source>Make a cabinet thumbnail</source>
         <comment>context menu action</comment>

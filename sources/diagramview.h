@@ -63,6 +63,11 @@ class DiagramView : public PaletteGraphicsView
 		QAction			 *m_multi_paste = nullptr;
 		QAction          *m_create_template = nullptr;
 		QAction          *m_generate_cabinet_thumbnail = nullptr;
+			/// P&ID: the pipe tool, the pipe starting at the free nozzle of the
+			/// selected symbols nearest to the right click
+		QAction          *m_draw_pipe_from_here = nullptr;
+			/// Where the last context menu was opened, on the folio
+		QPointF           m_menu_scene_pos;
 		QMenu            *m_folio_report_menu = nullptr;
 		QMenu            *m_change_type_menu = nullptr;
 		QMenu            *m_status_menu = nullptr;

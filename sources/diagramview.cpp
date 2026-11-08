@@ -169,6 +169,24 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 	m_generate_cabinet_thumbnail = new QAction(tr("Make a cabinet thumbnail", "context menu action"), this);
 	connect(m_generate_cabinet_thumbnail, &QAction::triggered, this, &DiagramView::generateCabinetThumbnails);
 
+		//P&ID: the pipe tool, started at the nozzle right-clicked: the
+		//free nozzle of the selected symbols nearest to the click
+	m_draw_pipe_from_here = new QAction(QET::Icons::Pipe, tr("Draw a pipe from here", "context menu action"), this);
+	connect(m_draw_pipe_from_here, &QAction::triggered, this, [this]() {
+		Terminal *start = DiagramEventAddPipe::nearestFreeNozzle(
+					m_diagram ? m_diagram->selectedItems() : QList<QGraphicsItem *>(),
+					m_menu_scene_pos);
+		QETDiagramEditor *qde = diagramEditor();
+		if (!qde || !qde->m_add_pipe) return;
+		if (!qde->m_add_pipe->isChecked()) {
+			qde->m_add_pipe->trigger();
+		}
+		if (auto *tool = qobject_cast<DiagramEventAddPipe *>(
+				m_diagram ? m_diagram->eventInterface() : nullptr)) {
+			tool->startFrom(start);
+		}
+	});
+
 		//Filled each time the context menu opens, see updateFolioReportMenu()
 	m_folio_report_menu = new QMenu(tr("Sheet reference"), this);
 
@@ -3141,16 +3159,10 @@ QList<QAction *> DiagramView::contextMenuActions() const
 				}));
 			list << m_generate_cabinet_thumbnail;
 			list << qde->m_create_similar;
-				//P&ID: a symbol with a free nozzle offers the pipe tool
-			if (std::any_of(selected_items.cbegin(), selected_items.cend(),
-							[](QGraphicsItem *qgi) {
-				const Element *element = qgraphicsitem_cast<Element *>(qgi);
-				if (!element) return false;
-				const QList<Terminal *> terminals = element->terminals();
-				return std::any_of(terminals.cbegin(), terminals.cend(),
-								   &DiagramEventAddPipe::isFreeNozzle);
-			})) {
-				list << qde->m_add_pipe;
+				//P&ID: a symbol with a free nozzle offers the pipe tool,
+				//the pipe starting at the nozzle right-clicked
+			if (DiagramEventAddPipe::nearestFreeNozzle(selected_items, QPointF())) {
+				list << m_draw_pipe_from_here;
 			}
 			list << m_change_type_menu->menuAction();
 			list << m_status_menu->menuAction();
@@ -3324,6 +3336,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 		}
 	}
 
+	m_menu_scene_pos = mapToScene(menu_pos);
 	if (m_diagram->selectedItems().isEmpty())
 	{
 		m_paste_here_pos = menu_pos;

@@ -137,6 +137,53 @@ Terminal *DiagramEventAddPipe::freeNozzleNear(Diagram *diagram, const QPointF &s
 }
 
 /**
+	@brief DiagramEventAddPipe::nearestFreeNozzle
+	@param items : the symbols looked at (other items are skipped)
+	@param scene_pos : where the user pointed, on the folio
+	@return the free nozzle of these symbols nearest to @p scene_pos
+*/
+Terminal *DiagramEventAddPipe::nearestFreeNozzle(const QList<QGraphicsItem *> &items,
+												 const QPointF &scene_pos)
+{
+	Terminal *nearest = nullptr;
+	qreal nearest_distance = 0;
+	for (QGraphicsItem *item : items)
+	{
+		const Element *element = qgraphicsitem_cast<Element *>(item);
+		if (!element) continue;
+		const QList<Terminal *> terminals = element->terminals();
+		for (Terminal *terminal : terminals)
+		{
+			if (!isFreeNozzle(terminal)) continue;
+			const qreal distance = QLineF(scene_pos, terminal->dockConductor()).length();
+			if (!nearest || distance < nearest_distance) {
+				nearest = terminal;
+				nearest_distance = distance;
+			}
+		}
+	}
+	return nearest;
+}
+
+/**
+	@brief DiagramEventAddPipe::startFrom
+	@param nozzle : where the pipe starts
+*/
+void DiagramEventAddPipe::startFrom(Terminal *nozzle)
+{
+	if (!m_diagram || m_diagram->isReadOnly() || !isFreeNozzle(nozzle)
+			|| nozzle->diagram() != m_diagram) {
+		return;
+	}
+	m_start = nozzle;
+	m_diagram->setConductorStart(nozzle->dockConductor());
+	m_diagram->setConductorStop(nozzle->dockConductor());
+	m_diagram->setConductor(true);
+	hover(nullptr, QColor());
+	showHint();
+}
+
+/**
 	@brief DiagramEventAddPipe::mousePressEvent
 	@param event
 */
@@ -171,12 +218,8 @@ void DiagramEventAddPipe::mousePressEvent(QGraphicsSceneMouseEvent *event)
 						"pipe drawing tool"));
 			return;
 		}
-		m_start = start;
-		m_diagram->setConductorStart(start->dockConductor());
+		startFrom(start);
 		m_diagram->setConductorStop(event->scenePos());
-		m_diagram->setConductor(true);
-		hover(nullptr, QColor());
-		showHint();
 		return;
 	}
 
