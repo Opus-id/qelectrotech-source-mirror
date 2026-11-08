@@ -18,6 +18,8 @@
 #ifndef PIPE_PROPERTIES_H
 #define PIPE_PROPERTIES_H
 
+#include "pipediameter.h"
+
 #include <QColor>
 #include <QDomElement>
 #include <QList>
@@ -45,8 +47,9 @@ class PipeProperties
 			/// primary and a secondary segment only.
 		enum LineKind { Main, Secondary, Auxiliary };
 
-			/// Nominal diameter (DN) in millimetres, 0 when not set
-		int nominal_diameter = 0;
+			/// Diameter: a DN (attribute pipe_dn) or, for a plastic pipe, an
+			/// outside diameter (pipe_od); none when not set
+		PipeDiameter diameter;
 			/// Pipe material: a code of the project's codification, or free
 			/// text (steel, PVC, cast iron...)
 		QString material;

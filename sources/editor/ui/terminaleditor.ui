@@ -109,16 +109,33 @@
    <item row="7" column="0">
     <widget class="QLabel" name="label_dn">
      <property name="text">
-      <string>DN:</string>
+      <string>Diameter:</string>
      </property>
     </widget>
    </item>
    <item row="7" column="1">
-    <widget class="QComboBox" name="m_dn_cb">
-     <property name="toolTip">
-      <string>The nominal diameter of this nozzle, shown under its name. Each placed symbol can change it. Leave it empty if the symbol has no usual size.</string>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="m_dn_layout">
+     <item>
+      <widget class="QComboBox" name="m_dn_kind_cb">
+       <property name="toolTip">
+        <string>DN: a nominal diameter of ISO 6708 (a flange). Ø: an outside diameter in millimetres, to the tenth (a socket for a plastic pipe).</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="m_dn_cb">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>1</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>The diameter of this nozzle, shown under its name: a DN of ISO 6708 (a flange), or an outside diameter (a socket for a plastic pipe, 110 or 88,9). Each placed symbol can change it. Leave it empty if the symbol has no usual size.</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item row="8" column="0" colspan="2">
     <widget class="QGroupBox" name="m_label_gb">

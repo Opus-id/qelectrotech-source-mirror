@@ -18,7 +18,9 @@
 #include "elementnozzleswidget.h"
 
 #include "../diagram.h"
+#include "../pidcodification.h"
 #include "../properties/terminaldata.h"
+#include "../qetproject.h"
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/terminal.h"
 #include "../undocommand/changenozzlediameterscommand.h"
@@ -26,7 +28,9 @@
 
 #include <algorithm>
 
+#include <QComboBox>
 #include <QFormLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QSignalBlocker>
 
@@ -92,6 +96,7 @@ void ElementNozzlesWidget::buildFields()
 		return;
 	}
 
+	const PidCodification codification = projectCodification();
 	for (const Terminal *terminal : m_element->terminals())
 	{
 		const QString name = terminal->baseName();
@@ -99,19 +104,91 @@ void ElementNozzlesWidget::buildFields()
 			continue;
 		}
 		auto *list = new QComboBox(this);
-		DiameterList::setUp(list);
+			//A nozzle has no material: the DN, then the outside diameters
+		DiameterList::setUp(list, codification.nozzleSizes(), codification.locale());
 		QLineEdit *edit = list->lineEdit();
-		const int symbol_dn = terminal->symbolDiameter();
-		const auto applied = [this]() {
-			if (m_live_edit) {
+		const Field field{name, terminal->symbolDiameter(), list, edit, terminal};
+		const auto applied = [this, field]() {
+			if (checkField(field) && m_live_edit) {
 				apply();
 			}
 		};
 		connect(edit, &QLineEdit::editingFinished, this, applied);
 		connect(list, &QComboBox::activated, this, applied);
 		m_layout->addRow(tr("%1:", "label of the DN of a nozzle").arg(name), list);
-		m_fields.append({name, symbol_dn, edit, terminal});
+		m_fields.append(field);
 	}
+	m_message = new QLabel(this);
+	m_message->setObjectName(QStringLiteral("nozzle_message"));
+	m_message->setWordWrap(true);
+	m_layout->addRow(m_message);
+}
+
+/**
+	@brief ElementNozzlesWidget::projectCodification
+	@return the codification of the project of the element, which has the
+	lists of diameters; an empty one without a project
+*/
+PidCodification ElementNozzlesWidget::projectCodification() const
+{
+	if (m_element && m_element->diagram() && m_element->diagram()->project()) {
+		return m_element->diagram()->project()->pidCodification();
+	}
+	return PidCodification();
+}
+
+/**
+	@brief ElementNozzlesWidget::checkField
+	See the declaration
+*/
+bool ElementNozzlesWidget::checkField(const Field &field)
+{
+	bool ok = false;
+	const QString text = field.edit->text().trimmed();
+	const PipeDiameter diameter = PipeDiameter::fromText(text, PipeDiameter::Nominal, &ok);
+	const PidCodification codification = projectCodification();
+	if (ok && codification.acceptsForNozzle(diameter)) {
+		m_message->clear();
+		return true;
+	}
+		//A size the lists have not: the nearest one of its kind
+	const PipeDiameter near = ok ? PidCodification::nearest(diameter, codification.nozzleSizes())
+								 : PipeDiameter();
+	if (near.isSet()) {
+		const QSignalBlocker blocker(field.edit);
+		field.edit->setText(near.text(codification.locale()));
+		m_message->setText(tr("%1 → %2: the nearest size of the lists of the project.")
+						   .arg(text, near.text(codification.locale())));
+		return true;
+	}
+	m_message->setText(tr("%1 is not in the lists of diameters of the project (P&ID properties "
+						  "of the project, Codification).").arg(text));
+	showField(field);
+	return false;
+}
+
+/**
+	@brief ElementNozzlesWidget::message
+	See the declaration
+*/
+QString ElementNozzlesWidget::message() const
+{
+	return m_message ? m_message->text() : QString();
+}
+
+/**
+	@brief ElementNozzlesWidget::showField
+	Show in @p field the diameter the element gives its nozzle
+*/
+void ElementNozzlesWidget::showField(const Field &field)
+{
+	const NozzleDiameters diameters = m_element->nozzleDiameters();
+	const QLocale locale = projectCodification().locale();
+	const QSignalBlocker blocker(field.edit);
+	field.edit->setText(diameters.value(field.name).text(locale));
+		//In grey, what the nozzle has without a value of its own: the
+		//diameter of its symbol, else that of its pipe, which it follows
+	field.edit->setPlaceholderText(field.terminal->diameter().text(locale));
 }
 
 /**
@@ -123,38 +200,36 @@ void ElementNozzlesWidget::updateUi()
 	if (!m_element) {
 		return;
 	}
-	const QMap<QString, int> diameters = m_element->nozzleDiameters();
-	for (const Field &field : std::as_const(m_fields))
-	{
-		const QSignalBlocker blocker(field.edit);
-		field.edit->setText(diameters.contains(field.name)
-								? QString::number(diameters.value(field.name))
-								: QString());
-			//In grey, what the nozzle has without a value of its own: the DN
-			//of its symbol, else that of its pipe, which it follows
-		const int shown = field.terminal->nominalDiameter();
-		field.edit->setPlaceholderText(shown > 0 ? QString::number(shown) : QString());
+	for (const Field &field : std::as_const(m_fields)) {
+		showField(field);
 	}
 }
 
 /**
 	@brief ElementNozzlesWidget::chosen
 	@return the diameters of the element with those of the fields, which
-	replace the ones of the same names
+	replace the ones of the same names; a field the project refuses changes
+	nothing
 */
-QMap<QString, int> ElementNozzlesWidget::chosen() const
+NozzleDiameters ElementNozzlesWidget::chosen() const
 {
 	if (!m_element) {
 		return {};
 	}
-	QMap<QString, int> diameters = m_element->nozzleDiameters();
+	const PidCodification codification = projectCodification();
+	NozzleDiameters diameters = m_element->nozzleDiameters();
 	for (const Field &field : m_fields)
 	{
-		const int dn = TerminalData::dnFromString(field.edit->text());
-		if (dn == 0 || dn == field.symbol_dn) {
+		bool ok = false;
+		const PipeDiameter diameter = PipeDiameter::fromText(field.edit->text(),
+															 PipeDiameter::Nominal, &ok);
+		if (!ok || !codification.acceptsForNozzle(diameter)) {
+			continue;
+		}
+		if (!diameter.isSet() || diameter == field.symbol_diameter) {
 			diameters.remove(field.name);
 		} else {
-			diameters.insert(field.name, dn);
+			diameters.insert(field.name, diameter);
 		}
 	}
 	return diameters;
@@ -183,7 +258,7 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 	if (!m_element) {
 		return nullptr;
 	}
-	const QMap<QString, int> diameters = chosen();
+	const NozzleDiameters diameters = chosen();
 	if (diameters == m_element->nozzleDiameters()) {
 		return nullptr;
 	}

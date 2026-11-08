@@ -62,6 +62,12 @@ ChangePidCodificationCommand::ChangePidCodificationCommand(
 	setText(QObject::tr("Change the colors and the codification of the project"));
 		//The codes of a project are always in their order, whatever made them
 	m_new_codification.sortCodes();
+		//A project with codes keeps its decimal separator, whatever the
+		//language of who opens it next
+	if (m_new_codification.hasCodes()
+		&& m_new_codification.decimal == PidCodification::Decimal::Language) {
+		m_new_codification.decimal = PidCodification::languageDecimal();
+	}
 	if (m_old_codification.text_sizes != m_new_codification.text_sizes) {
 		findLabels();
 	}

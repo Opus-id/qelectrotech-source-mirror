@@ -20,6 +20,7 @@
 
 #include <qet.h>
 #include "propertiesinterface.h"
+#include "../pipediameter.h"
 
 #include <QColor>
 #include <QFont>
@@ -107,21 +108,20 @@ class TerminalData : public PropertiesInterface
 			if (string == QLatin1String("drive"))  return Drive;
 			return Electrical;
 		}
-			/// The nominal diameter written in @a string; anything but a
-			/// positive whole number is none (0)
-		static int dnFromString(const QString &string)
+			/// The diameter of the nozzle written as @a e: its attribute "dn",
+			/// else "od" (an outside diameter); none when neither is there
+		static PipeDiameter diameterFromXml(const QDomElement &e)
 		{
-			bool ok = false;
-			const int dn = string.toInt(&ok);
-			return (ok && dn > 0) ? dn : 0;
+			return PipeDiameter::fromXml(e, QStringLiteral("dn"), QStringLiteral("od"));
 		}
 			/// The text shown at a terminal: its @a name, and under it the
-			/// nominal diameter of a nozzle (@a dn, 0 for none)
-		static QString labelText(const QString &name, int dn)
+			/// diameter of a nozzle, if it has one
+		static QString labelText(const QString &name, const PipeDiameter &diameter,
+								 const QLocale &locale = QLocale::c())
 		{
-			if (dn <= 0) return name;
-			const QString diameter = QString::number(dn);
-			return name.isEmpty() ? diameter : name + QLatin1Char('\n') + diameter;
+			if (!diameter.isSet()) return name;
+			const QString shown = diameter.label(locale);
+			return name.isEmpty() ? shown : name + QLatin1Char('\n') + shown;
 		}
 			/// The size of a labelText() in the font of @a metrics
 		static QSizeF labelSize(const QFontMetrics &metrics, const QString &text)
@@ -199,10 +199,9 @@ class TerminalData : public PropertiesInterface
 			/// The medium the terminal connects, see Medium. Kept apart from
 			/// m_type, which tells terminal blocks and contacts apart.
 		TerminalData::Medium m_medium = TerminalData::Electrical;
-			/// The nominal diameter of a nozzle (a terminal of the Pipe
-			/// medium), 0 for none. Nothing links it to the DN of the pipe
-			/// connected there.
-		int m_dn = 0;
+			/// The diameter of a nozzle (a terminal of the Pipe medium): a DN
+			/// (a flange) or an outside diameter (a socket); none by default
+		PipeDiameter m_diameter;
 
 		/// Whether to display the terminal name as a text label
 		bool m_show_name = false;

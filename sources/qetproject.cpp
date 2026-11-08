@@ -4695,6 +4695,10 @@ void QETProject::setPidCodification(const PidCodification &codification)
 				element->updateInk();
 					//and the labels its models of tags make
 				element->updatePidLabel();
+					//and what its table of diameters says of its nozzles
+				for (Terminal *terminal : element->terminals()) {
+					terminal->updateDiameterToolTip();
+				}
 			}
 		}
 		folio->update();

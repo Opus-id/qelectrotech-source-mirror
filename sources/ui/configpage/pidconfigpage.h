@@ -25,6 +25,7 @@
 #include <functional>
 
 class QCheckBox;
+class QComboBox;
 class QLabel;
 class QPushButton;
 class QSpinBox;
@@ -77,6 +78,9 @@ class PidConfigPage : public ProjectConfigPage
 			/// some; the project takes them when the page is applied. False
 			/// when nothing could be read, or when the user said no.
 		bool importCsv(const QString &path);
+			/// The same with the files @p paths, read one after the other as
+			/// one: a file of codes and one of diameters, for instance
+		bool importCsv(const QStringList &paths);
 			/// Write the codification of this page, codes then palette, in
 			/// the file @p path, which importCsv() reads back
 		bool exportCsv(const QString &path);
@@ -93,6 +97,14 @@ class PidConfigPage : public ProjectConfigPage
 			/// Remove the lines selected of the list shown, after a question
 			/// when pipes or symbols bear their codes
 		void removeSelectedEntries();
+			/// The table joining the outside diameters to DN
+		QTableWidget *outsideDiameterTable() const { return m_od_table; }
+			/// Add an empty line to this table, and edit it
+		void addDiameter(QTableWidget *table);
+			/// Remove the lines selected of this table
+		void removeSelectedDiameters(QTableWidget *table);
+			/// What the page says of the last change of its codes
+		QString codeMessage() const;
 
 	protected:
 		void initWidgets() override;
@@ -115,6 +127,15 @@ class PidConfigPage : public ProjectConfigPage
 		void readCodeTable(PidCodification::List list);
 		PidCodification::List shownList() const;
 		bool confirm(const QString &question);
+		void fillDiameterTables();
+		void diameterItemChanged(QTableWidgetItem *item);
+		void readDiameterTables();
+		void showSeries();
+
+		QTableWidget *m_od_table = nullptr;
+		QWidget *m_diameters_tab = nullptr;
+		QCheckBox *m_show_nozzle_sizes = nullptr;
+		QComboBox *m_decimal = nullptr;
 
 		QTabWidget *m_code_tabs = nullptr;
 		QMap<PidCodification::List, QTableWidget *> m_code_tables;

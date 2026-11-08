@@ -410,20 +410,20 @@ void PartTerminal::setMedium(TerminalData::Medium medium)
 }
 
 /**
-	@brief PartTerminal::setDn
-	Set the nominal diameter of this nozzle, the default of the elements of
-	this symbol
-	@param dn : 0 for none
+	@brief PartTerminal::setDiameter
+	Set the diameter of this nozzle, the default of the elements of this
+	symbol
+	@param diameter : none for none
 */
-void PartTerminal::setDn(int dn)
+void PartTerminal::setDiameter(const PipeDiameter &diameter)
 {
-	if (d->m_dn == dn) {
+	if (d->m_diameter == diameter) {
 		return;
 	}
 	prepareGeometryChange();
-	d->m_dn = dn;
+	d->m_diameter = diameter;
 	update();
-	emit dnChanged();
+	emit diameterChanged();
 }
 
 /**
@@ -432,8 +432,15 @@ void PartTerminal::setDn(int dn)
 */
 QString PartTerminal::labelText() const
 {
+		//A symbol belongs to no project: the separator of the language
 	return TerminalData::labelText(d->m_name,
-								   d->m_medium == TerminalData::Pipe ? d->m_dn : 0);
+								   d->m_medium == TerminalData::Pipe ? d->m_diameter : PipeDiameter(),
+								   PidCodification().locale());
+}
+
+QString PartTerminal::diameterText() const
+{
+	return d->m_diameter.text(PidCodification().locale());
 }
 
 void PartTerminal::setNewUuid()

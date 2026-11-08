@@ -19,6 +19,7 @@
 #define TERMINAL_H
 #include <qet.h>
 #include <properties/terminaldata.h>
+#include "../pidcodification.h"
 
 #include <QtWidgets>
 #include <QtXml>
@@ -87,23 +88,28 @@ class Terminal : public QGraphicsObject
 			/// The other nozzle of a symbol a line runs through, nullptr for
 			/// any other (Element::isPipeInline())
 		Terminal *inlineSibling() const;
-			/// The nominal diameter given to this nozzle: by its element, else
-			/// by its symbol; 0 for none and for any other medium. A symbol a
-			/// line runs through has one DN: the other nozzle's counts too.
-		int ownDiameter() const;
-			/// The DN of the pipe connected to this nozzle, 0 for none; on a
-			/// symbol a line runs through, else of the pipe on the other side
-		int pipeDiameter() const;
-			/// The nominal diameter of this nozzle: its own, else it follows
-			/// its pipe, so that nothing goes out of date on a valve
-		int nominalDiameter() const;
-			/// The nozzle has a DN of its own, its pipe another one; or the
-			/// line runs through its symbol with two DN and no reducer
+			/// The diameter given to this nozzle (a DN or an outside
+			/// diameter): by its element, else by its symbol; none for none
+			/// and for any other medium. A symbol a line runs through has one
+			/// diameter: the other nozzle's counts too.
+		PipeDiameter ownDiameter() const;
+			/// The diameter of the pipe connected to this nozzle, none for
+			/// none; on a symbol a line runs through, else of the pipe on the
+			/// other side
+		PipeDiameter pipeDiameter() const;
+			/// The diameter of this nozzle: its own, else it follows its pipe,
+			/// so that nothing goes out of date on a valve
+		PipeDiameter diameter() const;
+			/// The nozzle has a diameter of its own, its pipe another one; or
+			/// the line runs through its symbol with two diameters and no
+			/// reducer. A DN and an outside diameter are compared with the
+			/// table of the project (PidCodification::compare()): one it does
+			/// not know is a gap too.
 		bool hasDiameterGap() const;
 		void updateDiameterToolTip();
 			/// The one its symbol gives this nozzle
-		int symbolDiameter() const { return d->m_dn; }
-		void setSymbolDiameter(int dn);
+		PipeDiameter symbolDiameter() const { return d->m_diameter; }
+		void setSymbolDiameter(const PipeDiameter &diameter);
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 			/// The font of labelText(): the one of the symbol, at the size
@@ -183,10 +189,16 @@ class Terminal : public QGraphicsObject
 		static void setTakesConductorColor(bool takes);
 
 	private:
-			/// The DN given to this nozzle alone, by its element or its symbol
-		int givenDiameter() const;
-			/// The DN of the pipe connected to this nozzle alone
-		int connectedDiameter() const;
+			/// The diameter given to this nozzle alone, by its element or its
+			/// symbol
+		PipeDiameter givenDiameter() const;
+			/// The diameter of the pipe connected to this nozzle alone
+		PipeDiameter connectedDiameter() const;
+			/// How @p a and @p b compare in the project of this nozzle
+		PidCodification::DiameterMatch compareDiameters(const PipeDiameter &a,
+														const PipeDiameter &b) const;
+			/// How the project writes the tenths of a size
+		QLocale sizeLocale() const;
 
 		bool               m_draw_help_line{false};
 		QGraphicsLineItem *m_help_line{nullptr};

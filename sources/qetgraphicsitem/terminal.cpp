@@ -543,7 +543,7 @@ QRectF Terminal::boundingRect() const {
 		//A nozzle keeps room for the DN under its name: that DN comes and
 		//goes with its pipe, which does not tell the scene
 	const QString display_name = d->m_medium == TerminalData::Pipe
-			? TerminalData::labelText(name(), 99999) : name();
+			? TerminalData::labelText(name(), PipeDiameter::outside(99999)) : name();
 	if (!d->m_show_name || display_name.isEmpty()) {
 		return m_br;
 	}
@@ -1280,73 +1280,82 @@ Terminal *Terminal::inlineSibling() const
 	return nullptr;
 }
 
-int Terminal::givenDiameter() const
+PipeDiameter Terminal::givenDiameter() const
 {
 	if (d->m_medium != TerminalData::Pipe) {
-		return 0;
+		return PipeDiameter();
 	}
 	if (parent_element_) {
-		const QMap<QString, int> own = parent_element_->nozzleDiameters();
+		const NozzleDiameters own = parent_element_->nozzleDiameters();
 		const auto it = own.constFind(d->m_name);
 		if (it != own.constEnd()) {
 			return it.value();
 		}
 	}
-	return d->m_dn;
+	return d->m_diameter;
 }
 
-int Terminal::connectedDiameter() const
+PipeDiameter Terminal::connectedDiameter() const
 {
 	if (d->m_medium != TerminalData::Pipe) {
-		return 0;
+		return PipeDiameter();
 	}
 	for (const Conductor *conductor : m_conductors_list) {
 		if (conductor->medium() == TerminalData::Pipe) {
-			return conductor->properties().m_pipe.nominal_diameter;
+			return conductor->properties().m_pipe.diameter;
 		}
 	}
-	return 0;
+	return PipeDiameter();
 }
 
-int Terminal::ownDiameter() const
+PipeDiameter Terminal::ownDiameter() const
 {
-	const int given = givenDiameter();
-	if (given > 0) {
+	const PipeDiameter given = givenDiameter();
+	if (given.isSet()) {
 		return given;
 	}
 	const Terminal *sibling = inlineSibling();
-	return sibling ? sibling->givenDiameter() : 0;
+	return sibling ? sibling->givenDiameter() : PipeDiameter();
 }
 
-int Terminal::pipeDiameter() const
+PipeDiameter Terminal::pipeDiameter() const
 {
-	const int connected = connectedDiameter();
-	if (connected > 0) {
+	const PipeDiameter connected = connectedDiameter();
+	if (connected.isSet()) {
 		return connected;
 	}
 	const Terminal *sibling = inlineSibling();
-	return sibling ? sibling->connectedDiameter() : 0;
+	return sibling ? sibling->connectedDiameter() : PipeDiameter();
 }
 
-int Terminal::nominalDiameter() const
+PipeDiameter Terminal::diameter() const
 {
-	const int own = ownDiameter();
-	return own > 0 ? own : pipeDiameter();
+	const PipeDiameter own = ownDiameter();
+	return own.isSet() ? own : pipeDiameter();
+}
+
+PidCodification::DiameterMatch Terminal::compareDiameters(const PipeDiameter &a,
+														  const PipeDiameter &b) const
+{
+	const Diagram *folio = diagram();
+	if (folio && folio->project()) {
+		return folio->project()->pidCodification().compare(a, b);
+	}
+	return PidCodification().compare(a, b);
 }
 
 bool Terminal::hasDiameterGap() const
 {
-	const int pipe = connectedDiameter();
-	if (pipe <= 0) {
+	const PipeDiameter pipe = connectedDiameter();
+	if (!pipe.isSet()) {
 		return false;
 	}
 	const Terminal *sibling = inlineSibling();
-	const int other = sibling ? sibling->connectedDiameter() : 0;
-	if (other > 0 && other != pipe) {
+	const PipeDiameter other = sibling ? sibling->connectedDiameter() : PipeDiameter();
+	if (compareDiameters(pipe, other) != PidCodification::DiameterMatch::Same) {
 		return true;
 	}
-	const int own = ownDiameter();
-	return own > 0 && own != pipe;
+	return compareDiameters(ownDiameter(), pipe) != PidCodification::DiameterMatch::Same;
 }
 
 /**
@@ -1359,15 +1368,26 @@ void Terminal::updateDiameterToolTip()
 		return;
 	}
 	const Terminal *sibling = inlineSibling();
-	const int pipe = connectedDiameter();
-	const int other = sibling ? sibling->connectedDiameter() : 0;
+	const PipeDiameter pipe = connectedDiameter();
+	const PipeDiameter other = sibling ? sibling->connectedDiameter() : PipeDiameter();
+	const PipeDiameter own = ownDiameter();
+	const QLocale locale = sizeLocale();
+	const auto unknown = tr("The table of the diameters of the project does not join %1 to a DN.");
 	if (!hasDiameterGap()) {
 		setToolTip(QString());
-	} else if (other > 0 && other != pipe) {
-		setToolTip(tr("Inline item between DN %1 and DN %2, without a reducer")
-				   .arg(pipe).arg(other));
+	} else if (const auto match = compareDiameters(pipe, other) ; match != PidCodification::DiameterMatch::Same) {
+		QString tip = tr("Inline item between %1 and %2, without a reducer")
+					  .arg(pipe.text(locale), other.text(locale));
+		if (match == PidCodification::DiameterMatch::Unknown) {
+			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : other).text(locale));
+		}
+		setToolTip(tip);
 	} else {
-		setToolTip(tr("Nozzle DN %1, pipe DN %2").arg(ownDiameter()).arg(pipe));
+		QString tip = tr("Nozzle %1, pipe %2").arg(own.text(locale), pipe.text(locale));
+		if (compareDiameters(own, pipe) == PidCodification::DiameterMatch::Unknown) {
+			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : own).text(locale));
+		}
+		setToolTip(tip);
 	}
 		//The pipe draws the mark
 	for (Conductor *conductor : std::as_const(m_conductors_list)) {
@@ -1375,16 +1395,31 @@ void Terminal::updateDiameterToolTip()
 	}
 }
 
-void Terminal::setSymbolDiameter(int dn)
+void Terminal::setSymbolDiameter(const PipeDiameter &diameter)
 {
-	d->m_dn = dn;
+	d->m_diameter = diameter;
 	updateDiameterToolTip();
 	update();
 }
 
 QString Terminal::labelText() const
 {
-	return TerminalData::labelText(name(), nominalDiameter());
+	const Diagram *folio = diagram();
+	if (folio && folio->project()) {
+		const PidCodification &codification = folio->project()->pidCodification();
+		if (!codification.show_nozzle_sizes) {
+			return name();
+		}
+		return TerminalData::labelText(name(), diameter(), codification.locale());
+	}
+	return TerminalData::labelText(name(), diameter(), PidCodification().locale());
+}
+
+QLocale Terminal::sizeLocale() const
+{
+	const Diagram *folio = diagram();
+	return folio && folio->project() ? folio->project()->pidCodification().locale()
+									 : PidCodification().locale();
 }
 
 QFont Terminal::labelFont() const

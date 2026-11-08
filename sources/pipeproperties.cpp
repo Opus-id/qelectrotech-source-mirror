@@ -63,8 +63,10 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 		if (!value.isEmpty())
 			a << qMakePair(QString::fromLatin1(name), value);
 	};
-	if (nominal_diameter > 0)
-		add("pipe_dn", QString::number(nominal_diameter));
+		//A DN as before, or an outside diameter: never both
+	if (diameter.isSet())
+		a << qMakePair(diameter.attributeName(QStringLiteral("pipe_dn"), QStringLiteral("pipe_od")),
+					   PipeDiameter::fileNumber(diameter.tenths()));
 	add("pipe_fluid", fluid);
 	add("pipe_material", material);
 	add("pipe_flow", flow);
@@ -89,9 +91,7 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 */
 void PipeProperties::fromXml(const QDomElement &e)
 {
-	bool ok = false;
-	const int dn = e.attribute(QStringLiteral("pipe_dn")).toInt(&ok);
-	nominal_diameter = (ok && dn > 0)? dn : 0;
+	diameter = PipeDiameter::fromXml(e, QStringLiteral("pipe_dn"), QStringLiteral("pipe_od"));
 
 	fluid            = e.attribute(QStringLiteral("pipe_fluid"));
 	material         = e.attribute(QStringLiteral("pipe_material"));
@@ -143,7 +143,7 @@ QStringList PipeProperties::defaultFluids()
 */
 bool PipeProperties::operator==(const PipeProperties &other) const
 {
-	return nominal_diameter == other.nominal_diameter
+	return diameter == other.diameter
 		&& material == other.material
 		&& fluid == other.fluid
 		&& flow == other.flow

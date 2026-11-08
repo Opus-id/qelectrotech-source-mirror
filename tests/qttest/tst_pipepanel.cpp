@@ -173,14 +173,14 @@ class tst_pipepanel : public QObject
 				return page.findChild<QLineEdit *>(QLatin1String(name));
 			};
 
-			type(edit("nominal_diameter"), QStringLiteral("80"));
+			type(edit("diameter"), QStringLiteral("80"));
 			type(edit("flow"), QStringLiteral("120 m3/h"));
 			type(edit("piping_class"), QStringLiteral("75HB13"));
 			type(edit("nominal_pressure"), QStringLiteral("PN16"));
 			type(edit("spool"), QStringLiteral("2"));
 			type(edit("external_finish"), QStringLiteral("EA"));
 			const PipeProperties data = pipe->properties().m_pipe;
-			QCOMPARE(data.nominal_diameter, 80);
+			QCOMPARE(data.diameter.value(), 80.0);
 			QCOMPARE(data.flow, QStringLiteral("120 m3/h"));
 			QCOMPARE(data.piping_class, QStringLiteral("75HB13"));
 			QCOMPARE(data.nominal_pressure, QStringLiteral("PN16"));
@@ -188,9 +188,9 @@ class tst_pipepanel : public QObject
 			QCOMPARE(data.external_finish, QStringLiteral("EA"));
 
 				// an empty diameter is no diameter, shown as nothing
-			type(edit("nominal_diameter"), QString());
-			QCOMPARE(pipe->properties().m_pipe.nominal_diameter, 0);
-			QVERIFY(edit("nominal_diameter")->text().isEmpty());
+			type(edit("diameter"), QString());
+			QCOMPARE(pipe->properties().m_pipe.diameter.value(), 0.0);
+			QVERIFY(edit("diameter")->text().isEmpty());
 
 				// the lists offer entries and take free text
 			auto *fluid = page.findChild<QComboBox *>(QStringLiteral("fluid"));
@@ -216,23 +216,234 @@ class tst_pipepanel : public QObject
 			QCOMPARE(pipe->properties().lineStyle(), Qt::DashLine);
 		}
 
+			// Each material has its series: the field offers it, and only it;
+			// without a material of the codification, nothing to choose
+		void theSizesAreTheSeriesOfTheMaterial()
+		{
+			PidCodification codification;
+			PidCodification::Entry plastic;
+			plastic.code = QStringLiteral("M01");
+			plastic.outside_diameter = true;
+			plastic.series = {1100, 1250};
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.series = {800, 1000, 1250};
+			PidCodification::Entry bare;
+			bare.code = QStringLiteral("M03");
+			PidCodification::Entry stainless;
+			stainless.code = QStringLiteral("M04");
+			stainless.outside_diameter = true;
+			stainless.series = {889, 1143};
+			codification.materials = {plastic, steel, bare, stainless};
+			codification.outside_diameters.insert(1100, {100});
+			codification.outside_diameters.insert(1250, {100, 125});
+			codification.decimal = PidCodification::Decimal::Comma;
+			m_project.setPidCodification(codification);
+
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(pipe);
+			auto setMaterial = [pipe](const QString &material) {
+				ConductorProperties p = pipe->properties();
+				p.m_pipe.material = material;
+				pipe->setProperties(p);
+			};
+			auto diameter = [pipe]() { return pipe->properties().m_pipe.diameter; };
+			setMaterial(QStringLiteral("M01"));
+			PipePropertiesWidget page({pipe});
+			auto *list = page.findChild<QComboBox *>(QStringLiteral("diameter_list"));
+			QVERIFY(list);
+			QLineEdit *edit = list->lineEdit();
+
+				// a plastic: its series, and a number alone is an outside diameter
+			QVERIFY(list->isEnabled());
+			QCOMPARE(list->count(), 3);
+			QCOMPARE(list->itemText(1), QStringLiteral("Ø 110"));
+			type(edit, QStringLiteral("110"));
+			QCOMPARE(diameter(), PipeDiameter::outside(110));
+			QCOMPARE(edit->text(), QStringLiteral("Ø 110"));
+			QVERIFY(page.diameterMessage().isEmpty());
+
+				// a size out of its series: the nearest one, and said; the
+				// greater of two as near
+			type(edit, QStringLiteral("123"));
+			QCOMPARE(diameter(), PipeDiameter::outside(125));
+			QCOMPARE(edit->text(), QStringLiteral("Ø 125"));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("123")));
+			type(edit, QStringLiteral("112"));
+			QCOMPARE(diameter(), PipeDiameter::outside(110));
+			type(edit, QStringLiteral("117,5"));
+			QCOMPARE(diameter(), PipeDiameter::outside(125));
+				// a DN typed on a plastic is refused
+			type(edit, QStringLiteral("DN 100"));
+			QCOMPARE(diameter(), PipeDiameter::outside(125));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN 100")));
+			type(edit, QStringLiteral("110"));
+
+				// to tenths, with the separator of the project
+			setMaterial(QStringLiteral("M04"));
+			QCOMPARE(list->itemText(1), QStringLiteral("Ø 88,9"));
+			type(edit, QStringLiteral("88.9"));
+			QCOMPARE(diameter(), PipeDiameter::outside(88.9));
+			QCOMPARE(edit->text(), QStringLiteral("Ø 88,9"));
+
+				// a material without series, none of the codification, or no
+				// material: nothing to choose, and said
+			setMaterial(QStringLiteral("M03"));
+			QVERIFY(!list->isEnabled());
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("M03")));
+			QCOMPARE(diameter(), PipeDiameter::outside(88.9));
+			setMaterial(QStringLiteral("XYZ"));
+			QVERIFY(!list->isEnabled());
+			QVERIFY(!page.diameterMessage().isEmpty());
+			setMaterial(QString());
+			QVERIFY(!list->isEnabled());
+
+				// several materials: nothing to choose either
+			setMaterial(QStringLiteral("M01"));
+			Conductor *other = draw(m_nozzles);
+			ConductorProperties p = other->properties();
+			p.m_pipe.material = QStringLiteral("M02");
+			other->setProperties(p);
+			PipePropertiesWidget both({pipe, other});
+			QVERIFY(!both.findChild<QComboBox *>(QStringLiteral("diameter_list"))->isEnabled());
+
+				// a project which lists no material offers the DN of ISO 6708
+			m_project.setPidCodification(PidCodification());
+			QVERIFY(list->isEnabled());
+			QCOMPARE(list->count(), int(PipeProperties::preferredDiameters().size()) + 1);
+			type(edit, QStringLiteral("100"));
+			QCOMPARE(diameter(), PipeDiameter::nominal(100));
+		}
+
+			// A material of the other kind: the table gives the size, in the
+			// same step; several sizes, the user chooses
+		void aChangeOfMaterialConvertsTheSize()
+		{
+			PidCodification codification;
+			PidCodification::Entry plastic;
+			plastic.code = QStringLiteral("M01");
+			plastic.outside_diameter = true;
+			plastic.series = {1100, 1250};
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.series = {800, 1000, 1250};
+			codification.materials = {plastic, steel};
+			codification.outside_diameters.insert(1100, {100});
+			codification.outside_diameters.insert(1250, {100, 125});
+			m_project.setPidCodification(codification);
+
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(pipe);
+			ConductorProperties p = pipe->properties();
+			p.m_pipe.material = QStringLiteral("M01");
+			p.m_pipe.diameter = PipeDiameter::outside(110);
+			pipe->setProperties(p);
+			auto diameter = [pipe]() { return pipe->properties().m_pipe.diameter; };
+			PipePropertiesWidget page({pipe});
+			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
+			QVERIFY(material);
+			int asked = 0;
+			int answer = -1;
+			page.setChooser([&asked, &answer](const QString &, const QStringList &items) {
+				++asked;
+				return items.size() > 1 ? answer : -1;
+			});
+
+				// one size: taken without a question, in one step
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.count();
+			type(material->lineEdit(), QStringLiteral("M02"));
+			QCOMPARE(pipe->properties().m_pipe.material, QStringLiteral("M02"));
+			QCOMPARE(diameter(), PipeDiameter::nominal(100));
+			QCOMPARE(asked, 0);
+			QCOMPARE(stack.count(), steps + 1);
+			stack.undo();
+			QCOMPARE(pipe->properties().m_pipe.material, QStringLiteral("M01"));
+			QCOMPARE(diameter(), PipeDiameter::outside(110));
+			stack.redo();
+
+				// back to the plastic: Ø 110 and Ø 125 are joined to DN 100
+			answer = 1;
+			type(material->lineEdit(), QStringLiteral("M01"));
+			QCOMPARE(asked, 1);
+			QCOMPARE(diameter(), PipeDiameter::outside(125));
+
+				// no answer: the size stays, said not to suit the material
+			answer = -1;
+			type(material->lineEdit(), QStringLiteral("M02"));
+			QCOMPARE(asked, 2);
+			QCOMPARE(diameter(), PipeDiameter::outside(125));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("M02")));
+			m_project.setPidCodification(PidCodification());
+		}
+
+			// The same kind: through the DN the table joins (a plastic Ø 110
+			// is a stainless Ø 114,3), else the nearest size of the series
+		void aChangeOfMaterialOfTheSameKind()
+		{
+			PidCodification codification;
+			PidCodification::Entry plastic;
+			plastic.code = QStringLiteral("M01");
+			plastic.outside_diameter = true;
+			plastic.series = {1100, 1250};
+			PidCodification::Entry stainless;
+			stainless.code = QStringLiteral("M02");
+			stainless.outside_diameter = true;
+			stainless.series = {889, 1143};
+			PidCodification::Entry galvanised;
+			galvanised.code = QStringLiteral("M03");
+			galvanised.series = {500, 650};
+			PidCodification::Entry iron;
+			iron.code = QStringLiteral("M04");
+			iron.series = {600, 800};
+			codification.materials = {plastic, stainless, galvanised, iron};
+			codification.outside_diameters.insert(1100, {100});
+			codification.outside_diameters.insert(1143, {100});
+			codification.decimal = PidCodification::Decimal::Comma;
+			m_project.setPidCodification(codification);
+
+			Conductor *pipe = draw(m_nozzles);
+			ConductorProperties p = pipe->properties();
+			p.m_pipe.material = QStringLiteral("M01");
+			p.m_pipe.diameter = PipeDiameter::outside(110);
+			pipe->setProperties(p);
+			auto diameter = [pipe]() { return pipe->properties().m_pipe.diameter; };
+			PipePropertiesWidget page({pipe});
+			page.setChooser([](const QString &, const QStringList &) { return -1; });
+			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
+
+			type(material->lineEdit(), QStringLiteral("M02"));
+			QCOMPARE(diameter(), PipeDiameter::outside(114.3));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("Ø 114,3")));
+
+				// two DN without table: the nearest one
+			p = pipe->properties();
+			p.m_pipe.material = QStringLiteral("M03");
+			p.m_pipe.diameter = PipeDiameter::nominal(65);
+			pipe->setProperties(p);
+			type(material->lineEdit(), QStringLiteral("M04"));
+			QCOMPARE(diameter(), PipeDiameter::nominal(60));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN 60")));
+			m_project.setPidCodification(PidCodification());
+		}
+
 		void severalPipesChangeOnlyTheFieldEdited()
 		{
 			Conductor *first = draw(m_nozzles);
 			Conductor *second = draw(m_nozzles);
 			QVERIFY(first && second);
 			ConductorProperties p = first->properties();
-			p.m_pipe.nominal_diameter = 80;
+			p.m_pipe.diameter = PipeDiameter::nominal(80);
 			p.m_pipe.material = QStringLiteral("M01");
 			first->setProperties(p);
 			p = second->properties();
-			p.m_pipe.nominal_diameter = 100;
+			p.m_pipe.diameter = PipeDiameter::nominal(100);
 			p.m_pipe.material = QStringLiteral("M01");
 			p.m_pipe.line_kind = PipeProperties::Secondary;
 			second->setProperties(p);
 
 			PipePropertiesWidget page({first, second});
-			auto *dn = page.findChild<QLineEdit *>(QStringLiteral("nominal_diameter"));
+			auto *dn = page.findChild<QLineEdit *>(QStringLiteral("diameter"));
 			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
 			auto *kind = page.findChild<QComboBox *>(QStringLiteral("line_kind"));
 			auto *fluid = page.findChild<QComboBox *>(QStringLiteral("fluid"));
@@ -249,16 +460,16 @@ class tst_pipepanel : public QObject
 			const int steps = stack.count();
 			emit dn->editingFinished();
 			QCOMPARE(stack.count(), steps);
-			QCOMPARE(first->properties().m_pipe.nominal_diameter, 80);
-			QCOMPARE(second->properties().m_pipe.nominal_diameter, 100);
+			QCOMPARE(first->properties().m_pipe.diameter.value(), 80.0);
+			QCOMPARE(second->properties().m_pipe.diameter.value(), 100.0);
 
 				// a field edited reaches both, in one step, and no other field
 			type(fluid->lineEdit(), QStringLiteral("W02"));
 			QCOMPARE(stack.count(), steps + 1);
 			QCOMPARE(first->properties().m_pipe.fluid, QStringLiteral("W02"));
 			QCOMPARE(second->properties().m_pipe.fluid, QStringLiteral("W02"));
-			QCOMPARE(first->properties().m_pipe.nominal_diameter, 80);
-			QCOMPARE(second->properties().m_pipe.nominal_diameter, 100);
+			QCOMPARE(first->properties().m_pipe.diameter.value(), 80.0);
+			QCOMPARE(second->properties().m_pipe.diameter.value(), 100.0);
 			QCOMPARE(second->properties().m_pipe.line_kind, PipeProperties::Secondary);
 
 			stack.undo();

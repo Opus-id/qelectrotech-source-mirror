@@ -35,7 +35,7 @@ class PartTerminal : public CustomElementGraphicPart
 	Q_PROPERTY(QString terminal_name READ terminalName WRITE setTerminalName)
 	Q_PROPERTY(TerminalData::Type terminal_type READ terminalType WRITE setTerminalType)
 	Q_PROPERTY(TerminalData::Medium medium READ medium WRITE setMedium)
-	Q_PROPERTY(int dn READ dn WRITE setDn)
+	Q_PROPERTY(QString diameter READ diameterText WRITE setDiameterText)
 	Q_PROPERTY(bool show_name READ showName WRITE setShowName)
 	Q_PROPERTY(QPointF label_pos READ labelPos WRITE setLabelPos)
 	Q_PROPERTY(QFont label_font READ labelFont WRITE setLabelFont)
@@ -60,7 +60,7 @@ class PartTerminal : public CustomElementGraphicPart
 		void nameChanged();
 		void terminalTypeChanged();
 		void mediumChanged();
-		void dnChanged();
+		void diameterChanged();
 		void potentialChanged();
 		void showNameChanged();
 		void labelPosChanged();
@@ -119,9 +119,13 @@ class PartTerminal : public CustomElementGraphicPart
 		TerminalData::Medium medium() const {return d->m_medium;}
 		void setMedium(TerminalData::Medium medium);
 
-			/// The nominal diameter of a nozzle, 0 for none
-		int dn() const {return d->m_dn;}
-		void setDn(int dn);
+			/// The diameter of a nozzle: a DN or an outside diameter
+		PipeDiameter diameter() const {return d->m_diameter;}
+		void setDiameter(const PipeDiameter &diameter);
+			/// diameter() as "DN 100" or "Ø 110", empty for none: the
+			/// property the undo of the editor changes
+		QString diameterText() const;
+		void setDiameterText(const QString &text) {setDiameter(PipeDiameter::fromText(text));}
 			/// The text shown at the terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 

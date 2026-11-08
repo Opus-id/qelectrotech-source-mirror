@@ -18,6 +18,8 @@
 #ifndef PID_CODIFICATION_H
 #define PID_CODIFICATION_H
 
+#include "pipediameter.h"
+
 #include <QByteArray>
 #include <QColor>
 #include <QDomDocument>
@@ -57,8 +59,29 @@ class PidCodification
 				/// The family of a fluid, such as "E" (waters) or "Sludges":
 				/// free text, it groups the fluids drawn alike
 			QString family;
+				/// A material whose pipes are named by their outside
+				/// diameter (PVC, PE), not by their DN (steel, cast iron)
+			bool outside_diameter = false;
+				/// The sizes of a material found in trade, its standard
+				/// series, in tenths of a millimetre (a DN times ten), in
+				/// order: its pipes take no other
+			QList<int> series;
 
 			bool operator==(const Entry &other) const;
+		};
+
+			/// How a diameter compares with another, see compare()
+		enum class DiameterMatch { Same, Different, Unknown };
+			/// What sizes a pipe of a material may have, see pipeSizes()
+		enum class SizeRule {
+				/// The project has no material: the DN of ISO 6708
+			Iso,
+				/// The series of the material
+			Series,
+				/// No material, or one the codification has not: none
+			NoMaterial,
+				/// A material without series: none
+			NoSeries
 		};
 
 			/// The lists of codes
@@ -72,6 +95,64 @@ class PidCodification
 
 		QList<Entry> &entries(List list);
 		const QList<Entry> &entries(List list) const;
+
+			/// The table of the project joining its outside diameters to DN
+			/// (a collar and flange): by outside diameter, in tenths of a
+			/// millimetre, the DN it may be joined to; none known for some
+		QMap<int, QList<int>> outside_diameters;
+
+			/// The sizes of the material @p entry, of its kind
+		static QList<PipeDiameter> seriesOf(const Entry &entry);
+			/// What sizes a pipe of the material of code @p material_code may
+			/// have, written in @p sizes (empty when none)
+		SizeRule pipeSizes(const QString &material_code, QList<PipeDiameter> *sizes = nullptr) const;
+			/// @p diameter may be given to a pipe of the material of code
+			/// @p material_code; none always
+		bool acceptsForPipe(const PipeDiameter &diameter, const QString &material_code) const;
+			/// The sizes a nozzle may have, having no material: the series of
+			/// all the materials, DN then outside diameters; those of ISO 6708
+			/// in a project without material
+		QList<PipeDiameter> nozzleSizes() const;
+			/// @p diameter may be given to a nozzle: one of nozzleSizes(), or
+			/// in a project without material any outside diameter too; none
+			/// always
+		bool acceptsForNozzle(const PipeDiameter &diameter) const;
+			/// How @p a and @p b compare at a nozzle: a DN and an outside
+			/// diameter are the same when the table of the project joins them,
+			/// unknown when it has not this outside diameter; a diameter not
+			/// set differs from nothing
+		DiameterMatch compare(const PipeDiameter &a, const PipeDiameter &b) const;
+			/// What @p diameter may become on a pipe of the material of code
+			/// @p material_code, when its series has it not: the sizes of the
+			/// series the table joins to it, through a DN when both are
+			/// outside diameters (Ø 110 of a plastic, DN 100, Ø 114,3 of a
+			/// steel). None when the series has it, or the material has no
+			/// series.
+		QList<PipeDiameter> conversions(const PipeDiameter &diameter,
+										const QString &material_code) const;
+			/// The size of @p sizes nearest to @p typed, of its kind; the
+			/// greater of two as near; none when there is none of its kind
+		static PipeDiameter nearest(const PipeDiameter &typed, const QList<PipeDiameter> &sizes);
+			/// The material of code @p code names its pipes by their outside
+			/// diameter
+		bool outsideDiameterFor(const QString &material_code) const;
+			/// The codes of the materials without series, which no pipe can
+			/// be given a size of
+		QStringList materialsWithoutSeries() const;
+			/// The DN written in @p text as "100/125" (or separated by
+			/// spaces), whole, in order, each once; @p ok false when something
+			/// else is written
+		static QList<int> diametersFromText(const QString &text, bool *ok = nullptr);
+			/// @p values as "100/125"
+		static QString diametersToText(const QList<int> &values);
+			/// The sizes written in @p text as "25/32/88,9" (or separated by
+			/// spaces; a tenth after a comma or a point), in tenths of a
+			/// millimetre, in order, each once; @p ok false when something
+			/// else is written
+		static QList<int> seriesFromText(const QString &text, bool *ok = nullptr);
+			/// @p tenths as "25/32/88.9", as a file writes them; with commas
+			/// in a language which writes them so when @p locale says so
+		static QString seriesToText(const QList<int> &tenths, const QLocale &locale = QLocale::c());
 
 			/// @p a comes before @p b in a list of codes: in their natural
 			/// order, W2 before W10, without regard to case
@@ -97,17 +178,38 @@ class PidCodification
 			/// The names and diameters of the nozzles are printed and
 			/// exported, whatever is asked for the names of the terminals
 		bool nozzle_texts_on_paper = true;
+			/// The sizes of the nozzles are shown under their names
+		bool show_nozzle_sizes = true;
+			/// How the tenths of a size are written on the screen and on
+			/// paper; a file always has a point
+		enum class Decimal {
+				/// Not set yet: as the language of QElectroTech
+			Language,
+			Comma,
+			Point
+		};
+		Decimal decimal = Decimal::Language;
+			/// The separator of the language of QElectroTech, Comma or Point
+		static Decimal languageDecimal();
+			/// decimal, set: that of the language when it is not
+		Decimal effectiveDecimal() const {
+			return decimal == Decimal::Language ? languageDecimal() : decimal;
+		}
+			/// What writes a size with the separator of the project
+		QLocale locale() const;
 
-		bool hasCodes() const {
+		bool hasCodes() const { return hasCodeLists() || hasDiameters(); }
+		bool hasCodeLists() const {
 			return !fluids.isEmpty() || !materials.isEmpty() || !functional_units.isEmpty();
 		}
+		bool hasDiameters() const { return !outside_diameters.isEmpty(); }
 		bool hasColors() const {
 			return !fluid_family_colors.isEmpty() || !object_colors.isEmpty()
 					|| !status_colors.isEmpty();
 		}
 		bool hasTextSettings() const {
 			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
-					|| !tag_models.isEmpty();
+					|| !show_nozzle_sizes || decimal != Decimal::Language || !tag_models.isEmpty();
 		}
 		bool isEmpty() const { return !hasCodes() && !hasColors() && !hasTextSettings(); }
 
@@ -128,7 +230,8 @@ class PidCodification
 		static QString nozzleTexts() { return QStringLiteral("nozzle"); }
 
 			/// This codification, with the codes of @p other when it has
-			/// none, its colours when it has none and its settings of texts
+			/// none, its diameters when it has none, its colours when it has
+			/// none and its settings of texts
 			/// when it has none: a file of codes does not take the colours of
 			/// a project away, nor the reverse
 		PidCodification completedWith(const PidCodification &other) const;
@@ -141,7 +244,12 @@ class PidCodification
 
 			/// Reads a text file of lines "kind;code;name;family", kind being
 			/// "fluid", "material" or "unit" (a functional unit; or their
-			/// French words), of lines "tag_model;family;model"
+			/// French words), the last field of a material being "od" (or
+			/// "Ø") when its pipes are named by their outside diameter, of
+			/// lines "series;M05;25/32/40" (the series of a material, which
+			/// may come before or after it), of lines "od;125;100/125" (an
+			/// outside diameter and the DN it may be joined to, maybe none), of
+			/// lines "tag_model;family;model"
 			/// ("modele_repere"), and of lines
 			/// "kind;key;color", kind being "fluid_color", "object_color" or
 			/// "status_color" ("couleur_fluide", "couleur_objet",
@@ -163,6 +271,9 @@ class PidCodification
 			/// The text of a file of codes: UTF-8, or Latin-1 when it is not,
 			/// as a file saved by a spreadsheet may be
 		static QString textOfFile(const QByteArray &bytes);
+			/// The texts of the files @p paths one after the other, as one
+			/// file of codes; those which could not be read in @p unreadable
+		static QString textOfFiles(const QStringList &paths, QStringList *unreadable = nullptr);
 
 		bool operator==(const PidCodification &other) const;
 		bool operator!=(const PidCodification &other) const { return !(*this == other); }

@@ -512,6 +512,10 @@ qet_add_app_test(tst_pidtexts tst_pidtexts.cpp)
 # The codification of a P&ID edited in the page of the project: a code changed
 # reaches the pipes and symbols bearing it in one step, a name changed none.
 qet_add_app_test(tst_pidcodificationeditor tst_pidcodificationeditor.cpp)
+# The diameter of a pipe or a nozzle: a DN or an outside diameter, never one
+# read as the other; the lists of a project, its table joining them, and the
+# materials that say which kind names their pipes.
+qet_add_app_test(tst_pipediameter tst_pipediameter.cpp)
 # The frame of a folio follows a new size at once.
 qet_add_app_test(tst_borderresize tst_borderresize.cpp)
 # A quick second click on the same spot reaches the shape tools as a

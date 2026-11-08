@@ -1186,17 +1186,19 @@ void QETDiagramEditor::setUpActions()
 		if (!view || !view->project()) return;
 		QETProject *project = view->project();
 		if (project->isReadOnly()) return;
-		const QString path = QFileDialog::getOpenFileName(
+			//Several files at once: the codes, the diameters...
+		const QStringList paths = QFileDialog::getOpenFileNames(
 					this, tr("Import a P&ID codification"), QString(),
 					tr("CSV files (*.csv *.txt);;All files (*)"));
-		if (path.isEmpty()) return;
-		QFile file(path);
-		if (!file.open(QIODevice::ReadOnly)) {
+		if (paths.isEmpty()) return;
+		QStringList unreadable;
+		const QString text = PidCodification::textOfFiles(paths, &unreadable);
+		if (!unreadable.isEmpty()) {
 			QET::QetMessageBox::warning(this, tr("Import a P&ID codification"),
-										tr("The file %1 could not be read.").arg(path));
+										tr("The file %1 could not be read.").arg(unreadable.join(QStringLiteral(", "))));
 			return;
 		}
-		const QString text = PidCodification::textOfFile(file.readAll());
+		const QString path = paths.join(QStringLiteral(", "));
 		int skipped = 0;
 		const PidCodification codification = PidCodification::fromCsv(text, &skipped);
 		if (codification.isEmpty()) {

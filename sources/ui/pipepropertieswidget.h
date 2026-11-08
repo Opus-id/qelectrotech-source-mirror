@@ -19,6 +19,7 @@
 #define PIPEPROPERTIESWIDGET_H
 
 #include "../PropertiesEditor/propertieseditorwidget.h"
+#include "../pidcodification.h"
 #include "../pipeproperties.h"
 
 #include <QList>
@@ -72,12 +73,50 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 						   const std::function<void(PipeProperties &, const QString &)> &set,
 						   bool through_valves = false);
 		QComboBox *addListField(const QString &name, const QString &label,
-								const std::function<void(PipeProperties &, const QString &)> &set);
+								const std::function<void(PipeProperties &, const QString &)> &set,
+								const std::function<void(const QString &)> &apply_code = nullptr);
 		void applyChange(const std::function<void(PipeProperties &)> &change,
 						 bool through_valves = false);
 		void showText(QLineEdit *edit, const std::function<QString(const PipeProperties &)> &get);
 		void fillLists();
 		static QString codeOf(const QComboBox *list, const QString &text);
+			/// The codification of the project, an empty one without it
+		PidCodification codification() const;
+			/// The sizes the pipes edited may have, from their material,
+			/// written in @p sizes; @p several says they have several
+			/// materials, and then none
+		PidCodification::SizeRule sizeRule(QList<PipeDiameter> *sizes, bool *several = nullptr) const;
+			/// The diameter typed or picked, given to the pipes if the series
+			/// of their material has it; otherwise the field gets its value
+			/// back
+		void diameterEdited();
+			/// The material of code @p code given to the pipes: a diameter of
+			/// the other kind becomes the size of the series the table joins to
+			/// it, in the same step; when it joins several, the user chooses
+		void materialEdited(const QString &code);
+			/// The answer to @p question among @p items, -1 for none
+		int choose(const QString &question, const QStringList &items);
+			/// What is wrong with the diameter shown, empty when nothing
+		QString diameterWarning() const;
+
+	public:
+			/// The text under the field of the diameter: a value refused, or
+			/// one which is not in the lists of the project or which does not
+			/// suit the material
+		QString diameterMessage() const;
+			/// What asks which size a diameter becomes, a list in a dialog
+			/// unless a test says otherwise; it answers the index chosen, -1
+			/// to keep the diameter
+		void setChooser(const std::function<int(const QString &, const QStringList &)> &chooser) {
+			m_chooser = chooser;
+		}
+
+	private:
+		QComboBox *m_diameter = nullptr;
+		QLabel *m_diameter_message = nullptr;
+			/// A value typed and refused, said until the next change
+		QString m_refused;
+		std::function<int(const QString &, const QStringList &)> m_chooser;
 
 		QList<QPointer<Conductor>> m_pipes;
 			/// The project of the pipes, for its codification

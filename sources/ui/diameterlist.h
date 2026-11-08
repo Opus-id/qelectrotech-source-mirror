@@ -18,36 +18,72 @@
 #ifndef DIAMETERLIST_H
 #define DIAMETERLIST_H
 
+#include "../pidcodification.h"
+#include "../pipediameter.h"
 #include "../pipeproperties.h"
 
 #include <QComboBox>
 #include <QLineEdit>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
+#include <QSignalBlocker>
 
 namespace DiameterList {
 
 /**
-	@brief setUp
-	Make of @p list the field of a nominal diameter: the preferred values to
-	pick from, and any other whole number to type, the standard only giving
-	preferred ones. Empty is a value: no DN. That is why this is no
-	QIntValidator, for which an empty field is not finished and which would
-	keep the value before it.
-	@param list
+	@brief isoSizes
+	@return the DN of ISO 6708, as diameters
 */
-inline void setUp(QComboBox *list)
+inline QList<PipeDiameter> isoSizes()
+{
+	QList<PipeDiameter> list;
+	for (int value : PipeProperties::preferredDiameters()) {
+		list << PipeDiameter::nominal(value);
+	}
+	return list;
+}
+
+/**
+	@brief fill
+	Offer in @p list "nothing", then @p diameters, keeping the text shown
+*/
+inline void fill(QComboBox *list, const QList<PipeDiameter> &diameters,
+				 const QLocale &locale = QLocale::c())
+{
+	const QSignalBlocker blocker(list);
+	const QString text = list->lineEdit() ? list->lineEdit()->text() : QString();
+	list->clear();
+	list->addItem(QString());
+	for (const PipeDiameter &diameter : diameters) {
+		list->addItem(diameter.text(locale));
+	}
+	if (list->lineEdit()) {
+		list->lineEdit()->setText(text);
+	}
+}
+
+/**
+	@brief setUp
+	Make of @p list the field of a diameter: the values to pick from, and
+	others to type, "DN 100", "Ø 88,9" or a number alone; the field that takes
+	it tells whether it is allowed. Empty is a value: no diameter. That is
+	why this is no QIntValidator, for which an empty field is not finished and
+	which would keep the value before it.
+	@param list
+	@param diameters : those offered, by default the DN of ISO 6708
+*/
+inline void setUp(QComboBox *list, const QList<PipeDiameter> &diameters = isoSizes(),
+				  const QLocale &locale = QLocale::c())
 {
 	list->setEditable(true);
 	list->setInsertPolicy(QComboBox::NoInsert);
 		//Otherwise 12 typed becomes 125 when the field is left
 	list->setCompleter(nullptr);
-	list->addItem(QString());
-	for (int dn : PipeProperties::preferredDiameters()) {
-		list->addItem(QString::number(dn));
-	}
+	fill(list, diameters, locale);
 	list->setValidator(new QRegularExpressionValidator(
-						   QRegularExpression(QStringLiteral("[1-9][0-9]{0,4}|")), list));
+						   QRegularExpression(QStringLiteral("\\s*(([Dd][Nn]|[\\x{00D8}\\x{00F8}Dd])\\s*)?"
+															 "([1-9][0-9]{0,4}([.,][0-9])?)?\\s*")),
+						   list));
 }
 
 } // namespace DiameterList

@@ -32,6 +32,7 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -60,15 +61,20 @@ void PipePropertiesWidget::setPipes(const QList<Conductor *> &pipes)
 {
 	for (const QPointer<Conductor> &pipe : std::as_const(m_pipes)) {
 		if (pipe) {
-			disconnect(pipe, &Conductor::propertiesChange, this, &PipePropertiesWidget::updateUi);
+			disconnect(pipe, &Conductor::propertiesChange, this, nullptr);
 		}
 	}
 	m_pipes.clear();
+	m_refused.clear();
 	for (Conductor *pipe : pipes) {
 		if (pipe) {
 			m_pipes << pipe;
-				//Undone, redone or changed elsewhere: the fields follow
-			connect(pipe, &Conductor::propertiesChange, this, &PipePropertiesWidget::updateUi);
+				//Undone, redone or changed elsewhere: the fields follow, and
+				//a value refused before is no longer what matters
+			connect(pipe, &Conductor::propertiesChange, this, [this]() {
+				m_refused.clear();
+				updateUi();
+			});
 		}
 	}
 
@@ -124,25 +130,35 @@ void PipePropertiesWidget::buildUi()
 	m_fluid = addListField(QStringLiteral("fluid"), tr("Fluid:"),
 						   [](PipeProperties &p, const QString &code) { p.fluid = code; });
 
-	auto *diameter = new QComboBox(this);
-	DiameterList::setUp(diameter);
-	QLineEdit *diameter_edit = diameter->lineEdit();
-	diameter_edit->setObjectName(QStringLiteral("nominal_diameter"));
-	layout->addRow(tr("Nominal diameter (DN):"), diameter);
-	bindTextField(diameter_edit,
-				  [](const PipeProperties &p) {
-					  return p.nominal_diameter > 0 ? QString::number(p.nominal_diameter) : QString();
-				  },
-				  [](PipeProperties &p, const QString &t) { p.nominal_diameter = qMax(0, t.toInt()); },
-				  true);
-		//Picked in the list: as if typed
-	connect(diameter, &QComboBox::activated, this, [diameter_edit]() {
-		diameter_edit->setModified(true);
-		emit diameter_edit->editingFinished();
-	});
-
+		//The material first: it gives the sizes
 	m_material = addListField(QStringLiteral("material"), tr("Material:"),
-							  [](PipeProperties &p, const QString &code) { p.material = code; });
+							  [](PipeProperties &p, const QString &code) { p.material = code; },
+							  [this](const QString &code) { materialEdited(code); });
+
+	m_diameter = new QComboBox(this);
+	m_diameter->setObjectName(QStringLiteral("diameter_list"));
+	DiameterList::setUp(m_diameter);
+	QLineEdit *diameter_edit = m_diameter->lineEdit();
+	diameter_edit->setObjectName(QStringLiteral("diameter"));
+	m_diameter->setToolTip(tr("The sizes of the series of the material: DN for a metal pipe, outside "
+							  "diameter (Ø 110) for a plastic one."));
+	layout->addRow(tr("Diameter:"), m_diameter);
+	m_diameter_message = new QLabel(this);
+	m_diameter_message->setObjectName(QStringLiteral("diameter_message"));
+	m_diameter_message->setWordWrap(true);
+	m_diameter_message->setStyleSheet(QStringLiteral("color: #c05000"));
+	layout->addRow(QString(), m_diameter_message);
+	connect(diameter_edit, &QLineEdit::editingFinished, this, [this, diameter_edit]() {
+			//Only once the user changed it: leaving a field which shows
+			//nothing, for several values, changes nothing
+		if (diameter_edit->isModified()) {
+			diameter_edit->setModified(false);
+			diameterEdited();
+		}
+	});
+		//Picked in the list: as if typed
+	connect(m_diameter, &QComboBox::activated, this, &PipePropertiesWidget::diameterEdited);
+
 	addTextField(QStringLiteral("flow"), tr("Flow:"),
 				 [](const PipeProperties &p) { return p.flow; },
 				 [](PipeProperties &p, const QString &t) { p.flow = t; });
@@ -214,21 +230,26 @@ void PipePropertiesWidget::setManualColor(const QColor &color)
 	Add a list of the codes of the codification of the project ("W01 - Raw
 	water"), in which free text may be typed too; once a code is picked or a
 	text typed, does @p set to the properties of every pipe edited with the
-	code, or the text when it is none
+	code, or the text when it is none; or @p apply_code when it is given
 	@return the list
 */
 QComboBox *PipePropertiesWidget::addListField(
 		const QString &name, const QString &label,
-		const std::function<void(PipeProperties &, const QString &)> &set)
+		const std::function<void(PipeProperties &, const QString &)> &set,
+		const std::function<void(const QString &)> &apply_code)
 {
 	auto *list = new QComboBox(this);
 	list->setObjectName(name);
 	list->setEditable(true);
 	list->setInsertPolicy(QComboBox::NoInsert);
 	static_cast<QFormLayout *>(layout())->addRow(label, list);
-	auto apply = [this, list, set]() {
+	auto apply = [this, list, set, apply_code]() {
 		const QString code = codeOf(list, list->currentText());
-		applyChange([set, code](PipeProperties &p) { set(p, code); });
+		if (apply_code) {
+			apply_code(code);
+		} else {
+			applyChange([set, code](PipeProperties &p) { set(p, code); });
+		}
 			//Even when nothing changed: "(None)" picked on an empty field
 			//must not stay written in it
 		updateUi();
@@ -260,6 +281,205 @@ QString PipePropertiesWidget::codeOf(const QComboBox *list, const QString &text)
 		}
 	}
 	return trimmed;
+}
+
+PidCodification PipePropertiesWidget::codification() const
+{
+	return m_project ? m_project->pidCodification() : PidCodification();
+}
+
+/**
+	@brief PipePropertiesWidget::sizeRule
+	See the declaration
+*/
+PidCodification::SizeRule PipePropertiesWidget::sizeRule(QList<PipeDiameter> *sizes,
+														  bool *several) const
+{
+	const PidCodification codes = codification();
+	const QList<Conductor *> list = pipes();
+	QString material;
+	bool same = true;
+	for (int i = 0 ; i < list.size() ; ++i) {
+		const QString code = list.at(i)->properties().m_pipe.material;
+		if (i == 0) {
+			material = code;
+		} else if (code != material) {
+			same = false;
+		}
+	}
+	if (several) {
+		*several = !same && !codes.materials.isEmpty();
+	}
+	if (!same && !codes.materials.isEmpty()) {
+		if (sizes) sizes->clear();
+		return PidCodification::SizeRule::NoMaterial;
+	}
+	return codes.pipeSizes(material, sizes);
+}
+
+/**
+	@brief PipePropertiesWidget::diameterEdited
+	See the declaration. A number alone is of the kind of the series.
+*/
+void PipePropertiesWidget::diameterEdited()
+{
+	const QString text = m_diameter->lineEdit()->text().trimmed();
+	QList<PipeDiameter> sizes;
+	sizeRule(&sizes);
+	const PipeDiameter::Kind kind = sizes.isEmpty() ? PipeDiameter::Nominal : sizes.first().kind();
+	bool ok = false;
+	PipeDiameter diameter = PipeDiameter::fromText(text, kind, &ok);
+		//A size the series has not: the nearest one of its kind
+	QString note;
+	if (ok && diameter.isSet() && !sizes.contains(diameter)) {
+		const PipeDiameter near = PidCodification::nearest(diameter, sizes);
+		if (near.isSet()) {
+			note = tr("%1 → %2: the nearest size of the series of the material.")
+				   .arg(text, near.text(codification().locale()));
+		}
+		diameter = near;
+		ok = near.isSet();
+	}
+	if (!ok) {
+		m_refused = tr("%1 is not in the series of the material (P&ID properties of the project, "
+					   "Codification): nothing changed.").arg(text);
+	} else {
+		m_refused.clear();
+		applyChange([diameter](PipeProperties &p) { p.diameter = diameter; }, true);
+			//Said after the change, which clears what was said
+		m_refused = note;
+	}
+		//Written as the lists write it, or the value back
+	updateUi();
+}
+
+/**
+	@brief PipePropertiesWidget::materialEdited
+	See the declaration
+*/
+void PipePropertiesWidget::materialEdited(const QString &code)
+{
+	const PidCodification codes = codification();
+	const QLocale locale = codes.locale();
+		//What a diameter becomes when the table gives several sizes
+	QMap<QPair<int, int>, PipeDiameter> chosen;
+	for (Conductor *pipe : pipes())
+	{
+		const PipeDiameter diameter = pipe->properties().m_pipe.diameter;
+		const QPair<int, int> key(diameter.kind(), diameter.tenths());
+		const QList<PipeDiameter> found = codes.conversions(diameter, code);
+		if (found.size() < 2 || chosen.contains(key)) {
+			continue;
+		}
+		QStringList items;
+		for (const PipeDiameter &size : found) {
+			items << size.text(locale);
+		}
+		const int index = choose(tr("%1 may become one of these sizes of the material %2. Which one?")
+								 .arg(diameter.text(locale), code), items);
+		chosen.insert(key, index >= 0 && index < found.size() ? found.at(index) : diameter);
+	}
+		//What each pipe gets, and what is said of it
+	QStringList notes;
+	auto convert = [codes, code, chosen, locale, &notes](const PipeDiameter &diameter) {
+		QList<PipeDiameter> series;
+		if (!diameter.isSet() || codes.pipeSizes(code, &series) != PidCodification::SizeRule::Series
+			|| series.contains(diameter)) {
+			return diameter;
+		}
+		const QList<PipeDiameter> found = codes.conversions(diameter, code);
+		PipeDiameter result = diameter;
+		QString note;
+		if (found.size() == 1) {
+			result = found.first();
+			note = tr("%1 → %2, as the table of the diameters joins them.");
+		} else if (found.size() > 1) {
+			result = chosen.value(qMakePair(int(diameter.kind()), diameter.tenths()), diameter);
+			note = result != diameter ? tr("%1 → %2, as chosen.") : QString();
+		} else if (const PipeDiameter near = PidCodification::nearest(diameter, series) ; near.isSet()) {
+			result = near;
+			note = tr("%1 → %2: the nearest size of the series of the material.");
+		}
+		if (result == diameter) {
+			note = tr("%1 kept: no size of the series of the material matches it.")
+				   .arg(diameter.text(locale));
+		} else {
+			note = note.arg(diameter.text(locale), result.text(locale));
+		}
+		if (!notes.contains(note)) {
+			notes << note;
+		}
+		return result;
+	};
+	QMap<QPair<int, int>, PipeDiameter> results;
+	for (Conductor *pipe : pipes()) {
+		const PipeDiameter diameter = pipe->properties().m_pipe.diameter;
+		results.insert(qMakePair(int(diameter.kind()), diameter.tenths()), convert(diameter));
+	}
+	applyChange([code, results](PipeProperties &p) {
+		p.material = code;
+		p.diameter = results.value(qMakePair(int(p.diameter.kind()), p.diameter.tenths()), p.diameter);
+	});
+		//Said after the change, which clears what was said
+	m_refused = notes.join(QLatin1Char('\n'));
+	updateUi();
+}
+
+/**
+	@brief PipePropertiesWidget::choose
+	See the declaration
+*/
+int PipePropertiesWidget::choose(const QString &question, const QStringList &items)
+{
+	if (m_chooser) {
+		return m_chooser(question, items);
+	}
+	QStringList offered = items;
+	offered << tr("Keep it as it is");
+	bool ok = false;
+	const QString picked = QInputDialog::getItem(this, title(), question, offered, 0, false, &ok);
+	return ok ? int(items.indexOf(picked)) : -1;
+}
+
+/**
+	@brief PipePropertiesWidget::diameterWarning
+	See the declaration
+*/
+QString PipePropertiesWidget::diameterWarning() const
+{
+	const PidCodification codes = codification();
+	const QLocale locale = codes.locale();
+	for (Conductor *pipe : pipes())
+	{
+		const PipeProperties &p = pipe->properties().m_pipe;
+		if (!p.diameter.isSet() || codes.acceptsForPipe(p.diameter, p.material)) {
+			continue;
+		}
+		const PidCodification::Entry *material = codes.material(p.material);
+		if (material && material->outside_diameter != p.diameter.isOutside()) {
+			return material->outside_diameter
+					? tr("%1: the material %2 names its pipes by their outside diameter.")
+					  .arg(p.diameter.text(locale), p.material)
+					: tr("%1: the material %2 names its pipes by their DN.")
+					  .arg(p.diameter.text(locale), p.material);
+		}
+		if (material) {
+			return tr("%1 is not in the series of the material %2.").arg(p.diameter.text(locale), p.material);
+		}
+		if (codes.materials.isEmpty()) {
+			return tr("%1 is not a DN of ISO 6708.").arg(p.diameter.text(locale));
+		}
+	}
+	return QString();
+}
+
+/**
+	@brief PipePropertiesWidget::diameterMessage
+	See the declaration
+*/
+QString PipePropertiesWidget::diameterMessage() const
+{
+	return m_diameter_message->text();
 }
 
 /**
@@ -433,6 +653,35 @@ void PipePropertiesWidget::updateUi()
 	};
 	showText(m_fluid->lineEdit(), [this, shown](const PipeProperties &p) { return shown(m_fluid, p.fluid); });
 	showText(m_material->lineEdit(), [this, shown](const PipeProperties &p) { return shown(m_material, p.material); });
+
+		//The series of the material; none, greyed, without one
+	QList<PipeDiameter> sizes;
+	bool several = false;
+	const PidCodification::SizeRule rule = sizeRule(&sizes, &several);
+	const QLocale locale = codification().locale();
+	DiameterList::fill(m_diameter, sizes, locale);
+	m_diameter->setEnabled(!sizes.isEmpty());
+	showText(m_diameter->lineEdit(), [locale](const PipeProperties &p) { return p.diameter.text(locale); });
+		//What was just done or refused, then what is wrong now
+	QStringList lines;
+	if (!m_refused.isEmpty()) {
+		lines << m_refused;
+	}
+	if (several) {
+		lines << tr("Several materials: give the pipes one material to give them a size.");
+	} else if (rule == PidCodification::SizeRule::NoMaterial) {
+		lines << tr("Choose first a material of the codification of the project: it gives the sizes.");
+	} else if (rule == PidCodification::SizeRule::NoSeries) {
+		lines << tr("The material %1 has no series (P&ID properties of the project, Codification).")
+				 .arg(list.first()->properties().m_pipe.material);
+	}
+	const QString warning = diameterWarning();
+	if (!warning.isEmpty()) {
+		lines << warning;
+	}
+	const QString message = lines.join(QLatin1Char('\n'));
+	m_diameter_message->setText(message);
+	m_diameter_message->setVisible(!message.isEmpty());
 
 	const QSignalBlocker blocker(m_kind);
 	const PipeProperties::LineKind kind = list.first()->properties().m_pipe.line_kind;

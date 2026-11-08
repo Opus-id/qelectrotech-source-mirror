@@ -5876,6 +5876,16 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>%1 :</translation>
     </message>
     <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="150"/>
+        <source>%1 is not in the lists of diameters of the project (P&amp;ID properties of the project, Codification).</source>
+        <translation>%1 n&apos;est pas dans les listes de diamètres du projet (propriétés P&amp;ID du projet, Codification).</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="160"/>
+        <source>%1 → %2: the nearest size of the lists of the project.</source>
+        <translation>%1 → %2 : la taille la plus proche des listes du projet.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="222"/>
         <source>Nozzles</source>
         <translation>Piquages</translation>
@@ -12451,8 +12461,129 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
-        <source>%1 fluids, %2 materials and %3 functional units read: apply this page to keep them.</source>
-        <translation>%1 fluides, %2 matériaux et %3 unités fonctionnelles lus : appliquez cette page pour les garder.</translation>
+        <source>%1 fluids, %2 materials and %3 functional units read</source>
+        <translation>%1 fluides, %2 matériaux et %3 unités fonctionnelles lus</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="152"/>
+        <source>, with %n outside diameter(s) in the table</source>
+        <translation>
+            <numerusform>, avec %n diamètre extérieur dans la table</numerusform>
+            <numerusform>, avec %n diamètres extérieurs dans la table</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="153"/>
+        <source>Materials without series: %1.</source>
+        <translation>Matériaux sans série : %1.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="154"/>
+        <source>%1: apply this page to keep them.</source>
+        <translation>%1 : appliquez cette page pour les garder.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="156"/>
+        <source>Replace the table of the outside diameters of this page with %n line(s)?</source>
+        <translation>
+            <numerusform>Remplacer la table des diamètres extérieurs de cette page par %n ligne ?</numerusform>
+            <numerusform>Remplacer la table des diamètres extérieurs de cette page par %n lignes ?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="157"/>
+        <source>Series</source>
+        <translation>Série</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>The sizes of this material found in trade, separated by /, such as 25/32/40/50/63; a tenth for an outside diameter, such as 88,9. Its pipes take no other: without a series, none.</source>
+        <translation>Les tailles de ce matériau disponibles dans le commerce, séparées par /, par exemple 25/32/40/50/63 ; un dixième pour un diamètre extérieur, par exemple 88,9. Ses tuyauteries n&apos;en prennent pas d&apos;autre : sans série, aucune.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
+        <source>Without a series, no pipe of this material can be given a size.</source>
+        <translation>Sans série, aucune tuyauterie de ce matériau ne peut recevoir de taille.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
+        <source>Write the sizes separated by /, such as 25/32/40; a tenth after a comma for an outside diameter only, such as 88,9.</source>
+        <translation>Écrivez les tailles séparées par /, par exemple 25/32/40 ; un dixième après une virgule pour un diamètre extérieur seulement, par exemple 88,9.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
+        <source>Show the sizes of the nozzles under their names</source>
+        <translation>Afficher la taille des piquages sous leur nom</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
+        <source>Comma (88,9)</source>
+        <translation>Virgule (88,9)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
+        <source>Point (88.9)</source>
+        <translation>Point (88.9)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
+        <source>How the tenths of the sizes are written in this project, whatever the computer which opens it; a file always keeps a point.</source>
+        <translation>Comment les dixièmes des tailles s&apos;écrivent dans ce projet, quel que soit l&apos;ordinateur qui l&apos;ouvre ; le fichier garde toujours un point.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
+        <source>Decimal separator of the sizes:</source>
+        <translation>Séparateur décimal des tailles :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="160"/>
+        <source>Named by</source>
+        <translation>Désigné par</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="161"/>
+        <source>Checked: the pipes of this material are named by their outside diameter (Ø 110), as plastic pipes; else by their DN, as metal pipes.</source>
+        <translation>Coché : les tuyauteries de ce matériau sont désignées par leur diamètre extérieur (Ø 110), comme les tuyauteries plastiques ; sinon par leur DN, comme les tuyauteries métalliques.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="163"/>
+        <source>Outside diameter (Ø)</source>
+        <translation>Diamètre extérieur (Ø)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="164"/>
+        <source>DN it may be joined to</source>
+        <translation>DN de raccordement</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="165"/>
+        <source>The DN of the flanges a pipe of this outside diameter may be joined to, separated by /, such as 100/125. Empty: a nozzle of another kind is marked.</source>
+        <translation>Les DN des brides auxquelles une tuyauterie de ce diamètre extérieur peut se raccorder, séparés par /, par exemple 100/125. Vide : un piquage de l&apos;autre type est signalé.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="166"/>
+        <source>Which DN an outside diameter is joined to (a collar and flange): a nozzle and a pipe the table does not join are marked, and a pipe whose material changes from one kind to the other takes the size the table gives. The sizes themselves are the series of the materials.</source>
+        <translation>À quels DN un diamètre extérieur se raccorde (collet et bride) : un piquage et une tuyauterie que la table n&apos;associe pas sont signalés, et une tuyauterie dont le matériau passe d&apos;un type à l&apos;autre prend la taille que donne la table. Les tailles elles-mêmes sont les séries des matériaux.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="167"/>
+        <source>Diameters</source>
+        <translation>Diamètres</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="168"/>
+        <source>An outside diameter is a number of millimetres, to the tenth.</source>
+        <translation>Un diamètre extérieur est un nombre de millimètres, au dixième.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="170"/>
+        <source>%1 is already in this list.</source>
+        <translation>%1 est déjà dans cette liste.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="171"/>
+        <source>Write the DN separated by /, such as 100/125.</source>
+        <translation>Écrivez les DN séparés par /, par exemple 100/125.</translation>
     </message>
     <message numerus="yes">
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
@@ -12713,8 +12844,83 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="102"/>
-        <source>Nominal diameter (DN):</source>
-        <translation>Diamètre nominal (DN) :</translation>
+        <source>Diameter:</source>
+        <translation>Diamètre :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="133"/>
+        <source>The sizes of the series of the material: DN for a metal pipe, outside diameter (Ø 110) for a plastic one.</source>
+        <translation>Les tailles de la série du matériau : DN pour une tuyauterie métallique, diamètre extérieur (Ø 110) pour une tuyauterie plastique.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 is not in the series of the material (P&amp;ID properties of the project, Codification): nothing changed.</source>
+        <translation>%1 n&apos;est pas dans la série du matériau (propriétés P&amp;ID du projet, Codification) : rien n&apos;a changé.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="310"/>
+        <source>%1 may become one of these sizes of the material %2. Which one?</source>
+        <translation>%1 peut devenir l&apos;une de ces tailles du matériau %2. Laquelle ?</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="315"/>
+        <source>Keep it as it is</source>
+        <translation>La garder telle quelle</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="316"/>
+        <source>%1 → %2: the nearest size of the series of the material.</source>
+        <translation>%1 → %2 : la taille la plus proche de la série du matériau.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="317"/>
+        <source>%1 → %2, as the table of the diameters joins them.</source>
+        <translation>%1 → %2, d&apos;après la table des diamètres.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="318"/>
+        <source>%1 → %2, as chosen.</source>
+        <translation>%1 → %2, comme choisi.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="319"/>
+        <source>%1 kept: no size of the series of the material matches it.</source>
+        <translation>%1 gardé : aucune taille de la série du matériau ne lui correspond.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="320"/>
+        <source>%1 is not in the series of the material %2.</source>
+        <translation>%1 n&apos;est pas dans la série du matériau %2.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="322"/>
+        <source>%1 is not a DN of ISO 6708.</source>
+        <translation>%1 n&apos;est pas un DN de l&apos;ISO 6708.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="324"/>
+        <source>Several materials: give the pipes one material to give them a size.</source>
+        <translation>Plusieurs matériaux : donnez un même matériau aux tuyauteries pour leur donner une taille.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="326"/>
+        <source>Choose first a material of the codification of the project: it gives the sizes.</source>
+        <translation>Choisissez d&apos;abord un matériau de la codification du projet : il donne les tailles.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="328"/>
+        <source>The material %1 has no series (P&amp;ID properties of the project, Codification).</source>
+        <translation>Le matériau %1 n&apos;a pas de série (propriétés P&amp;ID du projet, Codification).</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="325"/>
+        <source>%1: the material %2 names its pipes by their outside diameter.</source>
+        <translation>%1 : le matériau %2 désigne ses tuyauteries par leur diamètre extérieur.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="328"/>
+        <source>%1: the material %2 names its pipes by their DN.</source>
+        <translation>%1 : le matériau %2 désigne ses tuyauteries par leur DN.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="108"/>
@@ -21203,8 +21409,8 @@ Voulez-vous la remplacer ?</translation>
     </message>
     <message>
         <location filename="../sources/undocommand/changenozzlediameterscommand.cpp" line="31"/>
-        <source>Change the nominal diameter of a nozzle</source>
-        <translation>Modifier le DN d&apos;un piquage</translation>
+        <source>Change the diameter of a nozzle</source>
+        <translation>Modifier le diamètre d&apos;un piquage</translation>
     </message>
     <message>
         <location filename="../sources/undocommand/changepidcodificationcommand.cpp" line="32"/>
@@ -27002,13 +27208,18 @@ Les autres champs ne sont pas utilisés.</translation>
     <name>Terminal</name>
     <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1215"/>
-        <source>Nozzle DN %1, pipe DN %2</source>
-        <translation>Piquage DN %1, tuyauterie DN %2</translation>
+        <source>Nozzle %1, pipe %2</source>
+        <translation>Piquage %1, tuyauterie %2</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1380"/>
+        <source>The table of the diameters of the project does not join %1 to a DN.</source>
+        <translation>La table des diamètres du projet n&apos;associe %1 à aucun DN.</translation>
     </message>
     <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1270"/>
-        <source>Inline item between DN %1 and DN %2, without a reducer</source>
-        <translation>Appareil en ligne entre DN %1 et DN %2, sans réduction</translation>
+        <source>Inline item between %1 and %2, without a reducer</source>
+        <translation>Appareil en ligne entre %1 et %2, sans réduction</translation>
     </message>
     <message numerus="yes">
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="693"/>
@@ -27183,18 +27394,33 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="111"/>
-        <source>DN:</source>
-        <translation>DN :</translation>
+        <source>Diameter:</source>
+        <translation>Diamètre :</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="118"/>
-        <source>The nominal diameter of this nozzle, shown under its name. Each placed symbol can change it. Leave it empty if the symbol has no usual size.</source>
-        <translation>Le diamètre nominal de ce piquage, affiché sous son nom. Chaque symbole posé peut le modifier. Laissez vide si le symbole n&apos;a pas de taille habituelle.</translation>
+        <source>The diameter of this nozzle, shown under its name: a DN of ISO 6708 (a flange), or an outside diameter (a socket for a plastic pipe, 110 or 88,9). Each placed symbol can change it. Leave it empty if the symbol has no usual size.</source>
+        <translation>Le diamètre de ce piquage, affiché sous son nom : un DN de l&apos;ISO 6708 (une bride), ou un diamètre extérieur (un embout pour tuyauterie plastique, 110 ou 88,9). Chaque symbole posé peut le modifier. Laissez vide si le symbole n&apos;a pas de taille habituelle.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.ui" line="114"/>
+        <source>DN: a nominal diameter of ISO 6708 (a flange). Ø: an outside diameter in millimetres, to the tenth (a socket for a plastic pipe).</source>
+        <translation>DN : un diamètre nominal de l&apos;ISO 6708 (une bride). Ø : un diamètre extérieur en millimètres, au dixième (un embout pour tuyauterie plastique).</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="343"/>
-        <source>Change the nominal diameter of a nozzle</source>
-        <translation>Modifier le DN d&apos;un piquage</translation>
+        <source>Change the diameter of a nozzle</source>
+        <translation>Modifier le diamètre d&apos;un piquage</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="345"/>
+        <source>%1 is not a diameter: a DN of ISO 6708, or an outside diameter such as 88,9 with Ø chosen beside.</source>
+        <translation>%1 n&apos;est pas un diamètre : un DN de l&apos;ISO 6708, ou un diamètre extérieur comme 88,9 avec Ø choisi à côté.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="347"/>
+        <source>%1 → %2: the nearest DN of ISO 6708.</source>
+        <translation>%1 → %2 : le DN de l&apos;ISO 6708 le plus proche.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="90"/>

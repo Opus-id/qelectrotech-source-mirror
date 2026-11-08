@@ -184,11 +184,12 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 
 /**
 	@brief Conductor::takeNozzleDiameter
-	A new pipe without a DN takes the one of a nozzle at its ends, the nozzle
-	it starts from first: given to it, or on a valve that of the pipe on the
-	other side. Done once, when it is connected: from then on each side keeps
-	its value, and a difference is marked. Read back from a file, a pipe has
-	the DN saved there.
+	A new pipe without a diameter takes the one of a nozzle at its ends, the
+	nozzle it starts from first: given to it, or on a valve that of the pipe
+	on the other side. As it is, a DN or an outside diameter: never turned
+	into the other, which may have several values. Done once, when it is
+	connected: from then on each side keeps its value, and a difference is
+	marked. Read back from a file, a pipe has the diameter saved there.
 */
 void Conductor::takeNozzleDiameter()
 {
@@ -196,13 +197,14 @@ void Conductor::takeNozzleDiameter()
 		return;
 	}
 	ConductorProperties pipe = properties();
-	if (pipe.m_pipe.nominal_diameter > 0) {
+	if (pipe.m_pipe.diameter.isSet()) {
 		return;
 	}
-	const int start = terminal1 ? terminal1->nominalDiameter() : 0;
-	const int dn = start > 0 ? start : (terminal2 ? terminal2->nominalDiameter() : 0);
-	if (dn > 0) {
-		pipe.m_pipe.nominal_diameter = dn;
+	const PipeDiameter start = terminal1 ? terminal1->diameter() : PipeDiameter();
+	const PipeDiameter taken = start.isSet() ? start
+											 : (terminal2 ? terminal2->diameter() : PipeDiameter());
+	if (taken.isSet()) {
+		pipe.m_pipe.diameter = taken;
 		setProperties(pipe);
 	}
 }

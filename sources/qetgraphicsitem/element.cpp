@@ -564,12 +564,12 @@ void Element::setOptionChoices(const ElementOptions::Choices &choices)
 
 /**
 	@brief Element::setNozzleDiameters
-	Give nozzles of this element nominal diameters of their own, shown under
-	their names. A pipe connected there keeps its DN: a difference is marked,
+	Give nozzles of this element diameters of their own, shown under their
+	names. A pipe connected there keeps its diameter: a difference is marked,
 	not corrected (Terminal::hasDiameterGap()).
 	@param diameters : by name of nozzle
 */
-void Element::setNozzleDiameters(const QMap<QString, int> &diameters)
+void Element::setNozzleDiameters(const NozzleDiameters &diameters)
 {
 	if (diameters == m_nozzle_diameters) {
 		return;
@@ -603,17 +603,17 @@ bool Element::isPipeInline() const
 	@return the diameters of its <nozzles> block; a nozzle without a name or
 	a diameter is left out
 */
-QMap<QString, int> Element::nozzleDiametersFromXml(const QDomElement &element)
+NozzleDiameters Element::nozzleDiametersFromXml(const QDomElement &element)
 {
-	QMap<QString, int> diameters;
+	NozzleDiameters diameters;
 	const QDomElement nozzles = element.firstChildElement(QStringLiteral("nozzles"));
 	for (QDomElement nozzle = nozzles.firstChildElement(QStringLiteral("nozzle")) ;
 		 !nozzle.isNull() ; nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle")))
 	{
 		const QString name = nozzle.attribute(QStringLiteral("name"));
-		const int dn = TerminalData::dnFromString(nozzle.attribute(QStringLiteral("dn")));
-		if (!name.isEmpty() && dn > 0) {
-			diameters.insert(name, dn);
+		const PipeDiameter diameter = TerminalData::diameterFromXml(nozzle);
+		if (!name.isEmpty() && diameter.isSet()) {
+			diameters.insert(name, diameter);
 		}
 	}
 	return diameters;
@@ -2095,7 +2095,7 @@ QDomElement Element::toXml(
 		for (auto it = m_nozzle_diameters.cbegin() ; it != m_nozzle_diameters.cend() ; ++it)
 		{
 			QDomElement nozzle = document.createElement(QStringLiteral("nozzle"));
-			nozzle.setAttribute(QStringLiteral("dn"), it.value());
+			it.value().toXml(nozzle, QStringLiteral("dn"), QStringLiteral("od"));
 			nozzle.setAttribute(QStringLiteral("name"), it.key());
 			nozzles.appendChild(nozzle);
 		}
@@ -4081,8 +4081,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 				const QPointF pos = mapFromScene(terminal->dockConductor());
 				if (qAbs(pos.x() - x) < 0.01 && qAbs(pos.y() - y) < 0.01) {
 					terminal->setUuid(uuid);
-					terminal->setSymbolDiameter(
-							TerminalData::dnFromString(part.attribute(QStringLiteral("dn"))));
+					terminal->setSymbolDiameter(TerminalData::diameterFromXml(part));
 				}
 			}
 		}

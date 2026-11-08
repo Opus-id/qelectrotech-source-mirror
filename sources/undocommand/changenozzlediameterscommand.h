@@ -18,6 +18,8 @@
 #ifndef CHANGENOZZLEDIAMETERSCOMMAND_H
 #define CHANGENOZZLEDIAMETERSCOMMAND_H
 
+#include "../pipediameter.h"
+
 #include <QMap>
 #include <QPointer>
 #include <QString>
@@ -34,14 +36,14 @@ class ChangeNozzleDiametersCommand : public QUndoCommand
 {
 	public:
 		ChangeNozzleDiametersCommand(Element *element,
-									 const QMap<QString, int> &new_diameters,
+									 const NozzleDiameters &new_diameters,
 									 QUndoCommand *parent = nullptr);
 		void undo() override;
 		void redo() override;
 
 	private:
 		QPointer<Element> m_element;
-		QMap<QString, int> m_old_diameters, m_new_diameters;
+		NozzleDiameters m_old_diameters, m_new_diameters;
 };
 
 #endif // CHANGENOZZLEDIAMETERSCOMMAND_H

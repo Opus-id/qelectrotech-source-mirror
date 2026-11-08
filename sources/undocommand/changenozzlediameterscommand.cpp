@@ -21,14 +21,14 @@
 
 ChangeNozzleDiametersCommand::ChangeNozzleDiametersCommand(
 		Element *element,
-		const QMap<QString, int> &new_diameters,
+		const NozzleDiameters &new_diameters,
 		QUndoCommand *parent) :
 	QUndoCommand(parent),
 	m_element(element),
 	m_old_diameters(element->nozzleDiameters()),
 	m_new_diameters(new_diameters)
 {
-	setText(QObject::tr("Change the nominal diameter of a nozzle"));
+	setText(QObject::tr("Change the diameter of a nozzle"));
 }
 
 void ChangeNozzleDiametersCommand::undo()

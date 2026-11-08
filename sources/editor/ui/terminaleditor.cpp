@@ -25,6 +25,7 @@
 
 #include <QColorDialog>
 #include <QFontDialog>
+#include <QToolTip>
 #include <editor/elementscene.h>
 #include <ui/diameterlist.h>
 #include "qetelementeditor.h"
@@ -99,7 +100,16 @@ void TerminalEditor::updateForm()
 	const bool nozzle = m_part->medium() == TerminalData::Pipe;
 	ui->label_dn->setVisible(nozzle);
 	ui->m_dn_cb->setVisible(nozzle);
-	ui->m_dn_cb->lineEdit()->setText(m_part->dn() > 0 ? QString::number(m_part->dn()) : QString());
+	ui->m_dn_kind_cb->setVisible(nozzle);
+		//The kind of a diameter given; else the one chosen last
+	if (m_part->diameter().isSet()) {
+		ui->m_dn_kind_cb->setCurrentIndex(ui->m_dn_kind_cb->findData(int(m_part->diameter().kind())));
+	}
+	DiameterList::fill(ui->m_dn_cb,
+					   ui->m_dn_kind_cb->currentData().toInt() == PipeDiameter::Outside
+					   ? QList<PipeDiameter>() : DiameterList::isoSizes(),
+					   PidCodification().locale());
+	ui->m_dn_cb->lineEdit()->setText(m_part->diameterText());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());
 	ui->m_label_x_dsb->setValue(m_part->labelPos().x());
@@ -207,7 +217,9 @@ void TerminalEditor::init()
 	ui->m_medium_cb->addItem(tr("Signal", "terminal medium"),          TerminalData::Signal);
 	ui->m_medium_cb->addItem(tr("Drive (shaft)", "terminal medium"),   TerminalData::Drive);
 
-	DiameterList::setUp(ui->m_dn_cb);
+	DiameterList::setUp(ui->m_dn_cb, DiameterList::isoSizes(), PidCodification().locale());
+	ui->m_dn_kind_cb->addItem(QStringLiteral("DN"), int(PipeDiameter::Nominal));
+	ui->m_dn_kind_cb->addItem(QString(PipeDiameter::outsideSign()), int(PipeDiameter::Outside));
 
 	ui->m_text_props_gb->setEnabled(false);
 
@@ -325,7 +337,9 @@ void TerminalEditor::typeEdited()
 
 /**
 	@brief TerminalEditor::dnEdited
-	The nominal diameter of a nozzle, the default of the placed symbols
+	The diameter of a nozzle, the default of the placed symbols. A symbol
+	belongs to no project: a DN of ISO 6708, or any outside diameter; a number
+	alone is a DN. Anything else gives the field its former value back.
 */
 void TerminalEditor::dnEdited()
 {
@@ -334,13 +348,40 @@ void TerminalEditor::dnEdited()
 	}
 	m_locked = true;
 
-	const int dn = TerminalData::dnFromString(ui->m_dn_cb->lineEdit()->text());
-	if (m_part->dn() != dn)
+	bool ok = false;
+	const QString typed = ui->m_dn_cb->lineEdit()->text().trimmed();
+		//A number alone is of the kind chosen beside it
+	const auto kind = PipeDiameter::Kind(ui->m_dn_kind_cb->currentData().toInt());
+	PipeDiameter diameter = PipeDiameter::fromText(typed, kind, &ok);
+	if (ok && !PidCodification().acceptsForNozzle(diameter))
 	{
-		auto undo = new QPropertyUndoCommand(m_part, "dn", m_part->dn(), dn);
-		undo->setText(tr("Change the nominal diameter of a nozzle"));
+			//A DN which is none of ISO 6708: the nearest one
+		diameter = PidCodification::nearest(diameter, DiameterList::isoSizes());
+		ok = diameter.isSet();
+		if (ok) {
+			QToolTip::showText(ui->m_dn_cb->mapToGlobal(QPoint(0, ui->m_dn_cb->height())),
+							   tr("%1 → %2: the nearest DN of ISO 6708.")
+							   .arg(typed, diameter.text(PidCodification().locale())),
+							   ui->m_dn_cb);
+		}
+	}
+	if (!ok)
+	{
+		ui->m_dn_cb->lineEdit()->setText(m_part->diameterText());
+		QToolTip::showText(ui->m_dn_cb->mapToGlobal(QPoint(0, ui->m_dn_cb->height())),
+						   tr("%1 is not a diameter: a DN of ISO 6708, or an outside diameter "
+							  "such as 88,9 with Ø chosen beside.").arg(typed),
+						   ui->m_dn_cb);
+	}
+	else if (m_part->diameter() != diameter)
+	{
+		auto undo = new QPropertyUndoCommand(m_part, "diameter", m_part->diameterText(),
+											 diameter.text(QLocale::c()));
+		undo->setText(tr("Change the diameter of a nozzle"));
 		undoStack().push(undo);
 	}
+		//Written as the lists write it
+	ui->m_dn_cb->lineEdit()->setText(m_part->diameterText());
 	m_locked = false;
 }
 
@@ -554,6 +595,16 @@ void TerminalEditor::activeConnections(bool active)
 										this, &TerminalEditor::dnEdited);
 		m_editor_connections << connect(ui->m_dn_cb, QOverload<int>::of(&QComboBox::activated),
 										this, &TerminalEditor::dnEdited);
+			//Another kind: its list, for the next size typed
+		m_editor_connections << connect(ui->m_dn_kind_cb, QOverload<int>::of(&QComboBox::activated),
+										this, [this]() {
+			const QString text = ui->m_dn_cb->lineEdit()->text();
+			DiameterList::fill(ui->m_dn_cb,
+							   ui->m_dn_kind_cb->currentData().toInt() == PipeDiameter::Outside
+							   ? QList<PipeDiameter>() : DiameterList::isoSizes(),
+							   PidCodification().locale());
+			ui->m_dn_cb->lineEdit()->setText(text);
+		});
 		m_editor_connections << connect(ui->m_show_name_cb, &QCheckBox::toggled,
 										this, &TerminalEditor::showNameEdited);
 		m_editor_connections << connect(ui->m_label_x_dsb, QOverload<qreal>::of(&QDoubleSpinBox::valueChanged),
@@ -594,7 +645,7 @@ void TerminalEditor::activeChangeConnections(bool active)
 		m_change_connections << connect(m_part, &PartTerminal::nameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::terminalTypeChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::mediumChanged, this, &TerminalEditor::updateForm);
-		m_change_connections << connect(m_part, &PartTerminal::dnChanged, this, &TerminalEditor::updateForm);
+		m_change_connections << connect(m_part, &PartTerminal::diameterChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::showNameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelPosChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelFontChanged, this, &TerminalEditor::updateForm);
