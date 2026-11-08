@@ -196,8 +196,9 @@ class Terminal : public QGraphicsObject
 
 	private:
 			/// The diameter given to this nozzle alone, by its element or its
-			/// symbol; none when its connection does not take its kind
-			/// (PipeConnection::allows())
+			/// symbol; none when its connection does not take its kind, a
+			/// DN and a thread being read as each other by the fixed table
+			/// (PipeConnection::fitted())
 		PipeDiameter givenDiameter() const;
 			/// The diameter of the pipe connected to this nozzle alone
 		PipeDiameter connectedDiameter() const;

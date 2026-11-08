@@ -65,8 +65,8 @@ inline void fill(QComboBox *list, const QList<PipeDiameter> &diameters,
 /**
 	@brief setUp
 	Make of @p list the field of a diameter: the values to pick from, and
-	others to type, "DN 100", "Ø 88,9" or a number alone; the field that takes
-	it tells whether it is allowed. Empty is a value: no diameter. That is
+	others to type, "DN 100", "Ø 88,9", "G 1"1/2", 3/4" or a number alone;
+	the field that takes it tells whether it is allowed. Empty is a value: no diameter. That is
 	why this is no QIntValidator, for which an empty field is not finished and
 	which would keep the value before it.
 	@param list
@@ -80,9 +80,11 @@ inline void setUp(QComboBox *list, const QList<PipeDiameter> &diameters = isoSiz
 		//Otherwise 12 typed becomes 125 when the field is left
 	list->setCompleter(nullptr);
 	fill(list, diameters, locale);
+		//A DN or an outside diameter; or a thread, inches with a fraction
 	list->setValidator(new QRegularExpressionValidator(
-						   QRegularExpression(QStringLiteral("\\s*(([Dd][Nn]|[\\x{00D8}\\x{00F8}Dd])\\s*)?"
-															 "([1-9][0-9]{0,4}([.,][0-9])?)?\\s*")),
+						   QRegularExpression(QStringLiteral("\\s*(?:(?:(?:[Dd][Nn]|[\\x{00D8}\\x{00F8}Dd])\\s*)?"
+															 "(?:[1-9][0-9]{0,4}(?:[.,][0-9])?)?"
+															 "|(?:[Gg]\\s*)?[1-9][0-9 /\"\\-]{0,9})\\s*")),
 						   list));
 }
 

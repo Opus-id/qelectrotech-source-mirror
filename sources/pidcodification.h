@@ -111,7 +111,8 @@ class PidCodification
 		bool acceptsForPipe(const PipeDiameter &diameter, const QString &material_code) const;
 			/// The sizes a nozzle may have, having no material: the series of
 			/// all the materials, DN then outside diameters; those of ISO 6708
-			/// in a project without material
+			/// in a project without material; then always the pipe threads,
+			/// which are fixed (PipeDiameter::threadSeries())
 		QList<PipeDiameter> nozzleSizes() const;
 			/// @p diameter may be given to a nozzle: one of nozzleSizes(), or
 			/// in a project without material any outside diameter too; none
@@ -119,8 +120,10 @@ class PidCodification
 		bool acceptsForNozzle(const PipeDiameter &diameter) const;
 			/// How @p a and @p b compare at a nozzle: a DN and an outside
 			/// diameter are the same when the table of the project joins them,
-			/// unknown when it has not this outside diameter; a diameter not
-			/// set differs from nothing
+			/// unknown when it has not this outside diameter; a thread is
+			/// compared by the DN of the fixed table
+			/// (PipeDiameter::threadNominal()); a diameter not set differs
+			/// from nothing
 		DiameterMatch compare(const PipeDiameter &a, const PipeDiameter &b) const;
 			/// What @p diameter may become on a pipe of the material of code
 			/// @p material_code, when its series has it not: the sizes of the

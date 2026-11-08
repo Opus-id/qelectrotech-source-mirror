@@ -1296,7 +1296,8 @@ PipeDiameter Terminal::givenDiameter() const
 			given = it.value();
 		}
 	}
-	return PipeConnection::allows(connection(), given) ? given : PipeDiameter();
+		//A DN on a thread, or the reverse: by the fixed table
+	return PipeConnection::fitted(connection(), given);
 }
 
 PipeConnection::Type Terminal::connection() const

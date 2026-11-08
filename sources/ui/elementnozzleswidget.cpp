@@ -219,8 +219,9 @@ void ElementNozzlesWidget::showField(const Field &field)
 	}
 	DiameterList::fill(field.list, sizesFor(field), locale);
 	const QSignalBlocker blocker(field.edit);
-	const PipeDiameter own = diameters.value(field.name);
-	field.edit->setText(PipeConnection::allows(connection, own) ? own.text(locale) : QString());
+		//A DN given to a thread before the threads existed: in inches
+	const PipeDiameter own = PipeConnection::fitted(connection, diameters.value(field.name));
+	field.edit->setText(own.text(locale));
 		//In grey, what the nozzle has without a value of its own: the
 		//diameter of its symbol, else that of its pipe, which it follows
 	field.edit->setPlaceholderText(field.terminal->diameter().text(locale));

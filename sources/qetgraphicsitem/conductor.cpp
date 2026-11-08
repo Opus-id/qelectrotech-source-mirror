@@ -187,9 +187,11 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	A new pipe without a diameter takes the one of a nozzle at its ends, the
 	nozzle it starts from first: given to it, or on a valve that of the pipe
 	on the other side. As it is, a DN or an outside diameter: never turned
-	into the other, which may have several values. Done once, when it is
-	connected: from then on each side keeps its value, and a difference is
-	marked. Read back from a file, a pipe has the diameter saved there.
+	into the other, which may have several values. A thread, which a pipe
+	never has, becomes its DN of the fixed table (1"1/2, DN 40). Done once,
+	when it is connected: from then on each side keeps its value, and a
+	difference is marked. Read back from a file, a pipe has the diameter
+	saved there.
 */
 void Conductor::takeNozzleDiameter()
 {
@@ -201,8 +203,11 @@ void Conductor::takeNozzleDiameter()
 		return;
 	}
 	const PipeDiameter start = terminal1 ? terminal1->diameter() : PipeDiameter();
-	const PipeDiameter taken = start.isSet() ? start
-											 : (terminal2 ? terminal2->diameter() : PipeDiameter());
+	PipeDiameter taken = start.isSet() ? start
+									   : (terminal2 ? terminal2->diameter() : PipeDiameter());
+	if (taken.isThread()) {
+		taken = taken.threadNominal();
+	}
 	if (taken.isSet()) {
 		pipe.m_pipe.diameter = taken;
 		setProperties(pipe);

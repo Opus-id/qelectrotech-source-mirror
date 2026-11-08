@@ -30,7 +30,7 @@
 	How a pipe is joined to a nozzle: a flange, a plain end, a socket, a
 	thread... The list is fixed: each kind of connection decides the kind of
 	size the nozzle is named by (allows()), a flange a DN, a solvent socket an
-	outside diameter.
+	outside diameter, a thread inches.
 
 	A flange is the default: a nozzle that says nothing is a flange, and a
 	flange is never written.
@@ -116,8 +116,9 @@ class PipeConnection
 		{
 			switch (type) {
 				case Flange:
-				case Thread:
 					return {PipeDiameter::Nominal};
+				case Thread:
+					return {PipeDiameter::Thread};
 				case SolventSocket:
 					return {PipeDiameter::Outside};
 				case FusionSocket:
@@ -134,6 +135,25 @@ class PipeConnection
 		static bool allows(Type type, const PipeDiameter &diameter)
 		{
 			return !diameter.isSet() || kinds(type).contains(diameter.kind());
+		}
+			/// @p diameter as a nozzle of @p type is named by: itself when
+			/// allowed; a DN as the thread the fixed table joins to it
+			/// (PipeDiameter::threadTable()), and a thread as its DN; else
+			/// none. A threaded nozzle given a DN before the threads existed
+			/// is so read in inches.
+		static PipeDiameter fitted(Type type, const PipeDiameter &diameter)
+		{
+			if (allows(type, diameter)) {
+				return diameter;
+			}
+			const QList<PipeDiameter::Kind> taken = kinds(type);
+			if (diameter.isNominal() && taken.contains(PipeDiameter::Thread)) {
+				return PipeDiameter::threadOfNominal(diameter);
+			}
+			if (diameter.isThread() && taken.contains(PipeDiameter::Nominal)) {
+				return diameter.threadNominal();
+			}
+			return PipeDiameter();
 		}
 };
 

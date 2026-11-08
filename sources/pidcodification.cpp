@@ -287,7 +287,7 @@ QList<PipeDiameter> PidCodification::nozzleSizes() const
 	if (materials.isEmpty()) {
 		QList<PipeDiameter> iso;
 		pipeSizes(QString(), &iso);
-		return iso;
+		return iso + PipeDiameter::threadSeries();
 	}
 	QList<int> nominal, outside;
 	for (const Entry &entry : materials) {
@@ -308,7 +308,8 @@ QList<PipeDiameter> PidCodification::nozzleSizes() const
 	for (int tenths : std::as_const(outside)) {
 		sizes << PipeDiameter::fromTenths(PipeDiameter::Outside, tenths);
 	}
-	return sizes;
+		//The threads are fixed, no material names them
+	return sizes + PipeDiameter::threadSeries();
 }
 
 bool PidCodification::acceptsForNozzle(const PipeDiameter &diameter) const
@@ -414,6 +415,15 @@ PidCodification::DiameterMatch PidCodification::compare(const PipeDiameter &a,
 	}
 	if (a.kind() == b.kind()) {
 		return a == b ? DiameterMatch::Same : DiameterMatch::Different;
+	}
+		//A thread is compared by its DN, of the fixed table
+	if (a.isThread() || b.isThread()) {
+		const PipeDiameter dn_a = a.isThread() ? a.threadNominal() : a;
+		const PipeDiameter dn_b = b.isThread() ? b.threadNominal() : b;
+		if (!dn_a.isSet() || !dn_b.isSet()) {
+			return DiameterMatch::Unknown;
+		}
+		return compare(dn_a, dn_b);
 	}
 	const PipeDiameter &outside = a.isOutside() ? a : b;
 	const PipeDiameter &nominal = a.isOutside() ? b : a;

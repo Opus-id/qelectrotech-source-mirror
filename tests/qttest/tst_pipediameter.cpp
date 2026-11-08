@@ -160,7 +160,8 @@ class tst_pipediameter : public QObject
 				PipeDiameter::nominal(80), PipeDiameter::nominal(100), PipeDiameter::nominal(125),
 				PipeDiameter::outside(88.9), PipeDiameter::outside(110), PipeDiameter::outside(114.3),
 				PipeDiameter::outside(125)};
-			QCOMPARE(table().nozzleSizes(), expected);
+				// then the pipe threads, which are fixed
+			QCOMPARE(table().nozzleSizes(), expected + PipeDiameter::threadSeries());
 			QVERIFY(!table().acceptsForNozzle(PipeDiameter::outside(90)));
 				// a project without material: ISO 6708, any outside diameter
 			QVERIFY(PidCodification().acceptsForNozzle(PipeDiameter::outside(90)));

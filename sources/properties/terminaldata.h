@@ -110,10 +110,12 @@ class TerminalData : public PropertiesInterface
 			return Electrical;
 		}
 			/// The diameter of the nozzle written as @a e: its attribute "dn",
-			/// else "od" (an outside diameter); none when neither is there
+			/// else "od" (an outside diameter), else "thread" (inches, "1 1/2");
+			/// none when none is there
 		static PipeDiameter diameterFromXml(const QDomElement &e)
 		{
-			return PipeDiameter::fromXml(e, QStringLiteral("dn"), QStringLiteral("od"));
+			return PipeDiameter::fromXml(e, QStringLiteral("dn"), QStringLiteral("od"),
+										 QStringLiteral("thread"));
 		}
 			/// The connection of the nozzle written as @a e, a flange when it
 			/// says nothing

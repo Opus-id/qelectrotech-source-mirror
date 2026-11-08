@@ -585,7 +585,8 @@ void Element::setNozzleDiameters(const NozzleDiameters &diameters)
 /**
 	@brief Element::setNozzleConnections
 	Give nozzles of this element connections of their own. A diameter of a
-	kind the connection does not take is then ignored (Terminal::givenDiameter()).
+	kind the connection does not take is then ignored, a DN and a thread
+	being read as each other by the fixed table (Terminal::givenDiameter()).
 	@param connections : by name of nozzle
 */
 void Element::setNozzleConnections(const NozzleConnections &connections)
@@ -2142,7 +2143,8 @@ QDomElement Element::toXml(
 		for (const QString &name : std::as_const(names))
 		{
 			QDomElement nozzle = document.createElement(QStringLiteral("nozzle"));
-			m_nozzle_diameters.value(name).toXml(nozzle, QStringLiteral("dn"), QStringLiteral("od"));
+			m_nozzle_diameters.value(name).toXml(nozzle, QStringLiteral("dn"), QStringLiteral("od"),
+												 QStringLiteral("thread"));
 			const auto connection = m_nozzle_connections.constFind(name);
 			if (connection != m_nozzle_connections.cend()) {
 				nozzle.setAttribute(QStringLiteral("connection"),

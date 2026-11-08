@@ -27487,8 +27487,8 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="114"/>
-        <source>DN: a nominal diameter of ISO 6708 (a flange). Ø: an outside diameter in millimetres, to the tenth (a socket for a plastic pipe).</source>
-        <translation>DN : un diamètre nominal de l&apos;ISO 6708 (une bride). Ø : un diamètre extérieur en millimètres, au dixième (un embout pour tuyauterie plastique).</translation>
+        <source>DN: a nominal diameter of ISO 6708 (a flange). Ø: an outside diameter in millimetres, to the tenth (a socket for a plastic pipe). G: a pipe thread in inches, from 1/8&quot; to 6&quot;.</source>
+        <translation>DN : un diamètre nominal de l&apos;ISO 6708 (une bride). Ø : un diamètre extérieur en millimètres, au dixième (un embout pour tuyauterie plastique). G : un filetage gaz en pouces, de 1/8&quot; à 6&quot;.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="343"/>
@@ -27497,13 +27497,23 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="345"/>
-        <source>%1 is not a diameter: a DN of ISO 6708, or an outside diameter such as 88,9 with Ø chosen beside.</source>
-        <translation>%1 n&apos;est pas un diamètre : un DN de l&apos;ISO 6708, ou un diamètre extérieur comme 88,9 avec Ø choisi à côté.</translation>
+        <source>%1 is not a diameter: a DN of ISO 6708, an outside diameter such as 88,9 with Ø chosen beside, or a pipe thread such as G 1&quot;1/2.</source>
+        <translation>%1 n&apos;est pas un diamètre : un DN de l&apos;ISO 6708, un diamètre extérieur comme 88,9 avec Ø choisi à côté, ou un filetage gaz comme G 1&quot;1/2.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="347"/>
         <source>%1 → %2: the nearest DN of ISO 6708.</source>
         <translation>%1 → %2 : le DN de l&apos;ISO 6708 le plus proche.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="347"/>
+        <source>%1 → %2: the nearest pipe thread.</source>
+        <translation>%1 → %2 : le filetage gaz le plus proche.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="426"/>
+        <source>%1 → %2: the size the table of the pipe threads joins to it.</source>
+        <translation>%1 → %2 : la taille que lui associe la table des filetages gaz.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="111"/>

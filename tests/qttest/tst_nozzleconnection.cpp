@@ -24,6 +24,7 @@
 #include "pidcodification.h"
 #include "pipeconnection.h"
 #include "properties/terminaldata.h"
+#include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
@@ -79,6 +80,18 @@ class tst_nozzleconnection : public QObject
 		if (!element || state) return nullptr;
 		folio->addItem(element);
 		element->setPos(200, 200);
+		return element;
+	}
+
+		// A second tank of the symbol placeTank() put in @p project
+	static Element *placeAnotherTank(QETProject &project, Diagram *folio)
+	{
+		const ElementsLocation location(QStringLiteral("embed://import/nozzles/tank.elmt"), &project);
+		int state = 0;
+		Element *element = ElementFactory::Instance()->createElement(location, nullptr, &state);
+		if (!element || state) return nullptr;
+		folio->addItem(element);
+		element->setPos(400, 200);
 		return element;
 	}
 
@@ -343,6 +356,261 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(tab.fieldFor(QStringLiteral("N1"))->text().isEmpty());
 			QVERIFY(!terminal(tank, QStringLiteral("N1"))->diameter().isSet());
 			QVERIFY(tab.message().contains(QStringLiteral("DN 100")));
+		}
+
+			// ---- pipe threads (5k-2) ----
+		void aThreadIsNamedInInches()
+		{
+				// shown with G, written in a file without it
+			QCOMPARE(PipeDiameter::thread(12).text(), QStringLiteral("G 1\"1/2"));
+			QCOMPARE(PipeDiameter::thread(4).text(), QStringLiteral("G 1/2\""));
+			QCOMPARE(PipeDiameter::thread(3).text(), QStringLiteral("G 3/8\""));
+			QCOMPARE(PipeDiameter::thread(16).text(), QStringLiteral("G 2\""));
+			QCOMPARE(PipeDiameter::thread(20).text(), QStringLiteral("G 2\"1/2"));
+			QCOMPARE(PipeDiameter::thread(12).fileText(), QStringLiteral("1 1/2"));
+			QCOMPARE(PipeDiameter::thread(4).fileText(), QStringLiteral("1/2"));
+			QCOMPARE(PipeDiameter::thread(16).fileText(), QStringLiteral("2"));
+
+				// typed in several ways
+			bool ok = false;
+			QCOMPARE(PipeDiameter::fromText(QStringLiteral("G 1\"1/2"), PipeDiameter::Nominal, &ok),
+					 PipeDiameter::thread(12));
+			QVERIFY(ok);
+			QCOMPARE(PipeDiameter::fromText(QStringLiteral("1\"1/2")), PipeDiameter::thread(12));
+			QCOMPARE(PipeDiameter::fromText(QStringLiteral("g3/4")), PipeDiameter::thread(6));
+			QCOMPARE(PipeDiameter::fromText(QStringLiteral("3/4\"")), PipeDiameter::thread(6));
+			QCOMPARE(PipeDiameter::fromText(QStringLiteral("1-1/4"), PipeDiameter::Thread),
+					 PipeDiameter::thread(10));
+			QCOMPARE(PipeDiameter::fromText(QStringLiteral("1 1/2"), PipeDiameter::Thread),
+					 PipeDiameter::thread(12));
+				// a number alone is of the kind given
+			QCOMPARE(PipeDiameter::fromText(QStringLiteral("2"), PipeDiameter::Thread),
+					 PipeDiameter::thread(16));
+			QCOMPARE(PipeDiameter::fromText(QStringLiteral("2")), PipeDiameter::nominal(2));
+				// G is no D: never an outside diameter
+			QVERIFY(PipeDiameter::fromText(QStringLiteral("G 2")).isThread());
+				// not inches
+			for (const QString &wrong : {QStringLiteral("G"), QStringLiteral("G 3/2"),
+										 QStringLiteral("G 1/3"), QStringLiteral("G 1,5"),
+										 QStringLiteral("1/2/4"), QStringLiteral("G 0")}) {
+				PipeDiameter::fromText(wrong, PipeDiameter::Thread, &ok);
+				QVERIFY2(!ok, qPrintable(wrong));
+			}
+				// each one of the series is read back as shown
+			const QList<PipeDiameter> series = PipeDiameter::threadSeries();
+			QCOMPARE(series.size(), 14);
+			QCOMPARE(series.constFirst(), PipeDiameter::thread(1));
+			QCOMPARE(series.constLast(), PipeDiameter::thread(48));
+			for (const PipeDiameter &size : series) {
+				QCOMPARE(PipeDiameter::fromText(size.text()), size);
+				QDomDocument doc;
+				QDomElement e = doc.createElement(QStringLiteral("nozzle"));
+				size.toXml(e, QStringLiteral("dn"), QStringLiteral("od"), QStringLiteral("thread"));
+				QCOMPARE(PipeDiameter::fromXml(e, QStringLiteral("dn"), QStringLiteral("od"),
+											   QStringLiteral("thread")), size);
+			}
+				// a pipe never writes one: no name given, nothing written
+			QDomDocument doc;
+			QDomElement pipe = doc.createElement(QStringLiteral("conductor"));
+			PipeDiameter::thread(12).toXml(pipe, QStringLiteral("pipe_dn"), QStringLiteral("pipe_od"));
+			QVERIFY(pipe.attributes().isEmpty());
+		}
+
+		void aThreadIsJoinedToItsDnByTheFixedTable()
+		{
+			QCOMPARE(PipeDiameter::thread(4).threadNominal(), PipeDiameter::nominal(15));
+			QCOMPARE(PipeDiameter::thread(12).threadNominal(), PipeDiameter::nominal(40));
+			QCOMPARE(PipeDiameter::thread(48).threadNominal(), PipeDiameter::nominal(150));
+			QCOMPARE(PipeDiameter::threadOfNominal(PipeDiameter::nominal(25)), PipeDiameter::thread(8));
+			QVERIFY(!PipeDiameter::threadOfNominal(PipeDiameter::nominal(300)).isSet());
+			QVERIFY(!PipeDiameter::thread(64).threadNominal().isSet());
+
+				// a thread takes inches only
+			QVERIFY(PipeConnection::kinds(PipeConnection::Thread)
+					== QList<PipeDiameter::Kind>{PipeDiameter::Thread});
+			QVERIFY(PipeConnection::allows(PipeConnection::Thread, PipeDiameter::thread(12)));
+			QVERIFY(!PipeConnection::allows(PipeConnection::Thread, PipeDiameter::nominal(40)));
+			QVERIFY(!PipeConnection::allows(PipeConnection::Flange, PipeDiameter::thread(12)));
+				// fitted: the table between a DN and a thread, nothing else
+			QCOMPARE(PipeConnection::fitted(PipeConnection::Thread, PipeDiameter::nominal(40)),
+					 PipeDiameter::thread(12));
+			QCOMPARE(PipeConnection::fitted(PipeConnection::Flange, PipeDiameter::thread(12)),
+					 PipeDiameter::nominal(40));
+			QCOMPARE(PipeConnection::fitted(PipeConnection::PlainEnd, PipeDiameter::thread(32)),
+					 PipeDiameter::nominal(100));
+			QVERIFY(!PipeConnection::fitted(PipeConnection::Thread, PipeDiameter::outside(48.3)).isSet());
+			QVERIFY(!PipeConnection::fitted(PipeConnection::Thread, PipeDiameter::nominal(300)).isSet());
+			QVERIFY(!PipeConnection::fitted(PipeConnection::SolventSocket, PipeDiameter::thread(12)).isSet());
+
+				// the mark compares a thread by its DN
+			const PidCodification table = codification();
+			using Match = PidCodification::DiameterMatch;
+			QCOMPARE(table.compare(PipeDiameter::thread(32), PipeDiameter::nominal(100)), Match::Same);
+			QCOMPARE(table.compare(PipeDiameter::nominal(80), PipeDiameter::thread(32)), Match::Different);
+			QCOMPARE(table.compare(PipeDiameter::thread(32), PipeDiameter::outside(110)), Match::Same);
+			QCOMPARE(table.compare(PipeDiameter::thread(12), PipeDiameter::outside(125)), Match::Unknown);
+			QCOMPARE(table.compare(PipeDiameter::thread(12), PipeDiameter::thread(12)), Match::Same);
+			QCOMPARE(table.compare(PipeDiameter::thread(12), PipeDiameter::thread(16)), Match::Different);
+
+				// the lists of a nozzle always offer them, after the others
+			const QList<PipeDiameter> sizes = table.nozzleSizes();
+			QCOMPARE(sizes.mid(sizes.size() - 14), PipeDiameter::threadSeries());
+			QVERIFY(table.acceptsForNozzle(PipeDiameter::thread(12)));
+			QVERIFY(!table.acceptsForNozzle(PipeDiameter::thread(64)));
+			QVERIFY(PidCodification().acceptsForNozzle(PipeDiameter::thread(1)));
+		}
+
+		void theSymbolWritesAThread()
+		{
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
+				"medium=\"pipe\" connection=\"thread\" thread=\"1 1/2\"/>"));
+			PartTerminal part(nullptr);
+			part.fromXml(doc.documentElement());
+			QCOMPARE(part.diameter(), PipeDiameter::thread(12));
+			QCOMPARE(part.diameterText(), QStringLiteral("G 1\"1/2"));
+			QDomDocument out;
+			const QDomElement written = part.toXml(out);
+			QCOMPARE(written.attribute(QStringLiteral("thread")), QStringLiteral("1 1/2"));
+			QVERIFY(!written.hasAttribute(QStringLiteral("dn")));
+			QVERIFY(!written.hasAttribute(QStringLiteral("od")));
+
+				// the property the editor's undo uses
+			part.setDiameterText(QStringLiteral("G 3/4\""));
+			QCOMPARE(part.diameter(), PipeDiameter::thread(6));
+
+				// a DN given to a thread before the threads existed: in inches
+			doc.setContent(QStringLiteral(
+				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
+				"medium=\"pipe\" connection=\"thread\" dn=\"40\"/>"));
+			PartTerminal old(nullptr);
+			old.fromXml(doc.documentElement());
+			QCOMPARE(old.diameter(), PipeDiameter::thread(12));
+			QDomDocument out2;
+			QCOMPARE(old.toXml(out2).attribute(QStringLiteral("thread")), QStringLiteral("1 1/2"));
+				// one the table has not is kept as written
+			doc.setContent(QStringLiteral(
+				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
+				"medium=\"pipe\" connection=\"thread\" dn=\"300\"/>"));
+			PartTerminal kept(nullptr);
+			kept.fromXml(doc.documentElement());
+			QCOMPARE(kept.diameter(), PipeDiameter::nominal(300));
+		}
+
+		void aPlacedThreadedNozzleAndItsPipe()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = placeTank(project, folio);
+			QVERIFY(tank);
+			Terminal *n1 = terminal(tank, QStringLiteral("N1"));
+			Terminal *n2 = terminal(tank, QStringLiteral("N2"));
+
+				// N1, a flange of DN 100, threaded: G 4" by the table
+			tank->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::Thread},
+										{QStringLiteral("N2"), PipeConnection::Thread}});
+			QCOMPARE(n1->diameter(), PipeDiameter::thread(32));
+			QCOMPARE(n1->labelText(), QStringLiteral("N1\nG 4\""));
+			QCOMPARE(n1->toolTip(), QStringLiteral("Pipe thread"));
+				// a DN of an older file too
+			tank->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::nominal(40)}});
+			QCOMPARE(n2->diameter(), PipeDiameter::thread(12));
+			tank->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::thread(12)}});
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nG 1\"1/2"));
+
+				// written in the <nozzles> block, and read back
+			QDomDocument doc;
+			QHash<Terminal *, int> table;
+			const QDomElement written = tank->toXml(doc, table);
+			QDomElement nozzle = written.firstChildElement(QStringLiteral("nozzles"))
+								 .firstChildElement(QStringLiteral("nozzle"));
+			while (!nozzle.isNull() && nozzle.attribute(QStringLiteral("name")) != QLatin1String("N2")) {
+				nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle"));
+			}
+			QCOMPARE(nozzle.attribute(QStringLiteral("thread")), QStringLiteral("1 1/2"));
+			QVERIFY(!nozzle.hasAttribute(QStringLiteral("dn")));
+			QCOMPARE(Element::nozzleDiametersFromXml(written), tank->nozzleDiameters());
+
+				// a new pipe takes the DN of the table, no thread
+			Element *other = placeAnotherTank(project, folio);
+			QVERIFY(other);
+			Terminal *start = n2;
+			Terminal *end = terminal(other, QStringLiteral("N1"));
+			QVERIFY(start->canBeLinkedTo(end));
+			auto *pipe = new Conductor(start, end);
+			folio->addItem(pipe);
+			QCOMPARE(pipe->properties().m_pipe.diameter, PipeDiameter::nominal(40));
+			QVERIFY(!n2->hasDiameterGap());
+				// DN 100 at the other end: marked
+			QVERIFY(end->hasDiameterGap());
+				// and the pipe is written as a DN
+			bool has_dn = false;
+			for (const auto &attribute : pipe->properties().m_pipe.attributes()) {
+				if (attribute.first == QLatin1String("pipe_dn")) {
+					has_dn = attribute.second == QLatin1String("40");
+				}
+			}
+			QVERIFY(has_dn);
+				// a pipe of another DN: marked at the thread
+			ConductorProperties properties = pipe->properties();
+			properties.m_pipe.diameter = PipeDiameter::nominal(50);
+			pipe->setProperties(properties);
+			QVERIFY(n2->hasDiameterGap());
+		}
+
+		void theNozzlesTabOffersTheThreads()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = placeTank(project, folio);
+			QVERIFY(tank);
+			ElementNozzlesWidget tab(tank);
+			tab.setLiveEdit(true);
+			QComboBox *connection = tab.connectionFor(QStringLiteral("N1"));
+			QLineEdit *n1 = tab.fieldFor(QStringLiteral("N1"));
+			auto *list = qobject_cast<QComboBox *>(n1->parentWidget());
+
+				// DN 100 of the symbol becomes G 4", in one undo step
+			const int steps = folio->undoStack().count();
+			pick(connection, PipeConnection::Thread);
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::thread(32));
+			QCOMPARE(n1->text(), QStringLiteral("G 4\""));
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+				// the threads only, from 1/8"
+			QCOMPARE(list->count(), 15);
+			QCOMPARE(list->itemText(1), QStringLiteral("G 1/8\""));
+				// a number alone is in inches
+			n1->setText(QStringLiteral("1 1/2"));
+			emit n1->editingFinished();
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::thread(12));
+			QCOMPARE(n1->text(), QStringLiteral("G 1\"1/2"));
+				// one the table has not: the nearest
+			n1->setText(QStringLiteral("G 8"));
+			emit n1->editingFinished();
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::thread(48));
+				// a DN typed is refused
+			n1->setText(QStringLiteral("DN 40"));
+			emit n1->editingFinished();
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::thread(48));
+
+				// back to a flange from G 6": DN 150 is not in the lists of
+				// the project, so the nozzle has no size of its own
+			pick(connection, PipeConnection::Flange);
+			QVERIFY(n1->text().isEmpty());
+			QVERIFY(tab.message().contains(QStringLiteral("G 6\"")));
+				// from G 4": DN 100, the one of the symbol, so nothing is kept
+			n1->setText(QString());
+			pick(connection, PipeConnection::Thread);
+			n1->setText(QStringLiteral("G 4\""));
+			emit n1->editingFinished();
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::thread(32));
+			pick(connection, PipeConnection::Flange);
+			QVERIFY(tank->nozzleConnections().isEmpty());
+			QVERIFY(tank->nozzleDiameters().isEmpty());
+			QCOMPARE(terminal(tank, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\nDN 100"));
 		}
 };
 

@@ -63,8 +63,9 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 		if (!value.isEmpty())
 			a << qMakePair(QString::fromLatin1(name), value);
 	};
-		//A DN as before, or an outside diameter: never both
-	if (diameter.isSet())
+		//A DN as before, or an outside diameter: never both; a pipe never
+		//has a thread, which only names a nozzle
+	if (diameter.isSet() && !diameter.isThread())
 		a << qMakePair(diameter.attributeName(QStringLiteral("pipe_dn"), QStringLiteral("pipe_od")),
 					   PipeDiameter::fileNumber(diameter.tenths()));
 	add("pipe_fluid", fluid);

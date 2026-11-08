@@ -30,6 +30,23 @@
 #include <ui/diameterlist.h>
 #include "qetelementeditor.h"
 
+namespace {
+	/**
+		@brief sizesOfKind
+		@return the sizes a symbol offers for the kind @p kind of
+		PipeDiameter::Kind: the DN of ISO 6708, the pipe threads, and no list
+		for an outside diameter, which may be any
+	*/
+QList<PipeDiameter> sizesOfKind(int kind)
+{
+	switch (kind) {
+		case PipeDiameter::Outside: return {};
+		case PipeDiameter::Thread:  return PipeDiameter::threadSeries();
+		default:                    return DiameterList::isoSizes();
+	}
+}
+}
+
 /**
  * @brief TerminalEditor::TerminalEditor
  * Default constructor
@@ -110,9 +127,7 @@ void TerminalEditor::updateForm()
 	if (m_part->diameter().isSet()) {
 		ui->m_dn_kind_cb->setCurrentIndex(ui->m_dn_kind_cb->findData(int(m_part->diameter().kind())));
 	}
-	DiameterList::fill(ui->m_dn_cb,
-					   ui->m_dn_kind_cb->currentData().toInt() == PipeDiameter::Outside
-					   ? QList<PipeDiameter>() : DiameterList::isoSizes(),
+	DiameterList::fill(ui->m_dn_cb, sizesOfKind(ui->m_dn_kind_cb->currentData().toInt()),
 					   PidCodification().locale());
 	ui->m_dn_cb->lineEdit()->setText(m_part->diameterText());
 
@@ -372,12 +387,14 @@ void TerminalEditor::dnEdited()
 	}
 	if (ok && !PidCodification().acceptsForNozzle(diameter))
 	{
-			//A DN which is none of ISO 6708: the nearest one
-		diameter = PidCodification::nearest(diameter, DiameterList::isoSizes());
+			//A DN which is none of ISO 6708, a thread none of the table:
+			//the nearest one
+		diameter = PidCodification::nearest(diameter, PidCodification().nozzleSizes());
 		ok = diameter.isSet();
 		if (ok) {
 			QToolTip::showText(ui->m_dn_cb->mapToGlobal(QPoint(0, ui->m_dn_cb->height())),
-							   tr("%1 → %2: the nearest DN of ISO 6708.")
+							   (diameter.isThread() ? tr("%1 → %2: the nearest pipe thread.")
+													: tr("%1 → %2: the nearest DN of ISO 6708."))
 							   .arg(typed, diameter.text(PidCodification().locale())),
 							   ui->m_dn_cb);
 		}
@@ -386,8 +403,9 @@ void TerminalEditor::dnEdited()
 	{
 		ui->m_dn_cb->lineEdit()->setText(m_part->diameterText());
 		QToolTip::showText(ui->m_dn_cb->mapToGlobal(QPoint(0, ui->m_dn_cb->height())),
-						   tr("%1 is not a diameter: a DN of ISO 6708, or an outside diameter "
-							  "such as 88,9 with Ø chosen beside.").arg(typed),
+						   tr("%1 is not a diameter: a DN of ISO 6708, an outside diameter "
+							  "such as 88,9 with Ø chosen beside, or a pipe thread such as "
+							  "G 1\"1/2.").arg(typed),
 						   ui->m_dn_cb);
 	}
 	else if (m_part->diameter() != diameter)
@@ -414,7 +432,8 @@ void TerminalEditor::fillKinds(PipeConnection::Type connection)
 	ui->m_dn_kind_cb->clear();
 	for (PipeDiameter::Kind kind : PipeConnection::kinds(connection)) {
 		ui->m_dn_kind_cb->addItem(kind == PipeDiameter::Outside ? QString(PipeDiameter::outsideSign())
-																: QStringLiteral("DN"),
+								  : kind == PipeDiameter::Thread ? QString(PipeDiameter::threadSign())
+																 : QStringLiteral("DN"),
 								  int(kind));
 	}
 	const int index = ui->m_dn_kind_cb->findData(chosen);
@@ -424,7 +443,8 @@ void TerminalEditor::fillKinds(PipeConnection::Type connection)
 /**
 	@brief TerminalEditor::connectionEdited
 	How a pipe is joined to the nozzle. A diameter of a kind the new
-	connection does not take is removed, in the same undo step: a symbol
+	connection does not take is changed in the same undo step: a DN and a
+	thread into each other by the fixed table; any other removed, as a symbol
 	belongs to no project, whose table could convert it.
 */
 void TerminalEditor::connectionEdited()
@@ -440,14 +460,19 @@ void TerminalEditor::connectionEdited()
 	undoStack().beginMacro(tr("Change the connection of a nozzle"));
 	undoStack().push(new QPropertyUndoCommand(m_part, "connection", m_part->connectionWord(),
 											  PipeConnection::toString(connection)));
-	if (!PipeConnection::allows(connection, m_part->diameter()))
+	const PipeDiameter fitted = PipeConnection::fitted(connection, m_part->diameter());
+	if (fitted != m_part->diameter())
 	{
+		const QLocale locale = PidCodification().locale();
 		QToolTip::showText(ui->m_dn_cb->mapToGlobal(QPoint(0, ui->m_dn_cb->height())),
-						   tr("%1 does not name a nozzle of this connection (%2): removed.")
-						   .arg(m_part->diameterText(), PipeConnection::name(connection)),
+						   fitted.isSet()
+						   ? tr("%1 → %2: the size the table of the pipe threads joins to it.")
+							 .arg(m_part->diameter().text(locale), fitted.text(locale))
+						   : tr("%1 does not name a nozzle of this connection (%2): removed.")
+							 .arg(m_part->diameterText(), PipeConnection::name(connection)),
 						   ui->m_dn_cb);
 		undoStack().push(new QPropertyUndoCommand(m_part, "diameter", m_part->diameterText(),
-												  QString()));
+												  fitted.text(QLocale::c())));
 	}
 	undoStack().endMacro();
 	m_locked = false;
@@ -670,9 +695,7 @@ void TerminalEditor::activeConnections(bool active)
 		m_editor_connections << connect(ui->m_dn_kind_cb, QOverload<int>::of(&QComboBox::activated),
 										this, [this]() {
 			const QString text = ui->m_dn_cb->lineEdit()->text();
-			DiameterList::fill(ui->m_dn_cb,
-							   ui->m_dn_kind_cb->currentData().toInt() == PipeDiameter::Outside
-							   ? QList<PipeDiameter>() : DiameterList::isoSizes(),
+			DiameterList::fill(ui->m_dn_cb, sizesOfKind(ui->m_dn_kind_cb->currentData().toInt()),
 							   PidCodification().locale());
 			ui->m_dn_cb->lineEdit()->setText(text);
 		});

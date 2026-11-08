@@ -122,9 +122,10 @@ QDomElement TerminalData::toXml(QDomDocument &xml_document) const
 		xml_element.setAttribute("medium", mediumToString(m_medium));
 
 		//Only a nozzle has a diameter, and only when it is given: a DN as
-		//before, or an outside diameter
+		//before, an outside diameter, or a thread in inches
 	if (m_medium == Pipe)
-		m_diameter.toXml(xml_element, QStringLiteral("dn"), QStringLiteral("od"));
+		m_diameter.toXml(xml_element, QStringLiteral("dn"), QStringLiteral("od"),
+						 QStringLiteral("thread"));
 		//A flange, the default, is not written
 	if (m_medium == Pipe && m_connection != PipeConnection::Flange)
 		xml_element.setAttribute(QStringLiteral("connection"),
@@ -200,8 +201,14 @@ bool TerminalData::fromXml (const QDomElement &xml_element)
 
 	m_type = typeFromString(xml_element.attribute("type"));
 	m_medium = mediumFromString(xml_element.attribute("medium"));
-	m_diameter = m_medium == Pipe ? diameterFromXml(xml_element) : PipeDiameter();
 	m_connection = m_medium == Pipe ? connectionFromXml(xml_element) : PipeConnection::Flange;
+	m_diameter = m_medium == Pipe ? diameterFromXml(xml_element) : PipeDiameter();
+		//A thread given a DN before the threads existed: in inches, by the
+		//fixed table; any other size is kept as written
+	const PipeDiameter fitted = PipeConnection::fitted(m_connection, m_diameter);
+	if (fitted.isSet()) {
+		m_diameter = fitted;
+	}
 
 	m_show_name = (xml_element.attribute("show_name") == QLatin1String("true"));
 	if (m_show_name) {
