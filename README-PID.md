@@ -106,19 +106,37 @@ tag `pipe-connector-freeze-2026-11-03`.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
   through its run and keeps its branch free.
 
-**Nominal diameters**
-- A nozzle may have a diameter in its symbol (`dn` attribute of `<terminal>`,
-  set in the element editor), changed on a placed symbol in a *Nozzles* tab
-  of its properties (`<nozzles>` block of `<element>`, written only when
-  set; undoable). It is shown under the name of the nozzle, when terminal
-  names are shown. A `.qetdb` file refuses it, as it refuses the options.
-- The diameter fields offer the preferred values of ISO 6708; another value
-  can still be typed for now.
+**Sizes: DN or outside diameter**
+- A size is a DN, as for a metal pipe or a flange, or an outside diameter
+  to the tenth (Ø 110, Ø 88,9), as for a plastic pipe or a socket; never one
+  read as the other (`pipe_dn` or `pipe_od` on a pipe, `dn` or `od` on a
+  nozzle). Files always write a point; the project chooses the decimal
+  separator shown (*P&ID* page, *Texts* tab), whatever the computer.
+- Each material of the codification says whether its pipes are named by
+  their outside diameter, and has its **series** of sizes found in trade
+  (CSV line `series;M05;25/32/40`). A pipe takes the sizes of its material
+  only: the field is greyed without a material of the codification, or for
+  a material without series. A project without material keeps the DN of
+  ISO 6708. A size typed out of the series becomes the nearest one, and is
+  said.
+- A **table** of the project joins outside diameters to the DN of the
+  flanges they fit (CSV line `od;110;100`, *Diameters* tab). When the
+  material of a pipe changes, its size follows the table (Ø 110 of a
+  plastic becomes DN 100 of a steel, or Ø 114,3 of a stainless steel), the
+  user choosing when it gives several, else the nearest size of the series.
+  Several CSV files can be imported at once.
+- A nozzle may have a size in its symbol (the element editor chooses DN or
+  Ø beside the field), changed on a placed symbol in a *Nozzles* tab of its
+  properties (`<nozzles>` block of `<element>`, written only when set;
+  undoable). It is shown under the name of the nozzle, when terminal names
+  are shown and the project shows the sizes. A `.qetdb` file refuses it, as
+  it refuses the options.
 - A diameter fills what is empty and never replaces a value: a new pipe
   without a diameter takes that of its nozzle, once; a nozzle without a
   diameter of its own follows its pipe, nothing being saved.
 - A difference is marked without being blocked: an orange diamond in front
-  of the pipe, on screen only, and a tooltip. No reducer is ever inserted.
+  of the pipe, on screen only, and a tooltip. A DN and an outside diameter
+  differ when the table does not join them. No reducer is ever inserted.
 - An inline symbol (`pipe_inline` attribute of the `.elmt`, exactly two
   nozzles) has one diameter. A change made on the page of a pipe goes through
   these symbols, in one undo step, and replaces the diameter of the pipes
@@ -190,9 +208,8 @@ QElectroTech are saved byte for byte as by master.
   as ISO 10628-1 draws them.
 - Signal lines, drive links, kind of connection of the nozzles (flange,
   thread…), equipment data tables.
-- A list of diameters per project (ISO values plus those of the project,
-  such as outside diameters of plastic pipes), and a way to find the pipes
-  without a diameter.
+- A starting codification for new projects, a way to find the pipes without
+  a diameter, piping classes (material, pressure, wall thickness).
 - Keeping the tags of an issued drawing set: once issued, a deleted tag
   should never be given again.
 - Declaring options and conditions in the element editor (they are written
