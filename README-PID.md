@@ -70,6 +70,14 @@ tag `pipe-connector-freeze-2026-11-03`.
   offers them ("W01 – Raw water"), a pipe keeps the code, free text stays
   possible. Saved in a `<pid_codification>` block, written only when there
   is one, in `.qet`, `.qetz` and `.qetdb` files.
+  It is also edited in the *Codification* tab of the *P&ID* page of the
+  project properties: fluids, materials and functional units in tables, a
+  line added or removed, a CSV file imported or exported (codes, then
+  colors and texts, for another project). A name changed touches no pipe; a
+  code changed reaches the pipes and symbols bearing it in the same undo
+  step; a code removed stays on them as free text, after a question; a code
+  is unique in its list. The codes are kept in their natural order (W2
+  before W10).
 - **Colors set for the project**, in a *P&ID* page of the project properties
   or imported from the same CSV file (`fluid_color;family;#rrggbb`,
   `object_color;pipe;#rrggbb`). A pipe takes the color set on it, else that
