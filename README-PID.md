@@ -47,7 +47,17 @@ tag `pipe-connector-freeze-2026-11-03`.
 - A nozzle takes **one** pipe: a branch is made with a tee symbol.
 
 **Pipes**
-- Drawn by dragging from a nozzle, as a wire. A conductor takes the medium
+- Drawn by dragging from a nozzle, as a wire; released near a free nozzle
+  of the same medium (20 pixels of the screen), the pipe is caught by it.
+- **Draw a pipe** tool (key `P`, *Edit > Add*, the *Add* toolbar, the
+  context menu of the folio): a click near a free nozzle starts a pipe, a
+  second click or the release of a drag near another one ends it. A click
+  never picks nor moves a symbol, the free nozzles are marked, the tool
+  stays on after each pipe; right click or Esc cancels, then quits. The
+  context menu of a symbol offers *Draw a pipe from here*: the pipe starts
+  at its free nozzle nearest to the click. Lasso (Ctrl + drag) around two
+  nozzles: one pipe between them.
+- A conductor takes the medium
   of the terminal it starts from; other properties applied to it never
   change its medium. A file is read as it is: a conductor saved without a
   medium stays electrical.
