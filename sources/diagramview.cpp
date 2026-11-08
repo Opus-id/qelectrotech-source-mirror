@@ -84,6 +84,7 @@
 #include <QPointer>
 #include <QDir>
 #include <QSet>
+#include <QToolTip>
 #include <QUuid>
 #include <algorithm>
 
@@ -1680,8 +1681,12 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *original)
 			QPolygonF polygon_ = m_free_rubberband;
 			connect(act, &QAction::triggered, [this, polygon_]()
 			{
-				ConductorCreator::create(m_diagram, polygon_);
+				const QString message = ConductorCreator::create(m_diagram, polygon_);
 				diagram()->clearSelection();
+					//Terminals of another medium left apart: say why
+				if (!message.isEmpty()) {
+					QToolTip::showText(QCursor::pos(), message, this);
+				}
 			});
 			QMenu *menu = new QMenu(this);
 			menu->addAction(act);

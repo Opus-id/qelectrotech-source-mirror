@@ -27,6 +27,7 @@ class Conductor;
 #include <conductorproperties.h>
 
 #include <QList>
+#include <QString>
 
 /**
 	@brief The ConductorCreator class
@@ -37,7 +38,8 @@ class ConductorCreator
 {
 	public:
 		ConductorCreator(Diagram *d, QList<Terminal *> terminals_list);
-		static void create(Diagram *d, const QPolygonF &polygon);
+		static QString create(Diagram *d, const QPolygonF &polygon);
+		static QString create(Diagram *d, const QList<Terminal *> &terminals);
 		static bool needsPotentialChoice(const QList<Terminal *> &terminals_list);
 
 	private:

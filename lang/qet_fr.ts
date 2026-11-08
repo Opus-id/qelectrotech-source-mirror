@@ -20902,6 +20902,42 @@ Voulez-vous la remplacer ?</translation>
         <source>Creation of conductors</source>
         <translation>Création de conducteurs</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../sources/utils/conductorcreator.cpp" line="160"/>
+        <source>The lasso holds %n nozzles: it joins two at a time. Draw it around the two nozzles a pipe is to join.</source>
+        <comment>lasso around more than two nozzles</comment>
+        <translation>
+            <numerusform>Le lasso entoure %n piquage : il n&apos;en relie que deux à la fois. Entourez seulement les deux piquages à raccorder par une tuyauterie.</numerusform>
+            <numerusform>Le lasso entoure %n piquages : il n&apos;en relie que deux à la fois. Entourez seulement les deux piquages à raccorder par une tuyauterie.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/utils/conductorcreator.cpp" line="163"/>
+        <source>The lasso holds %n terminals (%1): it joins two at a time. Draw it around the two terminals to join.</source>
+        <comment>lasso around more than two terminals of another medium than electrical</comment>
+        <translation>
+            <numerusform>Le lasso entoure %n borne (%1) : il n&apos;en relie que deux à la fois. Entourez seulement les deux bornes à relier.</numerusform>
+            <numerusform>Le lasso entoure %n bornes (%1) : il n&apos;en relie que deux à la fois. Entourez seulement les deux bornes à relier.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/utils/conductorcreator.cpp" line="180"/>
+        <source>This nozzle is already connected: a nozzle takes one pipe. Draw a branch on the pipe instead.</source>
+        <comment>pipe refused by a nozzle already connected</comment>
+        <translation>Ce piquage est déjà raccordé : un piquage ne reçoit qu&apos;une tuyauterie. Dessinez plutôt une dérivation sur la tuyauterie.</translation>
+    </message>
+    <message>
+        <location filename="../sources/utils/conductorcreator.cpp" line="183"/>
+        <source>These two terminals cannot be joined.</source>
+        <comment>lasso around two terminals that cannot be linked</comment>
+        <translation>Ces deux bornes ne peuvent pas être reliées.</translation>
+    </message>
+    <message>
+        <location filename="../sources/utils/conductorcreator.cpp" line="201"/>
+        <source>These terminals connect different media: the lasso does not join them.</source>
+        <comment>lasso around terminals of different media only</comment>
+        <translation>Ces bornes raccordent des médiums différents : le lasso ne les relie pas.</translation>
+    </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="3546"/>
         <source>Delete</source>

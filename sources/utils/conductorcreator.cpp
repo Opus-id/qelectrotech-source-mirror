@@ -29,7 +29,9 @@
 #include <wiringrules.h>
 #include "qgraphicsitem.h"
 
+#include <QMap>
 #include <QPolygonF>
+#include <QStringList>
 
 /**
 	@brief ConductorCreator::ConductorCreator
@@ -90,26 +92,111 @@ ConductorCreator::ConductorCreator(Diagram *d, QList<Terminal *> terminals_list)
 
 /**
 	@brief ConductorCreator::create
-	Create an electrical potential between the terminals of the diagram d, contained in the polygon
+	Connect the terminals of the diagram d contained in the polygon (the
+	lasso of the folio, Ctrl + drag): see the other create().
 	@param d Diagram
 	@param polygon : polygon in diagram coordinate
+	@return what to tell the user, empty when there is nothing to tell
 */
-void ConductorCreator::create(Diagram *d, const QPolygonF &polygon)
+QString ConductorCreator::create(Diagram *d, const QPolygonF &polygon)
 {
 	QList<Terminal *> t_list;
-	
+
 	for (QGraphicsItem *item : d->items(polygon))
 	{
 		if (item->type() == Terminal::Type) {
 			t_list.append(qgraphicsitem_cast<Terminal *>(item));
 		}
 	}
-	
-	if (t_list.size() <= 1) {
-		return;
-	} else {
-		ConductorCreator cc(d, t_list);
+	return create(d, t_list);
+}
+
+/**
+	@brief ConductorCreator::create
+	Connect @p terminals, chosen together by the lasso of the folio.
+	The electrical terminals get an electrical potential between them, as
+	they always did. The terminals of another medium (nozzles, signal,
+	drive) are never joined to a terminal of another medium, nor all to
+	one of them: that is a potential, which only wires have. Two terminals
+	of a medium get one conductor between them; more than two, none, since
+	which one goes with which cannot be guessed.
+	@param d Diagram
+	@param terminals : the terminals, in any order
+	@return what to tell the user when terminals of another medium than
+	electrical were not joined, empty otherwise
+*/
+QString ConductorCreator::create(Diagram *d, const QList<Terminal *> &terminals)
+{
+	QList<Terminal *> electrical;
+	QMap<int, QList<Terminal *>> others;	//by medium, in the order of the media
+	for (Terminal *t : terminals)
+	{
+		if (!t) {
+			continue;
+		}
+		if (t->medium() == TerminalData::Electrical) {
+			electrical.append(t);
+		} else {
+			others[int(t->medium())].append(t);
+		}
 	}
+
+	if (electrical.size() > 1) {
+		ConductorCreator cc(d, electrical);
+	}
+
+	QStringList messages;
+	int joined = 0;
+	for (auto it = others.cbegin() ; it != others.cend() ; ++it)
+	{
+		const QList<Terminal *> &group = it.value();
+		const bool nozzles = it.key() == int(TerminalData::Pipe);
+		if (group.size() > 2)
+		{
+			messages << (nozzles
+					? QObject::tr("The lasso holds %n nozzles: it joins two at a time. "
+								  "Draw it around the two nozzles a pipe is to join.",
+								  "lasso around more than two nozzles", int(group.size()))
+					: QObject::tr("The lasso holds %n terminals (%1): it joins two at a time. "
+								  "Draw it around the two terminals to join.",
+								  "lasso around more than two terminals of another medium "
+								  "than electrical", int(group.size()))
+					  .arg(Terminal::mediumName(TerminalData::Medium(it.key()))));
+			continue;
+		}
+		if (group.size() < 2) {
+			continue;
+		}
+
+		Terminal *from = group.at(0);
+		Terminal *to = group.at(1);
+		if (!from->canBeLinkedTo(to))
+		{
+			messages << ((nozzles && (!from->hasRoomForWire() || !to->hasRoomForWire()))
+					? QObject::tr("This nozzle is already connected: a nozzle takes one pipe. "
+								  "Draw a branch on the pipe instead.",
+								  "pipe refused by a nozzle already connected")
+					: QObject::tr("These two terminals cannot be joined.",
+								  "lasso around two terminals that cannot be linked"));
+			continue;
+		}
+			//A conductor of another medium than electrical: none of the wire
+			//properties, no wire number, no potential to choose
+		Conductor *conductor = new Conductor(from, to);
+		d->undoStack().push(new AddGraphicsObjectCommand(conductor, d));
+		++joined;
+	}
+
+		//Terminals left alone in their medium, nothing else joined: the
+		//lasso held terminals of different media only
+	if (messages.isEmpty() && !joined && electrical.size() < 2
+			&& !others.isEmpty() && terminals.size() > 1)
+	{
+		messages << QObject::tr("These terminals connect different media: "
+								"the lasso does not join them.",
+								"lasso around terminals of different media only");
+	}
+	return messages.join(QLatin1Char('\n'));
 }
 
 /**

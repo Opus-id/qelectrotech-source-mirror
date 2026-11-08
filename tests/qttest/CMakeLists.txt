@@ -485,6 +485,9 @@ qet_add_app_test(tst_labelsfilecache tst_labelsfilecache.cpp)
 # The medium of a terminal (electrical, pipe, signal, drive): read, written
 # only when not electrical, kept by a placed element and by the project.
 qet_add_app_test(tst_terminalmedium tst_terminalmedium.cpp)
+# The lasso of the folio: a potential for the electrical terminals as
+# before; two nozzles get one pipe, more than two none, never two media.
+qet_add_app_test(tst_lassomedium tst_lassomedium.cpp)
 # The medium of a conductor: taken from the terminal it starts from, kept
 # whatever properties are applied to it, saved only when not electrical.
 qet_add_app_test(tst_conductormedium tst_conductormedium.cpp)
