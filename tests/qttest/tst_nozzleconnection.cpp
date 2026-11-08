@@ -298,6 +298,33 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(tank->nozzleDiameters().isEmpty());
 		}
 
+			// The dialog of the properties: nothing applied before Apply
+		void theDialogAppliesAConnectionAndAnOutsideDiameter()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = placeTank(project, folio);
+			QVERIFY(tank);
+			tank->setNozzleDiameters({});
+			ElementNozzlesWidget tab(tank);
+			tab.setLiveEdit(false);
+			pick(tab.connectionFor(QStringLiteral("N1")), PipeConnection::PlainEnd);
+			QLineEdit *n1 = tab.fieldFor(QStringLiteral("N1"));
+			n1->setText(QStringLiteral("d110"));
+			emit n1->editingFinished();
+				// written as the lists write it at once, applied later
+			QCOMPARE(n1->text(), QStringLiteral("Ø 110"));
+			QVERIFY(tank->nozzleConnections().isEmpty());
+			QVERIFY(tank->nozzleDiameters().isEmpty());
+			QUndoCommand *undo = tab.associatedUndo();
+			QVERIFY(undo);
+			folio->undoStack().push(undo);
+			QCOMPARE(tank->nozzleConnections().value(QStringLiteral("N1")), PipeConnection::PlainEnd);
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::outside(110));
+			QCOMPARE(n1->text(), QStringLiteral("Ø 110"));
+		}
+
 		void aSizeTheTableJoinsTwiceIsRemoved()
 		{
 			QETProject project;

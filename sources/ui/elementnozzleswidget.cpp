@@ -173,6 +173,10 @@ bool ElementNozzlesWidget::checkField(const Field &field)
 	}
 	if (ok && codification.acceptsForNozzle(diameter)) {
 		m_message->clear();
+			//Written as the lists write it, d110 as Ø 110: in the dialog
+			//too, where nothing is applied before Apply
+		const QSignalBlocker blocker(field.edit);
+		field.edit->setText(diameter.text(codification.locale()));
 		return true;
 	}
 		//A size the lists have not: the nearest one of its kind
