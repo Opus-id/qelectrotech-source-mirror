@@ -129,8 +129,9 @@ class Element : public QetGraphicsItem
 			/// The options of the symbol were given other values
 			/// (setOptionChoices())
 		void optionChoicesChanged();
-			/// Its nozzles were given other diameters (setNozzleDiameters())
-			/// or other connections (setNozzleConnections())
+			/// Its nozzles were given other diameters (setNozzleDiameters()),
+			/// other connections (setNozzleConnections()) or other choices of
+			/// their marks (setNozzleMarks())
 		void nozzleDiametersChanged();
 			/// The element took another symbol (changeLocation())
 		void symbolChanged();
@@ -257,12 +258,23 @@ class Element : public QetGraphicsItem
 		void setNozzleConnections(const NozzleConnections &connections);
 			/// Those of the <nozzles> block of @p element
 		static NozzleConnections nozzleConnectionsFromXml(const QDomElement &element);
+			/// Whether the nozzles of this element draw the mark of their
+			/// connection, by name of nozzle; any other does as its project
+			/// says (Terminal::drawsConnectionMark())
+		NozzleMarks nozzleMarks() const { return m_nozzle_marks; }
+		void setNozzleMarks(const NozzleMarks &marks);
+			/// Those of the <nozzles> block of @p element
+		static NozzleMarks nozzleMarksFromXml(const QDomElement &element);
 		bool isPipeInline() const;
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// The colour of the label of this symbol when the project draws
 			/// labels in the colour of their symbol, else none
 		QColor labelInk() const;
+			/// The colour the symbol is drawn in: that of its status of
+			/// works, of its pipe or of its family; black when it has none or
+			/// when the folio is drawn in black
+		QColor symbolInk() const;
 			/// The texts of this element showing its label, grouped or not
 		QList<DynamicElementTextItem *> labelTexts() const;
 			/// The size of the labels of this symbol under @p codification:
@@ -499,6 +511,8 @@ class Element : public QetGraphicsItem
 	NozzleDiameters m_nozzle_diameters;
 		/// See nozzleConnections()
 	NozzleConnections m_nozzle_connections;
+		/// See nozzleMarks()
+	NozzleMarks m_nozzle_marks;
 	QList<QPointF> m_plc_table_positions;  // Positions of plc_table parts in the element definition
 
 	void drawPlcTable(QPainter *painter);

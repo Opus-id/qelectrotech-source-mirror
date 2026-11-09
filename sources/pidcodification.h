@@ -18,6 +18,7 @@
 #ifndef PID_CODIFICATION_H
 #define PID_CODIFICATION_H
 
+#include "pipeconnection.h"
 #include "pipediameter.h"
 
 #include <QByteArray>
@@ -183,6 +184,15 @@ class PidCodification
 		bool nozzle_texts_on_paper = true;
 			/// The sizes of the nozzles are shown under their names
 		bool show_nozzle_sizes = true;
+			/// The connections whose mark is drawn at the end of the nozzles
+			/// (Terminal::drawsConnectionMark()), in the order of
+			/// PipeConnection::all(); none by default, so that a project
+			/// drawn before keeps its look. A placed element may say
+			/// otherwise for one of its nozzles.
+		QList<PipeConnection::Type> drawn_connections;
+		bool drawsConnection(PipeConnection::Type type) const {
+			return drawn_connections.contains(type);
+		}
 			/// How the tenths of a size are written on the screen and on
 			/// paper; a file always has a point
 		enum class Decimal {
@@ -212,7 +222,8 @@ class PidCodification
 		}
 		bool hasTextSettings() const {
 			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
-					|| !show_nozzle_sizes || decimal != Decimal::Language || !tag_models.isEmpty();
+					|| !show_nozzle_sizes || decimal != Decimal::Language || !tag_models.isEmpty()
+					|| !drawn_connections.isEmpty();
 		}
 		bool isEmpty() const { return !hasCodes() && !hasColors() && !hasTextSettings(); }
 
@@ -259,7 +270,9 @@ class PidCodification
 			/// "couleur_statut"), key a family or a status, of lines
 			/// "text_size;category;points" ("taille_texte") and of lines
 			/// "text_option;name;true" ("option_texte"), name being
-			/// "colored_labels" or "nozzle_texts_on_paper"; the separator
+			/// "colored_labels" or "nozzle_texts_on_paper", or of the line
+			/// "text_option;drawn_connections;flange butt_weld" (the words
+			/// of PipeConnection, a word not known being left out); the separator
 			/// may also be a tab or a comma, a first line naming the columns
 			/// is skipped, and so is a line that cannot be read, counted in
 			/// @p skipped. Returns the codification read, empty when none.

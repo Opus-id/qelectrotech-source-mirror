@@ -44,7 +44,8 @@ class QTableWidgetItem;
 	of fluid, by family of object and by status of works (PidCodification):
 	the code knows no colour of its own, what has none is drawn in black, as
 	before. The size of its texts by category: what has none keeps the size
-	of its symbol.
+	of its symbol. The connections drawn at the end of the nozzles: none by
+	default.
 */
 class PidConfigPage : public ProjectConfigPage
 {
@@ -124,6 +125,7 @@ class PidConfigPage : public ProjectConfigPage
 		QList<int> selectedRows() const;
 		QMap<QString, QColor> &colors(Group group);
 		void readTextWidgets();
+		void readConnectionWidgets();
 		void undoLastChange();
 		void redoLastChange();
 		void showCodification(bool fill_codes, bool codes_from_project);
@@ -164,6 +166,9 @@ class PidConfigPage : public ProjectConfigPage
 		QMap<QString, QPushButton *> m_text_size_resets;
 		QCheckBox *m_colored_labels = nullptr;
 		QCheckBox *m_nozzle_texts_on_paper = nullptr;
+			/// Whether the mark of each connection is drawn at the end of
+			/// the nozzles; a plain end has none
+		QMap<PipeConnection::Type, QCheckBox *> m_drawn_connections;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
 		std::function<QColor(const QColor &)> m_ask_color;

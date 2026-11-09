@@ -525,6 +525,10 @@ qet_add_app_test(tst_pipediameter tst_pipediameter.cpp)
 # symbol, changed by a placed element; it decides the kind of size of the
 # nozzle, converted by the table of the project when it changes.
 qet_add_app_test(tst_nozzleconnection tst_nozzleconnection.cpp)
+# The mark of the connection drawn at the end of a nozzle (a flange, a
+# socket, a weld...), as the project or the element asks, the counter-flange
+# a pipe brings, nothing between two symbols placed against each other.
+qet_add_app_test(tst_connectionmark tst_connectionmark.cpp)
 # The frame of a folio follows a new size at once.
 qet_add_app_test(tst_borderresize tst_borderresize.cpp)
 # A quick second click on the same spot reaches the shape tools as a

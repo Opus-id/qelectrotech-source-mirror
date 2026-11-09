@@ -67,6 +67,9 @@ class Terminal : public QGraphicsObject
 		void   drawHelpLine (bool draw = true);
 		QLineF HelpLine     () const;
 		QRectF boundingRect () const override;
+			/// The room of a nozzle holds the mark of its connection, its
+			/// shape does not: a click on the mark does not start a pipe
+		QPainterPath shape  () const override;
 
 		// methods to manage conductors attached to the terminal
 		Terminal* alignedWithTerminal () const;
@@ -116,6 +119,22 @@ class Terminal : public QGraphicsObject
 			/// The one its symbol gives this nozzle
 		PipeConnection::Type symbolConnection() const { return d->m_connection; }
 		void setSymbolConnection(PipeConnection::Type connection);
+			/// Whether this nozzle draws the mark of its connection: as its
+			/// project says, unless its element says always or never
+		PipeConnection::MarkChoice markChoice() const;
+			/// This nozzle draws the mark of its connection at its end, on
+			/// the side of the pipe (PipeConnection::markShapes()): its
+			/// project or its element asks it, its connection has one, and
+			/// no nozzle of another symbol touches it. Never for another
+			/// medium.
+		bool drawsConnectionMark() const;
+			/// A nozzle of another symbol is on the same point as this one,
+			/// joined by a pipe of no length or not: two symbols placed
+			/// against each other, which draw nothing between them
+		bool touchesNozzle() const;
+			/// What draws again the mark of this nozzle and the counter-flange
+			/// of its pipe
+		void updateConnectionMark();
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 			/// The font of labelText(): the one of the symbol, at the size
@@ -207,6 +226,12 @@ class Terminal : public QGraphicsObject
 														const PipeDiameter &b) const;
 			/// How the project writes the tenths of a size
 		QLocale sizeLocale() const;
+			/// The room of the terminal and of its name, without the mark
+		QRectF ownRect() const;
+			/// From the frame of PipeConnection::markShapes() to that of
+			/// this terminal
+		QTransform markTransform() const;
+		void drawConnectionMark(QPainter *painter, qreal detail) const;
 
 		bool               m_draw_help_line{false};
 		QGraphicsLineItem *m_help_line{nullptr};

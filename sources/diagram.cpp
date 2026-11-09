@@ -1004,7 +1004,8 @@ bool Diagram::hasSymbolChoices() const
 			 !element.isNull() ; element = element.nextSiblingElement(QStringLiteral("element"))) {
 			if (!ElementOptions::choicesFromXml(element).isEmpty()
 				|| !Element::nozzleDiametersFromXml(element).isEmpty()
-				|| !Element::nozzleConnectionsFromXml(element).isEmpty())
+				|| !Element::nozzleConnectionsFromXml(element).isEmpty()
+				|| !Element::nozzleMarksFromXml(element).isEmpty())
 				return true;
 		}
 		return false;
@@ -1014,7 +1015,8 @@ bool Diagram::hasSymbolChoices() const
 		const Element *element = qgraphicsitem_cast<Element *>(item);
 		return element && (!element->optionChoices().isEmpty()
 						   || !element->nozzleDiameters().isEmpty()
-						   || !element->nozzleConnections().isEmpty());
+						   || !element->nozzleConnections().isEmpty()
+						   || !element->nozzleMarks().isEmpty());
 	});
 }
 

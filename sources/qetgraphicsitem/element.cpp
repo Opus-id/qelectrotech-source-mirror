@@ -597,7 +597,26 @@ void Element::setNozzleConnections(const NozzleConnections &connections)
 	m_nozzle_connections = connections;
 	for (Terminal *terminal : std::as_const(m_terminals)) {
 		terminal->updateDiameterToolTip();
-		terminal->update();
+			//its mark, and the counter-flange of its pipe
+		terminal->updateConnectionMark();
+	}
+	emit nozzleDiametersChanged();
+}
+
+/**
+	@brief Element::setNozzleMarks
+	Say for nozzles of this element whether they draw the mark of their
+	connection, whatever their project says
+	@param marks : by name of nozzle
+*/
+void Element::setNozzleMarks(const NozzleMarks &marks)
+{
+	if (marks == m_nozzle_marks) {
+		return;
+	}
+	m_nozzle_marks = marks;
+	for (Terminal *terminal : std::as_const(m_terminals)) {
+		terminal->updateConnectionMark();
 	}
 	emit nozzleDiametersChanged();
 }
@@ -664,6 +683,29 @@ NozzleConnections Element::nozzleConnectionsFromXml(const QDomElement &element)
 }
 
 /**
+	@brief Element::nozzleMarksFromXml
+	@param element : an <element> of a project
+	@return the choices of the marks of its <nozzles> block; a nozzle without
+	a name, or doing as its project says, is left out
+*/
+NozzleMarks Element::nozzleMarksFromXml(const QDomElement &element)
+{
+	NozzleMarks marks;
+	const QDomElement nozzles = element.firstChildElement(QStringLiteral("nozzles"));
+	for (QDomElement nozzle = nozzles.firstChildElement(QStringLiteral("nozzle")) ;
+		 !nozzle.isNull() ; nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle")))
+	{
+		const QString name = nozzle.attribute(QStringLiteral("name"));
+		const PipeConnection::MarkChoice choice = PipeConnection::markChoiceFromString(
+					nozzle.attribute(QStringLiteral("mark")));
+		if (!name.isEmpty() && choice != PipeConnection::MarkChoice::Project) {
+			marks.insert(name, choice);
+		}
+	}
+	return marks;
+}
+
+/**
 	@brief Element::takePictures
 	Take the drawing of the symbol for the options chosen and the colour of
 	this element
@@ -709,6 +751,17 @@ QColor Element::labelInk() const
 	const QString ink = inkedChoices(m_data.m_options, m_data.m_pid_family)
 			.value(ElementPictureFactory::inkChoice());
 	return ink.isEmpty() ? QColor() : QColor(ink);
+}
+
+/**
+	@brief Element::symbolInk
+	See the declaration
+*/
+QColor Element::symbolInk() const
+{
+	const QString ink = inkedChoices(m_data.m_options, m_data.m_pid_family)
+			.value(ElementPictureFactory::inkChoice());
+	return ink.isEmpty() ? QColor(Qt::black) : QColor(ink);
 }
 
 /**
@@ -2069,6 +2122,7 @@ bool Element::fromXml(QDomElement &e,
 	setOptionChoices(ElementOptions::choicesFromXml(e));
 	setNozzleDiameters(nozzleDiametersFromXml(e));
 	setNozzleConnections(nozzleConnectionsFromXml(e));
+	setNozzleMarks(nozzleMarksFromXml(e));
 
 		//Last, so that the texts and groups loaded above are kept readable
 	const QString mirror = e.attribute(QStringLiteral("mirror"));
@@ -2213,11 +2267,14 @@ QDomElement Element::toXml(
 	if (!options.isNull())
 		element.appendChild(options);
 
-		//The diameters and connections given to its nozzles; none written
-		//for an element that keeps those of its symbol, which saves as before
-	if (!m_nozzle_diameters.isEmpty() || !m_nozzle_connections.isEmpty())
+		//The diameters, connections and choices of marks given to its
+		//nozzles; none written for an element that keeps those of its
+		//symbol and its project, which saves as before
+	if (!m_nozzle_diameters.isEmpty() || !m_nozzle_connections.isEmpty()
+		|| !m_nozzle_marks.isEmpty())
 	{
-		QStringList names = m_nozzle_diameters.keys() + m_nozzle_connections.keys();
+		QStringList names = m_nozzle_diameters.keys() + m_nozzle_connections.keys()
+							+ m_nozzle_marks.keys();
 		names.sort();
 		names.removeDuplicates();
 		QDomElement nozzles = document.createElement(QStringLiteral("nozzles"));
@@ -2230,6 +2287,11 @@ QDomElement Element::toXml(
 			if (connection != m_nozzle_connections.cend()) {
 				nozzle.setAttribute(QStringLiteral("connection"),
 									PipeConnection::toString(connection.value()));
+			}
+			const QString mark = PipeConnection::markChoiceToString(
+						m_nozzle_marks.value(name, PipeConnection::MarkChoice::Project));
+			if (!mark.isEmpty()) {
+				nozzle.setAttribute(QStringLiteral("mark"), mark);
 			}
 			nozzle.setAttribute(QStringLiteral("name"), name);
 			nozzles.appendChild(nozzle);

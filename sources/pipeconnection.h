@@ -23,6 +23,7 @@
 #include <QCoreApplication>
 #include <QList>
 #include <QMap>
+#include <QPainterPath>
 #include <QString>
 
 /**
@@ -155,9 +156,98 @@ class PipeConnection
 			}
 			return PipeDiameter();
 		}
+
+			/// Where the mark of a connection is drawn, in units from the
+			/// point where the pipe joins the nozzle, on the side of the
+			/// pipe: never on the nozzle itself, which a valve has on the
+			/// side of its body
+		static constexpr qreal markDistance = 4;
+			/// Where a pipe draws the counter-flange it brings to a flange
+		static constexpr qreal counterFlangeDistance = 8;
+			/// The straight length a pipe needs from a flange to draw its
+			/// counter-flange: a pipe shorter, or turning before, has none
+		static constexpr qreal counterFlangeRoom = 12;
+			/// Half the length of a flange across the pipe: that of the side
+			/// of the generic valve
+		static constexpr qreal markHalfHeight = 10;
+
+			/// The mark drawn at the end of a nozzle of @p type, in a frame
+			/// whose x goes from the nozzle along the pipe and whose y goes
+			/// across, in units: in @p strokes the lines, in @p fills the
+			/// dots. A flange is a line across, a thread a shorter one, a
+			/// socket a bracket open towards the pipe, a socket to weld the
+			/// same with two dots, a socket with a gasket a rounded one, a
+			/// butt weld a dot, a grooved end a collar; a plain end nothing.
+		static void markShapes(Type type, QPainterPath *strokes, QPainterPath *fills)
+		{
+			const qreal d = markDistance;
+			const qreal h = markHalfHeight;
+			const qreal arms = d + 10;
+			switch (type) {
+				case Flange:
+					strokes->moveTo(d, -h);
+					strokes->lineTo(d, h);
+					break;
+				case PlainEnd:
+					break;
+				case SolventSocket:
+				case FusionSocket:
+					strokes->moveTo(arms, -h);
+					strokes->lineTo(d, -h);
+					strokes->lineTo(d, h);
+					strokes->lineTo(arms, h);
+					if (type == FusionSocket) {
+						fills->addEllipse(QPointF(arms, -h), 2, 2);
+						fills->addEllipse(QPointF(arms, h), 2, 2);
+					}
+					break;
+				case GasketSocket:
+					strokes->moveTo(arms, -h);
+					strokes->quadTo(d, -h, d, 0);
+					strokes->quadTo(d, h, arms, h);
+					break;
+				case Thread:
+					strokes->moveTo(d, -h / 2);
+					strokes->lineTo(d, h / 2);
+					break;
+				case ButtWeld:
+					fills->addEllipse(QPointF(d, 0), 4, 4);
+					break;
+				case Grooved:
+					strokes->addRect(QRectF(d - 2, -h, 10, 2 * h));
+					break;
+			}
+		}
+			/// A nozzle of @p type has a mark to draw
+		static bool hasMark(Type type) { return type != PlainEnd; }
+
+			/// Whether a nozzle of a placed element draws the mark of its
+			/// connection: as its project says, or always, or never
+		enum class MarkChoice { Project, Always, Never };
+			/// The word the files use for @p choice; none for Project, never
+			/// written
+		static QString markChoiceToString(MarkChoice choice)
+		{
+			switch (choice) {
+				case MarkChoice::Always: return QStringLiteral("always");
+				case MarkChoice::Never:  return QStringLiteral("never");
+				case MarkChoice::Project: break;
+			}
+			return QString();
+		}
+			/// The choice @p string names; anything else is Project
+		static MarkChoice markChoiceFromString(const QString &string)
+		{
+			if (string == QLatin1String("always")) return MarkChoice::Always;
+			if (string == QLatin1String("never")) return MarkChoice::Never;
+			return MarkChoice::Project;
+		}
 };
 
 	/// The connections a placed element gives its nozzles, by name of nozzle
 using NozzleConnections = QMap<QString, PipeConnection::Type>;
+	/// Whether the nozzles of a placed element draw the mark of their
+	/// connection, by name of nozzle; none means as the project says
+using NozzleMarks = QMap<QString, PipeConnection::MarkChoice>;
 
 #endif

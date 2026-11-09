@@ -38,7 +38,8 @@ class Terminal;
 	The tab of the properties of a placed element where its nozzles are given
 	a connection and a diameter: per named nozzle, a list of connections and
 	a field, empty for the diameter of the symbol or else of the pipe
-	connected there, shown in grey. A DN or an outside diameter of the lists
+	connected there, shown in grey, and whether the mark of its connection is
+	drawn: as the project says, always or never. A DN or an outside diameter of the lists
 	of the project only, of a kind the connection takes. Live, a value is
 	applied when the field is left or the connection picked, with undo.
 */
@@ -65,10 +66,16 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// The connections the lists give: the one of the symbol is not
 			/// kept, as for the diameters
 		NozzleConnections chosenConnections() const;
+			/// Whether the nozzles draw the mark of their connection, as the
+			/// lists say: as the project is not kept
+		NozzleMarks chosenMarks() const;
 			/// The field of the nozzle @p name, or nullptr
 		QLineEdit *fieldFor(const QString &name) const;
 			/// The list of connections of the nozzle @p name, or nullptr
 		QComboBox *connectionFor(const QString &name) const;
+			/// The list saying whether the nozzle @p name draws the mark of
+			/// its connection, or nullptr
+		QComboBox *markFor(const QString &name) const;
 			/// What was said of the last value refused or changed
 		QString message() const;
 
@@ -78,6 +85,7 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			PipeDiameter symbol_diameter;
 			PipeConnection::Type symbol_connection;
 			QComboBox *connection;
+			QComboBox *mark;
 			QComboBox *list;
 			QLineEdit *edit;
 			const Terminal *terminal;

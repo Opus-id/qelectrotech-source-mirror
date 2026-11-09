@@ -42,6 +42,8 @@
 #include <QMultiHash>
 #include <QtDebug>
 
+#include <algorithm>
+
 namespace {
 		//Bumped whenever a conductor changes shape, moves, or enters or
 		//leaves a folio: the hops of every conductor may then change.
@@ -772,10 +774,103 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	}
 
 	if (m_properties.m_medium == TerminalData::Pipe) {
+		drawCounterFlanges(painter, final_conductor_color, detail);
 		drawDiameterGaps(painter);
 	}
 
 	painter -> restore();
+}
+
+/**
+	@brief Conductor::straightRunFrom
+	See the declaration
+*/
+qreal Conductor::straightRunFrom(const Terminal *terminal) const
+{
+	QList<QPointF> points = segmentsToPoints();
+	if (!terminal || points.size() < 2) {
+		return 0;
+	}
+		//From the end on the terminal
+	const QPointF dock = mapFromScene(terminal->dockConductor());
+	if (QLineF(points.constLast(), dock).length() < QLineF(points.constFirst(), dock).length()) {
+		std::reverse(points.begin(), points.end());
+	}
+	QPointF outward;
+	switch (terminal->orientation()) {
+		case Qet::North: outward = QPointF(0, -1); break;
+		case Qet::East:  outward = QPointF(1, 0);  break;
+		case Qet::South: outward = QPointF(0, 1);  break;
+		case Qet::West:  outward = QPointF(-1, 0); break;
+	}
+	qreal run = 0;
+	for (int i = 0 ; i + 1 < points.size() ; ++i)
+	{
+		const QPointF step = points.at(i + 1) - points.at(i);
+		const qreal along = step.x() * outward.x() + step.y() * outward.y();
+		const qreal across = step.x() * outward.y() - step.y() * outward.x();
+		if (!qFuzzyIsNull(across) || along < 0) {
+			break;
+		}
+		run += along;
+	}
+	return run;
+}
+
+/**
+	@brief Conductor::drawsCounterFlange
+	See the declaration
+*/
+bool Conductor::drawsCounterFlange(const Terminal *terminal) const
+{
+	if (m_properties.m_medium != TerminalData::Pipe || !terminal
+		|| (terminal != terminal1 && terminal != terminal2) || endsTouch()) {
+		return false;
+	}
+	return terminal->connection() == PipeConnection::Flange
+			&& terminal->drawsConnectionMark()
+			&& straightRunFrom(terminal) >= PipeConnection::counterFlangeRoom;
+}
+
+/**
+	@brief Conductor::drawCounterFlanges
+	Draw the counter-flange this pipe brings to each flange it arrives on
+	(drawsCounterFlange()), a line across like the flange, in the colour of
+	the pipe. Part of the drawing: on paper too.
+	@param painter
+	@param color : the colour the pipe is drawn in
+	@param detail : the level of detail of the drawing
+*/
+void Conductor::drawCounterFlanges(QPainter *painter, const QColor &color, qreal detail) const
+{
+	const bool on_screen = painter->device()
+			&& painter->device()->devType() == QInternal::Widget;
+	for (const Terminal *terminal : {terminal1, terminal2})
+	{
+		if (!drawsCounterFlange(terminal)) {
+			continue;
+		}
+		QPointF outward;
+		switch (terminal->orientation()) {
+			case Qet::North: outward = QPointF(0, -1); break;
+			case Qet::East:  outward = QPointF(1, 0);  break;
+			case Qet::South: outward = QPointF(0, 1);  break;
+			case Qet::West:  outward = QPointF(-1, 0); break;
+		}
+		const QPointF across(-outward.y(), outward.x());
+		const QPointF middle = mapFromScene(terminal->dockConductor())
+							   + PipeConnection::counterFlangeDistance * outward;
+		const qreal h = PipeConnection::markHalfHeight;
+		painter->save();
+		painter->setRenderHint(QPainter::Antialiasing, true);
+		QPen pen(color, 1.0, Qt::SolidLine, Qt::FlatCap);
+		if (on_screen && detail < 1.0) {
+			pen.setCosmetic(true);
+		}
+		painter->setPen(pen);
+		painter->drawLine(middle - h * across, middle + h * across);
+		painter->restore();
+	}
 }
 
 /**
@@ -1138,7 +1233,10 @@ void Conductor::removeHandler()
 QRectF Conductor::boundingRect() const
 {
 	QRectF br = shape().boundingRect();
-	return br.adjusted(-10, -10, 10, 10);
+		//A pipe holds its counter-flanges, as long as the side of a valve
+	const qreal margin = m_properties.m_medium == TerminalData::Pipe
+			? PipeConnection::markHalfHeight + 2 : 10;
+	return br.adjusted(-margin, -margin, margin, margin);
 }
 
 /**

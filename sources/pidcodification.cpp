@@ -33,6 +33,43 @@ namespace
 	const QString nozzle_texts_word = QStringLiteral("nozzle_texts_on_paper");
 	const QString nozzle_sizes_word = QStringLiteral("show_nozzle_sizes");
 	const QString decimal_word = QStringLiteral("decimal_separator");
+	const QString drawn_connections_word = QStringLiteral("drawn_connections");
+
+		/// @p connections as words separated by spaces: a list the CSV
+		/// separators (semicolon, tab, comma) never cut
+	QString connectionsToText(const QList<PipeConnection::Type> &connections)
+	{
+		QStringList words;
+		for (PipeConnection::Type type : PipeConnection::all()) {
+			if (connections.contains(type)) {
+				words << PipeConnection::toString(type);
+			}
+		}
+		return words.join(QLatin1Char(' '));
+	}
+
+		/// The connections @p text names, in the order of PipeConnection::all();
+		/// @p unknown, if given, counts the words not known
+	QList<PipeConnection::Type> connectionsFromText(const QString &text, int *unknown = nullptr)
+	{
+		QList<PipeConnection::Type> read;
+		for (const QString &word : text.split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+			bool ok = false;
+			const PipeConnection::Type type = PipeConnection::fromString(word.trimmed(), &ok);
+			if (ok && !read.contains(type)) {
+				read << type;
+			} else if (!ok && unknown) {
+				++*unknown;
+			}
+		}
+		QList<PipeConnection::Type> sorted;
+		for (PipeConnection::Type type : PipeConnection::all()) {
+			if (read.contains(type)) {
+				sorted << type;
+			}
+		}
+		return sorted;
+	}
 
 	QString decimalToString(PidCodification::Decimal decimal)
 	{
@@ -617,6 +654,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.show_nozzle_sizes = other.show_nozzle_sizes;
 		result.decimal = other.decimal;
 		result.tag_models = other.tag_models;
+		result.drawn_connections = other.drawn_connections;
 	}
 	return result;
 }
@@ -675,6 +713,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	if (decimal != Decimal::Language) {
 		block.setAttribute(decimal_word, decimalToString(decimal));
 	}
+	if (!drawn_connections.isEmpty()) {
+		block.setAttribute(drawn_connections_word, connectionsToText(drawn_connections));
+	}
 	return block;
 }
 
@@ -728,6 +769,7 @@ void PidCodification::fromXml(const QDomElement &parent)
 	nozzle_texts_on_paper = block.attribute(nozzle_texts_word) != QLatin1String("false");
 	show_nozzle_sizes = block.attribute(nozzle_sizes_word) != QLatin1String("false");
 	decimal = decimalFromString(block.attribute(decimal_word));
+	drawn_connections = connectionsFromText(block.attribute(drawn_connections_word));
 }
 
 /**
@@ -762,6 +804,10 @@ QString PidCodification::paletteToCsv() const
 	if (decimal != Decimal::Language) {
 		text += QStringLiteral("text_option;") + decimal_word + QLatin1Char(';')
 				+ decimalToString(decimal) + QLatin1Char('\n');
+	}
+	if (!drawn_connections.isEmpty()) {
+		text += QStringLiteral("text_option;") + drawn_connections_word + QLatin1Char(';')
+				+ connectionsToText(drawn_connections) + QLatin1Char('\n');
 	}
 	for (auto it = tag_models.cbegin() ; it != tag_models.cend() ; ++it) {
 		text += QStringLiteral("tag_model;") + it.key() + QLatin1Char(';') + it.value() + QLatin1Char('\n');
@@ -919,7 +965,13 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 		{
 			const QString value = fields.value(2).toLower();
 			const bool yes = value == QLatin1String("true");
-			if (fields.value(1) == decimal_word) {
+			if (fields.value(1) == drawn_connections_word) {
+				int unknown = 0;
+				codification.drawn_connections = connectionsFromText(value, &unknown);
+				if (unknown) {
+					++left_out;
+				}
+			} else if (fields.value(1) == decimal_word) {
 				const Decimal read = decimalFromString(value);
 				if (read == Decimal::Language) {
 					++left_out;
@@ -1054,5 +1106,6 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& colored_labels == other.colored_labels
 			&& nozzle_texts_on_paper == other.nozzle_texts_on_paper
 			&& show_nozzle_sizes == other.show_nozzle_sizes
-			&& decimal == other.decimal;
+			&& decimal == other.decimal
+			&& drawn_connections == other.drawn_connections;
 }

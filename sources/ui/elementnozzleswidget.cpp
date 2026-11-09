@@ -109,12 +109,19 @@ void ElementNozzlesWidget::buildFields()
 		for (PipeConnection::Type type : PipeConnection::all()) {
 			connection->addItem(PipeConnection::name(type), int(type));
 		}
+		auto *mark = new QComboBox(this);
+		mark->setObjectName(QStringLiteral("mark_list"));
+		mark->addItem(tr("Drawn as the project"), int(PipeConnection::MarkChoice::Project));
+		mark->addItem(tr("Always drawn"), int(PipeConnection::MarkChoice::Always));
+		mark->addItem(tr("Never drawn"), int(PipeConnection::MarkChoice::Never));
+		mark->setToolTip(tr("Whether the connection is drawn at the end of the nozzle: the P&ID "
+							"properties of the project say which connections are drawn."));
 		auto *list = new QComboBox(this);
 			//A nozzle has no material: the DN, then the outside diameters
 		DiameterList::setUp(list, codification.nozzleSizes(), codification.locale());
 		QLineEdit *edit = list->lineEdit();
 		const Field field{name, terminal->symbolDiameter(), terminal->symbolConnection(),
-						  connection, list, edit, terminal};
+						  connection, mark, list, edit, terminal};
 		const auto applied = [this, field]() {
 			if (checkField(field) && m_live_edit) {
 				apply();
@@ -128,9 +135,15 @@ void ElementNozzlesWidget::buildFields()
 				apply();
 			}
 		});
+		connect(mark, &QComboBox::activated, this, [this]() {
+			if (m_live_edit) {
+				apply();
+			}
+		});
 		auto *row = new QHBoxLayout();
 		row->addWidget(connection);
 		row->addWidget(list, 1);
+		row->addWidget(mark);
 		m_layout->addRow(tr("%1:", "label of the DN of a nozzle").arg(name), row);
 		m_fields.append(field);
 	}
@@ -217,6 +230,10 @@ void ElementNozzlesWidget::showField(const Field &field)
 		const QSignalBlocker connection_blocker(field.connection);
 		field.connection->setCurrentIndex(field.connection->findData(int(connection)));
 	}
+	{
+		const QSignalBlocker mark_blocker(field.mark);
+		field.mark->setCurrentIndex(field.mark->findData(int(field.terminal->markChoice())));
+	}
 	DiameterList::fill(field.list, sizesFor(field), locale);
 	const QSignalBlocker blocker(field.edit);
 		//A DN given to a thread before the threads existed: in inches
@@ -295,6 +312,28 @@ NozzleConnections ElementNozzlesWidget::chosenConnections() const
 		}
 	}
 	return connections;
+}
+
+/**
+	@brief ElementNozzlesWidget::chosenMarks
+	See the declaration
+*/
+NozzleMarks ElementNozzlesWidget::chosenMarks() const
+{
+	if (!m_element) {
+		return {};
+	}
+	NozzleMarks marks = m_element->nozzleMarks();
+	for (const Field &field : m_fields)
+	{
+		const auto choice = PipeConnection::MarkChoice(field.mark->currentData().toInt());
+		if (choice == PipeConnection::MarkChoice::Project) {
+			marks.remove(field.name);
+		} else {
+			marks.insert(field.name, choice);
+		}
+	}
+	return marks;
 }
 
 /**
@@ -384,6 +423,18 @@ QComboBox *ElementNozzlesWidget::connectionFor(const QString &name) const
 }
 
 /**
+	@brief ElementNozzlesWidget::markFor
+	See the declaration
+*/
+QComboBox *ElementNozzlesWidget::markFor(const QString &name) const
+{
+	for (const Field &field : m_fields) {
+		if (field.name == name) return field.mark;
+	}
+	return nullptr;
+}
+
+/**
 	@brief ElementNozzlesWidget::associatedUndo
 	@return the undo command giving the element the diameters of the fields,
 	or nullptr when they are those it has
@@ -395,11 +446,13 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 	}
 	const NozzleDiameters diameters = chosen();
 	const NozzleConnections connections = chosenConnections();
+	const NozzleMarks marks = chosenMarks();
 	if (diameters == m_element->nozzleDiameters()
-		&& connections == m_element->nozzleConnections()) {
+		&& connections == m_element->nozzleConnections()
+		&& marks == m_element->nozzleMarks()) {
 		return nullptr;
 	}
-	return new ChangeNozzleDiametersCommand(m_element, diameters, connections);
+	return new ChangeNozzleDiametersCommand(m_element, diameters, connections, marks);
 }
 
 /**

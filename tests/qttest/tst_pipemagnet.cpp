@@ -82,7 +82,8 @@ class tst_pipemagnet : public QObject
 		// folio does when a conductor is drawn by hand
 	void dragFrom(Terminal *from, const QPointF &at)
 	{
-		const QPointF start = from->sceneBoundingRect().center();
+			//On the nozzle: its room also holds the mark of its connection
+		const QPointF start = from->mapToScene(from->shape().boundingRect().center());
 		QGraphicsSceneMouseEvent press(QEvent::GraphicsSceneMousePress);
 		press.setScenePos(start);
 		press.setButton(Qt::LeftButton);

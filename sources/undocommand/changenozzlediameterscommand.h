@@ -31,19 +31,26 @@ class Element;
 /**
 	@brief The ChangeNozzleDiametersCommand class
 	Give the nozzles of a placed element other diameters
-	(Element::setNozzleDiameters()) and other connections
-	(Element::setNozzleConnections()), and give them back on undo.
+	(Element::setNozzleDiameters()), other connections
+	(Element::setNozzleConnections()) and other choices of their marks
+	(Element::setNozzleMarks()), and give them back on undo.
 */
 class ChangeNozzleDiametersCommand : public QUndoCommand
 {
 	public:
-			/// Other diameters; the connections stay
+			/// Other diameters; the connections and marks stay
 		ChangeNozzleDiametersCommand(Element *element,
 									 const NozzleDiameters &new_diameters,
+									 QUndoCommand *parent = nullptr);
+			/// Other diameters and connections; the marks stay
+		ChangeNozzleDiametersCommand(Element *element,
+									 const NozzleDiameters &new_diameters,
+									 const NozzleConnections &new_connections,
 									 QUndoCommand *parent = nullptr);
 		ChangeNozzleDiametersCommand(Element *element,
 									 const NozzleDiameters &new_diameters,
 									 const NozzleConnections &new_connections,
+									 const NozzleMarks &new_marks,
 									 QUndoCommand *parent = nullptr);
 		void undo() override;
 		void redo() override;
@@ -52,6 +59,7 @@ class ChangeNozzleDiametersCommand : public QUndoCommand
 		QPointer<Element> m_element;
 		NozzleDiameters m_old_diameters, m_new_diameters;
 		NozzleConnections m_old_connections, m_new_connections;
+		NozzleMarks m_old_marks, m_new_marks;
 };
 
 #endif // CHANGENOZZLEDIAMETERSCOMMAND_H

@@ -259,7 +259,8 @@ bool Terminal::addConductor(Conductor *conductor)
 			return false; //They already a conductor linked to this and other_terminal
 
 	m_conductors_list.append(conductor);
-	if (takesConductorColor()) update();
+		//A nozzle joined to one on the same point draws no mark
+	if (takesConductorColor() || d->m_medium == TerminalData::Pipe) update();
 	emit conductorWasAdded(conductor);
 	return(true);
 }
@@ -274,7 +275,7 @@ void Terminal::removeConductor(Conductor *conductor)
 	int index = m_conductors_list.indexOf(conductor);
 	if (index == -1) return;
 	m_conductors_list.removeAt(index);
-	if (takesConductorColor()) update();
+	if (takesConductorColor() || d->m_medium == TerminalData::Pipe) update();
 	emit conductorWasRemoved(conductor);
 }
 
@@ -337,6 +338,13 @@ void Terminal::paint(
 			painter -> setRenderHint(QPainter::Antialiasing, true);
 			painter -> drawEllipse(QRectF(c.x() - 2.5, c.y() - 2.5, 5.0, 5.0));
 		} else painter -> drawPoint(c);
+	}
+
+		//The mark of the connection of a nozzle: part of the drawing, at any
+		//zoom and on paper
+	if (drawsConnectionMark()) {
+		drawConnectionMark(painter, options ? options->levelOfDetailFromTransform(painter->worldTransform())
+											: 1.0);
 	}
 
 	//Draw help line if needed,
@@ -541,8 +549,36 @@ QLineF Terminal::HelpLine() const
 /**
 	@brief Terminal::boundingRect
 	@return Le rectangle (en precision flottante) delimitant la borne et ses alentours.
+	The room of a nozzle holds the mark of any connection, drawn or not: the
+	room does not change when the project draws another one.
 */
-QRectF Terminal::boundingRect() const {
+QRectF Terminal::boundingRect() const
+{
+	const QRectF own = ownRect();
+	if (d->m_medium != TerminalData::Pipe) {
+		return own;
+	}
+		//The largest mark, with its pen
+	const qreal h = PipeConnection::markHalfHeight + 3;
+	return own.united(markTransform().mapRect(QRectF(-1, -h, 18, 2 * h)));
+}
+
+/**
+	@brief Terminal::shape
+	See the declaration: for any other terminal, its room, as before
+*/
+QPainterPath Terminal::shape() const
+{
+	QPainterPath path;
+	path.addRect(ownRect());
+	return path;
+}
+
+/**
+	@brief Terminal::ownRect
+	See the declaration
+*/
+QRectF Terminal::ownRect() const {
 		//A nozzle keeps room for the DN under its name: that DN comes and
 		//goes with its pipe, which does not tell the scene
 	const QString display_name = d->m_medium == TerminalData::Pipe
@@ -1319,7 +1355,120 @@ void Terminal::setSymbolConnection(PipeConnection::Type connection)
 {
 	d->m_connection = connection;
 	updateDiameterToolTip();
+	updateConnectionMark();
+}
+
+PipeConnection::MarkChoice Terminal::markChoice() const
+{
+	if (d->m_medium != TerminalData::Pipe || !parent_element_) {
+		return PipeConnection::MarkChoice::Project;
+	}
+	return parent_element_->nozzleMarks().value(d->m_name, PipeConnection::MarkChoice::Project);
+}
+
+bool Terminal::drawsConnectionMark() const
+{
+	if (d->m_medium != TerminalData::Pipe) {
+		return false;
+	}
+	const Diagram *folio = diagram();
+	if (!folio || !folio->project()) {
+		return false;
+	}
+	const PipeConnection::Type type = connection();
+	if (!PipeConnection::hasMark(type)) {
+		return false;
+	}
+	switch (markChoice()) {
+		case PipeConnection::MarkChoice::Never:
+			return false;
+		case PipeConnection::MarkChoice::Always:
+			break;
+		case PipeConnection::MarkChoice::Project:
+			if (!folio->project()->pidCodification().drawsConnection(type)) {
+				return false;
+			}
+			break;
+	}
+	return !touchesNozzle();
+}
+
+bool Terminal::touchesNozzle() const
+{
+	for (const Conductor *conductor : m_conductors_list) {
+		if (conductor->endsTouch()) {
+			return true;
+		}
+	}
+		//Placed against each other without a pipe
+	const QGraphicsScene *folio = scene();
+	if (!folio) {
+		return false;
+	}
+	const QPointF dock = dockConductor();
+	for (QGraphicsItem *item : folio->items(dock)) {
+		const Terminal *other = qgraphicsitem_cast<Terminal *>(item);
+		if (other && other != this && other->parent_element_ != parent_element_
+			&& other->d->m_medium == TerminalData::Pipe && other->dockConductor() == dock) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void Terminal::updateConnectionMark()
+{
 	update();
+	if (d->m_medium != TerminalData::Pipe) {
+		return;
+	}
+	for (Conductor *conductor : std::as_const(m_conductors_list)) {
+		conductor->update();
+	}
+}
+
+QTransform Terminal::markTransform() const
+{
+	qreal angle = 0;
+	switch (d->m_orientation) {
+		case Qet::East:  angle = 0;   break;
+		case Qet::South: angle = 90;  break;
+		case Qet::West:  angle = 180; break;
+		case Qet::North: angle = 270; break;
+	}
+	const QPointF c = mapFromParent(d->m_pos);
+	return QTransform().rotate(angle) * QTransform::fromTranslate(c.x(), c.y());
+}
+
+/**
+	@brief Terminal::drawConnectionMark
+	Draw the mark of the connection of this nozzle in the ink of its symbol,
+	with the lines of a valve (one unit), but never thinner than a pixel on
+	the screen
+	@param painter
+	@param detail : the level of detail of the drawing
+*/
+void Terminal::drawConnectionMark(QPainter *painter, qreal detail) const
+{
+	QPainterPath strokes, fills;
+	PipeConnection::markShapes(connection(), &strokes, &fills);
+	const QColor ink = parent_element_ ? parent_element_->symbolInk() : QColor(Qt::black);
+	painter->save();
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	painter->setTransform(markTransform(), true);
+	QPen pen(ink, 1.0, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+	const bool on_screen = painter->device()
+			&& painter->device()->devType() == QInternal::Widget;
+	if (on_screen && detail < 1.0) {
+		pen.setCosmetic(true);
+	}
+	painter->setPen(pen);
+	painter->setBrush(Qt::NoBrush);
+	painter->drawPath(strokes);
+	painter->setPen(Qt::NoPen);
+	painter->setBrush(ink);
+	painter->drawPath(fills);
+	painter->restore();
 }
 
 PipeDiameter Terminal::connectedDiameter() const

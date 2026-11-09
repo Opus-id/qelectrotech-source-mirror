@@ -364,6 +364,17 @@ void PidConfigPage::initWidgets()
 	m_decimal->setToolTip(tr("How the tenths of the sizes are written in this project, whatever the "
 							 "computer which opens it; a file always keeps a point."));
 	connect(m_decimal, &QComboBox::activated, this, &PidConfigPage::readTextWidgets);
+
+	for (PipeConnection::Type type : PipeConnection::all())
+	{
+		if (!PipeConnection::hasMark(type)) {
+			continue;
+		}
+		auto *drawn = new QCheckBox(PipeConnection::name(type), this);
+		drawn->setObjectName(QStringLiteral("drawn_connection_") + PipeConnection::toString(type));
+		connect(drawn, &QCheckBox::toggled, this, &PidConfigPage::readConnectionWidgets);
+		m_drawn_connections.insert(type, drawn);
+	}
 }
 
 void PidConfigPage::initLayout()
@@ -409,6 +420,23 @@ void PidConfigPage::initLayout()
 	texts_layout->addLayout(decimal);
 	texts_layout->addStretch();
 
+	auto *connections_tab = new QWidget(this);
+	auto *connections_layout = new QVBoxLayout(connections_tab);
+	auto *connections_help = new QLabel(tr("The connections checked are drawn at the end of the "
+										   "nozzles, 1 mm from the symbol, in its color; a pipe "
+										   "arriving on a flange draws the counter-flange. A nozzle "
+										   "may say otherwise (properties of the element, Nozzles). "
+										   "Two symbols placed against each other draw nothing "
+										   "between them."), connections_tab);
+	connections_help->setWordWrap(true);
+	connections_layout->addWidget(connections_help);
+	for (PipeConnection::Type type : PipeConnection::all()) {
+		if (QCheckBox *drawn = m_drawn_connections.value(type)) {
+			connections_layout->addWidget(drawn);
+		}
+	}
+	connections_layout->addStretch();
+
 	auto *codes_tab = new QWidget(this);
 	auto *codes_layout = new QVBoxLayout(codes_tab);
 	auto *codes_help = new QLabel(tr("A pipe line keeps the code of its fluid and of its material: a name "
@@ -431,6 +459,7 @@ void PidConfigPage::initLayout()
 	tabs->addTab(codes_tab, tr("Codification"));
 	tabs->addTab(colors_tab, tr("Colors"));
 	tabs->addTab(texts_tab, tr("Texts"));
+	tabs->addTab(connections_tab, tr("Connections"));
 
 	auto *palette = new QHBoxLayout();
 	palette->addStretch();
@@ -480,6 +509,10 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 		//Not set yet: that of the language, which the project will keep
 	const QSignalBlocker decimal_blocker(m_decimal);
 	m_decimal->setCurrentIndex(m_decimal->findData(int(codification.effectiveDecimal())));
+	for (auto it = m_drawn_connections.cbegin() ; it != m_drawn_connections.cend() ; ++it) {
+		const QSignalBlocker blocker(it.value());
+		it.value()->setChecked(codification.drawsConnection(it.key()));
+	}
 }
 
 void PidConfigPage::adjustReadOnly()
@@ -511,6 +544,24 @@ void PidConfigPage::adjustReadOnly()
 	}
 	m_colored_labels->setEnabled(!read_only);
 	m_nozzle_texts_on_paper->setEnabled(!read_only);
+	for (QCheckBox *drawn : std::as_const(m_drawn_connections)) {
+		drawn->setEnabled(!read_only);
+	}
+}
+
+/**
+	@brief PidConfigPage::readConnectionWidgets
+	Take what the tab of the connections shows, in the order of the lists
+*/
+void PidConfigPage::readConnectionWidgets()
+{
+	m_codification.drawn_connections.clear();
+	for (PipeConnection::Type type : PipeConnection::all()) {
+		const QCheckBox *drawn = m_drawn_connections.value(type);
+		if (drawn && drawn->isChecked()) {
+			m_codification.drawn_connections << type;
+		}
+	}
 }
 
 /**

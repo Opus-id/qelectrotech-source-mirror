@@ -76,6 +76,8 @@ class DiagramEventAddElement : public DiagramEventInterface
 		NozzleDiameters m_like_nozzles;
 			/// Connections of nozzles every copy takes, see setLike()
 		NozzleConnections m_like_connections;
+			/// Choices of the marks of nozzles every copy takes, see setLike()
+		NozzleMarks m_like_marks;
 			/// Functional unit and train of the P&ID tag every copy takes,
 			/// with the next order (see setLike()); none when m_like_unit
 			/// is empty

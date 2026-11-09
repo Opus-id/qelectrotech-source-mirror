@@ -5870,6 +5870,26 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
 <context>
     <name>ElementNozzlesWidget</name>
     <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="114"/>
+        <source>Drawn as the project</source>
+        <translation>Dessiné comme le projet</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="115"/>
+        <source>Always drawn</source>
+        <translation>Toujours dessiné</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="116"/>
+        <source>Never drawn</source>
+        <translation>Jamais dessiné</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="117"/>
+        <source>Whether the connection is drawn at the end of the nozzle: the P&amp;ID properties of the project say which connections are drawn.</source>
+        <translation>Dessin du raccord au bout du piquage : les propriétés P&amp;ID du projet disent quels raccords sont dessinés.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="112"/>
         <source>%1:</source>
         <comment>label of the DN of a nozzle</comment>
@@ -12647,6 +12667,16 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
         <source>No color</source>
         <translation>Aucune couleur</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="420"/>
+        <source>Connections</source>
+        <translation>Raccords</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="414"/>
+        <source>The connections checked are drawn at the end of the nozzles, 1 mm from the symbol, in its color; a pipe arriving on a flange draws the counter-flange. A nozzle may say otherwise (properties of the element, Nozzles). Two symbols placed against each other draw nothing between them.</source>
+        <translation>Les raccords cochés sont dessinés au bout des piquages, à 1 mm du symbole, dans sa couleur ; une tuyauterie qui arrive sur une bride dessine la contre-bride. Un piquage peut en décider autrement (propriétés de l&apos;élément, Piquages). Deux symboles posés l&apos;un contre l&apos;autre ne dessinent rien entre eux.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="112"/>
@@ -21494,6 +21524,11 @@ Voulez-vous la remplacer ?</translation>
         <location filename="../sources/undocommand/changenozzlediameterscommand.cpp" line="45"/>
         <source>Change the connection of a nozzle</source>
         <translation>Modifier le raccord d&apos;un piquage</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/changenozzlediameterscommand.cpp" line="57"/>
+        <source>Change the drawing of the connection of a nozzle</source>
+        <translation>Modifier le dessin du raccord d&apos;un piquage</translation>
     </message>
     <message>
         <location filename="../sources/undocommand/changepidcodificationcommand.cpp" line="32"/>

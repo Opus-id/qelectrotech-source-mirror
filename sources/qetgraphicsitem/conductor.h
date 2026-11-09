@@ -103,6 +103,11 @@ class Conductor : public QGraphicsObject
 		virtual QPainterPath nearShape() const;
 			/// Its two ends on the same point: see endsTouch()
 		bool endsTouch() const;
+			/// This pipe draws a counter-flange at its end on @p terminal: the
+			/// nozzle draws the mark of a flange, and the pipe runs straight
+			/// from it far enough (PipeConnection::counterFlangeRoom); one
+			/// turning before, or too short, loses it
+		bool drawsCounterFlange(const Terminal *terminal) const;
 		qreal length() const;
 		ConductorSegment *middleSegment();
 		QPointF posForText(Qt::Orientations &flag);
@@ -196,6 +201,9 @@ class Conductor : public QGraphicsObject
 		void takeNozzleDiameter();
 		QList<Conductor *> inlineRun();
 		void drawDiameterGaps(QPainter *painter) const;
+		void drawCounterFlanges(QPainter *painter, const QColor &color, qreal detail) const;
+			/// How far this pipe runs straight from its end on @p terminal
+		qreal straightRunFrom(const Terminal *terminal) const;
 		bool potentialTypeFormat(PotentialType *type) const;
 
 	private:
