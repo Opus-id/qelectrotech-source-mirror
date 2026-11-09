@@ -96,6 +96,11 @@ tag `pipe-connector-freeze-2026-11-03`.
   ink changes, not the white that masks). The code knows no color of its
   own, what has none stays black, and a folio drawn without colors stays
   black too.
+- **Defaults for new projects**: two buttons of the *P&ID* page,
+  *Save as default codification* (codes, series of the materials, table
+  of diameters) and *Save as default palette* (colors and texts), saved
+  apart. A new project starts from both; projects that already exist do
+  not change.
 - **A status of works** on pipes and P&ID symbols: to be built, the default,
   existing and kept, to be demolished. Its color, set for the project,
   comes before any other. Chosen on the page of the object, or for a whole
@@ -141,6 +146,25 @@ tag `pipe-connector-freeze-2026-11-03`.
   nozzles) has one diameter. A change made on the page of a pipe goes through
   these symbols, in one undo step, and replaces the diameter of the pipes
   it reaches. It stops at tees, equipment and three-way valves.
+
+**Connections of the nozzles**
+- Each nozzle has a kind of connection: flange (the default, not written),
+  plain end, solvent socket, fusion socket, gasket socket, pipe thread,
+  butt weld or grooved (`connection` attribute of `<terminal>` in the
+  `.elmt`, changed on a placed symbol in its *Nozzles* tab, in the same
+  undo step as its size). The list is fixed in the code.
+- The connection limits the kind of size: a flange takes a DN, a solvent
+  socket an outside diameter, a pipe thread inches, the others a DN or an
+  outside diameter. When the connection changes, a size it allows is kept,
+  else it is converted when the table gives one answer, else it is removed
+  and said.
+- A pipe thread is sized in inches (`thread="1 1/2"`), shown `G 1"1/2`,
+  and typed as `G 1"1/2`, `1"1/2`, `3/4"` or `1-1/2`. A fixed table (the
+  usual one of EN 10255, 1/8" = DN 6 to 6" = DN 150) joins inches to DN:
+  for the orange diamond, and for a new pipe, which takes the DN of its
+  threaded nozzle (a pipe is never sized in inches).
+- The folio shows the size only (`DN 100`, `Ø 110`, `G 1"1/2`); the
+  connection is named in the tooltip of the nozzle.
 
 **Symbols**
 - **Change type**: right-click a placed symbol, *Change type* lists the
@@ -206,10 +230,9 @@ QElectroTech are saved byte for byte as by master.
 - The line designation shown along a pipe.
 - Placing a tee by dropping a pipe on another, flow direction, crossings
   as ISO 10628-1 draws them.
-- Signal lines, drive links, kind of connection of the nozzles (flange,
-  thread…), equipment data tables.
-- A starting codification for new projects, a way to find the pipes without
-  a diameter, piping classes (material, pressure, wall thickness).
+- Signal lines, drive links, equipment data tables.
+- A way to find the pipes without a diameter, piping classes (material,
+  pressure, wall thickness), the pressure rating (PN) of the nozzles.
 - Keeping the tags of an issued drawing set: once issued, a deleted tag
   should never be given again.
 - Declaring options and conditions in the element editor (they are written
