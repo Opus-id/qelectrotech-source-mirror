@@ -546,7 +546,7 @@ class tst_connectionmark : public QObject
 			QCOMPARE(pipe->pipeStartAt(t1), 10.0);
 		}
 
-		void aPipeTooShortOrTurningAtOnceLosesTheCounterFlange()
+		void aShortStraightPipeKeepsItsParts()
 		{
 			QETProject project;
 			Diagram *folio = project.addNewDiagram();
@@ -560,19 +560,130 @@ class tst_connectionmark : public QObject
 			Terminal *b1 = terminal(b, QStringLiteral("N1"));
 			auto *pipe = new Conductor(a2, b1);
 			folio->addItem(pipe);
+				// straight, never lengthened: the nozzles face each other
+			QCOMPARE(pipe->path().length(), 10.0);
+				// the counter-flanges are never lost
 			QVERIFY(a2->drawsConnectionMark());
-			QVERIFY(!pipe->drawsPipePart(a2));
-			QVERIFY(!pipe->drawsPipePart(b1));
-				// and goes to the nozzle
-			QCOMPARE(pipe->pipeStartAt(a2), 0.0);
-				// the same for a quick coupling, which needs more room
+			QVERIFY(pipe->drawsPipePart(a2));
+			QVERIFY(pipe->drawsPipePart(b1));
+			QCOMPARE(pipe->pipeStartAt(a2), 4.0);
+				// nor the half of a quick coupling
 			PidCodification quick = project.pidCodification();
 			quick.drawn_connections << PipeConnection::QuickCoupling;
 			project.setPidCodification(quick);
 			a->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::QuickCoupling}});
 			QVERIFY(a2->drawsOwnMark());
-			QVERIFY(!pipe->drawsPipePart(a2));
-			QCOMPARE(pipe->pipeStartAt(a2), 0.0);
+			QVERIFY(pipe->drawsPipePart(a2));
+			QCOMPARE(pipe->pipeStartAt(a2), 10.0);
+		}
+
+		void aPipeNeverTurnsTooCloseToANozzle()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+				// N2 of a at (220, 200), east; N1 of b at (280, 300), west
+			Element *a = place(project, folio, QPointF(200, 200));
+			Element *b = place(project, folio, QPointF(300, 300));
+			QVERIFY(a && b);
+			auto *pipe = new Conductor(terminal(a, QStringLiteral("N2")), terminal(b, QStringLiteral("N1")));
+			folio->addItem(pipe);
+			const QPointF a2 = pipe->mapFromScene(QPointF(220, 200));
+			const QPointF b1 = pipe->mapFromScene(QPointF(280, 300));
+				// a path turning 2.5 mm from a nozzle, as drawn before: too short
+			QVERIFY(pipe->exitsTooShort({a2, a2 + QPointF(10, 0), a2 + QPointF(10, 100), b1}));
+			QVERIFY(pipe->exitsTooShort({a2, a2 + QPointF(50, 0), a2 + QPointF(50, 100), b1}));
+				// 7.5 mm from each: enough
+			QVERIFY(!pipe->exitsTooShort({a2, a2 + QPointF(30, 0), a2 + QPointF(30, 50),
+										  b1 - QPointF(30, 50), b1 - QPointF(30, 0), b1}));
+				// going back into its symbol: too short
+			QVERIFY(pipe->exitsTooShort({a2, a2 - QPointF(30, 0), a2 + QPointF(-30, 100), b1}));
+				// an electrical wire: never
+			auto *wire = new Conductor(terminal(a, QStringLiteral("E1")), terminal(b, QStringLiteral("E1")));
+			folio->addItem(wire);
+			const QPointF e1 = wire->mapFromScene(QPointF(200, 180));
+			QVERIFY(!wire->exitsTooShort({e1, e1 + QPointF(0, -10), e1 + QPointF(100, -10),
+										  wire->mapFromScene(QPointF(300, 280))}));
+
+				// moved by hand, then its symbols come closer: the runs leaving
+				// the nozzles keep their length, the others take the difference
+			auto firstRun = [](const Conductor *conductor) {
+				const QPainterPath path = conductor->path();
+				return QLineF(QPointF(path.elementAt(0)), QPointF(path.elementAt(1))).length();
+			};
+			auto lastRun = [](const Conductor *conductor) {
+				const QPainterPath path = conductor->path();
+				const int n = path.elementCount();
+				return QLineF(QPointF(path.elementAt(n - 2)), QPointF(path.elementAt(n - 1))).length();
+			};
+			QVERIFY(pipe->moveSegment(1, 0, 0));
+			for (const QPointF &pos : {QPointF(320, 300), QPointF(280, 300), QPointF(250, 260),
+									   QPointF(230, 300)}) {
+				b->setPos(pos);
+				QVERIFY2(firstRun(pipe) >= PipeConnection::pipeExit - 0.5, qPrintable(QString::number(pos.x())));
+				QVERIFY2(lastRun(pipe) >= PipeConnection::pipeExit - 0.5, qPrintable(QString::number(pos.x())));
+			}
+		}
+
+		void theExitOfAPipeHoldsEveryConnection()
+		{
+			for (PipeConnection::Type type : PipeConnection::all()) {
+				for (qreal at : {0.0, PipeConnection::inlineMarkDistance}) {
+					QPainterPath strokes, fills;
+					PipeConnection::markShapes(type, at, &strokes, &fills);
+					qreal reach = strokes.boundingRect().united(fills.boundingRect()).right();
+					if (PipeConnection::bringsPart(type)) {
+						reach = qMax(reach, PipeConnection::pipePartStart(type, at));
+					}
+					QVERIFY2(reach + PipeConnection::pipePartMargin <= PipeConnection::pipeExit,
+							 qPrintable(PipeConnection::toString(type)));
+				}
+			}
+		}
+
+		void aPipeRoutedByItselfLeavesItsNozzlesFarEnough()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			drawFlanges(project);
+				// N2 of a at (220, 200), east; N1 of b at (280, 300), west
+			Element *a = place(project, folio, QPointF(200, 200));
+			Element *b = place(project, folio, QPointF(300, 300));
+			QVERIFY(a && b);
+			a->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::Flange}});
+			Terminal *a2 = terminal(a, QStringLiteral("N2"));
+			Terminal *b1 = terminal(b, QStringLiteral("N1"));
+			auto *pipe = new Conductor(a2, b1);
+			folio->addItem(pipe);
+			auto firstRun = [](const Conductor *conductor) {
+				const QPainterPath path = conductor->path();
+				return QLineF(QPointF(path.elementAt(0)), QPointF(path.elementAt(1))).length();
+			};
+			auto lastRun = [](const Conductor *conductor) {
+				const QPainterPath path = conductor->path();
+				const int n = path.elementCount();
+				return QLineF(QPointF(path.elementAt(n - 2)), QPointF(path.elementAt(n - 1))).length();
+			};
+				// 7.5 mm straight from each nozzle: room for its flange
+			QCOMPARE(firstRun(pipe), PipeConnection::pipeExit);
+			QCOMPARE(lastRun(pipe), PipeConnection::pipeExit);
+			QVERIFY(pipe->drawsPipePart(a2));
+			QVERIFY(pipe->drawsPipePart(b1));
+				// the same route whatever the connection, drawn or not
+			const QPainterPath route = pipe->path();
+			a->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::QuickCoupling}});
+			project.setPidCodification(PidCodification());
+			a->setPos(200, 210);
+			a->setPos(200, 200);
+			QCOMPARE(pipe->path(), route);
+				// a segment moved by hand towards the nozzle adds a bend: the
+				// first run keeps its length
+			QVERIFY(pipe->moveSegment(1, -25, 0));
+			QCOMPARE(firstRun(pipe), PipeConnection::pipeExit);
+				// an electrical wire between the same symbols: as before
+			auto *wire = new Conductor(terminal(a, QStringLiteral("E1")), terminal(b, QStringLiteral("E1")));
+			folio->addItem(wire);
+			QCOMPARE(wire->medium(), TerminalData::Electrical);
+			QCOMPARE(firstRun(wire), 10.0);
 		}
 
 		void twoSymbolsAgainstEachOtherDrawNothingBetweenThem()
@@ -595,6 +706,8 @@ class tst_connectionmark : public QObject
 			auto *pipe = new Conductor(a2, b1);
 			folio->addItem(pipe);
 			QVERIFY(pipe->endsTouch());
+				// of no length indeed: no exit added
+			QCOMPARE(pipe->path().length(), 0.0);
 			QVERIFY(!a2->drawsConnectionMark());
 			QVERIFY(!b1->drawsConnectionMark());
 			QVERIFY(!pipe->drawsPipePart(a2));

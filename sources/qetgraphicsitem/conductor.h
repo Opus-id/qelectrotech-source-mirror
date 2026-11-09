@@ -106,10 +106,16 @@ class Conductor : public QGraphicsObject
 			/// This pipe draws the part it brings at its end on @p terminal
 			/// (PipeConnection::pipePartShapes()): the connection of the
 			/// nozzle is drawn and takes one (a flange, a plain end, a grooved
-			/// end, a quick coupling), and the pipe runs straight from it far
-			/// enough (PipeConnection::pipePartMargin beyond the part); one
-			/// turning before, or too short, loses it.
+			/// end, a quick coupling). Never lost: a pipe leaves its nozzles
+			/// straight far enough for it (exitRoom()).
 		bool drawsPipePart(const Terminal *terminal) const;
+			/// The path @p points, from terminal1 to terminal2 in the frame
+			/// of this conductor, would turn (or go back) before running
+			/// exitRoom() straight from one of its nozzles: a pipe then routes
+			/// itself (a path read from a file, or a path moved by hand whose
+			/// symbols come closer). False for a straight path, for two ends
+			/// on one point and for any other medium.
+		bool exitsTooShort(const QList<QPointF> &points) const;
 			/// Where this pipe begins at its end on @p terminal, from the
 			/// nozzle: after the part it brings, at the mark of a connection
 			/// drawn beyond the nozzle of a valve, else 0
@@ -209,8 +215,6 @@ class Conductor : public QGraphicsObject
 		void drawDiameterGaps(QPainter *painter) const;
 		void drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const;
 		QPainterPath trimmedEnds(qreal half_width) const;
-			/// How far this pipe runs straight from its end on @p terminal
-		qreal straightRunFrom(const Terminal *terminal) const;
 		bool potentialTypeFormat(PotentialType *type) const;
 
 	private:
@@ -329,6 +333,14 @@ class Conductor : public QGraphicsObject
 		static int getSign(const qreal &);
 		QHash<ConductorSegmentProfile *, qreal> shareOffsetBetweenSegments(const qreal &offset, const QList<ConductorSegmentProfile *> &, const qreal & = 0.01) const;
 		static QPointF extendTerminal(const QPointF &, Qet::Orientation, qreal = 10);
+		static QPointF extendTerminalBeyond(const QPointF &terminal, Qet::Orientation orientation,
+											qreal room, const QPointF &extended);
+		static bool facesOnOneLine(const QPointF &p1, Qet::Orientation o1,
+								   const QPointF &p2, Qet::Orientation o2);
+			/// How far this conductor leaves its terminals straight at least,
+			/// beyond the extension of every conductor: for a pipe,
+			/// PipeConnection::pipeExit; 0 for any other medium
+		qreal exitRoom() const;
 		static Qt::Corner movementType(const QPointF &, const QPointF &);
 		static QPointF movePointIntoPolygon(const QPointF &, const QPainterPath &);
 };

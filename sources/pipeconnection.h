@@ -170,13 +170,19 @@ class PipeConnection
 			/// counter-flange of an equipment, the only flange drawn on a
 			/// valve, whose side stands for its own
 		static constexpr qreal pipeFlangeDistance = 4;
-			/// The straight length a pipe needs beyond the part it brings
-			/// (pipePartStart()) to draw it: a pipe shorter, or turning
-			/// before, has none
+			/// The straight length a pipe keeps beyond the part it brings
+			/// (pipePartStart()) before it may turn: part of pipeExit
 		static constexpr qreal pipePartMargin = 8;
 			/// Half the length of a flange across the pipe: that of the side
 			/// of the generic valve
 		static constexpr qreal markHalfHeight = 10;
+			/// How far a pipe routed by itself leaves a nozzle straight at
+			/// least, whatever its connection, drawn or not: the most any
+			/// connection takes (22 on a valve: the socket or the half of a
+			/// quick coupling a pipe brings, and the straight run beyond),
+			/// on the grid. The same route for the same symbols, which the
+			/// drawing of the connections never moves.
+		static constexpr qreal pipeExit = 30;
 
 			/// The mark a nozzle of @p type draws at its end, in a frame whose
 			/// x goes from the nozzle along the pipe and whose y goes across,

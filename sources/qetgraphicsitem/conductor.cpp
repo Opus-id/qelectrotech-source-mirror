@@ -152,7 +152,9 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	conductor_profiles.insert(Qt::BottomLeftCorner,  ConductorProfile());
 	conductor_profiles.insert(Qt::BottomRightCorner, ConductorProfile());
 
-		//Generate the path of this conductor.
+		//Generate the path of this conductor, knowing its medium already: a
+		//pipe leaves its nozzles farther (exitRoom())
+	m_properties.m_medium = p1->medium();
 	generateConductorPath(terminal1 -> dockConductor(), terminal1 -> orientation(), terminal2 -> dockConductor(), terminal2 -> orientation());
 	setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemSendsScenePositionChanges);
 	setAcceptHoverEvents(true);
@@ -339,8 +341,20 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 		}
 		return(false);
 	};
-	if (!can_absorb(h_diff, conductor_profile.horizontalSegments()) ||
-		!can_absorb(v_diff, conductor_profile.verticalSegments())) {
+		//A pipe keeps the runs leaving its nozzles (exitRoom()): the other
+		//segments take the difference
+	QList<ConductorSegmentProfile *> horizontal = conductor_profile.horizontalSegments();
+	QList<ConductorSegmentProfile *> vertical = conductor_profile.verticalSegments();
+	QList<ConductorSegmentProfile *> kept;
+	if (exitRoom() > 0 && conductor_profile.segments.count() > 2) {
+		kept << conductor_profile.segments.first() << conductor_profile.segments.last();
+		for (ConductorSegmentProfile *end : std::as_const(kept)) {
+			horizontal.removeAll(end);
+			vertical.removeAll(end);
+		}
+	}
+	if (!can_absorb(h_diff, horizontal) ||
+		!can_absorb(v_diff, vertical)) {
 		generateConductorPath(p1, o1, p2, o2);
 		return;
 	}
@@ -348,8 +362,13 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 	// applique les differences aux segments
 	// apply the differences to the segments
 	QMultiHash<ConductorSegmentProfile *, qreal> segments_lengths;
-	segments_lengths.unite(shareOffsetBetweenSegments(h_diff, conductor_profile.horizontalSegments()));
-	segments_lengths.unite(shareOffsetBetweenSegments(v_diff, conductor_profile.verticalSegments()));
+	segments_lengths.unite(shareOffsetBetweenSegments(h_diff, horizontal));
+	segments_lengths.unite(shareOffsetBetweenSegments(v_diff, vertical));
+	for (ConductorSegmentProfile *end : std::as_const(kept)) {
+		if (!segments_lengths.contains(end)) {
+			segments_lengths.insert(end, end -> length);
+		}
+	}
 
 	// en deduit egalement les coefficients d'inversion (-1 pour une inversion, +1 pour conserver le meme sens)
 	// also deduce the inversion coefficients (-1 for inversion, +1 to keep the same direction)
@@ -390,6 +409,14 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 		}
 	}
 	points << new_p2;
+		//A pipe whose run leaving a nozzle would still be too short, or
+		//turned back: routed by itself
+	if (exitsTooShort(points)) {
+		conductor_profile = ConductorProfile();
+		modified_path = false;
+		generateConductorPath(p1, o1, p2, o2);
+		return;
+	}
 	pointsToSegments(points);
 	segmentsToPath();
 }
@@ -470,9 +497,25 @@ void Conductor::generateConductorPath(const QPointF &p1, Qet::Orientation o1, co
 	sp1 = mapFromScene(p1);
 	sp2 = mapFromScene(p2);
 
+		//A pipe between two nozzles facing each other on one line goes
+		//straight, however short; between two nozzles on one point (symbols
+		//placed against each other) it has no length: no loop out and back
+	if (exitRoom() > 0 && (QLineF(sp1, sp2).length() < 0.5 || facesOnOneLine(sp1, o1, sp2, o2))) {
+		pointsToSegments({sp1, sp2});
+		segmentsToPath();
+		return;
+	}
+
 	// prolonge les bornes
 	newp1 = extendTerminal(sp1, o1);
 	newp2 = extendTerminal(sp2, o2);
+		//A pipe leaves a nozzle straight far enough for the mark of any
+		//connection and the part it brings, whatever the connection: the
+		//same route for the same symbols (straight between two nozzles
+		//facing each other, above). A segment moved by hand never shortens
+		//this first one.
+	newp1 = extendTerminalBeyond(sp1, o1, exitRoom(), newp1);
+	newp2 = extendTerminalBeyond(sp2, o2, exitRoom(), newp2);
 
 	// distingue le depart de l'arrivee : le trajet se fait toujours de gauche a droite (apres prolongation)
 	if (newp1.x() <= newp2.x()) {
@@ -629,6 +672,60 @@ QPointF Conductor::extendTerminal(const QPointF &terminal, Qet::Orientation term
 	}
 
 	return(extended_terminal);
+}
+
+/**
+	@brief Conductor::extendTerminalBeyond
+	@param terminal : the docking point of a terminal
+	@param orientation : its orientation
+	@param room : how far the extension must go at least; 0 for nothing more
+	@param extended : the extension extendTerminal() gives
+	@return @p extended, or the first point of the grid at least @p room
+	beyond @p terminal when that is farther
+*/
+QPointF Conductor::extendTerminalBeyond(const QPointF &terminal, Qet::Orientation orientation,
+										qreal room, const QPointF &extended)
+{
+	if (room <= 0) {
+		return extended;
+	}
+	switch (orientation) {
+		case Qet::North:
+			return QPointF(terminal.x(), qMin(extended.y(), std::floor((terminal.y() - room) / 10) * 10));
+		case Qet::East:
+			return QPointF(qMax(extended.x(), std::ceil((terminal.x() + room) / 10) * 10), terminal.y());
+		case Qet::South:
+			return QPointF(terminal.x(), qMax(extended.y(), std::ceil((terminal.y() + room) / 10) * 10));
+		case Qet::West:
+			return QPointF(qMin(extended.x(), std::floor((terminal.x() - room) / 10) * 10), terminal.y());
+	}
+	return extended;
+}
+
+/**
+	@brief Conductor::facesOnOneLine
+	@return true when the terminals at @p p1 and @p p2 face each other on
+	one line, the second ahead of the first: a straight path joins them
+*/
+bool Conductor::facesOnOneLine(const QPointF &p1, Qet::Orientation o1,
+							   const QPointF &p2, Qet::Orientation o2)
+{
+	const bool same_y = qAbs(p1.y() - p2.y()) < 0.5;
+	const bool same_x = qAbs(p1.x() - p2.x()) < 0.5;
+	if (o1 == Qet::East && o2 == Qet::West)   return same_y && p2.x() > p1.x();
+	if (o1 == Qet::West && o2 == Qet::East)   return same_y && p2.x() < p1.x();
+	if (o1 == Qet::South && o2 == Qet::North) return same_x && p2.y() > p1.y();
+	if (o1 == Qet::North && o2 == Qet::South) return same_x && p2.y() < p1.y();
+	return false;
+}
+
+/**
+	@brief Conductor::exitRoom
+	See the declaration
+*/
+qreal Conductor::exitRoom() const
+{
+	return m_properties.m_medium == TerminalData::Pipe ? PipeConnection::pipeExit : 0;
 }
 
 /**
@@ -809,33 +906,37 @@ namespace {
 }
 
 /**
-	@brief Conductor::straightRunFrom
+	@brief Conductor::exitsTooShort
 	See the declaration
 */
-qreal Conductor::straightRunFrom(const Terminal *terminal) const
+bool Conductor::exitsTooShort(const QList<QPointF> &points) const
 {
-	QList<QPointF> points = segmentsToPoints();
-	if (!terminal || points.size() < 2) {
-		return 0;
+	if (exitRoom() <= 0 || points.size() < 3 || !terminal1 || !terminal2
+		|| QLineF(points.constFirst(), points.constLast()).length() < 0.5) {
+		return false;
 	}
-		//From the end on the terminal
-	const QPointF dock = mapFromScene(terminal->dockConductor());
-	if (QLineF(points.constLast(), dock).length() < QLineF(points.constFirst(), dock).length()) {
-		std::reverse(points.begin(), points.end());
-	}
-	const QPointF outward = outwardOf(terminal);
-	qreal run = 0;
-	for (int i = 0 ; i + 1 < points.size() ; ++i)
-	{
-		const QPointF step = points.at(i + 1) - points.at(i);
-		const qreal along = step.x() * outward.x() + step.y() * outward.y();
-		const qreal across = step.x() * outward.y() - step.y() * outward.x();
-		if (!qFuzzyIsNull(across) || along < 0) {
-			break;
+	const qreal room = exitRoom() - 0.5;
+		//The straight run from the first point along @p outward, and
+		//whether the path turns after it
+	auto tooShort = [room](const QList<QPointF> &path, const QPointF &outward) {
+		qreal run = 0;
+		for (int i = 0 ; i + 1 < path.size() ; ++i) {
+			const QPointF step = path.at(i + 1) - path.at(i);
+			if (QLineF(QPointF(), step).length() < 0.01) {
+				continue;
+			}
+			const qreal along = step.x() * outward.x() + step.y() * outward.y();
+			const qreal across = step.x() * outward.y() - step.y() * outward.x();
+			if (qAbs(across) > 0.01 || along < 0) {
+				return run < room;
+			}
+			run += along;
 		}
-		run += along;
-	}
-	return run;
+			//Straight to the other end: its whole length
+		return false;
+	};
+	QList<QPointF> reversed(points.crbegin(), points.crend());
+	return tooShort(points, outwardOf(terminal1)) || tooShort(reversed, outwardOf(terminal2));
 }
 
 /**
@@ -848,12 +949,9 @@ bool Conductor::drawsPipePart(const Terminal *terminal) const
 		|| (terminal != terminal1 && terminal != terminal2) || endsTouch()) {
 		return false;
 	}
-	const PipeConnection::Type type = terminal->connection();
-	return PipeConnection::bringsPart(type)
-			&& terminal->drawsConnectionMark()
-			&& straightRunFrom(terminal)
-			   >= PipeConnection::pipePartStart(type, terminal->markDistance())
-				  + PipeConnection::pipePartMargin;
+		//Never lost: the route leaves room for it (exitRoom())
+	return PipeConnection::bringsPart(terminal->connection())
+			&& terminal->drawsConnectionMark();
 }
 
 /**
@@ -867,10 +965,8 @@ qreal Conductor::pipeStartAt(const Terminal *terminal) const
 		|| !terminal->drawsConnectionMark()) {
 		return 0;
 	}
-	const qreal start = PipeConnection::pipeStart(terminal->connection(), terminal->markDistance(),
-												  drawsPipePart(terminal));
-		//A pipe turning before keeps its whole length
-	return straightRunFrom(terminal) > start ? start : 0;
+	return PipeConnection::pipeStart(terminal->connection(), terminal->markDistance(),
+									 drawsPipePart(terminal));
 }
 
 /**
@@ -1640,6 +1736,13 @@ bool Conductor::pathFromXml(const QDomElement &e) {
 		);
 	}
 
+		//A pipe drawn before its exit was long enough, turning too close to
+		//a nozzle for the part of its connection: routed by itself
+	if (exitsTooShort(points_list)) {
+		generateConductorPath(terminal1 -> dockConductor(), terminal1 -> orientation(), terminal2 -> dockConductor(), terminal2 -> orientation());
+		return(true);
+	}
+
 	pointsToSegments(points_list);
 
 	// initialise divers parametres lies a la modification des conducteurs
@@ -2327,6 +2430,13 @@ void Conductor::setMedium(TerminalData::Medium medium)
 		//applied again under the new medium: a conductor turned into a
 		//pipe loses its wire fields
 	setProperties(before);
+		//and routed again when it routes itself: a pipe leaves its nozzles
+		//farther
+	if (!modified_path && terminal1 && terminal2) {
+		generateConductorPath(terminal1 -> dockConductor(), terminal1 -> orientation(),
+							  terminal2 -> dockConductor(), terminal2 -> orientation());
+		calculateTextItemPosition();
+	}
 	update();
 	storeProperties();
 	emit propertiesChange();
