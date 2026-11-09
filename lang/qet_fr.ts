@@ -5885,6 +5885,26 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>Jamais dessiné</translation>
     </message>
     <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="110"/>
+        <source>One connection for all the nozzles</source>
+        <translation>Même raccord pour tous les piquages</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="112"/>
+        <source>Checked, the first nozzle gives its connection and its drawing to the others.</source>
+        <translation>Cochée : le premier piquage donne son raccord et son dessin aux autres.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="114"/>
+        <source>One size for all the nozzles</source>
+        <translation>Même taille pour tous les piquages</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="116"/>
+        <source>Checked, the first nozzle gives its size to the others.</source>
+        <translation>Cochée : le premier piquage donne sa taille aux autres.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="117"/>
         <source>Whether the connection is drawn at the end of the nozzle: the P&amp;ID properties of the project say which connections are drawn.</source>
         <translation>Dessin du raccord au bout du piquage : les propriétés P&amp;ID du projet disent quels raccords sont dessinés.</translation>

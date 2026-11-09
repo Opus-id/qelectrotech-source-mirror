@@ -27,6 +27,7 @@
 #include <QMap>
 #include <QString>
 
+class QCheckBox;
 class QComboBox;
 class QFormLayout;
 class QLabel;
@@ -42,6 +43,12 @@ class Terminal;
 	drawn: as the project says, always or never. A DN or an outside diameter of the lists
 	of the project only, of a kind the connection takes. Live, a value is
 	applied when the field is left or the connection picked, with undo.
+
+	Above them, for an element of two nozzles or more, two boxes: one
+	connection (and drawing) for all, one size for all. Checked, the first
+	nozzle gives its value to the others, whose lists are greyed. Nothing of
+	them is written: they are checked when the nozzles are alike, at the
+	opening of the tab, and unchecked when they no longer are (an undo).
 */
 class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -78,6 +85,12 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 		QComboBox *markFor(const QString &name) const;
 			/// What was said of the last value refused or changed
 		QString message() const;
+			/// The box giving all the nozzles the connection and the drawing
+			/// of the first, nullptr for an element of one nozzle
+		QCheckBox *sameConnectionBox() const { return m_same_connection; }
+			/// The box giving all the nozzles the size of the first, nullptr
+			/// for an element of one nozzle
+		QCheckBox *sameSizeBox() const { return m_same_size; }
 
 	private:
 		struct Field {
@@ -104,9 +117,26 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// project joins to it, if there is one only, else none
 		void connectionPicked(const Field &field);
 		void showField(const Field &field);
+			/// @p field is the first nozzle, which gives its values to the
+			/// others when a box is checked
+		bool isFirst(const Field &field) const;
+			/// The nozzles of the element have one connection and drawing,
+			/// one size
+		bool allSameConnection() const;
+		bool allSameSize() const;
+			/// Give the others the connection and the drawing, the size of
+			/// the first nozzle, in the lists
+		void copyConnectionOfFirst();
+		void copySizeOfFirst();
+			/// A box checked or unchecked
+		void sameToggled();
+			/// Grey the lists the first nozzle fills
+		void updateLinkedFields();
 
 		QFormLayout *m_layout = nullptr;
 		QLabel *m_message = nullptr;
+		QCheckBox *m_same_connection = nullptr;
+		QCheckBox *m_same_size = nullptr;
 		QList<Field> m_fields;
 };
 

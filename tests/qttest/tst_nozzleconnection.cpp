@@ -30,6 +30,7 @@
 #include "qetproject.h"
 #include "ui/elementnozzleswidget.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDomDocument>
 #include <QLineEdit>
@@ -339,6 +340,111 @@ class tst_nozzleconnection : public QObject
 			QCOMPARE(tank->nozzleConnections().value(QStringLiteral("N1")), PipeConnection::PlainEnd);
 			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::outside(110));
 			QCOMPARE(n1->text(), QStringLiteral("Ø 110"));
+		}
+
+			// One connection, one size for all the nozzles (step 5l-1b)
+		void theNozzlesTabGivesAllTheNozzlesOneConnectionAndOneSize()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = placeTank(project, folio);
+			QVERIFY(tank);
+			const QString n1 = QStringLiteral("N1");
+			const QString n2 = QStringLiteral("N2");
+			{
+					// a flange of DN 100 and a plain end without size: unlike,
+					// both boxes unchecked, every list free
+				ElementNozzlesWidget tab(tank);
+				QVERIFY(tab.sameConnectionBox() && tab.sameSizeBox());
+				QVERIFY(!tab.sameConnectionBox()->isChecked());
+				QVERIFY(!tab.sameSizeBox()->isChecked());
+				QVERIFY(tab.connectionFor(n2)->isEnabled());
+			}
+				// alike: both checked, the lists of N2 greyed
+			tank->setNozzleConnections({{n2, PipeConnection::Flange}});
+			tank->setNozzleDiameters({{n2, PipeDiameter::nominal(100)}});
+			ElementNozzlesWidget tab(tank);
+			tab.setLiveEdit(true);
+			QVERIFY(tab.sameConnectionBox()->isChecked());
+			QVERIFY(tab.sameSizeBox()->isChecked());
+			QVERIFY(!tab.connectionFor(n2)->isEnabled());
+			QVERIFY(!tab.markFor(n2)->isEnabled());
+			QVERIFY(!tab.fieldFor(n2)->parentWidget()->isEnabled());
+
+				// the connection of N1 goes to N2, in one undo step
+			const int steps = folio->undoStack().count();
+			pick(tab.connectionFor(n1), PipeConnection::Socket);
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			QCOMPARE(terminal(tank, n1)->connection(), PipeConnection::Socket);
+			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Socket);
+				// so does its drawing
+			QComboBox *mark = tab.markFor(n1);
+			const int never = mark->findData(int(PipeConnection::MarkChoice::Never));
+			mark->setCurrentIndex(never);
+			emit mark->activated(never);
+			QCOMPARE(terminal(tank, n2)->markChoice(), PipeConnection::MarkChoice::Never);
+				// and its size
+			tab.fieldFor(n1)->setText(QStringLiteral("DN 80"));
+			emit tab.fieldFor(n1)->editingFinished();
+			QCOMPARE(terminal(tank, n2)->diameter(), PipeDiameter::nominal(80));
+			QVERIFY(tab.sameSizeBox()->isChecked());
+
+				// unchecked: N2 has a connection of its own
+			tab.sameConnectionBox()->setChecked(false);
+			QVERIFY(tab.connectionFor(n2)->isEnabled());
+			pick(tab.connectionFor(n2), PipeConnection::Thread);
+			QCOMPARE(terminal(tank, n1)->connection(), PipeConnection::Socket);
+			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Thread);
+				// checked again: N2 takes the one of N1, in one undo step...
+			const int before = folio->undoStack().count();
+			tab.sameConnectionBox()->setChecked(true);
+			QCOMPARE(folio->undoStack().count(), before + 1);
+			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Socket);
+				// ...undone: unlike again, the box unchecks itself
+			folio->undoStack().undo();
+			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Thread);
+			QVERIFY(!tab.sameConnectionBox()->isChecked());
+			QVERIFY(tab.connectionFor(n2)->isEnabled());
+		}
+
+			// A valve has one size: its other nozzle follows without a size
+			// written for it
+		void theOtherNozzleOfAValveFollowsWithoutASizeOfItsOwn()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+			project.embeddedElementCollection()->createDir(
+						QStringLiteral("import"), QStringLiteral("nozzles"), NamesList());
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pipe_inline=\"true\" "
+				"width=\"60\" height=\"40\" hotspot_x=\"30\" hotspot_y=\"20\">"
+				"<uuid uuid=\"{7c222222-2222-2222-2222-222222222222}\"/>"
+				"<names><name lang=\"en\">Valve</name></names>"
+				"<description>"
+				"<terminal uuid=\"{7c000000-0000-0000-0000-000000000011}\" name=\"N1\" x=\"-20\" y=\"0\" "
+				"orientation=\"w\" type=\"Generic\" medium=\"pipe\" dn=\"100\"/>"
+				"<terminal uuid=\"{7c000000-0000-0000-0000-000000000012}\" name=\"N2\" x=\"20\" y=\"0\" "
+				"orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>"
+				"</description></definition>"));
+			project.embeddedElementCollection()->addElementDefinition(
+						QStringLiteral("import/nozzles"), QStringLiteral("valve.elmt"), doc.documentElement());
+			int state = 0;
+			Element *valve = ElementFactory::Instance()->createElement(
+						ElementsLocation(QStringLiteral("embed://import/nozzles/valve.elmt"), &project),
+						nullptr, &state);
+			QVERIFY(valve && !state);
+			folio->addItem(valve);
+			ElementNozzlesWidget tab(valve);
+			tab.setLiveEdit(true);
+			QVERIFY(tab.sameSizeBox()->isChecked());
+			tab.fieldFor(QStringLiteral("N1"))->setText(QStringLiteral("DN 80"));
+			emit tab.fieldFor(QStringLiteral("N1"))->editingFinished();
+			QCOMPARE(terminal(valve, QStringLiteral("N2"))->diameter(), PipeDiameter::nominal(80));
+			QCOMPARE(valve->nozzleDiameters(),
+					 NozzleDiameters({{QStringLiteral("N1"), PipeDiameter::nominal(80)}}));
 		}
 
 		void aSizeTheTableJoinsTwiceIsRemoved()
