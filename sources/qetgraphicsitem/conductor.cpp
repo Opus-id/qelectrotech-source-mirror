@@ -718,6 +718,16 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 
 	painter -> setPen(final_conductor_pen);
 
+		//A pipe begins at the flange it brings or at the mark of its nozzle
+		//(pipeStartAt()): what lies before is not drawn
+	const QPainterPath trimmed = m_properties.m_medium == TerminalData::Pipe
+			? trimmedEnds(final_conductor_pen.widthF() / 2.0 + 1.0) : QPainterPath();
+	if (!trimmed.isEmpty()) {
+		QPainterPath kept;
+		kept.addRect(boundingRect().adjusted(-20, -20, 20, 20));
+		painter->save();
+		painter->setClipPath(kept.subtracted(trimmed), Qt::IntersectClip);
+	}
 		//Draw the conductor, with a hop at each crossing if the project asks for them
 	const QPainterPath painted_path = paintedPath();
 	painter -> drawPath(painted_path);
@@ -732,6 +742,9 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		painter->save();
 		painter->setPen(final_conductor_pen);
 		painter->drawPath(painted_path);
+		painter->restore();
+	}
+	if (!trimmed.isEmpty()) {
 		painter->restore();
 	}
 
@@ -774,11 +787,25 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	}
 
 	if (m_properties.m_medium == TerminalData::Pipe) {
-		drawCounterFlanges(painter, final_conductor_color, detail);
+		drawPipeParts(painter, final_conductor_color, detail);
 		drawDiameterGaps(painter);
 	}
 
 	painter -> restore();
+}
+
+namespace {
+		/// The direction a pipe leaves @p terminal in, on the folio
+	QPointF outwardOf(const Terminal *terminal)
+	{
+		switch (terminal->orientation()) {
+			case Qet::North: return QPointF(0, -1);
+			case Qet::East:  return QPointF(1, 0);
+			case Qet::South: return QPointF(0, 1);
+			case Qet::West:  return QPointF(-1, 0);
+		}
+		return QPointF(1, 0);
+	}
 }
 
 /**
@@ -796,13 +823,7 @@ qreal Conductor::straightRunFrom(const Terminal *terminal) const
 	if (QLineF(points.constLast(), dock).length() < QLineF(points.constFirst(), dock).length()) {
 		std::reverse(points.begin(), points.end());
 	}
-	QPointF outward;
-	switch (terminal->orientation()) {
-		case Qet::North: outward = QPointF(0, -1); break;
-		case Qet::East:  outward = QPointF(1, 0);  break;
-		case Qet::South: outward = QPointF(0, 1);  break;
-		case Qet::West:  outward = QPointF(-1, 0); break;
-	}
+	const QPointF outward = outwardOf(terminal);
 	qreal run = 0;
 	for (int i = 0 ; i + 1 < points.size() ; ++i)
 	{
@@ -818,57 +839,104 @@ qreal Conductor::straightRunFrom(const Terminal *terminal) const
 }
 
 /**
-	@brief Conductor::drawsCounterFlange
+	@brief Conductor::drawsPipePart
 	See the declaration
 */
-bool Conductor::drawsCounterFlange(const Terminal *terminal) const
+bool Conductor::drawsPipePart(const Terminal *terminal) const
 {
 	if (m_properties.m_medium != TerminalData::Pipe || !terminal
 		|| (terminal != terminal1 && terminal != terminal2) || endsTouch()) {
 		return false;
 	}
-	return terminal->connection() == PipeConnection::Flange
+	const PipeConnection::Type type = terminal->connection();
+	return PipeConnection::bringsPart(type)
 			&& terminal->drawsConnectionMark()
-			&& straightRunFrom(terminal) >= PipeConnection::counterFlangeRoom;
+			&& straightRunFrom(terminal)
+			   >= PipeConnection::pipePartStart(type, terminal->markDistance())
+				  + PipeConnection::pipePartMargin;
 }
 
 /**
-	@brief Conductor::drawCounterFlanges
-	Draw the counter-flange this pipe brings to each flange it arrives on
-	(drawsCounterFlange()), a line across like the flange, in the colour of
-	the pipe. Part of the drawing: on paper too.
+	@brief Conductor::pipeStartAt
+	See the declaration
+*/
+qreal Conductor::pipeStartAt(const Terminal *terminal) const
+{
+	if (m_properties.m_medium != TerminalData::Pipe || !terminal
+		|| (terminal != terminal1 && terminal != terminal2) || endsTouch()
+		|| !terminal->drawsConnectionMark()) {
+		return 0;
+	}
+	const qreal start = PipeConnection::pipeStart(terminal->connection(), terminal->markDistance(),
+												  drawsPipePart(terminal));
+		//A pipe turning before keeps its whole length
+	return straightRunFrom(terminal) > start ? start : 0;
+}
+
+/**
+	@brief Conductor::trimmedEnds
+	@param half_width : half the width of the pen the pipe is drawn with
+	@return what of this pipe is not drawn: at each end, from the nozzle to
+	where it begins (pipeStartAt()); an empty path for most pipes and for
+	any other medium
+*/
+QPainterPath Conductor::trimmedEnds(qreal half_width) const
+{
+	QPainterPath trimmed;
+	for (const Terminal *terminal : {terminal1, terminal2})
+	{
+		const qreal start = pipeStartAt(terminal);
+		if (start <= 0) {
+			continue;
+		}
+		const QPointF outward = outwardOf(terminal);
+		const QPointF across(-outward.y(), outward.x());
+		const QPointF dock = mapFromScene(terminal->dockConductor());
+			//From behind the nozzle, where the square end of a thick pipe
+			//would show, to its start
+		const QPointF from = dock - half_width * outward;
+		const QPointF to = dock + start * outward;
+		trimmed.addPolygon(QPolygonF({from + half_width * across, to + half_width * across,
+									  to - half_width * across, from - half_width * across}));
+		trimmed.closeSubpath();
+	}
+	return trimmed;
+}
+
+/**
+	@brief Conductor::drawPipeParts
+	Draw the part this pipe brings to each nozzle it arrives on
+	(drawsPipePart()): its flange, its socket, its grooved end, its half of a
+	quick coupling, in the colour of the pipe: a new pipe brings a new part.
+	Part of the drawing: on paper too.
 	@param painter
 	@param color : the colour the pipe is drawn in
 	@param detail : the level of detail of the drawing
 */
-void Conductor::drawCounterFlanges(QPainter *painter, const QColor &color, qreal detail) const
+void Conductor::drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const
 {
 	const bool on_screen = painter->device()
 			&& painter->device()->devType() == QInternal::Widget;
 	for (const Terminal *terminal : {terminal1, terminal2})
 	{
-		if (!drawsCounterFlange(terminal)) {
+		if (!drawsPipePart(terminal)) {
 			continue;
 		}
-		QPointF outward;
-		switch (terminal->orientation()) {
-			case Qet::North: outward = QPointF(0, -1); break;
-			case Qet::East:  outward = QPointF(1, 0);  break;
-			case Qet::South: outward = QPointF(0, 1);  break;
-			case Qet::West:  outward = QPointF(-1, 0); break;
-		}
-		const QPointF across(-outward.y(), outward.x());
-		const QPointF middle = mapFromScene(terminal->dockConductor())
-							   + PipeConnection::counterFlangeDistance * outward;
-		const qreal h = PipeConnection::markHalfHeight;
+		QPainterPath strokes;
+		PipeConnection::pipePartShapes(terminal->connection(), terminal->markDistance(), &strokes);
+			//The frame of the mark of the nozzle, turned and mirrored as its
+			//element: the two halves of a quick coupling face each other
+		const QTransform frame = terminal->markTransform() * terminal->sceneTransform()
+								 * sceneTransform().inverted();
 		painter->save();
 		painter->setRenderHint(QPainter::Antialiasing, true);
-		QPen pen(color, 1.0, Qt::SolidLine, Qt::FlatCap);
+		QPen pen(color, 1.0, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
 		if (on_screen && detail < 1.0) {
 			pen.setCosmetic(true);
 		}
 		painter->setPen(pen);
-		painter->drawLine(middle - h * across, middle + h * across);
+		painter->setBrush(Qt::NoBrush);
+		painter->drawPath(frame.map(strokes));
 		painter->restore();
 	}
 }

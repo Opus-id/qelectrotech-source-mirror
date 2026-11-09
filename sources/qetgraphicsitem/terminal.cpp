@@ -342,7 +342,7 @@ void Terminal::paint(
 
 		//The mark of the connection of a nozzle: part of the drawing, at any
 		//zoom and on paper
-	if (drawsConnectionMark()) {
+	if (drawsOwnMark()) {
 		drawConnectionMark(painter, options ? options->levelOfDetailFromTransform(painter->worldTransform())
 											: 1.0);
 	}
@@ -560,7 +560,7 @@ QRectF Terminal::boundingRect() const
 	}
 		//The largest mark, with its pen
 	const qreal h = PipeConnection::markHalfHeight + 3;
-	return own.united(markTransform().mapRect(QRectF(-1, -h, 18, 2 * h)));
+	return own.united(markTransform().mapRect(QRectF(-4, -h, 22, 2 * h)));
 }
 
 /**
@@ -1376,21 +1376,33 @@ bool Terminal::drawsConnectionMark() const
 		return false;
 	}
 	const PipeConnection::Type type = connection();
-	if (!PipeConnection::hasMark(type)) {
-		return false;
-	}
 	switch (markChoice()) {
 		case PipeConnection::MarkChoice::Never:
 			return false;
 		case PipeConnection::MarkChoice::Always:
 			break;
 		case PipeConnection::MarkChoice::Project:
-			if (!folio->project()->pidCodification().drawsConnection(type)) {
+			if (!folio->project()->pidCodification().drawsConnection(PipeConnection::drawnWith(type))) {
 				return false;
 			}
 			break;
 	}
 	return !touchesNozzle();
+}
+
+qreal Terminal::markDistance() const
+{
+	return parent_element_ && parent_element_->isPipeInline()
+			? PipeConnection::inlineMarkDistance : 0;
+}
+
+bool Terminal::drawsOwnMark() const
+{
+	if (!drawsConnectionMark() || !PipeConnection::hasOwnMark(connection())) {
+		return false;
+	}
+	return connection() != PipeConnection::Flange
+			|| !parent_element_ || !parent_element_->isPipeInline();
 }
 
 bool Terminal::touchesNozzle() const
@@ -1451,7 +1463,7 @@ QTransform Terminal::markTransform() const
 void Terminal::drawConnectionMark(QPainter *painter, qreal detail) const
 {
 	QPainterPath strokes, fills;
-	PipeConnection::markShapes(connection(), &strokes, &fills);
+	PipeConnection::markShapes(connection(), markDistance(), &strokes, &fills);
 	const QColor ink = parent_element_ ? parent_element_->symbolInk() : QColor(Qt::black);
 	painter->save();
 	painter->setRenderHint(QPainter::Antialiasing, true);

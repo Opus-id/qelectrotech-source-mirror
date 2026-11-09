@@ -39,7 +39,7 @@
 	How a pipe is joined to a nozzle: a flange by default, a plain end, a
 	socket, a thread... Given by the symbol (attribute connection of the
 	terminal), changed by a placed element (<nozzles> block). The connection
-	decides the kind of size of the nozzle: a flange a DN, a solvent socket an
+	decides the kind of size of the nozzle: a flange a DN, a socket a DN or an
 	outside diameter.
 */
 class tst_nozzleconnection : public QObject
@@ -133,11 +133,11 @@ class tst_nozzleconnection : public QObject
 		{
 			QVERIFY(PipeConnection::allows(PipeConnection::Flange, PipeDiameter::nominal(100)));
 			QVERIFY(!PipeConnection::allows(PipeConnection::Flange, PipeDiameter::outside(110)));
-			QVERIFY(PipeConnection::allows(PipeConnection::SolventSocket, PipeDiameter::outside(110)));
-			QVERIFY(!PipeConnection::allows(PipeConnection::SolventSocket, PipeDiameter::nominal(100)));
-			for (PipeConnection::Type type : {PipeConnection::PlainEnd, PipeConnection::FusionSocket,
-											   PipeConnection::GasketSocket, PipeConnection::ButtWeld,
-											   PipeConnection::Grooved}) {
+			QVERIFY(PipeConnection::allows(PipeConnection::QuickCoupling, PipeDiameter::nominal(65)));
+			QVERIFY(!PipeConnection::allows(PipeConnection::QuickCoupling, PipeDiameter::outside(75)));
+				// a socket as the plain end it receives
+			for (PipeConnection::Type type : {PipeConnection::PlainEnd, PipeConnection::Socket,
+											   PipeConnection::ButtWeld, PipeConnection::Grooved}) {
 				QVERIFY(PipeConnection::allows(type, PipeDiameter::nominal(100)));
 				QVERIFY(PipeConnection::allows(type, PipeDiameter::outside(110)));
 			}
@@ -145,12 +145,11 @@ class tst_nozzleconnection : public QObject
 			for (PipeConnection::Type type : PipeConnection::all()) {
 				QVERIFY(PipeConnection::allows(type, PipeDiameter()));
 			}
-				// a number typed alone: an outside diameter for a socket to
-				// glue or to weld, else a DN
-			QCOMPARE(PipeConnection::kinds(PipeConnection::FusionSocket).constFirst(),
-					 PipeDiameter::Outside);
-			QCOMPARE(PipeConnection::kinds(PipeConnection::GasketSocket).constFirst(),
-					 PipeDiameter::Nominal);
+				// a number typed alone: a DN, but inches for a thread
+			for (PipeConnection::Type type : PipeConnection::all()) {
+				QCOMPARE(PipeConnection::kinds(type).constFirst(),
+						 type == PipeConnection::Thread ? PipeDiameter::Thread : PipeDiameter::Nominal);
+			}
 		}
 
 		void eachConnectionHasItsWord()
@@ -165,6 +164,13 @@ class tst_nozzleconnection : public QObject
 			QCOMPARE(PipeConnection::fromString(QStringLiteral("bayonet"), &ok), PipeConnection::Flange);
 			QVERIFY(!ok);
 			QCOMPARE(PipeConnection::fromString(QString()), PipeConnection::Flange);
+				// the three sockets of the first trials: the socket they became
+			for (const QString &word : {QStringLiteral("solvent_socket"), QStringLiteral("fusion_socket"),
+										QStringLiteral("gasket_socket")}) {
+				ok = false;
+				QCOMPARE(PipeConnection::fromString(word, &ok), PipeConnection::Socket);
+				QVERIFY(ok);
+			}
 		}
 
 			// ---- the symbol ----
@@ -176,10 +182,11 @@ class tst_nozzleconnection : public QObject
 				"medium=\"pipe\" connection=\"solvent_socket\" od=\"110\"/>"));
 			PartTerminal part(nullptr);
 			part.fromXml(doc.documentElement());
-			QCOMPARE(part.connection(), PipeConnection::SolventSocket);
+				// a socket of the first trials, written as the socket it became
+			QCOMPARE(part.connection(), PipeConnection::Socket);
 			QDomDocument out;
 			QCOMPARE(part.toXml(out).attribute(QStringLiteral("connection")),
-					 QStringLiteral("solvent_socket"));
+					 QStringLiteral("socket"));
 
 				// a flange, the default, is not written
 			part.setConnectionWord(QStringLiteral("flange"));
@@ -213,12 +220,12 @@ class tst_nozzleconnection : public QObject
 			QCOMPARE(n1->toolTip(), QStringLiteral("Flange"));
 			QVERIFY(!folio->hasSymbolChoices());
 
-				// a DN names no socket to glue: the nozzle has no size
-			tank->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::SolventSocket}});
-			QCOMPARE(n1->connection(), PipeConnection::SolventSocket);
-			QVERIFY(!n1->diameter().isSet());
-			QCOMPARE(n1->labelText(), QStringLiteral("N1"));
-			QCOMPARE(n1->toolTip(), QStringLiteral("Solvent socket"));
+				// a socket is named by a DN too: DN 100 kept
+			tank->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::Socket}});
+			QCOMPARE(n1->connection(), PipeConnection::Socket);
+			QCOMPARE(n1->diameter(), PipeDiameter::nominal(100));
+			QCOMPARE(n1->labelText(), QStringLiteral("N1\nDN 100"));
+			QCOMPARE(n1->toolTip(), QStringLiteral("Socket"));
 			tank->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::outside(110)}});
 			QCOMPARE(n1->labelText(), QStringLiteral("N1\nØ 110"));
 				// a folio with such a choice is no .qetdb
@@ -231,7 +238,7 @@ class tst_nozzleconnection : public QObject
 			const QDomElement nozzle = written.firstChildElement(QStringLiteral("nozzles"))
 									   .firstChildElement(QStringLiteral("nozzle"));
 			QCOMPARE(nozzle.attribute(QStringLiteral("name")), QStringLiteral("N1"));
-			QCOMPARE(nozzle.attribute(QStringLiteral("connection")), QStringLiteral("solvent_socket"));
+			QCOMPARE(nozzle.attribute(QStringLiteral("connection")), QStringLiteral("socket"));
 			QCOMPARE(nozzle.attribute(QStringLiteral("od")), QStringLiteral("110"));
 			QCOMPARE(Element::nozzleConnectionsFromXml(written), tank->nozzleConnections());
 			QCOMPARE(Element::nozzleDiametersFromXml(written), tank->nozzleDiameters());
@@ -262,53 +269,49 @@ class tst_nozzleconnection : public QObject
 			Diagram *folio = project.addNewDiagram();
 			Element *tank = placeTank(project, folio);
 			QVERIFY(tank);
+				// N1, a flange of DN 100 in the symbol, made a socket of Ø 110
+			tank->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::Socket}});
+			tank->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::outside(110)}});
 			ElementNozzlesWidget tab(tank);
 			tab.setLiveEdit(true);
 			QComboBox *connection = tab.connectionFor(QStringLiteral("N1"));
 			QLineEdit *n1 = tab.fieldFor(QStringLiteral("N1"));
 			QVERIFY(connection && n1);
-			QCOMPARE(connection->currentData().toInt(), int(PipeConnection::Flange));
+			QCOMPARE(connection->currentData().toInt(), int(PipeConnection::Socket));
+			QCOMPARE(n1->text(), QStringLiteral("Ø 110"));
 			auto *list = qobject_cast<QComboBox *>(n1->parentWidget());
-				// a flange: the DN only
-			QCOMPARE(list->count(), 3);
-			QCOMPARE(n1->placeholderText(), QStringLiteral("DN 100"));
+				// a socket: the DN and the outside diameters
+			QCOMPARE(list->count(), 5);
+				// a number alone is a DN
+			n1->setText(QStringLiteral("80"));
+			emit n1->editingFinished();
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::nominal(80));
+			n1->setText(QStringLiteral("Ø 110"));
+			emit n1->editingFinished();
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::outside(110));
 
-				// a socket to glue: DN 100 of the symbol becomes Ø 110, the
-				// size the table joins to it, in one undo step
+				// a flange: Ø 110 becomes DN 100, the size the table joins to
+				// it, in one undo step; the flange and the DN of the symbol,
+				// so nothing is kept
 			const int steps = folio->undoStack().count();
-			pick(connection, PipeConnection::SolventSocket);
-			QCOMPARE(tank->nozzleConnections().value(QStringLiteral("N1")), PipeConnection::SolventSocket);
-			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::outside(110));
-			QCOMPARE(n1->text(), QStringLiteral("Ø 110"));
-			QVERIFY(tab.message().contains(QStringLiteral("Ø 110")));
-			QCOMPARE(folio->undoStack().count(), steps + 1);
-				// the outside diameters only
-			QCOMPARE(list->count(), 3);
-			QCOMPARE(list->itemText(1), QStringLiteral("Ø 110"));
-				// a DN typed is refused
-			n1->setText(QStringLiteral("DN 80"));
-			emit n1->editingFinished();
-			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::outside(110));
-			QCOMPARE(n1->text(), QStringLiteral("Ø 110"));
-				// a number alone is an outside diameter
-			n1->setText(QStringLiteral("125"));
-			emit n1->editingFinished();
-			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::outside(125));
-
-				// undone: the flange and the DN of the symbol again
-			folio->undoStack().undo();
-			folio->undoStack().undo();
-			QVERIFY(tank->nozzleConnections().isEmpty());
-			QVERIFY(tank->nozzleDiameters().isEmpty());
-			QCOMPARE(connection->currentData().toInt(), int(PipeConnection::Flange));
-			QCOMPARE(terminal(tank, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\nDN 100"));
-
-				// and back to a flange from Ø 110: DN 100, the one of the
-				// symbol, so nothing is kept
-			folio->undoStack().redo();
 			pick(connection, PipeConnection::Flange);
 			QVERIFY(tank->nozzleConnections().isEmpty());
 			QVERIFY(tank->nozzleDiameters().isEmpty());
+			QVERIFY(tab.message().contains(QStringLiteral("DN 100")));
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			QCOMPARE(terminal(tank, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\nDN 100"));
+				// the DN only
+			QCOMPARE(list->count(), 3);
+				// an outside diameter typed is refused
+			n1->setText(QStringLiteral("Ø 125"));
+			emit n1->editingFinished();
+			QVERIFY(tank->nozzleDiameters().isEmpty());
+
+				// undone: the socket of Ø 110 again
+			folio->undoStack().undo();
+			QCOMPARE(tank->nozzleConnections().value(QStringLiteral("N1")), PipeConnection::Socket);
+			QCOMPARE(tank->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::outside(110));
+			QCOMPARE(connection->currentData().toInt(), int(PipeConnection::Socket));
 		}
 
 			// The dialog of the properties: nothing applied before Apply
@@ -342,20 +345,24 @@ class tst_nozzleconnection : public QObject
 		{
 			QETProject project;
 			PidCodification table = codification();
-			table.outside_diameters.insert(1250, {100, 125});
+			table.materials[1].series << 1250;
+			table.outside_diameters.insert(1100, {100, 125});
 			project.setPidCodification(table);
 			Diagram *folio = project.addNewDiagram();
 			Element *tank = placeTank(project, folio);
 			QVERIFY(tank);
+			tank->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::Socket}});
+			tank->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::outside(110)}});
 			ElementNozzlesWidget tab(tank);
 			tab.setLiveEdit(true);
-				// DN 100 is Ø 110 or Ø 125: neither is chosen
-			pick(tab.connectionFor(QStringLiteral("N1")), PipeConnection::SolventSocket);
-			QCOMPARE(tank->nozzleConnections().value(QStringLiteral("N1")), PipeConnection::SolventSocket);
+				// Ø 110 is DN 100 or DN 125: neither is chosen, the nozzle has
+				// the DN of its symbol again
+			pick(tab.connectionFor(QStringLiteral("N1")), PipeConnection::Flange);
+			QVERIFY(tank->nozzleConnections().isEmpty());
 			QVERIFY(tank->nozzleDiameters().isEmpty());
 			QVERIFY(tab.fieldFor(QStringLiteral("N1"))->text().isEmpty());
-			QVERIFY(!terminal(tank, QStringLiteral("N1"))->diameter().isSet());
-			QVERIFY(tab.message().contains(QStringLiteral("DN 100")));
+			QCOMPARE(terminal(tank, QStringLiteral("N1"))->diameter(), PipeDiameter::nominal(100));
+			QVERIFY(tab.message().contains(QStringLiteral("Ø 110")));
 		}
 
 			// ---- pipe threads (5k-2) ----
@@ -440,7 +447,7 @@ class tst_nozzleconnection : public QObject
 					 PipeDiameter::nominal(100));
 			QVERIFY(!PipeConnection::fitted(PipeConnection::Thread, PipeDiameter::outside(48.3)).isSet());
 			QVERIFY(!PipeConnection::fitted(PipeConnection::Thread, PipeDiameter::nominal(300)).isSet());
-			QVERIFY(!PipeConnection::fitted(PipeConnection::SolventSocket, PipeDiameter::thread(12)).isSet());
+			QVERIFY(!PipeConnection::fitted(PipeConnection::Flange, PipeDiameter::outside(110)).isSet());
 
 				// the mark compares a thread by its DN
 			const PidCodification table = codification();

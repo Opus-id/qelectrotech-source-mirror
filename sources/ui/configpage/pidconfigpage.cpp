@@ -367,7 +367,8 @@ void PidConfigPage::initWidgets()
 
 	for (PipeConnection::Type type : PipeConnection::all())
 	{
-		if (!PipeConnection::hasMark(type)) {
+			//A plain end is drawn with the sockets: the socket its pipe brings
+		if (PipeConnection::drawnWith(type) != type) {
 			continue;
 		}
 		auto *drawn = new QCheckBox(PipeConnection::name(type), this);
@@ -423,11 +424,16 @@ void PidConfigPage::initLayout()
 	auto *connections_tab = new QWidget(this);
 	auto *connections_layout = new QVBoxLayout(connections_tab);
 	auto *connections_help = new QLabel(tr("The connections checked are drawn at the end of the "
-										   "nozzles, 1 mm from the symbol, in its color; a pipe "
-										   "arriving on a flange draws the counter-flange. A nozzle "
-										   "may say otherwise (properties of the element, Nozzles). "
-										   "Two symbols placed against each other draw nothing "
-										   "between them."), connections_tab);
+										   "nozzles, in the color of the symbol: on a valve 1 mm "
+										   "from its body, on an equipment at the end of the nozzle. "
+										   "A pipe brings its own part, in the color of the pipe, and "
+										   "begins after it: its flange 1 mm from a flange (the side "
+										   "of a valve stands for the flange of the valve), its "
+										   "socket on a plain end (drawn with the sockets), its "
+										   "grooved end in the collar, its half of a quick coupling. "
+										   "A nozzle may say otherwise (properties of the element, "
+										   "Nozzles). Two symbols placed against each other draw "
+										   "nothing between them."), connections_tab);
 	connections_help->setWordWrap(true);
 	connections_layout->addWidget(connections_help);
 	for (PipeConnection::Type type : PipeConnection::all()) {

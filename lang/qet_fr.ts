@@ -12675,8 +12675,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="414"/>
-        <source>The connections checked are drawn at the end of the nozzles, 1 mm from the symbol, in its color; a pipe arriving on a flange draws the counter-flange. A nozzle may say otherwise (properties of the element, Nozzles). Two symbols placed against each other draw nothing between them.</source>
-        <translation>Les raccords cochés sont dessinés au bout des piquages, à 1 mm du symbole, dans sa couleur ; une tuyauterie qui arrive sur une bride dessine la contre-bride. Un piquage peut en décider autrement (propriétés de l&apos;élément, Piquages). Deux symboles posés l&apos;un contre l&apos;autre ne dessinent rien entre eux.</translation>
+        <source>The connections checked are drawn at the end of the nozzles, in the color of the symbol: on a valve 1 mm from its body, on an equipment at the end of the nozzle. A pipe brings its own part, in the color of the pipe, and begins after it: its flange 1 mm from a flange (the side of a valve stands for the flange of the valve), its socket on a plain end (drawn with the sockets), its grooved end in the collar, its half of a quick coupling. A nozzle may say otherwise (properties of the element, Nozzles). Two symbols placed against each other draw nothing between them.</source>
+        <translation>Les raccords cochés sont dessinés au bout des piquages, dans la couleur du symbole : sur une vanne à 1 mm du corps, sur un équipement au bout du piquage. Une tuyauterie apporte sa propre pièce, dans sa couleur, et commence après elle : sa bride à 1 mm d&apos;une bride (le côté d&apos;une vanne tient lieu de bride de la vanne), son emboîture sur un bout lisse (dessinée avec les emboîtements), son bout rainuré dans le collier, sa moitié de raccord rapide. Un piquage peut en décider autrement (propriétés de l&apos;élément, Piquages). Deux symboles posés l&apos;un contre l&apos;autre ne dessinent rien entre eux.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="112"/>
@@ -12871,18 +12871,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/pipeconnection.h" line="99"/>
-        <source>Solvent socket</source>
-        <translation>Emboîtement à coller</translation>
-    </message>
-    <message>
-        <location filename="../sources/pipeconnection.h" line="101"/>
-        <source>Fusion socket</source>
-        <translation>Emboîtement à souder</translation>
-    </message>
-    <message>
-        <location filename="../sources/pipeconnection.h" line="103"/>
-        <source>Gasket socket</source>
-        <translation>Emboîtement à joint</translation>
+        <source>Socket</source>
+        <translation>À emboîtement</translation>
     </message>
     <message>
         <location filename="../sources/pipeconnection.h" line="105"/>
@@ -12898,6 +12888,11 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/pipeconnection.h" line="109"/>
         <source>Grooved</source>
         <translation>Rainuré</translation>
+    </message>
+    <message>
+        <location filename="../sources/pipeconnection.h" line="111"/>
+        <source>Quick coupling</source>
+        <translation>Raccord rapide</translation>
     </message>
 </context>
 <context>

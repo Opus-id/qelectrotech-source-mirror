@@ -30,7 +30,7 @@
 	@brief The PipeConnection class
 	How a pipe is joined to a nozzle: a flange, a plain end, a socket, a
 	thread... The list is fixed: each kind of connection decides the kind of
-	size the nozzle is named by (allows()), a flange a DN, a solvent socket an
+	size the nozzle is named by (allows()), a flange a DN, a socket a DN or an
 	outside diameter, a thread inches.
 
 	A flange is the default: a nozzle that says nothing is a flange, and a
@@ -42,19 +42,18 @@ class PipeConnection
 		enum Type {
 			Flange,
 			PlainEnd,
-			SolventSocket,	///< a socket to glue (PVC, ABS)
-			FusionSocket,	///< a socket to weld (electrofusion, socket fusion)
-			GasketSocket,	///< a socket with a gasket (ductile iron, PVC)
+			Socket,			///< a socket: to glue, to weld or with a gasket, the
+							///< material of the pipe tells them apart
 			Thread,			///< a pipe thread
-			ButtWeld,
-			Grooved			///< a grooved end and its coupling
+			ButtWeld,		///< a butt weld; a brazed joint too
+			Grooved,		///< a grooved end and its coupling
+			QuickCoupling	///< a quick coupling, its two halves alike
 		};
 
 			/// All of them, in the order the lists offer them
 		static QList<Type> all()
 		{
-			return {Flange, PlainEnd, SolventSocket, FusionSocket, GasketSocket,
-					Thread, ButtWeld, Grooved};
+			return {Flange, PlainEnd, Socket, Thread, ButtWeld, Grooved, QuickCoupling};
 		}
 
 			/// The word the files use for @p type
@@ -63,18 +62,19 @@ class PipeConnection
 			switch (type) {
 				case Flange:        return QStringLiteral("flange");
 				case PlainEnd:      return QStringLiteral("plain_end");
-				case SolventSocket: return QStringLiteral("solvent_socket");
-				case FusionSocket:  return QStringLiteral("fusion_socket");
-				case GasketSocket:  return QStringLiteral("gasket_socket");
+				case Socket:        return QStringLiteral("socket");
 				case Thread:        return QStringLiteral("thread");
 				case ButtWeld:      return QStringLiteral("butt_weld");
 				case Grooved:       return QStringLiteral("grooved");
+				case QuickCoupling: return QStringLiteral("quick_coupling");
 			}
 			return QStringLiteral("flange");
 		}
 			/// The connection @p string names; anything else, the absence of
 			/// the attribute included, is a flange. @p ok, if given, tells
-			/// whether @p string was a word of the list.
+			/// whether @p string was a word of the list. The three sockets
+			/// of the first trials (to glue, to weld, with a gasket) are read
+			/// as the socket they became.
 		static Type fromString(const QString &string, bool *ok = nullptr)
 		{
 			for (Type type : all()) {
@@ -82,6 +82,12 @@ class PipeConnection
 					if (ok) *ok = true;
 					return type;
 				}
+			}
+			if (string == QLatin1String("solvent_socket")
+				|| string == QLatin1String("fusion_socket")
+				|| string == QLatin1String("gasket_socket")) {
+				if (ok) *ok = true;
+				return Socket;
 			}
 			if (ok) *ok = false;
 			return Flange;
@@ -95,37 +101,33 @@ class PipeConnection
 					return QCoreApplication::translate("PipeConnection", "Flange");
 				case PlainEnd:
 					return QCoreApplication::translate("PipeConnection", "Plain end");
-				case SolventSocket:
-					return QCoreApplication::translate("PipeConnection", "Solvent socket");
-				case FusionSocket:
-					return QCoreApplication::translate("PipeConnection", "Fusion socket");
-				case GasketSocket:
-					return QCoreApplication::translate("PipeConnection", "Gasket socket");
+				case Socket:
+					return QCoreApplication::translate("PipeConnection", "Socket");
 				case Thread:
 					return QCoreApplication::translate("PipeConnection", "Pipe thread");
 				case ButtWeld:
 					return QCoreApplication::translate("PipeConnection", "Butt weld");
 				case Grooved:
 					return QCoreApplication::translate("PipeConnection", "Grooved");
+				case QuickCoupling:
+					return QCoreApplication::translate("PipeConnection", "Quick coupling");
 			}
 			return QString();
 		}
 
 			/// The kinds of size a nozzle of @p type is named by, the first
-			/// being the one a number typed alone is read as
+			/// being the one a number typed alone is read as. A socket as the
+			/// plain end it receives: a DN or an outside diameter.
 		static QList<PipeDiameter::Kind> kinds(Type type)
 		{
 			switch (type) {
 				case Flange:
+				case QuickCoupling:
 					return {PipeDiameter::Nominal};
 				case Thread:
 					return {PipeDiameter::Thread};
-				case SolventSocket:
-					return {PipeDiameter::Outside};
-				case FusionSocket:
-					return {PipeDiameter::Outside, PipeDiameter::Nominal};
 				case PlainEnd:
-				case GasketSocket:
+				case Socket:
 				case ButtWeld:
 				case Grooved:
 					return {PipeDiameter::Nominal, PipeDiameter::Outside};
@@ -157,32 +159,39 @@ class PipeConnection
 			return PipeDiameter();
 		}
 
-			/// Where the mark of a connection is drawn, in units from the
-			/// point where the pipe joins the nozzle, on the side of the
-			/// pipe: never on the nozzle itself, which a valve has on the
-			/// side of its body
-		static constexpr qreal markDistance = 4;
-			/// Where a pipe draws the counter-flange it brings to a flange
-		static constexpr qreal counterFlangeDistance = 8;
-			/// The straight length a pipe needs from a flange to draw its
-			/// counter-flange: a pipe shorter, or turning before, has none
-		static constexpr qreal counterFlangeRoom = 12;
+			/// Where the mark of a connection is drawn on a symbol a line runs
+			/// through (a valve), in units from the point where the pipe
+			/// joins the nozzle, on the side of the pipe: such a symbol has its
+			/// nozzles on the side of its body, which a mark there would
+			/// merge with. On any other symbol (equipment), whose nozzles are
+			/// at the end of a short line, the mark is on the nozzle itself.
+		static constexpr qreal inlineMarkDistance = 4;
+			/// Where a pipe draws the flange it brings to a flange: the
+			/// counter-flange of an equipment, the only flange drawn on a
+			/// valve, whose side stands for its own
+		static constexpr qreal pipeFlangeDistance = 4;
+			/// The straight length a pipe needs beyond the part it brings
+			/// (pipePartStart()) to draw it: a pipe shorter, or turning
+			/// before, has none
+		static constexpr qreal pipePartMargin = 8;
 			/// Half the length of a flange across the pipe: that of the side
 			/// of the generic valve
 		static constexpr qreal markHalfHeight = 10;
 
-			/// The mark drawn at the end of a nozzle of @p type, in a frame
-			/// whose x goes from the nozzle along the pipe and whose y goes
-			/// across, in units: in @p strokes the lines, in @p fills the
-			/// dots. A flange is a line across, a thread a shorter one, a
-			/// socket a bracket open towards the pipe, a socket to weld the
-			/// same with two dots, a socket with a gasket a rounded one, a
-			/// butt weld a dot, a grooved end a collar; a plain end nothing.
-		static void markShapes(Type type, QPainterPath *strokes, QPainterPath *fills)
+			/// The mark a nozzle of @p type draws at its end, in a frame whose
+			/// x goes from the nozzle along the pipe and whose y goes across,
+			/// in units, the mark being at @p at (0 on an equipment,
+			/// inlineMarkDistance on a valve): in @p strokes the lines, in
+			/// @p fills the dots. A flange is a line across; a socket a bracket
+			/// open towards the pipe; a thread two short lines along the
+			/// pipe, either side of it, after the side of a valve or astride
+			/// the end of the nozzle of an equipment; a butt weld a dot; a
+			/// grooved end a shorter line in a collar with hooks; a quick
+			/// coupling its half, a hook; a plain end nothing.
+		static void markShapes(Type type, qreal at, QPainterPath *strokes, QPainterPath *fills)
 		{
-			const qreal d = markDistance;
+			const qreal d = at;
 			const qreal h = markHalfHeight;
-			const qreal arms = d + 10;
 			switch (type) {
 				case Flange:
 					strokes->moveTo(d, -h);
@@ -190,36 +199,113 @@ class PipeConnection
 					break;
 				case PlainEnd:
 					break;
-				case SolventSocket:
-				case FusionSocket:
-					strokes->moveTo(arms, -h);
+				case Socket:
+					strokes->moveTo(d + 10, -h);
 					strokes->lineTo(d, -h);
 					strokes->lineTo(d, h);
-					strokes->lineTo(arms, h);
-					if (type == FusionSocket) {
-						fills->addEllipse(QPointF(arms, -h), 2, 2);
-						fills->addEllipse(QPointF(arms, h), 2, 2);
-					}
+					strokes->lineTo(d + 10, h);
 					break;
-				case GasketSocket:
-					strokes->moveTo(arms, -h);
-					strokes->quadTo(d, -h, d, 0);
-					strokes->quadTo(d, h, arms, h);
+				case Thread: {
+					const qreal from = d > 0 ? d : d - 4;
+					strokes->moveTo(from, -6);
+					strokes->lineTo(from + 8, -6);
+					strokes->moveTo(from, 6);
+					strokes->lineTo(from + 8, 6);
 					break;
-				case Thread:
-					strokes->moveTo(d, -h / 2);
-					strokes->lineTo(d, h / 2);
-					break;
+				}
 				case ButtWeld:
 					fills->addEllipse(QPointF(d, 0), 4, 4);
 					break;
 				case Grooved:
-					strokes->addRect(QRectF(d - 2, -h, 10, 2 * h));
+					strokes->moveTo(d, -7);
+					strokes->lineTo(d, 7);
+					strokes->moveTo(d - 2, -8);
+					strokes->lineTo(d - 2, -h);
+					strokes->lineTo(d + 6, -h);
+					strokes->lineTo(d + 6, -8);
+					strokes->moveTo(d - 2, 8);
+					strokes->lineTo(d - 2, h);
+					strokes->lineTo(d + 6, h);
+					strokes->lineTo(d + 6, 8);
+					break;
+				case QuickCoupling:
+					strokes->moveTo(d, -h);
+					strokes->lineTo(d, h);
+					strokes->lineTo(d + 6, h);
 					break;
 			}
 		}
-			/// A nozzle of @p type has a mark to draw
-		static bool hasMark(Type type) { return type != PlainEnd; }
+			/// A nozzle of @p type draws a mark of its own: all but a plain
+			/// end, whose drawing is the socket the pipe brings
+		static bool hasOwnMark(Type type) { return type != PlainEnd; }
+			/// The connection whose setting of the project draws @p type: its
+			/// own, but the sockets for a plain end, which a socket joins
+		static Type drawnWith(Type type) { return type == PlainEnd ? Socket : type; }
+
+			/// A pipe joined to a nozzle of @p type brings a part of its own,
+			/// drawn in its color (pipePartShapes()): its flange to a flange,
+			/// its socket to a plain end, its grooved end to a grooved end, its
+			/// half to a quick coupling
+		static bool bringsPart(Type type)
+		{
+			return type == Flange || type == PlainEnd || type == Grooved || type == QuickCoupling;
+		}
+			/// Where a pipe begins when it draws the part it brings to a
+			/// nozzle of @p type whose mark is at @p at: after that part
+		static qreal pipePartStart(Type type, qreal at)
+		{
+			switch (type) {
+				case Flange:        return pipeFlangeDistance;
+				case PlainEnd:      return at + 10;
+				case Grooved:       return at + 4;
+				case QuickCoupling: return at + 10;
+				default:            return 0;
+			}
+		}
+			/// The part a pipe brings to a nozzle of @p type whose mark is at
+			/// @p at, in the frame of markShapes(): a flange 1 mm from the
+			/// nozzle or from the side of a valve; a socket open towards the
+			/// nozzle, which enters it; a grooved end 1 mm after that of the
+			/// nozzle, in its collar; the other half of a quick coupling,
+			/// the same hook turned over, 1 mm from each line of the first
+		static void pipePartShapes(Type type, qreal at, QPainterPath *strokes)
+		{
+			const qreal h = markHalfHeight;
+			switch (type) {
+				case Flange:
+					strokes->moveTo(pipeFlangeDistance, -h);
+					strokes->lineTo(pipeFlangeDistance, h);
+					break;
+				case PlainEnd:
+					strokes->moveTo(at, -h);
+					strokes->lineTo(at + 10, -h);
+					strokes->lineTo(at + 10, h);
+					strokes->lineTo(at, h);
+					break;
+				case Grooved:
+					strokes->moveTo(at + 4, -7);
+					strokes->lineTo(at + 4, 7);
+					break;
+				case QuickCoupling:
+					strokes->moveTo(at + 10, h);
+					strokes->lineTo(at + 10, -h);
+					strokes->lineTo(at + 4, -h);
+					break;
+				default:
+					break;
+			}
+		}
+			/// Where a pipe joined to a nozzle of @p type, whose mark is drawn
+			/// at @p at, begins: after the part it brings when it draws it
+			/// (@p brings_part); else at the mark of the nozzle beyond it (on
+			/// a valve), or at the nozzle
+		static qreal pipeStart(Type type, qreal at, bool brings_part)
+		{
+			if (brings_part && bringsPart(type)) {
+				return pipePartStart(type, at);
+			}
+			return hasOwnMark(type) && type != Flange ? at : 0;
+		}
 
 			/// Whether a nozzle of a placed element draws the mark of its
 			/// connection: as its project says, or always, or never

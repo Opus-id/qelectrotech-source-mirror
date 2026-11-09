@@ -124,10 +124,19 @@ class Terminal : public QGraphicsObject
 		PipeConnection::MarkChoice markChoice() const;
 			/// This nozzle draws the mark of its connection at its end, on
 			/// the side of the pipe (PipeConnection::markShapes()): its
-			/// project or its element asks it, its connection has one, and
-			/// no nozzle of another symbol touches it. Never for another
-			/// medium.
+			/// project or its element asks it (the sockets of the project
+			/// for a plain end, whose pipe brings a socket), and no nozzle of
+			/// another symbol touches it. Never for another medium.
 		bool drawsConnectionMark() const;
+			/// Where the mark of this nozzle is drawn, from its point: beyond
+			/// it on a symbol a line runs through, whose nozzle is on the
+			/// side of its body, else on it (PipeConnection::markShapes())
+		qreal markDistance() const;
+			/// This nozzle draws a mark itself: its connection is drawn and
+			/// has one (not a plain end), but a flange of a symbol a line
+			/// runs through is the side of its body, which it does not draw
+			/// again
+		bool drawsOwnMark() const;
 			/// A nozzle of another symbol is on the same point as this one,
 			/// joined by a pipe of no length or not: two symbols placed
 			/// against each other, which draw nothing between them
@@ -135,6 +144,10 @@ class Terminal : public QGraphicsObject
 			/// What draws again the mark of this nozzle and the counter-flange
 			/// of its pipe
 		void updateConnectionMark();
+			/// From the frame of PipeConnection::markShapes() to that of
+			/// this terminal: the pipe draws the part it brings in the same
+			/// frame, turned and mirrored as the element
+		QTransform markTransform() const;
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 			/// The font of labelText(): the one of the symbol, at the size
@@ -228,9 +241,6 @@ class Terminal : public QGraphicsObject
 		QLocale sizeLocale() const;
 			/// The room of the terminal and of its name, without the mark
 		QRectF ownRect() const;
-			/// From the frame of PipeConnection::markShapes() to that of
-			/// this terminal
-		QTransform markTransform() const;
 		void drawConnectionMark(QPainter *painter, qreal detail) const;
 
 		bool               m_draw_help_line{false};

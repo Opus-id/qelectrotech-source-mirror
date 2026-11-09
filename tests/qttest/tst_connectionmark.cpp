@@ -42,22 +42,27 @@
 	flange is a line across, a socket a bracket, a weld a dot... The project
 	says which connections are drawn (none by default: a project drawn before
 	keeps its look), a placed element may say otherwise for one nozzle. A pipe
-	arriving on a flange draws the counter-flange. Two symbols placed against
-	each other draw nothing between them.
+	draws the part it brings: its flange, its socket on a plain end, its
+	grooved end, its half of a quick coupling. Two symbols placed against each
+	other draw nothing between them.
 */
 class tst_connectionmark : public QObject
 {
 	Q_OBJECT
 
-		// N1, west, a flange of DN 100; N2, east, a plain end; E1, an
-		// electrical terminal
-	static QString symbol()
+		// An equipment, its nozzles at the end of short lines: N1, west, a
+		// flange of DN 100; N2, east, a plain end; E1, an electrical terminal.
+		// With @p in_line, a valve, its nozzles on the side of its body.
+	static QString symbol(bool in_line = false)
 	{
 		return QStringLiteral(
-			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" %1"
 			"width=\"60\" height=\"40\" hotspot_x=\"30\" hotspot_y=\"20\">"
-			"<uuid uuid=\"{7d111111-1111-1111-1111-111111111111}\"/>"
-			"<names><name lang=\"en\">Valve</name></names>"
+			"<uuid uuid=\"{7d11111%2-1111-1111-1111-111111111111}\"/>"
+			"<names><name lang=\"en\">Valve</name></names>")
+				.arg(in_line ? QStringLiteral("pipe_inline=\"true\" ") : QString(),
+					 in_line ? QStringLiteral("2") : QStringLiteral("1"))
+			+ QStringLiteral(
 			"<description>"
 			"<line x1=\"-20\" y1=\"0\" x2=\"20\" y2=\"0\" end1=\"none\" end2=\"none\" "
 			"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
@@ -71,18 +76,24 @@ class tst_connectionmark : public QObject
 			"</description></definition>");
 	}
 
-	static Element *place(QETProject &project, Diagram *folio, const QPointF &pos)
+	static Element *place(QETProject &project, Diagram *folio, const QPointF &pos,
+						  bool in_line = false)
 	{
 		const QString dir = QStringLiteral("import/marks");
 		if (!project.embeddedElementCollection()->exist(dir)) {
 			project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("marks"), NamesList());
-			QDomDocument doc;
-			doc.setContent(symbol());
-			project.embeddedElementCollection()->addElementDefinition(
-						dir, QStringLiteral("valve.elmt"), doc.documentElement());
+			for (bool valve : {false, true}) {
+				QDomDocument doc;
+				doc.setContent(symbol(valve));
+				project.embeddedElementCollection()->addElementDefinition(
+							dir, valve ? QStringLiteral("valve.elmt") : QStringLiteral("tank.elmt"),
+							doc.documentElement());
+			}
 		}
-		const ElementsLocation location(QStringLiteral("embed://import/marks/valve.elmt"), &project);
+		const ElementsLocation location(in_line ? QStringLiteral("embed://import/marks/valve.elmt")
+												: QStringLiteral("embed://import/marks/tank.elmt"),
+										&project);
 		int state = 0;
 		Element *element = ElementFactory::Instance()->createElement(location, nullptr, &state);
 		if (!element || state) return nullptr;
@@ -133,45 +144,113 @@ class tst_connectionmark : public QObject
 		{
 			for (PipeConnection::Type type : PipeConnection::all()) {
 				QPainterPath strokes, fills;
-				PipeConnection::markShapes(type, &strokes, &fills);
+				PipeConnection::markShapes(type, 4, &strokes, &fills);
 				const QRectF rect = strokes.boundingRect().united(fills.boundingRect());
 				if (type == PipeConnection::PlainEnd) {
 					QVERIFY(strokes.isEmpty() && fills.isEmpty());
-					QVERIFY(!PipeConnection::hasMark(type));
+					QVERIFY(!PipeConnection::hasOwnMark(type));
 					continue;
 				}
-				QVERIFY(PipeConnection::hasMark(type));
+				QVERIFY(PipeConnection::hasOwnMark(type));
 					// on the side of the pipe, within the room of the nozzle
 				QVERIFY2(rect.left() >= 0, qPrintable(PipeConnection::toString(type)));
 				QVERIFY(rect.right() <= 16);
 				QVERIFY(rect.top() >= -12 && rect.bottom() <= 12);
 			}
-				// a flange: a line of 20 across, 1 mm from the nozzle
+				// a flange: a line of 20 across, 1 mm from a valve
 			QPainterPath flange, none;
-			PipeConnection::markShapes(PipeConnection::Flange, &flange, &none);
+			PipeConnection::markShapes(PipeConnection::Flange, 4, &flange, &none);
 			QCOMPARE(flange.boundingRect(), QRectF(4, -10, 0, 20));
 			QVERIFY(none.isEmpty());
-				// a thread: a short line, half as long
+				// on an equipment, on the nozzle itself
+			QPainterPath on_nozzle;
+			PipeConnection::markShapes(PipeConnection::Flange, 0, &on_nozzle, &none);
+			QCOMPARE(on_nozzle.boundingRect(), QRectF(0, -10, 0, 20));
+				// a thread: two lines of 8 along the pipe, 6 either side of
+				// it, which nothing crosses: no flange. After the side of a
+				// valve, astride the end of the nozzle of an equipment.
 			QPainterPath thread;
-			PipeConnection::markShapes(PipeConnection::Thread, &thread, &none);
-			QCOMPARE(thread.boundingRect(), QRectF(4, -5, 0, 10));
-				// a socket opens towards the pipe, its arms up to 14
+			PipeConnection::markShapes(PipeConnection::Thread, 4, &thread, &none);
+			QCOMPARE(thread.boundingRect(), QRectF(4, -6, 8, 12));
+			for (int i = 0 ; i < thread.elementCount() ; ++i) {
+				QCOMPARE(qAbs(thread.elementAt(i).y), 6.0);
+			}
+			QPainterPath thread_on_nozzle;
+			PipeConnection::markShapes(PipeConnection::Thread, 0, &thread_on_nozzle, &none);
+			QCOMPARE(thread_on_nozzle.boundingRect(), QRectF(-4, -6, 8, 12));
+				// a socket opens towards the pipe, its arms 10 long
 			QPainterPath socket;
-			PipeConnection::markShapes(PipeConnection::SolventSocket, &socket, &none);
+			PipeConnection::markShapes(PipeConnection::Socket, 4, &socket, &none);
 			QCOMPARE(socket.boundingRect(), QRectF(4, -10, 10, 20));
-				// a socket to weld has two dots at the ends of its arms
-			QPainterPath fusion, dots;
-			PipeConnection::markShapes(PipeConnection::FusionSocket, &fusion, &dots);
-			QCOMPARE(dots.boundingRect(), QRectF(12, -12, 4, 24));
-				// a butt weld, a dot of radius 4 at 4
+				// a butt weld, a dot of radius 4 at the mark
 			QPainterPath weld_lines, weld;
-			PipeConnection::markShapes(PipeConnection::ButtWeld, &weld_lines, &weld);
+			PipeConnection::markShapes(PipeConnection::ButtWeld, 4, &weld_lines, &weld);
 			QVERIFY(weld_lines.isEmpty());
 			QCOMPARE(weld.boundingRect(), QRectF(0, -4, 8, 8));
-				// a grooved end, a collar of 10 x 20 from 2 to 12
+				// a grooved end, a line of 14 in a collar of 8 x 20 with hooks
 			QPainterPath collar;
-			PipeConnection::markShapes(PipeConnection::Grooved, &collar, &none);
-			QCOMPARE(collar.boundingRect(), QRectF(2, -10, 10, 20));
+			PipeConnection::markShapes(PipeConnection::Grooved, 4, &collar, &none);
+			QCOMPARE(collar.boundingRect(), QRectF(2, -10, 8, 20));
+			QPainterPath collar_on_nozzle;
+			PipeConnection::markShapes(PipeConnection::Grooved, 0, &collar_on_nozzle, &none);
+			QCOMPARE(collar_on_nozzle.boundingRect(), QRectF(-2, -10, 8, 20));
+				// a quick coupling, its half: a hook of 20 x 6
+			QPainterPath half;
+			PipeConnection::markShapes(PipeConnection::QuickCoupling, 4, &half, &none);
+			QCOMPARE(half.boundingRect(), QRectF(4, -10, 6, 20));
+				// the plain end is drawn with the sockets
+			QCOMPARE(PipeConnection::drawnWith(PipeConnection::PlainEnd), PipeConnection::Socket);
+			QCOMPARE(PipeConnection::drawnWith(PipeConnection::Thread), PipeConnection::Thread);
+		}
+
+		void aPipeBringsThePartOfSomeConnections()
+		{
+			const QList<PipeConnection::Type> bringing{PipeConnection::Flange, PipeConnection::PlainEnd,
+													   PipeConnection::Grooved,
+													   PipeConnection::QuickCoupling};
+			for (PipeConnection::Type type : PipeConnection::all()) {
+				QCOMPARE(PipeConnection::bringsPart(type), bringing.contains(type));
+				QPainterPath part;
+				PipeConnection::pipePartShapes(type, 4, &part);
+				QCOMPARE(part.isEmpty(), !bringing.contains(type));
+			}
+				// its flange, 1 mm from the nozzle or from the side of a valve
+			QPainterPath flange, flange_on_nozzle;
+			PipeConnection::pipePartShapes(PipeConnection::Flange, 4, &flange);
+			PipeConnection::pipePartShapes(PipeConnection::Flange, 0, &flange_on_nozzle);
+			QCOMPARE(flange.boundingRect(), QRectF(4, -10, 0, 20));
+			QCOMPARE(flange_on_nozzle, flange);
+				// its socket, open towards the nozzle, which enters it
+			QPainterPath socket;
+			PipeConnection::pipePartShapes(PipeConnection::PlainEnd, 0, &socket);
+			QCOMPARE(socket.boundingRect(), QRectF(0, -10, 10, 20));
+			QCOMPARE(socket.elementAt(0).x, 0.0);
+				// its grooved end, 1 mm after that of the nozzle
+			QPainterPath grooved;
+			PipeConnection::pipePartShapes(PipeConnection::Grooved, 4, &grooved);
+			QCOMPARE(grooved.boundingRect(), QRectF(8, -7, 0, 14));
+				// its half of a quick coupling, the same hook turned over: 1 mm
+				// between each arm and the line in front
+			QPainterPath half, other_half, none;
+			PipeConnection::markShapes(PipeConnection::QuickCoupling, 4, &half, &none);
+			PipeConnection::pipePartShapes(PipeConnection::QuickCoupling, 4, &other_half);
+			QCOMPARE(other_half.boundingRect(), QRectF(8, -10, 6, 20));
+			QCOMPARE(other_half.elementAt(2).y, -half.elementAt(2).y);
+			QCOMPARE(other_half.boundingRect().right() - half.boundingRect().right(), 4.0);
+			QCOMPARE(other_half.boundingRect().left() - half.boundingRect().left(), 4.0);
+
+				// where the pipe begins: after the part it brings; without it,
+				// at the mark of a valve, else at the nozzle
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::Flange, 0, true), 4.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::Flange, 4, true), 4.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::Flange, 4, false), 0.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::PlainEnd, 4, true), 14.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::PlainEnd, 4, false), 0.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::Grooved, 0, true), 4.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::Grooved, 4, false), 4.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::QuickCoupling, 4, true), 14.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::Socket, 4, true), 4.0);
+			QCOMPARE(PipeConnection::pipeStart(PipeConnection::Socket, 0, true), 0.0);
 		}
 
 		void eachChoiceOfANozzleHasItsWord()
@@ -255,9 +334,17 @@ class tst_connectionmark : public QObject
 			QVERIFY(!n1->drawsConnectionMark());
 			drawFlanges(project);
 			QVERIFY(n1->drawsConnectionMark());
-				// a plain end has nothing to draw, an electrical terminal never
+				// a plain end is drawn with the sockets, an electrical
+				// terminal never
 			QVERIFY(!n2->drawsConnectionMark());
 			QVERIFY(!e1->drawsConnectionMark());
+			PidCodification sockets = project.pidCodification();
+			sockets.drawn_connections << PipeConnection::Socket;
+			project.setPidCodification(sockets);
+			QVERIFY(n2->drawsConnectionMark());
+				// the socket is its pipe's: no mark of its own
+			QVERIFY(!n2->drawsOwnMark());
+			drawFlanges(project);
 
 				// the element says otherwise for a nozzle
 			valve->setNozzleMarks({{QStringLiteral("N1"), PipeConnection::MarkChoice::Never}});
@@ -269,7 +356,8 @@ class tst_connectionmark : public QObject
 			valve->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::Thread}});
 			QVERIFY(n1->drawsConnectionMark());
 			valve->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::PlainEnd}});
-			QVERIFY(!n1->drawsConnectionMark());
+			QVERIFY(n1->drawsConnectionMark());
+			QVERIFY(!n1->drawsOwnMark());
 				// the mark is in the room of the nozzle, its shape is not: a
 				// click there does not start a pipe
 			QVERIFY(n1->boundingRect().width() >= 17);
@@ -333,8 +421,10 @@ class tst_connectionmark : public QObject
 			auto *flange = page.findChild<QCheckBox *>(QStringLiteral("drawn_connection_flange"));
 			QVERIFY(flange);
 			QVERIFY(!flange->isChecked());
-				// a plain end draws nothing: no box
+				// a plain end is drawn with the sockets: no box of its own
 			QVERIFY(!page.findChild<QCheckBox *>(QStringLiteral("drawn_connection_plain_end")));
+			QVERIFY(page.findChild<QCheckBox *>(QStringLiteral("drawn_connection_socket")));
+			QVERIFY(page.findChild<QCheckBox *>(QStringLiteral("drawn_connection_quick_coupling")));
 			flange->setChecked(true);
 			page.applyProjectConf();
 			QVERIFY(project.pidCodification().drawsConnection(PipeConnection::Flange));
@@ -343,7 +433,7 @@ class tst_connectionmark : public QObject
 		}
 
 			// ---- what is in front ----
-		void aPipeOnAFlangeDrawsTheCounterFlange()
+		void aPipeOnAFlangeBringsItsOwn()
 		{
 			QETProject project;
 			Diagram *folio = project.addNewDiagram();
@@ -357,20 +447,103 @@ class tst_connectionmark : public QObject
 			auto *pipe = new Conductor(a2, b1);
 			folio->addItem(pipe);
 			QCOMPARE(pipe->medium(), TerminalData::Pipe);
+				// an equipment: its flange on the nozzle, the counter-flange
+				// of the pipe 1 mm beyond, where the pipe begins
 			QVERIFY(a2->drawsConnectionMark() && b1->drawsConnectionMark());
-			QVERIFY(pipe->drawsCounterFlange(a2));
-			QVERIFY(pipe->drawsCounterFlange(b1));
-				// on another connection, none
+			QVERIFY(a2->drawsOwnMark());
+			QCOMPARE(a2->markDistance(), 0.0);
+			QVERIFY(pipe->drawsPipePart(a2));
+			QVERIFY(pipe->drawsPipePart(b1));
+			QCOMPARE(pipe->pipeStartAt(a2), 4.0);
+				// on another connection, none, and the pipe begins at the
+				// nozzle, where the mark of an equipment is
 			PidCodification welds = project.pidCodification();
 			welds.drawn_connections << PipeConnection::ButtWeld;
 			project.setPidCodification(welds);
 			b->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::ButtWeld}});
-			QVERIFY(b1->drawsConnectionMark());
-			QVERIFY(!pipe->drawsCounterFlange(b1));
+			QVERIFY(b1->drawsOwnMark());
+			QVERIFY(!pipe->drawsPipePart(b1));
+			QCOMPARE(pipe->pipeStartAt(b1), 0.0);
 				// nor on a flange not drawn
 			b->setNozzleConnections({});
 			b->setNozzleMarks({{QStringLiteral("N1"), PipeConnection::MarkChoice::Never}});
-			QVERIFY(!pipe->drawsCounterFlange(b1));
+			QVERIFY(!pipe->drawsPipePart(b1));
+			QCOMPARE(pipe->pipeStartAt(b1), 0.0);
+		}
+
+		void theSideOfAValveStandsForItsFlange()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			drawFlanges(project);
+			Element *valve = place(project, folio, QPointF(200, 200), true);
+			Element *tank = place(project, folio, QPointF(400, 200));
+			QVERIFY(valve && tank);
+			QVERIFY(valve->isPipeInline());
+			valve->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::Flange}});
+			Terminal *v1 = terminal(valve, QStringLiteral("N1"));
+			Terminal *v2 = terminal(valve, QStringLiteral("N2"));
+			QCOMPARE(v1->markDistance(), 4.0);
+				// a free flange of a valve: its side, nothing more
+			QVERIFY(v1->drawsConnectionMark());
+			QVERIFY(!v1->drawsOwnMark());
+				// joined: the flange the pipe brings, 1 mm from the body, where
+				// the pipe begins
+			auto *pipe = new Conductor(v2, terminal(tank, QStringLiteral("N1")));
+			folio->addItem(pipe);
+			QVERIFY(!v2->drawsOwnMark());
+			QVERIFY(pipe->drawsPipePart(v2));
+			QCOMPARE(pipe->pipeStartAt(v2), 4.0);
+				// another connection: the valve draws it, 1 mm from its body,
+				// and the pipe stops there
+			PidCodification sockets = project.pidCodification();
+			sockets.drawn_connections << PipeConnection::Socket;
+			project.setPidCodification(sockets);
+			valve->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::Socket}});
+			QVERIFY(v2->drawsOwnMark());
+			QVERIFY(!pipe->drawsPipePart(v2));
+			QCOMPARE(pipe->pipeStartAt(v2), 4.0);
+				// a plain end: the pipe brings its socket, its mouth 1 mm from
+				// the body, and begins at its back
+			valve->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::PlainEnd}});
+			QVERIFY(!v2->drawsOwnMark());
+			QVERIFY(pipe->drawsPipePart(v2));
+			QCOMPARE(pipe->pipeStartAt(v2), 14.0);
+				// the sockets not drawn: the pipe goes to the nozzle
+			project.setPidCodification(PidCodification());
+			drawFlanges(project);
+			QVERIFY(!pipe->drawsPipePart(v2));
+			QCOMPARE(pipe->pipeStartAt(v2), 0.0);
+		}
+
+		void aPipeBringsItsGroovedEndAndItsHalfOfAQuickCoupling()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			PidCodification drawn = project.pidCodification();
+			drawn.drawn_connections = {PipeConnection::Grooved, PipeConnection::QuickCoupling};
+			project.setPidCodification(drawn);
+			Element *valve = place(project, folio, QPointF(200, 200), true);
+			Element *tank = place(project, folio, QPointF(400, 200));
+			QVERIFY(valve && tank);
+			Terminal *v2 = terminal(valve, QStringLiteral("N2"));
+			Terminal *t1 = terminal(tank, QStringLiteral("N1"));
+			auto *pipe = new Conductor(v2, t1);
+			folio->addItem(pipe);
+				// a grooved end: the pipe's 1 mm after the nozzle's, in the
+				// collar the nozzle draws
+			valve->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::Grooved}});
+			tank->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::Grooved}});
+			QVERIFY(v2->drawsOwnMark() && t1->drawsOwnMark());
+			QVERIFY(pipe->drawsPipePart(v2) && pipe->drawsPipePart(t1));
+			QCOMPARE(pipe->pipeStartAt(v2), 8.0);
+			QCOMPARE(pipe->pipeStartAt(t1), 4.0);
+				// a quick coupling: the other half, 2.5 mm from the nozzle's
+			valve->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::QuickCoupling}});
+			tank->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::QuickCoupling}});
+			QVERIFY(pipe->drawsPipePart(v2) && pipe->drawsPipePart(t1));
+			QCOMPARE(pipe->pipeStartAt(v2), 14.0);
+			QCOMPARE(pipe->pipeStartAt(t1), 10.0);
 		}
 
 		void aPipeTooShortOrTurningAtOnceLosesTheCounterFlange()
@@ -388,8 +561,18 @@ class tst_connectionmark : public QObject
 			auto *pipe = new Conductor(a2, b1);
 			folio->addItem(pipe);
 			QVERIFY(a2->drawsConnectionMark());
-			QVERIFY(!pipe->drawsCounterFlange(a2));
-			QVERIFY(!pipe->drawsCounterFlange(b1));
+			QVERIFY(!pipe->drawsPipePart(a2));
+			QVERIFY(!pipe->drawsPipePart(b1));
+				// and goes to the nozzle
+			QCOMPARE(pipe->pipeStartAt(a2), 0.0);
+				// the same for a quick coupling, which needs more room
+			PidCodification quick = project.pidCodification();
+			quick.drawn_connections << PipeConnection::QuickCoupling;
+			project.setPidCodification(quick);
+			a->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::QuickCoupling}});
+			QVERIFY(a2->drawsOwnMark());
+			QVERIFY(!pipe->drawsPipePart(a2));
+			QCOMPARE(pipe->pipeStartAt(a2), 0.0);
 		}
 
 		void twoSymbolsAgainstEachOtherDrawNothingBetweenThem()
@@ -414,7 +597,7 @@ class tst_connectionmark : public QObject
 			QVERIFY(pipe->endsTouch());
 			QVERIFY(!a2->drawsConnectionMark());
 			QVERIFY(!b1->drawsConnectionMark());
-			QVERIFY(!pipe->drawsCounterFlange(a2));
+			QVERIFY(!pipe->drawsPipePart(a2));
 				// moved apart: each draws its mark again
 			b->setPos(400, 200);
 			QVERIFY(a2->drawsConnectionMark());
@@ -430,12 +613,85 @@ class tst_connectionmark : public QObject
 			QVERIFY(valve);
 			folio->setDrawTerminals(false);
 			folio->setDisplayGrid(false);
-				// N1 at x 180: its flange at x 176, from y 190 to 210
+				// N1 at x 180: the flange of an equipment on it, from y 190 to 210
 			const QPointF center(180, 200);
-			QVERIFY(!dark(render(folio, center), 36, 33));
+			QVERIFY(!dark(render(folio, center), 40, 33));
 			drawFlanges(project);
-			QVERIFY(dark(render(folio, center), 36, 33));
-			QVERIFY(!dark(render(folio, center), 28, 33));
+			QVERIFY(dark(render(folio, center), 40, 33));
+			QVERIFY(!dark(render(folio, center), 34, 33));
+		}
+
+		void aPipeBeginsAtTheFlangeItBrings()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			Element *valve = place(project, folio, QPointF(200, 200), true);
+			Element *tank = place(project, folio, QPointF(400, 200));
+			QVERIFY(valve && tank);
+			folio->setDrawTerminals(false);
+			folio->setDisplayGrid(false);
+			valve->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::Flange}});
+			auto *pipe = new Conductor(terminal(valve, QStringLiteral("N2")),
+									   terminal(tank, QStringLiteral("N1")));
+			folio->addItem(pipe);
+				// N2 of the valve at x 220; at x 222, between the body and the
+				// flange 1 mm beyond, the pipe is drawn, then no more
+			const QPointF center(220, 200);
+			auto light = [](const QImage &image, int x, int y) {
+				return qGray(image.pixel(x, y)) >= 192;
+			};
+			QVERIFY(!light(render(folio, center), 42, 40));
+			drawFlanges(project);
+			const QImage drawn = render(folio, center);
+			QVERIFY(light(drawn, 42, 40));
+				// the flange of the pipe, and the pipe beyond
+			QVERIFY(dark(drawn, 44, 33));
+			QVERIFY(!light(drawn, 50, 40));
+		}
+
+		void theTwoHalvesOfAQuickCouplingFaceEachOtherMirroredToo()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			PidCodification quick = project.pidCodification();
+			quick.drawn_connections = {PipeConnection::QuickCoupling};
+			project.setPidCodification(quick);
+			Element *a = place(project, folio, QPointF(200, 200));
+			Element *b = place(project, folio, QPointF(400, 200));
+			QVERIFY(a && b);
+			folio->setDrawTerminals(false);
+			folio->setDisplayGrid(false);
+			a->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::QuickCoupling}});
+			auto *pipe = new Conductor(terminal(a, QStringLiteral("N2")), terminal(b, QStringLiteral("N1")));
+			folio->addItem(pipe);
+				// N2 of a at x 220: the arm of its half from x 220 to 226,
+				// that of the pipe from 224 to 230, on the other side; at
+				// x 222, only the arm of the nozzle
+			const QPointF center(220, 200);
+			auto armAt = [](const QImage &image, int y) {
+				for (int dy = -1 ; dy <= 1 ; ++dy) {
+					if (qGray(image.pixel(42, y + dy)) < 192) return true;
+				}
+				return false;
+			};
+			const QImage drawn = render(folio, center);
+			QVERIFY(armAt(drawn, 50));
+			QVERIFY(!armAt(drawn, 30));
+				// mirrored top to bottom: the half of the nozzle turns over,
+				// the half of the pipe with it
+			a->setVerticalMirror(true);
+			const QImage mirrored = render(folio, center);
+			QVERIFY(armAt(mirrored, 30));
+			QVERIFY(!armAt(mirrored, 50));
+				// and the arm of the pipe is on the other side
+			auto pipeArmAt = [](const QImage &image, int y) {
+				for (int dy = -1 ; dy <= 1 ; ++dy) {
+					if (qGray(image.pixel(48, y + dy)) < 192) return true;
+				}
+				return false;
+			};
+			QVERIFY(pipeArmAt(mirrored, 50));
+			QVERIFY(!pipeArmAt(mirrored, 30));
 		}
 };
 

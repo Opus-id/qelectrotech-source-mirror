@@ -103,11 +103,17 @@ class Conductor : public QGraphicsObject
 		virtual QPainterPath nearShape() const;
 			/// Its two ends on the same point: see endsTouch()
 		bool endsTouch() const;
-			/// This pipe draws a counter-flange at its end on @p terminal: the
-			/// nozzle draws the mark of a flange, and the pipe runs straight
-			/// from it far enough (PipeConnection::counterFlangeRoom); one
-			/// turning before, or too short, loses it
-		bool drawsCounterFlange(const Terminal *terminal) const;
+			/// This pipe draws the part it brings at its end on @p terminal
+			/// (PipeConnection::pipePartShapes()): the connection of the
+			/// nozzle is drawn and takes one (a flange, a plain end, a grooved
+			/// end, a quick coupling), and the pipe runs straight from it far
+			/// enough (PipeConnection::pipePartMargin beyond the part); one
+			/// turning before, or too short, loses it.
+		bool drawsPipePart(const Terminal *terminal) const;
+			/// Where this pipe begins at its end on @p terminal, from the
+			/// nozzle: after the part it brings, at the mark of a connection
+			/// drawn beyond the nozzle of a valve, else 0
+		qreal pipeStartAt(const Terminal *terminal) const;
 		qreal length() const;
 		ConductorSegment *middleSegment();
 		QPointF posForText(Qt::Orientations &flag);
@@ -201,7 +207,8 @@ class Conductor : public QGraphicsObject
 		void takeNozzleDiameter();
 		QList<Conductor *> inlineRun();
 		void drawDiameterGaps(QPainter *painter) const;
-		void drawCounterFlanges(QPainter *painter, const QColor &color, qreal detail) const;
+		void drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const;
+		QPainterPath trimmedEnds(qreal half_width) const;
 			/// How far this pipe runs straight from its end on @p terminal
 		qreal straightRunFrom(const Terminal *terminal) const;
 		bool potentialTypeFormat(PotentialType *type) const;
