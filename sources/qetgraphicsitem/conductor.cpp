@@ -2948,9 +2948,9 @@ void Conductor::updateFittings() const
 /**
 	@brief Conductor::inlineRun
 	@return this pipe and those it continues through the runs of the symbols
-	(Element::pipeRun()): a valve, the run of a tee, the three nozzles of an
-	equal tee, which have one DN. A run given two sizes (a valve acting as a
-	reducer), reducers, the branch of a reducing tee and equipment stop it.
+	(Element::pipeRun()): a valve, an inline instrument, the three nozzles of
+	a tee, which have no size of their own (Terminal::followsPipe()).
+	Reducers and equipment stop it.
 */
 QList<Conductor *> Conductor::inlineRun()
 {
@@ -2959,7 +2959,7 @@ QList<Conductor *> Conductor::inlineRun()
 	{
 		for (Terminal *terminal : {run.at(i)->terminal1, run.at(i)->terminal2})
 		{
-			if (!terminal || !terminal->runIsUniform()) {
+			if (!terminal) {
 				continue;
 			}
 			for (const Terminal *sibling : terminal->runSiblings()) {

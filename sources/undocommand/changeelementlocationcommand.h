@@ -19,6 +19,7 @@
 #define CHANGEELEMENTLOCATIONCOMMAND_H
 
 #include "../ElementsCollection/elementslocation.h"
+#include "../pipediameter.h"
 
 #include <QPointer>
 #include <QUndoCommand>
@@ -46,6 +47,9 @@ class ChangeElementLocationCommand : public QUndoCommand
 			/// The identifier of the element before, which its old symbol
 			/// may not give (Element::getPrefix())
 		QString m_old_prefix;
+			/// The sizes of its nozzles before: the new symbol drops those of
+			/// the nozzles which follow their pipe (Terminal::followsPipe())
+		NozzleDiameters m_old_nozzle_diameters;
 };
 
 #endif // CHANGEELEMENTLOCATIONCOMMAND_H

@@ -5905,6 +5905,11 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>Cochée : le premier piquage donne sa taille aux autres.</translation>
     </message>
     <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="158"/>
+        <source>This nozzle has the size of its line: the size is given to the pipe line.</source>
+        <translation>Ce piquage a la taille de sa ligne : la taille se donne à la tuyauterie.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="117"/>
         <source>Whether the connection is drawn at the end of the nozzle: the P&amp;ID properties of the project say which connections are drawn.</source>
         <translation>Dessin du raccord au bout du piquage : les propriétés P&amp;ID du projet disent quels raccords sont dessinés.</translation>

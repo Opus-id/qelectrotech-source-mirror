@@ -408,9 +408,9 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(tab.connectionFor(n2)->isEnabled());
 		}
 
-			// A valve has one size: its other nozzle follows without a size
-			// written for it
-		void theOtherNozzleOfAValveFollowsWithoutASizeOfItsOwn()
+			// A valve has the size of its line (step 5l-1j): no box "one size
+			// for all", no size kept, the DN of its symbol ignored
+		void aValveHasNoBoxForOneSize()
 		{
 			QETProject project;
 			project.setPidCodification(codification());
@@ -439,12 +439,19 @@ class tst_nozzleconnection : public QObject
 			folio->addItem(valve);
 			ElementNozzlesWidget tab(valve);
 			tab.setLiveEdit(true);
-			QVERIFY(tab.sameSizeBox()->isChecked());
+			QVERIFY(tab.sameConnectionBox());
+			QVERIFY(!tab.sameSizeBox());
+			QVERIFY(!tab.fieldFor(QStringLiteral("N1"))->parentWidget()->isEnabled());
 			tab.fieldFor(QStringLiteral("N1"))->setText(QStringLiteral("DN 80"));
 			emit tab.fieldFor(QStringLiteral("N1"))->editingFinished();
-			QCOMPARE(terminal(valve, QStringLiteral("N2"))->diameter(), PipeDiameter::nominal(80));
-			QCOMPARE(valve->nozzleDiameters(),
-					 NozzleDiameters({{QStringLiteral("N1"), PipeDiameter::nominal(80)}}));
+			QVERIFY(!terminal(valve, QStringLiteral("N1"))->diameter().isSet());
+			QVERIFY(!terminal(valve, QStringLiteral("N2"))->diameter().isSet());
+			QVERIFY(valve->nozzleDiameters().isEmpty());
+				// one connection for all still goes from N1 to N2
+			QVERIFY(tab.sameConnectionBox()->isChecked());
+			pick(tab.connectionFor(QStringLiteral("N1")), PipeConnection::Socket);
+			QCOMPARE(terminal(valve, QStringLiteral("N2"))->connection(), PipeConnection::Socket);
+			QVERIFY(valve->nozzleDiameters().isEmpty());
 		}
 
 		void aSizeTheTableJoinsTwiceIsRemoved()

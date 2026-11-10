@@ -88,33 +88,37 @@ class Terminal : public QGraphicsObject
 		QString   baseName            () const;
 		TerminalData::Type terminalType() const;
 		TerminalData::Medium medium() const;
-			/// The other nozzles of its run, which have one size and which a
-			/// change of DN goes through (Element::pipeRun()): the other
-			/// nozzle of a valve, the others of the run of a tee; none for
-			/// a nozzle out of a run and for any other medium
+			/// The other nozzles of its run, which a line runs through and
+			/// which a change of DN goes through (Element::pipeRun()): the
+			/// other nozzle of a valve, the others of a tee; none for a
+			/// nozzle out of a run and for any other medium
 		QList<Terminal *> runSiblings() const;
-			/// Its run has one size: the sizes its nozzles are given, if
-			/// any, are alike. A valve given two sizes acts as a reducer:
-			/// a change of DN stops there. False out of a run.
-		bool runIsUniform() const;
-			/// Another nozzle of its run, of one size, whose pipe is not of
-			/// size @p pipe; nullptr if none
+			/// This nozzle has no size of its own: it has the one of its
+			/// line, so that nothing goes out of date when the line is
+			/// given another size. A nozzle of a run (a valve, an inline
+			/// instrument, a tee) and the only nozzle of a piece of pipe (a
+			/// free end, a vent). What its symbol or its element would give
+			/// it is ignored. Any other nozzle (of equipment, of a reducer,
+			/// the outlet of a safety valve) may have a size of its own.
+		bool followsPipe() const;
+			/// Another nozzle of its run whose pipe is not of size @p pipe;
+			/// nullptr if none
 		const Terminal *runSiblingOtherThan(const PipeDiameter &pipe) const;
-			/// The diameter given to this nozzle (a DN or an outside
-			/// diameter): by its element, else by its symbol; none for none
-			/// and for any other medium. A symbol a line runs through has one
-			/// diameter: the other nozzle's counts too.
+			/// The diameter given to this nozzle alone (a DN, an outside
+			/// diameter or a thread): by its element, else by its symbol.
+			/// None for none, for any other medium, for a nozzle which
+			/// follows its pipe (followsPipe()), and when its connection
+			/// does not take its kind, a DN and a thread being read as each
+			/// other by the fixed table (PipeConnection::fitted()).
 		PipeDiameter ownDiameter() const;
 			/// The diameter of the pipe connected to this nozzle, none for
-			/// none; on a symbol a line runs through, else of the pipe on the
-			/// other side
+			/// none; in a run, else of the pipe of another nozzle of the run
 		PipeDiameter pipeDiameter() const;
-			/// The diameter of this nozzle: its own, else it follows its pipe,
-			/// so that nothing goes out of date on a valve
+			/// The diameter of this nozzle: its own, else that of its pipe
 		PipeDiameter diameter() const;
 			/// The nozzle has a diameter of its own, its pipe another one; or
-			/// the line runs through its symbol with two diameters and no
-			/// reducer. A DN and an outside diameter are compared with the
+			/// the pipes of its run have two diameters, with no reducer.
+			/// A DN and an outside diameter are compared with the
 			/// table of the project (PidCodification::compare()): one it does
 			/// not know is a gap too.
 		bool hasDiameterGap() const;
@@ -236,11 +240,6 @@ class Terminal : public QGraphicsObject
 		static void setTakesConductorColor(bool takes);
 
 	private:
-			/// The diameter given to this nozzle alone, by its element or its
-			/// symbol; none when its connection does not take its kind, a
-			/// DN and a thread being read as each other by the fixed table
-			/// (PipeConnection::fitted())
-		PipeDiameter givenDiameter() const;
 			/// The diameter of the pipe connected to this nozzle alone
 		PipeDiameter connectedDiameter() const;
 			/// How @p a and @p b compare in the project of this nozzle

@@ -27,7 +27,8 @@ ChangeElementLocationCommand::ChangeElementLocationCommand(
 	m_element(element),
 	m_old_location(element->location()),
 	m_new_location(new_location),
-	m_old_prefix(element->getPrefix())
+	m_old_prefix(element->getPrefix()),
+	m_old_nozzle_diameters(element->nozzleDiameters())
 {
 	setText(QObject::tr("Change the type of an element"));
 }
@@ -36,6 +37,7 @@ void ChangeElementLocationCommand::undo()
 {
 	if (m_element) {
 		m_element->changeLocation(m_old_location);
+		m_element->setNozzleDiameters(m_old_nozzle_diameters);
 		if (m_element->getPrefix() != m_old_prefix) {
 			m_element->setPrefix(m_old_prefix);
 			m_element->updatePidLabel();

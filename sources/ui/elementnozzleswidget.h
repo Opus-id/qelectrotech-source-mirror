@@ -44,11 +44,16 @@ class Terminal;
 	of the project only, of a kind the connection takes. Live, a value is
 	applied when the field is left or the connection picked, with undo.
 
-	Above them, for an element of two nozzles or more, two boxes: one
-	connection (and drawing) for all, one size for all. Checked, the first
-	nozzle gives its value to the others, whose lists are greyed. Nothing of
-	them is written: they are checked when the nozzles are alike, at the
-	opening of the tab, and unchecked when they no longer are (an undo).
+	A nozzle which follows its pipe (Terminal::followsPipe(): those of a
+	valve, of a tee, a free end) has no size of its own: its field is greyed
+	and shows the size of its line; its connection and its drawing stay free.
+
+	Above them, for an element of two nozzles or more, one box: one
+	connection (and drawing) for all; and for two nozzles or more with a size
+	of their own, another: one size for all. Checked, the first nozzle gives
+	its value to the others, whose lists are greyed. Nothing of them is
+	written: they are checked when the nozzles are alike, at the opening of
+	the tab, and unchecked when they no longer are (an undo).
 */
 class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -89,7 +94,8 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// of the first, nullptr for an element of one nozzle
 		QCheckBox *sameConnectionBox() const { return m_same_connection; }
 			/// The box giving all the nozzles the size of the first, nullptr
-			/// for an element of one nozzle
+			/// for an element with fewer than two nozzles with a size of
+			/// their own: a valve, a tee
 		QCheckBox *sameSizeBox() const { return m_same_size; }
 
 	private:
@@ -102,6 +108,8 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			QComboBox *list;
 			QLineEdit *edit;
 			const Terminal *terminal;
+				/// It has the size of its line (Terminal::followsPipe())
+			bool follows;
 		};
 		void buildFields();
 		PidCodification projectCodification() const;
@@ -120,8 +128,12 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// @p field is the first nozzle, which gives its values to the
 			/// others when a box is checked
 		bool isFirst(const Field &field) const;
-			/// The nozzles of the element have one connection and drawing,
-			/// one size
+			/// The first nozzle with a size of its own, which gives it to the
+			/// others when their box is checked; nullptr if none
+		const Field *firstSized() const;
+		bool isFirstSized(const Field &field) const;
+			/// The nozzles of the element have one connection and drawing;
+			/// those with a size of their own have one size
 		bool allSameConnection() const;
 		bool allSameSize() const;
 			/// Give the others the connection and the drawing, the size of

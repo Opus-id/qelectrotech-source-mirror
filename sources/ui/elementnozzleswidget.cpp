@@ -100,24 +100,34 @@ void ElementNozzlesWidget::buildFields()
 		return;
 	}
 
-		//Two nozzles or more: one connection, one size for all
-	const QList<Terminal *> terminals = m_element->terminals();
-	const auto nozzles = std::count_if(terminals.cbegin(), terminals.cend(), [](const Terminal *terminal) {
-		return terminal->medium() == TerminalData::Pipe && !terminal->baseName().isEmpty();
-	});
+		//Two nozzles or more: one connection for all; two or more with a
+		//size of their own: one size for all. A valve, a tee have none: their
+		//nozzles have the size of the line
+	int nozzles = 0, sized = 0;
+	for (const Terminal *terminal : m_element->terminals()) {
+		if (terminal->medium() != TerminalData::Pipe || terminal->baseName().isEmpty()) {
+			continue;
+		}
+		++nozzles;
+		if (!terminal->followsPipe()) {
+			++sized;
+		}
+	}
 	if (nozzles >= 2) {
 		m_same_connection = new QCheckBox(tr("One connection for all the nozzles"), this);
 		m_same_connection->setObjectName(QStringLiteral("same_connection"));
 		m_same_connection->setToolTip(tr("Checked, the first nozzle gives its connection and its "
 										 "drawing to the others."));
-		m_same_size = new QCheckBox(tr("One size for all the nozzles"), this);
-		m_same_size->setObjectName(QStringLiteral("same_size"));
-		m_same_size->setToolTip(tr("Checked, the first nozzle gives its size to the others."));
 		connect(m_same_connection, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
-		connect(m_same_size, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
 		auto *boxes = new QHBoxLayout();
 		boxes->addWidget(m_same_connection);
-		boxes->addWidget(m_same_size);
+		if (sized >= 2) {
+			m_same_size = new QCheckBox(tr("One size for all the nozzles"), this);
+			m_same_size->setObjectName(QStringLiteral("same_size"));
+			m_same_size->setToolTip(tr("Checked, the first nozzle gives its size to the others."));
+			connect(m_same_size, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
+			boxes->addWidget(m_same_size);
+		}
 		boxes->addStretch();
 		m_layout->addRow(boxes);
 	}
@@ -146,12 +156,16 @@ void ElementNozzlesWidget::buildFields()
 		DiameterList::setUp(list, codification.nozzleSizes(), codification.locale());
 		QLineEdit *edit = list->lineEdit();
 		const Field field{name, terminal->symbolDiameter(), terminal->symbolConnection(),
-						  connection, mark, list, edit, terminal};
+						  connection, mark, list, edit, terminal, terminal->followsPipe()};
+		if (field.follows) {
+			list->setToolTip(tr("This nozzle has the size of its line: the size is given to "
+								"the pipe line."));
+		}
 		const auto applied = [this, field]() {
-			if (!checkField(field)) {
+			if (field.follows || !checkField(field)) {
 				return;
 			}
-			if (m_same_size && m_same_size->isChecked() && isFirst(field)) {
+			if (m_same_size && m_same_size->isChecked() && isFirstSized(field)) {
 				copySizeOfFirst();
 			}
 			if (m_live_edit) {
@@ -162,14 +176,13 @@ void ElementNozzlesWidget::buildFields()
 		connect(list, &QComboBox::activated, this, applied);
 		connect(connection, &QComboBox::activated, this, [this, field]() {
 			connectionPicked(field);
-			if (isFirst(field)) {
-				if (m_same_connection && m_same_connection->isChecked()) {
-					copyConnectionOfFirst();
-				}
-					//Its size may have become the one its connection takes
-				if (m_same_size && m_same_size->isChecked()) {
-					copySizeOfFirst();
-				}
+			const bool copies = m_same_connection && m_same_connection->isChecked() && isFirst(field);
+			if (copies) {
+				copyConnectionOfFirst();
+			}
+				//Its size may have become the one its connection takes
+			if (m_same_size && m_same_size->isChecked() && (copies || isFirstSized(field))) {
+				copySizeOfFirst();
 			}
 			if (m_live_edit) {
 				apply();
@@ -197,9 +210,11 @@ void ElementNozzlesWidget::buildFields()
 
 		//Checked when the nozzles are alike: nothing of them is written
 	if (m_same_connection) {
-		const QSignalBlocker connection_blocker(m_same_connection);
-		const QSignalBlocker size_blocker(m_same_size);
+		const QSignalBlocker blocker(m_same_connection);
 		m_same_connection->setChecked(allSameConnection());
+	}
+	if (m_same_size) {
+		const QSignalBlocker blocker(m_same_size);
 		m_same_size->setChecked(allSameSize());
 	}
 	updateLinkedFields();
@@ -212,6 +227,30 @@ void ElementNozzlesWidget::buildFields()
 bool ElementNozzlesWidget::isFirst(const Field &field) const
 {
 	return !m_fields.isEmpty() && m_fields.constFirst().name == field.name;
+}
+
+/**
+	@brief ElementNozzlesWidget::firstSized
+	See the declaration
+*/
+const ElementNozzlesWidget::Field *ElementNozzlesWidget::firstSized() const
+{
+	for (const Field &field : m_fields) {
+		if (!field.follows) {
+			return &field;
+		}
+	}
+	return nullptr;
+}
+
+/**
+	@brief ElementNozzlesWidget::isFirstSized
+	See the declaration
+*/
+bool ElementNozzlesWidget::isFirstSized(const Field &field) const
+{
+	const Field *first = firstSized();
+	return first && first->name == field.name;
 }
 
 /**
@@ -236,8 +275,9 @@ bool ElementNozzlesWidget::allSameConnection() const
 */
 bool ElementNozzlesWidget::allSameSize() const
 {
+	const Field *first = firstSized();
 	for (const Field &field : m_fields) {
-		if (!(field.terminal->diameter() == m_fields.constFirst().terminal->diameter())) {
+		if (!field.follows && !(field.terminal->diameter() == first->terminal->diameter())) {
 			return false;
 		}
 	}
@@ -273,30 +313,26 @@ void ElementNozzlesWidget::copyConnectionOfFirst()
 */
 void ElementNozzlesWidget::copySizeOfFirst()
 {
-	if (m_fields.size() < 2) {
+	const Field *first = firstSized();
+	if (!first) {
 		return;
 	}
-	const Field &first = m_fields.constFirst();
 		//Its own size, else the one it has (of its symbol, of its pipe)
-	QString text = first.edit->text().trimmed();
+	QString text = first->edit->text().trimmed();
 	if (text.isEmpty()) {
-		text = first.edit->placeholderText();
+		text = first->edit->placeholderText();
 	}
-	for (int i = 1 ; i < m_fields.size() ; ++i)
+	for (const Field &field : std::as_const(m_fields))
 	{
-		const Field &field = m_fields.at(i);
-			//A nozzle of the run of the first without a size of its symbol
-			//(the other nozzle of a valve) follows it already: nothing
-			//written for it
-		const bool follows = !field.symbol_diameter.isSet()
-							 && field.terminal->runSiblings().contains(const_cast<Terminal *>(first.terminal));
+			//A nozzle which follows its pipe takes no size
+		if (field.follows || field.name == first->name) {
+			continue;
+		}
 		{
 			const QSignalBlocker blocker(field.edit);
-			field.edit->setText(follows ? QString() : text);
+			field.edit->setText(text);
 		}
-		if (!follows) {
-			checkField(field);
-		}
+		checkField(field);
 	}
 }
 
@@ -306,14 +342,15 @@ void ElementNozzlesWidget::copySizeOfFirst()
 */
 void ElementNozzlesWidget::sameToggled()
 {
+	const bool same_size = m_same_size && m_same_size->isChecked();
 	if (m_same_connection->isChecked()) {
 		copyConnectionOfFirst();
 	}
-	if (m_same_size->isChecked()) {
+	if (same_size) {
 		copySizeOfFirst();
 	}
 	updateLinkedFields();
-	if (m_live_edit && (m_same_connection->isChecked() || m_same_size->isChecked())) {
+	if (m_live_edit && (m_same_connection->isChecked() || same_size)) {
 		apply();
 	}
 }
@@ -326,12 +363,16 @@ void ElementNozzlesWidget::updateLinkedFields()
 {
 	const bool same_connection = m_same_connection && m_same_connection->isChecked();
 	const bool same_size = m_same_size && m_same_size->isChecked();
-	for (int i = 1 ; i < m_fields.size() ; ++i)
+	const Field *sized = firstSized();
+	for (int i = 0 ; i < m_fields.size() ; ++i)
 	{
 		const Field &field = m_fields.at(i);
-		field.connection->setEnabled(!same_connection);
-		field.mark->setEnabled(!same_connection);
-		field.list->setEnabled(!same_size);
+		if (i > 0) {
+			field.connection->setEnabled(!same_connection);
+			field.mark->setEnabled(!same_connection);
+		}
+			//Never the size of a nozzle which follows its pipe
+		field.list->setEnabled(!field.follows && !(same_size && sized->name != field.name));
 	}
 }
 
@@ -439,17 +480,15 @@ void ElementNozzlesWidget::updateUi()
 		showField(field);
 	}
 		//Undone: nozzles no longer alike uncheck their box
-	if (m_same_connection) {
-		const QSignalBlocker connection_blocker(m_same_connection);
-		const QSignalBlocker size_blocker(m_same_size);
-		if (m_same_connection->isChecked() && !allSameConnection()) {
-			m_same_connection->setChecked(false);
-		}
-		if (m_same_size->isChecked() && !allSameSize()) {
-			m_same_size->setChecked(false);
-		}
-		updateLinkedFields();
+	if (m_same_connection && m_same_connection->isChecked() && !allSameConnection()) {
+		const QSignalBlocker blocker(m_same_connection);
+		m_same_connection->setChecked(false);
 	}
+	if (m_same_size && m_same_size->isChecked() && !allSameSize()) {
+		const QSignalBlocker blocker(m_same_size);
+		m_same_size->setChecked(false);
+	}
+	updateLinkedFields();
 }
 
 /**
@@ -467,6 +506,11 @@ NozzleDiameters ElementNozzlesWidget::chosen() const
 	NozzleDiameters diameters = m_element->nozzleDiameters();
 	for (const Field &field : m_fields)
 	{
+			//It has the size of its line: none is kept for it
+		if (field.follows) {
+			diameters.remove(field.name);
+			continue;
+		}
 		bool ok = false;
 		const PipeConnection::Type connection = pickedConnection(field);
 		const PipeDiameter diameter = PipeDiameter::fromText(
@@ -563,6 +607,11 @@ void ElementNozzlesWidget::connectionPicked(const Field &field)
 	const QLocale locale = codification.locale();
 	const PipeConnection::Type connection = pickedConnection(field);
 	DiameterList::fill(field.list, sizesFor(field), locale);
+		//It has the size of its line, whatever its connection
+	if (field.follows) {
+		m_message->clear();
+		return;
+	}
 		//The diameter of the field, else the one of the symbol
 	PipeDiameter diameter = PipeDiameter::fromText(field.edit->text());
 	if (!diameter.isSet()) {

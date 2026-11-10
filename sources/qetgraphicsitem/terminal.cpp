@@ -1353,30 +1353,29 @@ QList<Terminal *> Terminal::runSiblings() const
 	return siblings;
 }
 
-bool Terminal::runIsUniform() const
+bool Terminal::followsPipe() const
 {
-	const QList<Terminal *> siblings = runSiblings();
-	if (siblings.isEmpty()) {
+	if (d->m_medium != TerminalData::Pipe || !parent_element_) {
 		return false;
 	}
-	PipeDiameter first = givenDiameter();
-	for (const Terminal *sibling : siblings) {
-		const PipeDiameter given = sibling->givenDiameter();
-		if (!given.isSet()) {
-			continue;
-		}
-		if (!first.isSet()) {
-			first = given;
-		} else if (compareDiameters(first, given) != PidCodification::DiameterMatch::Same) {
+	if (!runSiblings().isEmpty()) {
+		return true;
+	}
+		//The only nozzle of a piece of pipe: a free end, a vent
+	if (!parent_element_->followsPipes()) {
+		return false;
+	}
+	for (const Terminal *terminal : parent_element_->terminals()) {
+		if (terminal != this && terminal->medium() == TerminalData::Pipe) {
 			return false;
 		}
 	}
 	return true;
 }
 
-PipeDiameter Terminal::givenDiameter() const
+PipeDiameter Terminal::ownDiameter() const
 {
-	if (d->m_medium != TerminalData::Pipe) {
+	if (d->m_medium != TerminalData::Pipe || followsPipe()) {
 		return PipeDiameter();
 	}
 	PipeDiameter given = d->m_diameter;
@@ -1551,29 +1550,13 @@ PipeDiameter Terminal::connectedDiameter() const
 	return PipeDiameter();
 }
 
-PipeDiameter Terminal::ownDiameter() const
-{
-	const PipeDiameter given = givenDiameter();
-	if (given.isSet()) {
-		return given;
-	}
-		//The size of the other nozzles of its run
-	for (const Terminal *sibling : runSiblings()) {
-		const PipeDiameter other = sibling->givenDiameter();
-		if (other.isSet()) {
-			return other;
-		}
-	}
-	return PipeDiameter();
-}
-
 PipeDiameter Terminal::pipeDiameter() const
 {
 	const PipeDiameter connected = connectedDiameter();
-	if (connected.isSet() || !runIsUniform()) {
+	if (connected.isSet()) {
 		return connected;
 	}
-		//The pipe of another nozzle of its run, which has one size
+		//The pipe of another nozzle of its run
 	for (const Terminal *sibling : runSiblings()) {
 		const PipeDiameter other = sibling->connectedDiameter();
 		if (other.isSet()) {
@@ -1585,11 +1568,7 @@ PipeDiameter Terminal::pipeDiameter() const
 
 const Terminal *Terminal::runSiblingOtherThan(const PipeDiameter &pipe) const
 {
-	const QList<Terminal *> siblings = runSiblings();
-	if (siblings.isEmpty() || !runIsUniform()) {
-		return nullptr;
-	}
-	for (const Terminal *sibling : siblings) {
+	for (const Terminal *sibling : runSiblings()) {
 		if (compareDiameters(pipe, sibling->connectedDiameter()) != PidCodification::DiameterMatch::Same) {
 			return sibling;
 		}
@@ -1619,7 +1598,7 @@ bool Terminal::hasDiameterGap() const
 	if (!pipe.isSet()) {
 		return false;
 	}
-		//Another pipe of its run, of one size, which differs
+		//Another pipe of its run, which differs
 	if (runSiblingOtherThan(pipe)) {
 		return true;
 	}

@@ -567,14 +567,22 @@ void Element::setOptionChoices(const ElementOptions::Choices &choices)
 	Give nozzles of this element diameters of their own, shown under their
 	names. A pipe connected there keeps its diameter: a difference is marked,
 	not corrected (Terminal::hasDiameterGap()).
+	A nozzle which follows its pipe (Terminal::followsPipe()) keeps none:
+	nothing is kept nor saved for it.
 	@param diameters : by name of nozzle
 */
 void Element::setNozzleDiameters(const NozzleDiameters &diameters)
 {
-	if (diameters == m_nozzle_diameters) {
+	NozzleDiameters kept = diameters;
+	for (const Terminal *terminal : std::as_const(m_terminals)) {
+		if (terminal->followsPipe()) {
+			kept.remove(terminal->baseName());
+		}
+	}
+	if (kept == m_nozzle_diameters) {
 		return;
 	}
-	m_nozzle_diameters = diameters;
+	m_nozzle_diameters = kept;
 	for (Terminal *terminal : std::as_const(m_terminals)) {
 		terminal->updateDiameterToolTip();
 		terminal->update();
@@ -586,7 +594,7 @@ void Element::setNozzleDiameters(const NozzleDiameters &diameters)
 	@brief Element::setNozzleConnections
 	Give nozzles of this element connections of their own. A diameter of a
 	kind the connection does not take is then ignored, a DN and a thread
-	being read as each other by the fixed table (Terminal::givenDiameter()).
+	being read as each other by the fixed table (Terminal::ownDiameter()).
 	@param connections : by name of nozzle
 */
 void Element::setNozzleConnections(const NozzleConnections &connections)
@@ -638,10 +646,10 @@ bool Element::isPipeInline() const
 
 /**
 	@brief Element::pipeRun
-	@return the names of the nozzles of one size a change of DN goes through:
-	those the symbol names (pipe_run, the run of a tee and the branch of an
-	equal tee), else the two of a symbol a line runs through (isPipeInline());
-	none when fewer than two are found
+	@return the names of the nozzles a line runs through, which have its size
+	and which a change of DN goes through: those the symbol names (pipe_run,
+	the three of a tee), else the two of a symbol a line runs through
+	(isPipeInline()); none when fewer than two are found
 */
 QStringList Element::pipeRun() const
 {
@@ -4313,6 +4321,8 @@ bool Element::changeLocation(const ElementsLocation &location)
 			}
 		}
 	}
+		//A nozzle which follows its pipe in the new symbol keeps no size
+	setNozzleDiameters(m_nozzle_diameters);
 
 	m_location = location;
 	m_picture = picture;

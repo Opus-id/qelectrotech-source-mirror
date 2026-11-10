@@ -32,8 +32,10 @@
 #include "properties/elementdata.h"
 #include "ui/elementnozzleswidget.h"
 #include "ui/pipepropertieswidget.h"
+#include "undocommand/changeelementlocationcommand.h"
 #include "undocommand/changenozzlediameterscommand.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDomDocument>
 #include <QFile>
@@ -49,6 +51,8 @@
 	the terminal), shown under the name of the nozzle, that a placed element
 	can change (<nozzles> block of the element). Nothing goes from a nozzle to
 	the pipe connected there, nor back.
+	The nozzles a line runs through (a valve, a tee) and a free end have no
+	size of their own: they have the one of their line (step 5l-1j).
 	The nozzles of the symbols here are plain ends, which take a DN and an
 	outside diameter alike (see tst_nozzleconnection for the others).
 */
@@ -492,9 +496,11 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(before->inlineRun().size(), 1);
 		}
 
-			// a valve given two sizes acts as a reducer: a change stops there,
-			// and its two pipes are not compared
-		void aValveOfTwoSizesStopsAChange()
+			// the size lives on the line (step 5l-1j): a valve keeps none of
+			// its own, so that none goes out of date; a change of DN always
+			// goes through it, and a valve smaller than its line takes a
+			// reducer on each side
+		void aValveKeepsNoSizeOfItsOwn()
 		{
 			QETProject project;
 			const ElementsLocation tank = addTank(project);
@@ -505,23 +511,210 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(left && valve && right);
 			valve->setPos(400, 200);
 			right->setPos(600, 200);
+			Terminal *in = terminal(valve, QStringLiteral("N1"));
+			Terminal *out = terminal(valve, QStringLiteral("N2"));
+			QVERIFY(in->followsPipe());
+			QVERIFY(out->followsPipe());
+				// the nozzles of equipment may have a size of their own
+			QVERIFY(!terminal(left, QStringLiteral("N2"))->followsPipe());
+				// nor does an electrical terminal follow anything
+			QVERIFY(!terminal(left, QStringLiteral("E1"))->followsPipe());
 			Conductor *before = connect(folio, left, QStringLiteral("N2"), valve, QStringLiteral("N1"));
 			Conductor *after = connect(folio, valve, QStringLiteral("N2"), right, QStringLiteral("N2"));
 			QCOMPARE(before->inlineRun().size(), 2);
+
+				// two sizes given to it (an old file, a script): not kept,
+				// not written, and the line still runs through
 			valve->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 80}}));
-			QCOMPARE(before->inlineRun().size(), 1);
-			QCOMPARE(after->inlineRun().size(), 1);
-			setDn(before, 100);
-			setDn(after, 80);
-			QVERIFY(!terminal(valve, QStringLiteral("N1"))->hasDiameterGap());
-			QVERIFY(!terminal(valve, QStringLiteral("N2"))->hasDiameterGap());
-				// one size again: through
-			valve->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}}));
+			QVERIFY(valve->nozzleDiameters().isEmpty());
+			QVERIFY(!in->ownDiameter().isSet());
+			QVERIFY(!in->diameter().isSet());
 			QCOMPARE(before->inlineRun().size(), 2);
+			QCOMPARE(after->inlineRun().size(), 2);
+			QDomDocument doc;
+			QHash<Terminal *, int> table;
+			QVERIFY(valve->toXml(doc, table).firstChildElement(QStringLiteral("nozzles")).isNull());
+
+				// it has the size of its line, on both sides
+			setDn(before, 100);
+			QCOMPARE(in->diameter().value(), 100.0);
+			QCOMPARE(out->diameter().value(), 100.0);
+			QVERIFY(!in->hasDiameterGap());
+				// two sizes on its pipes: marked, as nothing reduces there
+			setDn(after, 80);
+			QVERIFY(in->hasDiameterGap());
+			QVERIFY(out->hasDiameterGap());
 		}
 
-			// the run a symbol names (pipe_run): an equal tee takes its
-			// branch in, a reducing tee only its two nozzles in line
+			// the size its symbol gives a nozzle of a valve is ignored too
+		void theSizeOfTheSymbolIsIgnoredOnAValve()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation sized = addSymbol(
+						project, QStringLiteral("sized.elmt"),
+						QStringLiteral("{7b888888-8888-8888-8888-888888888888}"), 100,
+						QStringLiteral("pipe_inline=\"true\" "));
+			Element *valve = place(folio, sized);
+			QVERIFY(valve);
+			QVERIFY(valve->isPipeInline());
+			Terminal *n1 = terminal(valve, QStringLiteral("N1"));
+			QCOMPARE(n1->symbolDiameter(), PipeDiameter::nominal(100));
+			QVERIFY(!n1->diameter().isSet());
+			QCOMPARE(n1->labelText(), QStringLiteral("N1"));
+
+				// a new pipe takes nothing from it
+			Element *tank = place(folio, addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0));
+			QVERIFY(tank);
+			tank->setPos(400, 200);
+			Conductor *pipe = connect(folio, valve, QStringLiteral("N1"), tank, QStringLiteral("N1"));
+			QCOMPARE(dn(pipe), 0);
+		}
+
+			// the only nozzle of a piece of pipe (a free end, a vent) has
+			// the size of its pipe; a piece of pipe of two nozzles out of a
+			// run (a reducer) may have sizes of its own
+		void aFreeEndHasTheSizeOfItsPipe()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			project.embeddedElementCollection()->createDir(
+						QStringLiteral("import"), QStringLiteral("nozzles"), NamesList());
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pid_family=\"pipe\" "
+				"width=\"20\" height=\"20\" hotspot_x=\"10\" hotspot_y=\"10\">"
+				"<uuid uuid=\"{7b999999-9999-9999-9999-999999999999}\"/>"
+				"<names><name lang=\"en\">Free end</name></names>"
+				"<description>"
+				"<line x1=\"0\" y1=\"-5\" x2=\"0\" y2=\"5\" end1=\"none\" end2=\"none\" "
+				"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
+				"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
+				"<terminal uuid=\"{7b000000-0000-0000-0000-000000000091}\" name=\"N1\" x=\"0\" y=\"0\" "
+				"orientation=\"w\" type=\"Generic\" medium=\"pipe\" connection=\"plain_end\" dn=\"50\"/>"
+				"</description></definition>"));
+			project.embeddedElementCollection()->addElementDefinition(
+						QStringLiteral("import/nozzles"), QStringLiteral("end.elmt"), doc.documentElement());
+			Element *tank = place(folio, addTank(project));
+			Element *end = place(folio, ElementsLocation(
+									 QStringLiteral("embed://import/nozzles/end.elmt"), &project));
+			QVERIFY(tank && end);
+			end->setPos(0, 200);
+			Terminal *n1 = terminal(end, QStringLiteral("N1"));
+			QVERIFY(n1->followsPipe());
+				// neither the DN 50 of its symbol nor one given to it
+			QVERIFY(!n1->diameter().isSet());
+			end->setNozzleDiameters(dns({{QStringLiteral("N1"), 65}}));
+			QVERIFY(end->nozzleDiameters().isEmpty());
+				// the pipe takes the DN 80 of the tank, and the end has it
+			Conductor *pipe = connect(folio, end, QStringLiteral("N1"), tank, QStringLiteral("N1"));
+			QVERIFY(pipe);
+			QCOMPARE(dn(pipe), 80);
+			QCOMPARE(n1->diameter().value(), 80.0);
+			QVERIFY(!n1->hasDiameterGap());
+
+				// its tab: one greyed field showing it, and no box
+			ElementNozzlesWidget tab(end);
+			QVERIFY(!tab.sameConnectionBox());
+			QVERIFY(!tab.sameSizeBox());
+			QVERIFY(!tab.fieldFor(QStringLiteral("N1"))->parentWidget()->isEnabled());
+			QCOMPARE(tab.fieldFor(QStringLiteral("N1"))->placeholderText(), QStringLiteral("DN 80"));
+			QVERIFY(tab.connectionFor(QStringLiteral("N1"))->isEnabled());
+
+				// two nozzles and no run: each a size of its own
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7baaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}"), 100,
+						QStringLiteral("pid_family=\"pipe\" ")));
+			QVERIFY(reducer);
+			QVERIFY(!terminal(reducer, QStringLiteral("N1"))->followsPipe());
+			QCOMPARE(terminal(reducer, QStringLiteral("N1"))->diameter().value(), 100.0);
+			reducer->setNozzleDiameters(dns({{QStringLiteral("N2"), 80}}));
+			QCOMPARE(terminal(reducer, QStringLiteral("N2"))->diameter().value(), 80.0);
+		}
+
+			// the Nozzles tab of a valve: its sizes greyed, showing the size of
+			// the line; its connections and their drawing stay free
+		void theNozzlesTabGreysTheSizesOfAValve()
+		{
+			QETProject project;
+			const ElementsLocation tank = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			Diagram *folio = project.addNewDiagram();
+			Element *left = place(folio, tank);
+			Element *valve = place(folio, addValve(project));
+			QVERIFY(left && valve);
+			valve->setPos(400, 200);
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			setDn(before, 100);
+			const QString n1 = QStringLiteral("N1");
+			const QString n2 = QStringLiteral("N2");
+			{
+				ElementNozzlesWidget tab(valve);
+				tab.setLiveEdit(true);
+					// one connection for all, but no "one size for all"
+				QVERIFY(tab.sameConnectionBox());
+				QVERIFY(!tab.sameSizeBox());
+				QVERIFY(!tab.fieldFor(n1)->parentWidget()->isEnabled());
+				QVERIFY(!tab.fieldFor(n2)->parentWidget()->isEnabled());
+				QVERIFY(tab.fieldFor(n1)->text().isEmpty());
+				QCOMPARE(tab.fieldFor(n1)->placeholderText(), QStringLiteral("DN 100"));
+					// the free side has the size of the line too
+				QCOMPARE(tab.fieldFor(n2)->placeholderText(), QStringLiteral("DN 100"));
+				QVERIFY(tab.connectionFor(n1)->isEnabled());
+				QVERIFY(tab.markFor(n1)->isEnabled());
+
+					// a size typed anyway is neither kept nor an undo step
+				const int steps = folio->undoStack().count();
+				tab.fieldFor(n1)->setText(QStringLiteral("150"));
+				emit tab.fieldFor(n1)->editingFinished();
+				QVERIFY(valve->nozzleDiameters().isEmpty());
+				QVERIFY(tab.chosen().isEmpty());
+				QCOMPARE(folio->undoStack().count(), steps);
+
+					// its connection is still chosen there, with undo
+				QComboBox *connection = tab.connectionFor(n1);
+				const int flange = connection->findData(int(PipeConnection::Flange));
+				QVERIFY(flange >= 0);
+				tab.sameConnectionBox()->setChecked(false);
+				connection->setCurrentIndex(flange);
+				emit connection->activated(flange);
+				QCOMPARE(terminal(valve, n1)->connection(), PipeConnection::Flange);
+				QCOMPARE(terminal(valve, n2)->connection(), PipeConnection::PlainEnd);
+				QVERIFY(valve->nozzleDiameters().isEmpty());
+				QVERIFY(!tab.fieldFor(n1)->parentWidget()->isEnabled());
+			}
+				// the line given another size: so shows the tab opened again
+			setDn(before, 150);
+			ElementNozzlesWidget again(valve);
+			QCOMPARE(again.fieldFor(n2)->placeholderText(), QStringLiteral("DN 150"));
+		}
+
+			// another type for an element: the nozzles which follow their pipe
+			// in the new symbol keep no size, and get theirs back on undo
+		void aChangeOfTypeDropsTheSizesOfTheNozzlesWhichFollow()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			Element *element = place(folio, addTank(project));
+			QVERIFY(element);
+			const NozzleDiameters given = dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 50}});
+			element->setNozzleDiameters(given);
+			folio->undoStack().push(new ChangeElementLocationCommand(element, addValve(project)));
+			QVERIFY(element->isPipeInline());
+			QVERIFY(element->nozzleDiameters().isEmpty());
+			QVERIFY(!terminal(element, QStringLiteral("N1"))->diameter().isSet());
+			folio->undoStack().undo();
+			QVERIFY(!element->isPipeInline());
+			QCOMPARE(element->nozzleDiameters(), given);
+			QCOMPARE(terminal(element, QStringLiteral("N1"))->diameter().value(), 100.0);
+		}
+
+			// the run a symbol names (pipe_run): a tee takes its branch in;
+			// a symbol may leave a nozzle out (the drain of a valve)
 		void aTeeHasTheRunItsSymbolNames()
 		{
 			QETProject project;
@@ -555,28 +748,34 @@ class tst_nozzlediameter : public QObject
 				const QList<Conductor *> run = before->inlineRun();
 				QVERIFY(run.contains(after));
 				QCOMPARE(run.contains(branch), is_equal);
-					// a size given to N1: N2 has it, N3 too on an equal tee only
-				tee->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}}));
+					// the nozzles of the run keep no size; the one left out
+					// of it keeps its own
+				tee->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N3"), 50}}));
+				QVERIFY(!terminal(tee, QStringLiteral("N1"))->ownDiameter().isSet());
+				QCOMPARE(terminal(tee, QStringLiteral("N3"))->followsPipe(), is_equal);
+				QCOMPARE(terminal(tee, QStringLiteral("N3"))->ownDiameter().isSet(), !is_equal);
+				QCOMPARE(tee->nozzleDiameters().size(), is_equal ? 0 : 1);
+					// the size of the line on the free side of the run; the
+					// branch has the DN 80 its pipe took from the tank, or its
+					// own, and is marked: no reducer there
+				setDn(before, 100);
 				QCOMPARE(terminal(tee, QStringLiteral("N2"))->diameter().value(), 100.0);
-				QCOMPARE(terminal(tee, QStringLiteral("N3"))->ownDiameter().isSet(), is_equal);
+				QCOMPARE(dn(branch), 80);
+				QCOMPARE(terminal(tee, QStringLiteral("N3"))->diameter().value(), is_equal ? 80.0 : 50.0);
+				QVERIFY(terminal(tee, QStringLiteral("N3"))->hasDiameterGap());
 			}
 		}
 
-			// a valve has one DN: given to one nozzle, seen on both
-		void aValveHasOneDiameter()
+			// a symbol that is not a valve keeps a size per nozzle
+		void equipmentKeepsASizePerNozzle()
 		{
 			QETProject project;
 			Diagram *folio = project.addNewDiagram();
-			Element *valve = place(folio, addValve(project));
-			QVERIFY(valve);
-			QVERIFY(valve->isPipeInline());
-			valve->setNozzleDiameters(dns({{QStringLiteral("N1"), 80}}));
-			QCOMPARE(terminal(valve, QStringLiteral("N2"))->diameter().value(), 80.0);
-
-				// and a symbol that is not a valve keeps two
 			Element *tank = place(folio, addTank(project));
+			QVERIFY(tank);
 			QVERIFY(!tank->isPipeInline());
 			tank->setNozzleDiameters(dns({{QStringLiteral("N1"), 200}}));
+			QCOMPARE(terminal(tank, QStringLiteral("N1"))->diameter().value(), 200.0);
 			QCOMPARE(terminal(tank, QStringLiteral("N2"))->diameter().value(), 0.0);
 		}
 
