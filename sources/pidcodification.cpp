@@ -363,37 +363,6 @@ bool PidCodification::acceptsForNozzle(const PipeDiameter &diameter) const
 }
 
 /**
-	@brief PidCodification::conversions
-	See the declaration
-*/
-QList<PipeDiameter> PidCodification::conversions(const PipeDiameter &diameter,
-												 const QString &material_code) const
-{
-	QList<PipeDiameter> series;
-	if (!diameter.isSet() || pipeSizes(material_code, &series) != SizeRule::Series
-		|| series.contains(diameter)) {
-		return {};
-	}
-	QList<PipeDiameter> found;
-	for (const PipeDiameter &size : std::as_const(series))
-	{
-		if (size.kind() != diameter.kind()) {
-			if (compare(diameter, size) == DiameterMatch::Same) {
-				found << size;
-			}
-		} else if (diameter.isOutside()) {
-				//Two outside diameters joined to the same DN
-			const QList<int> from = outside_diameters.value(diameter.tenths());
-			const QList<int> to = outside_diameters.value(size.tenths());
-			if (std::any_of(from.cbegin(), from.cend(), [&to](int dn) { return to.contains(dn); })) {
-				found << size;
-			}
-		}
-	}
-	return found;
-}
-
-/**
 	@brief PidCodification::nearest
 	See the declaration
 */
@@ -477,11 +446,87 @@ PidCodification::DiameterMatch PidCodification::compare(const PipeDiameter &a,
 */
 PipeDiameter PidCodification::nominalOf(const PipeDiameter &outside) const
 {
+	const QList<PipeDiameter> joined = nominalsOf(outside);
+	return joined.size() == 1 ? joined.first() : PipeDiameter();
+}
+
+/**
+	@brief PidCodification::nominalsOf
+	See the declaration
+*/
+QList<PipeDiameter> PidCodification::nominalsOf(const PipeDiameter &outside) const
+{
+	QList<PipeDiameter> found;
 	if (!outside.isOutside()) {
-		return PipeDiameter();
+		return found;
 	}
-	const QList<int> joined = outside_diameters.value(outside.tenths());
-	return joined.size() == 1 ? PipeDiameter::nominal(joined.first()) : PipeDiameter();
+	for (int dn : outside_diameters.value(outside.tenths())) {
+		const PipeDiameter size = PipeDiameter::nominal(dn);
+		if (size.isSet() && !found.contains(size)) {
+			found << size;
+		}
+	}
+	return found;
+}
+
+/**
+	@brief PidCodification::nominalSizes
+	See the declaration
+*/
+QList<PipeDiameter> PidCodification::nominalSizes() const
+{
+	QList<int> tenths;
+	for (const Entry &entry : materials) {
+		if (entry.outside_diameter) {
+			continue;
+		}
+		for (int value : entry.series) {
+			if (!tenths.contains(value)) {
+				tenths << value;
+			}
+		}
+	}
+	std::sort(tenths.begin(), tenths.end());
+	QList<PipeDiameter> sizes;
+	for (int value : std::as_const(tenths)) {
+		const PipeDiameter size = PipeDiameter::fromTenths(PipeDiameter::Nominal, value);
+		if (size.isSet()) {
+			sizes << size;
+		}
+	}
+	if (sizes.isEmpty()) {
+		for (int dn : PipeProperties::preferredDiameters()) {
+			sizes << PipeDiameter::nominal(dn);
+		}
+	}
+	return sizes;
+}
+
+/**
+	@brief PidCodification::lineSizes
+	See the declaration
+*/
+QList<PipeDiameter> PidCodification::lineSizes(const QString &material_code) const
+{
+	const Entry *entry = material(material_code);
+	if (!entry) {
+		return nominalSizes();
+	}
+	if (!entry->outside_diameter) {
+		return seriesOf(*entry);
+	}
+	QList<PipeDiameter> sizes;
+	for (const PipeDiameter &outside : seriesOf(*entry)) {
+		for (const PipeDiameter &dn : nominalsOf(outside)) {
+			if (!sizes.contains(dn)) {
+				sizes << dn;
+			}
+		}
+	}
+	std::sort(sizes.begin(), sizes.end(), [](const PipeDiameter &a, const PipeDiameter &b) {
+		return a.tenths() < b.tenths();
+	});
+	return sizes;
 }
 
 /**

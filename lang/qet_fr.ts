@@ -12977,8 +12977,73 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="133"/>
-        <source>The sizes of the series of the material: DN for a metal pipe, outside diameter (Ø 110) for a plastic one.</source>
-        <translation>Les tailles de la série du matériau : DN pour une tuyauterie métallique, diamètre extérieur (Ø 110) pour une tuyauterie plastique.</translation>
+        <source>A DN (DN 100) or an outside diameter (Ø 110): the DN is the size of the line, the material chooses which one is written. A plastic pipe has both.</source>
+        <translation>Un DN (DN 100) ou un diamètre extérieur (Ø 110) : le DN est la taille de la ligne, le matériau choisit lequel est écrit. Une tuyauterie plastique a les deux.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 is not a size a pipe line may have: nothing changed.</source>
+        <translation>%1 n&apos;est pas une taille de tuyauterie : rien n&apos;a changé.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 → %2: the nearest DN the project offers.</source>
+        <translation>%1 → %2 : le DN le plus proche parmi ceux du projet.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 → %2: the nearest DN the table of the diameters joins to the series of the material.</source>
+        <translation>%1 → %2 : le DN le plus proche que la table des diamètres associe à la série du matériau.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 may be joined to several DN. Which one is the size of the line?</source>
+        <translation>%1 peut correspondre à plusieurs DN. Lequel est la taille de la ligne ?</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>Which outside diameter for %1 in the material %2?</source>
+        <translation>Quel diamètre extérieur pour %1 dans le matériau %2 ?</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>Leave the DN empty</source>
+        <translation>Laisser le DN vide</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>Leave it empty</source>
+        <translation>Laisser vide</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>Change nothing</source>
+        <translation>Ne rien changer</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1: the table of the diameters of the project joins no DN to it: nothing changed.</source>
+        <translation>%1 : la table des diamètres du projet ne lui associe aucun DN : rien n&apos;a changé.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 → %2: the outside diameter of %3 in the material %4.</source>
+        <translation>%1 → %2 : le diamètre extérieur de %3 dans le matériau %4.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 has no DN: the table of the diameters of the project joins none to it, or several.</source>
+        <translation>%1 n&apos;a pas de DN : la table des diamètres du projet ne lui en associe aucun, ou plusieurs.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1: the table of the diameters of the project joins no outside diameter of the material %2 to it.</source>
+        <translation>%1 : la table des diamètres du projet ne lui associe aucun diamètre extérieur du matériau %2.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1: the outside diameter of the material %2 is not chosen yet.</source>
+        <translation>%1 : le diamètre extérieur du matériau %2 n&apos;est pas encore choisi.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
@@ -12986,14 +13051,9 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>%1 n&apos;est pas dans la série du matériau (propriétés P&amp;ID du projet, Codification) : rien n&apos;a changé.</translation>
     </message>
     <message>
-        <location filename="../sources/ui/pipepropertieswidget.cpp" line="310"/>
-        <source>%1 may become one of these sizes of the material %2. Which one?</source>
-        <translation>%1 peut devenir l&apos;une de ces tailles du matériau %2. Laquelle ?</translation>
-    </message>
-    <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="315"/>
         <source>Keep it as it is</source>
-        <translation>La garder telle quelle</translation>
+        <translation>Le garder tel quel</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="316"/>
@@ -13004,16 +13064,6 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="317"/>
         <source>%1 → %2, as the table of the diameters joins them.</source>
         <translation>%1 → %2, d&apos;après la table des diamètres.</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/pipepropertieswidget.cpp" line="318"/>
-        <source>%1 → %2, as chosen.</source>
-        <translation>%1 → %2, comme choisi.</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/pipepropertieswidget.cpp" line="319"/>
-        <source>%1 kept: no size of the series of the material matches it.</source>
-        <translation>%1 gardé : aucune taille de la série du matériau ne lui correspond.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="320"/>
@@ -13031,19 +13081,9 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Plusieurs matériaux : donnez un même matériau aux tuyauteries pour leur donner une taille.</translation>
     </message>
     <message>
-        <location filename="../sources/ui/pipepropertieswidget.cpp" line="326"/>
-        <source>Choose first a material of the codification of the project: it gives the sizes.</source>
-        <translation>Choisissez d&apos;abord un matériau de la codification du projet : il donne les tailles.</translation>
-    </message>
-    <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="328"/>
         <source>The material %1 has no series (P&amp;ID properties of the project, Codification).</source>
         <translation>Le matériau %1 n&apos;a pas de série (propriétés P&amp;ID du projet, Codification).</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/pipepropertieswidget.cpp" line="325"/>
-        <source>%1: the material %2 names its pipes by their outside diameter.</source>
-        <translation>%1 : le matériau %2 désigne ses tuyauteries par leur diamètre extérieur.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="328"/>

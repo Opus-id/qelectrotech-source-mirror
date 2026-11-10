@@ -126,24 +126,31 @@ class PidCodification
 			/// (PipeDiameter::threadNominal()); a diameter not set differs
 			/// from nothing
 		DiameterMatch compare(const PipeDiameter &a, const PipeDiameter &b) const;
+			/// The DN the table of the project joins to the outside diameter
+			/// @p outside, in the order of the table; none when it has not
+			/// this outside diameter, or for another kind of size
+		QList<PipeDiameter> nominalsOf(const PipeDiameter &outside) const;
 			/// The DN of a pipe of the outside diameter @p outside: the one
 			/// the table of the project joins to it, when it joins one
 			/// only; none when it joins none, or several
 		PipeDiameter nominalOf(const PipeDiameter &outside) const;
+			/// The DN a pipe without material may have, the DN being the
+			/// size of a line whatever its material: those of the series of
+			/// the materials named by their DN, in order, each once; those
+			/// of ISO 6708 when the project has none
+		QList<PipeDiameter> nominalSizes() const;
+			/// The DN a pipe of the material of code @p material_code may
+			/// have: its series for a material named by its DN; for one
+			/// named by its outside diameter, the DN the table joins to the
+			/// sizes of its series, in order, each once; nominalSizes() for
+			/// a material the project has not
+		QList<PipeDiameter> lineSizes(const QString &material_code) const;
 			/// The outside diameters a pipe of the DN @p nominal may have in
 			/// the material of code @p material_code: those of its series
 			/// the table joins to this DN, in the order of the series; none
 			/// for a material named by its DN, or which the project has not
 		QList<PipeDiameter> outsidesOf(const PipeDiameter &nominal,
 									   const QString &material_code) const;
-			/// What @p diameter may become on a pipe of the material of code
-			/// @p material_code, when its series has it not: the sizes of the
-			/// series the table joins to it, through a DN when both are
-			/// outside diameters (Ø 110 of a plastic, DN 100, Ø 114,3 of a
-			/// steel). None when the series has it, or the material has no
-			/// series.
-		QList<PipeDiameter> conversions(const PipeDiameter &diameter,
-										const QString &material_code) const;
 			/// The size of @p sizes nearest to @p typed, of its kind; the
 			/// greater of two as near; none when there is none of its kind
 		static PipeDiameter nearest(const PipeDiameter &typed, const QList<PipeDiameter> &sizes);

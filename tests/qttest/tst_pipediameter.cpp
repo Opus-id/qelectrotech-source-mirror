@@ -198,28 +198,34 @@ class tst_pipediameter : public QObject
 			QCOMPARE(int(table().compare(a, b)), match);
 		}
 
-		void aSizeIsConvertedThroughTheTable()
+			// The DN is the size of a line whatever its material: the table
+			// joins it to the outside diameters of the series of a plastic
+		void theDnOfALineGoesWithAnyMaterial()
 		{
 			const PidCodification codification = table();
-				// to the steel: one DN, or two, within its series
-			QCOMPARE(codification.conversions(PipeDiameter::outside(110), QStringLiteral("M02")),
-					 QList<PipeDiameter>{PipeDiameter::nominal(100)});
-			QCOMPARE(codification.conversions(PipeDiameter::outside(125), QStringLiteral("M02")),
-					 (QList<PipeDiameter>{PipeDiameter::nominal(100), PipeDiameter::nominal(125)}));
-				// to the plastic: the outside diameters joined to DN 100
-			QCOMPARE(codification.conversions(PipeDiameter::nominal(100), QStringLiteral("M01")),
-					 (QList<PipeDiameter>{PipeDiameter::outside(110), PipeDiameter::outside(125)}));
-				// nothing to convert: in the series, no series, nothing joined
-			QVERIFY(codification.conversions(PipeDiameter::outside(110), QStringLiteral("M01")).isEmpty());
-			QVERIFY(codification.conversions(PipeDiameter::outside(110), QStringLiteral("M03")).isEmpty());
-			QVERIFY(codification.conversions(PipeDiameter::outside(110), QStringLiteral("M04")).isEmpty());
-			QVERIFY(codification.conversions(PipeDiameter::outside(450), QStringLiteral("M02")).isEmpty());
-				// two outside diameters joined to the same DN: a plastic Ø 110
-				// is a stainless Ø 114,3
-			PidCodification both = codification;
-			both.outside_diameters.insert(1143, {100});
-			QCOMPARE(both.conversions(PipeDiameter::outside(110), QStringLiteral("M03")),
-					 QList<PipeDiameter>{PipeDiameter::outside(114.3)});
+			const PipeDiameter dn80 = PipeDiameter::nominal(80), dn100 = PipeDiameter::nominal(100),
+					dn125 = PipeDiameter::nominal(125);
+				// the DN of an outside diameter: one, several, none
+			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(110)), QList<PipeDiameter>{dn100});
+			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(125)),
+					 (QList<PipeDiameter>{dn100, dn125}));
+			QVERIFY(codification.nominalsOf(PipeDiameter::outside(450)).isEmpty());
+			QVERIFY(codification.nominalsOf(PipeDiameter::outside(90)).isEmpty());
+			QVERIFY(codification.nominalsOf(dn100).isEmpty());
+				// without material: the DN of the materials named by their DN
+			QCOMPARE(codification.nominalSizes(), (QList<PipeDiameter>{dn80, dn100, dn125}));
+			QCOMPARE(codification.lineSizes(QString()), codification.nominalSizes());
+			QCOMPARE(codification.lineSizes(QStringLiteral("M99")), codification.nominalSizes());
+				// those of ISO 6708 when the project has none
+			PidCodification plastics;
+			plastics.materials = {material(QStringLiteral("M01"), true, {1100, 1250})};
+			QCOMPARE(plastics.nominalSizes().size(), PipeProperties::preferredDiameters().size());
+			QCOMPARE(PidCodification().nominalSizes().size(), PipeProperties::preferredDiameters().size());
+				// of a material: its series, or the DN joined to its series
+			QCOMPARE(codification.lineSizes(QStringLiteral("M02")), (QList<PipeDiameter>{dn80, dn100, dn125}));
+			QCOMPARE(codification.lineSizes(QStringLiteral("M01")), (QList<PipeDiameter>{dn100, dn125}));
+			QCOMPARE(codification.lineSizes(QStringLiteral("M03")), QList<PipeDiameter>{dn80});
+			QVERIFY(codification.lineSizes(QStringLiteral("M04")).isEmpty());
 		}
 
 		void theNearestSizeIsFound()

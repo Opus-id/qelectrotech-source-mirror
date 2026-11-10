@@ -225,8 +225,10 @@ class tst_pipepanel : public QObject
 			QCOMPARE(pipe->properties().lineStyle(), Qt::DashLine);
 		}
 
-			// Each material has its series: the field offers it, and only it;
-			// without a material of the codification, nothing to choose
+			// Each material has its series, which the field offers. A pipe has
+			// a DN, the size of the line, and a plastic one an outside
+			// diameter too: one field takes either and finds the other.
+			// Without a material, a DN.
 		void theSizesAreTheSeriesOfTheMaterial()
 		{
 			PidCodification codification;
@@ -262,6 +264,14 @@ class tst_pipepanel : public QObject
 			auto *list = page.findChild<QComboBox *>(QStringLiteral("diameter_list"));
 			QVERIFY(list);
 			QLineEdit *edit = list->lineEdit();
+			auto dn = [pipe]() { return pipe->properties().m_pipe.nominal; };
+			auto od = [pipe]() { return pipe->properties().m_pipe.outside; };
+			int asked = 0;
+			int answer = -1;
+			page.setChooser([&asked, &answer](const QString &, const QStringList &) {
+				++asked;
+				return answer;
+			});
 
 				// a plastic: its series, and a number alone is an outside diameter
 			QVERIFY(list->isEnabled());
@@ -272,25 +282,80 @@ class tst_pipepanel : public QObject
 			QCOMPARE(edit->text(), QStringLiteral("Ø 110"));
 			QVERIFY(page.diameterMessage().isEmpty());
 				// with it, the DN the table joins to it: the size of the line
-			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
 
 				// a size out of its series: the nearest one, and said; the
 				// greater of two as near
 			type(edit, QStringLiteral("123"));
 			QCOMPARE(diameter(), PipeDiameter::outside(125));
 			QCOMPARE(edit->text(), QStringLiteral("Ø 125"));
-				// joined to DN 100 and DN 125: the DN the pipe had stays
-			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
+				// joined to DN 100 and DN 125: the DN the pipe had stays,
+				// nothing is asked
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QCOMPARE(asked, 0);
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("123")));
 			type(edit, QStringLiteral("112"));
 			QCOMPARE(diameter(), PipeDiameter::outside(110));
 			type(edit, QStringLiteral("117,5"));
 			QCOMPARE(diameter(), PipeDiameter::outside(125));
-				// a DN typed on a plastic is refused
+
+				// a DN typed on a plastic is its DN: the outside diameter it
+				// had stays when the series joins it to this DN
 			type(edit, QStringLiteral("DN 100"));
-			QCOMPARE(diameter(), PipeDiameter::outside(125));
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QCOMPARE(od(), PipeDiameter::outside(125));
+			QCOMPARE(edit->text(), QStringLiteral("Ø 125"));
+			QCOMPARE(asked, 0);
+				// the only one the series joins to it is taken
+			type(edit, QStringLiteral("dn125"));
+			QCOMPARE(dn(), PipeDiameter::nominal(125));
+			QCOMPARE(od(), PipeDiameter::outside(125));
+			QCOMPARE(asked, 0);
+				// among several, the user chooses, in the same step
+			type(edit, QString());
+			QVERIFY(!pipe->properties().m_pipe.hasSize());
+			QUndoStack &stack = m_folio->undoStack();
+			int steps = stack.count();
+			answer = 0;
+			type(edit, QStringLiteral("DN 100"));
+			QCOMPARE(asked, 1);
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QCOMPARE(od(), PipeDiameter::outside(110));
+			QCOMPARE(stack.count(), steps + 1);
+			QVERIFY(page.diameterMessage().isEmpty());
+				// or leaves it empty: the DN is written meanwhile, and said
+			type(edit, QString());
+			answer = -1;
+			type(edit, QStringLiteral("DN 100"));
+			QCOMPARE(asked, 2);
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QVERIFY(!od().isSet());
+			QCOMPARE(edit->text(), QStringLiteral("DN 100"));
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN 100")));
+				// a DN the table joins to none of the series: the nearest
+			answer = 1;
+			type(edit, QStringLiteral("DN 110"));
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QCOMPARE(od(), PipeDiameter::outside(125));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN 110")));
+
+				// an outside diameter the table joins to several DN, on a pipe
+				// which has none of them: the user chooses, or leaves it empty
+			type(edit, QString());
+			asked = 0;
+			answer = 1;
+			type(edit, QStringLiteral("125"));
+			QCOMPARE(asked, 1);
+			QCOMPARE(od(), PipeDiameter::outside(125));
+			QCOMPARE(dn(), PipeDiameter::nominal(125));
+			type(edit, QString());
+			answer = -1;
+			type(edit, QStringLiteral("125"));
+			QCOMPARE(od(), PipeDiameter::outside(125));
+			QVERIFY(!dn().isSet());
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN")));
 			type(edit, QStringLiteral("110"));
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
 
 				// to tenths, with the separator of the project
 			setMaterial(QStringLiteral("M04"));
@@ -298,22 +363,74 @@ class tst_pipepanel : public QObject
 			type(edit, QStringLiteral("88.9"));
 			QCOMPARE(diameter(), PipeDiameter::outside(88.9));
 			QCOMPARE(edit->text(), QStringLiteral("Ø 88,9"));
-				// which the table has not: no DN is kept, nor guessed
-			QVERIFY(!pipe->properties().m_pipe.nominal.isSet());
+				// which the table has not: no DN is kept, nor guessed, and
+				// it is said
+			QVERIFY(!dn().isSet());
+			QVERIFY(!page.diameterMessage().isEmpty());
 
-				// a material without series, none of the codification, or no
-				// material: nothing to choose, and said
+				// a material without series: nothing to choose, and said
 			setMaterial(QStringLiteral("M03"));
 			QVERIFY(!list->isEnabled());
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("M03")));
 			QCOMPARE(diameter(), PipeDiameter::outside(88.9));
-			setMaterial(QStringLiteral("XYZ"));
-			QVERIFY(!list->isEnabled());
-			QVERIFY(!page.diameterMessage().isEmpty());
-			setMaterial(QString());
-			QVERIFY(!list->isEnabled());
 
-				// several materials: nothing to choose either
+				// a steel: its series; an outside diameter typed gives the DN
+				// the table joins to it, and a steel pipe has no other size
+			setMaterial(QStringLiteral("M02"));
+			QVERIFY(list->isEnabled());
+			QCOMPARE(list->itemText(1), QStringLiteral("DN 80"));
+			type(edit, QStringLiteral("Ø 110"));
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QVERIFY(!od().isSet());
+			QCOMPARE(edit->text(), QStringLiteral("DN 100"));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("Ø 110")));
+				// which the table has not: refused
+			type(edit, QStringLiteral("Ø 90"));
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("Ø 90")));
+				// joined to several DN: asked; no answer, nothing changed
+			asked = 0;
+			answer = -1;
+			steps = stack.count();
+			type(edit, QStringLiteral("Ø 125"));
+			QCOMPARE(asked, 1);
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QCOMPARE(stack.count(), steps);
+			answer = 1;
+			type(edit, QStringLiteral("Ø 125"));
+			QCOMPARE(dn(), PipeDiameter::nominal(125));
+			QVERIFY(!od().isSet());
+
+				// no material, or one the codification has not: a DN, among
+				// those of the materials of the project named by their DN
+			for (const QString &none : {QStringLiteral("XYZ"), QString()})
+			{
+				setMaterial(none);
+				QVERIFY(list->isEnabled());
+				QCOMPARE(list->count(), 4);
+				QCOMPARE(list->itemText(1), QStringLiteral("DN 80"));
+				type(edit, QStringLiteral("80"));
+				QCOMPARE(dn(), PipeDiameter::nominal(80));
+				QVERIFY(!od().isSet());
+				QCOMPARE(edit->text(), QStringLiteral("DN 80"));
+				QVERIFY(page.diameterMessage().isEmpty());
+					// an outside diameter typed: its DN only, and said
+				type(edit, QStringLiteral("Ø 110"));
+				QCOMPARE(dn(), PipeDiameter::nominal(100));
+				QVERIFY(!od().isSet());
+				QVERIFY(page.diameterMessage().contains(QStringLiteral("Ø 110")));
+					// out of the list: the nearest one, the greater of two
+				type(edit, QStringLiteral("90"));
+				QCOMPARE(dn(), PipeDiameter::nominal(100));
+				type(edit, QStringLiteral("60"));
+				QCOMPARE(dn(), PipeDiameter::nominal(80));
+					// what is no size of a pipe is refused
+				type(edit, QStringLiteral("G 1/2"));
+				QCOMPARE(dn(), PipeDiameter::nominal(80));
+				QVERIFY(!page.diameterMessage().isEmpty());
+			}
+
+				// several materials: nothing to choose
 			setMaterial(QStringLiteral("M01"));
 			Conductor *other = draw(m_nozzles);
 			ConductorProperties p = other->properties();
@@ -332,9 +449,10 @@ class tst_pipepanel : public QObject
 			QVERIFY(!pipe->properties().m_pipe.outside.isSet());
 		}
 
-			// A material of the other kind: the table gives the size, in the
-			// same step; several sizes, the user chooses
-		void aChangeOfMaterialConvertsTheSize()
+			// A change of material keeps the DN, the size of the line, in the
+			// same step; the outside diameter is the one of the new material,
+			// which the user chooses among several
+		void aChangeOfMaterialKeepsTheDn()
 		{
 			PidCodification codification;
 			PidCodification::Entry plastic;
@@ -369,7 +487,8 @@ class tst_pipepanel : public QObject
 				return items.size() > 1 ? answer : -1;
 			});
 
-				// one size: taken without a question, in one step
+				// an outside diameter alone gets the DN the table joins to
+				// it, without a question, in one step
 			QUndoStack &stack = m_folio->undoStack();
 			const int steps = stack.count();
 			type(material->lineEdit(), QStringLiteral("M02"));
@@ -414,11 +533,95 @@ class tst_pipepanel : public QObject
 			QCOMPARE(diameter(), PipeDiameter::outside(125));
 			QVERIFY(!sizes().nominal.isSet());
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("M02")));
+				// an answer: the DN chosen, and no outside diameter
+			answer = 1;
+			type(material->lineEdit(), QStringLiteral("M01"));
+			type(material->lineEdit(), QStringLiteral("M02"));
+			QCOMPARE(sizes().nominal, PipeDiameter::nominal(125));
+			QVERIFY(!sizes().outside.isSet());
+
+				// no outside diameter chosen for the plastic: the DN is
+				// written meanwhile, and said
+			p = pipe->properties();
+			p.m_pipe.nominal = PipeDiameter::nominal(100);
+			pipe->setProperties(p);
+			answer = -1;
+			type(material->lineEdit(), QStringLiteral("M01"));
+			QCOMPARE(sizes().nominal, PipeDiameter::nominal(100));
+			QVERIFY(!sizes().outside.isSet());
+			QCOMPARE(diameter(), PipeDiameter::nominal(100));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("M01")));
+
+				// no material: the DN stays, alone
+			p = pipe->properties();
+			p.m_pipe.outside = PipeDiameter::outside(110);
+			pipe->setProperties(p);
+			type(material->lineEdit(), QString());
+			QVERIFY(pipe->properties().m_pipe.material.isEmpty());
+			QCOMPARE(sizes().nominal, PipeDiameter::nominal(100));
+			QVERIFY(!sizes().outside.isSet());
+			QVERIFY(page.diameterMessage().isEmpty());
 			m_project.setPidCodification(PidCodification());
 		}
 
-			// The same kind: through the DN the table joins (a plastic Ø 110
-			// is a stainless Ø 114,3), else the nearest size of the series
+			// Several pipes get a material at once: one question for a DN,
+			// whatever their number
+		void aQuestionIsAskedOnceForADn()
+		{
+			PidCodification codification;
+			PidCodification::Entry plastic;
+			plastic.code = QStringLiteral("M01");
+			plastic.outside_diameter = true;
+			plastic.series = {900, 1100, 1250};
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.series = {800, 1000};
+			codification.materials = {plastic, steel};
+			codification.outside_diameters.insert(900, {80});
+			codification.outside_diameters.insert(1100, {100});
+			codification.outside_diameters.insert(1250, {100});
+			m_project.setPidCodification(codification);
+
+			QList<Conductor *> pipes;
+			for (int dn : {100, 100, 80, 100}) {
+				Conductor *pipe = draw(m_nozzles);
+				QVERIFY(pipe);
+				ConductorProperties p = pipe->properties();
+				p.m_pipe.material = QStringLiteral("M02");
+				p.m_pipe.nominal = PipeDiameter::nominal(dn);
+				pipe->setProperties(p);
+				pipes << pipe;
+			}
+			PipePropertiesWidget page(pipes);
+			QStringList questions;
+			page.setChooser([&questions](const QString &question, const QStringList &items) {
+				questions << question;
+				return int(items.size()) - 1;
+			});
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.count();
+			type(page.findChild<QComboBox *>(QStringLiteral("material"))->lineEdit(), QStringLiteral("M01"));
+			QCOMPARE(questions.size(), 1);
+			QVERIFY(questions.first().contains(QStringLiteral("DN 100")));
+			QCOMPARE(stack.count(), steps + 1);
+			for (Conductor *pipe : std::as_const(pipes)) {
+				const PipeProperties data = pipe->properties().m_pipe;
+				QCOMPARE(data.material, QStringLiteral("M01"));
+				QCOMPARE(data.outside, data.nominal == PipeDiameter::nominal(80)
+						 ? PipeDiameter::outside(90) : PipeDiameter::outside(125));
+			}
+			stack.undo();
+			for (Conductor *pipe : std::as_const(pipes)) {
+				QCOMPARE(pipe->properties().m_pipe.material, QStringLiteral("M02"));
+				QVERIFY(!pipe->properties().m_pipe.outside.isSet());
+			}
+			m_project.setPidCodification(PidCodification());
+		}
+
+			// From a material to another of the same kind: an outside diameter
+			// the new series has for this DN stays, else it is the one the
+			// table joins (a plastic Ø 110 is a stainless Ø 114,3); a DN stays
+			// even out of the new series, and it is said
 		void aChangeOfMaterialOfTheSameKind()
 		{
 			PidCodification codification;
@@ -436,9 +639,14 @@ class tst_pipepanel : public QObject
 			PidCodification::Entry iron;
 			iron.code = QStringLiteral("M04");
 			iron.series = {600, 800};
-			codification.materials = {plastic, stainless, galvanised, iron};
+			PidCodification::Entry other_plastic;
+			other_plastic.code = QStringLiteral("M05");
+			other_plastic.outside_diameter = true;
+			other_plastic.series = {1100, 1600};
+			codification.materials = {plastic, stainless, galvanised, iron, other_plastic};
 			codification.outside_diameters.insert(1100, {100});
 			codification.outside_diameters.insert(1143, {100});
+			codification.outside_diameters.insert(1600, {150});
 			codification.decimal = PidCodification::Decimal::Comma;
 			m_project.setPidCodification(codification);
 
@@ -450,24 +658,49 @@ class tst_pipepanel : public QObject
 			pipe->setProperties(p);
 			auto diameter = [this, pipe]() { return written(pipe); };
 			PipePropertiesWidget page({pipe});
-			page.setChooser([](const QString &, const QStringList &) { return -1; });
+			int asked = 0;
+			page.setChooser([&asked](const QString &, const QStringList &) {
+				++asked;
+				return -1;
+			});
 			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
 
+				// another plastic which has this outside diameter: it stays,
+				// and nothing is said
+			type(material->lineEdit(), QStringLiteral("M05"));
+			QCOMPARE(pipe->properties().m_pipe.material, QStringLiteral("M05"));
+			QCOMPARE(diameter(), PipeDiameter::outside(110));
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
+			QVERIFY(page.diameterMessage().isEmpty());
+
+				// one which has it not: the one its series joins to the DN
 			type(material->lineEdit(), QStringLiteral("M02"));
 			QCOMPARE(diameter(), PipeDiameter::outside(114.3));
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("Ø 114,3")));
 				// the DN of the line stays
 			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
+			QCOMPARE(asked, 0);
 
-				// two DN without table: the nearest one
+				// two metals: the DN stays, even out of the new series, which
+				// is said; never the nearest one
 			p = pipe->properties();
 			p.m_pipe.material = QStringLiteral("M03");
 			p.m_pipe.nominal = PipeDiameter::nominal(65);
 			p.m_pipe.outside = PipeDiameter();
 			pipe->setProperties(p);
 			type(material->lineEdit(), QStringLiteral("M04"));
-			QCOMPARE(diameter(), PipeDiameter::nominal(60));
-			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN 60")));
+			QCOMPARE(pipe->properties().m_pipe.material, QStringLiteral("M04"));
+			QCOMPARE(diameter(), PipeDiameter::nominal(65));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN 65")));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("M04")));
+
+				// to a plastic whose series the table joins to no such DN:
+				// the DN stays, without an outside diameter, and it is said
+			type(material->lineEdit(), QStringLiteral("M01"));
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(65));
+			QVERIFY(!pipe->properties().m_pipe.outside.isSet());
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN 65")));
+			QCOMPARE(asked, 0);
 			m_project.setPidCodification(PidCodification());
 		}
 
