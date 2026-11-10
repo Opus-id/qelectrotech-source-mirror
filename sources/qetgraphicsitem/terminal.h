@@ -104,10 +104,12 @@ class Terminal : public QGraphicsObject
 			/// Another nozzle of its run which is not brought the size
 			/// @p pipe (facingDiameter()); nullptr if none
 		const Terminal *runSiblingOtherThan(const PipeDiameter &pipe) const;
-			/// The nozzle of another symbol placed against this one, with
-			/// no pipe on either; nullptr if none. For the sizes, two
-			/// nozzles placed so are joined by a pipe of no length which
-			/// nobody drew: nothing is saved for it.
+			/// The nozzle of another symbol placed against this one:
+			/// with no pipe on either, or joined to this one by a pipe of
+			/// no length (Conductor::endsTouch(), which the automatic
+			/// connection makes and nobody sees); nullptr if none. For
+			/// the sizes, both are the same: a pipe of no length, which
+			/// has the size of its line when it was given none.
 		Terminal *contactNozzle() const;
 			/// The nozzles which have their size from each other around
 			/// this one, itself first: those of its run, the nozzles
@@ -115,9 +117,11 @@ class Terminal : public QGraphicsObject
 			/// beyond a pipe.
 		QList<Terminal *> contactGroup() const;
 			/// The size brought to this nozzle from outside its symbol:
-			/// that of its pipe; without a pipe, that of the nozzle placed
-			/// against it (contactNozzle()), its own or else the one of the
-			/// line beyond it. None for none.
+			/// that of its pipe; without one, or with a pipe of no length
+			/// and no size, what the nozzle placed against it brings
+			/// (contactNozzle()): the size of the line beyond it, or its
+			/// own size, which gives way to the size of the line of this
+			/// nozzle (the size lives on the line). None for none.
 		PipeDiameter facingDiameter() const;
 			/// To call when this nozzle may have come against another one
 			/// or left it (its symbol moved, a pipe came or went): the
@@ -268,9 +272,11 @@ class Terminal : public QGraphicsObject
 			/// The first size met from the nozzles @p todo, each in turn:
 			/// that of its pipe, else the own size of the nozzle placed
 			/// against it, else further through the runs and the contacts;
-			/// never back through @p seen
+			/// never back through @p seen. With @p pipes_only, the size of
+			/// a pipe only.
 		static PipeDiameter lineDiameter(QList<const Terminal *> todo,
-										 QList<const Terminal *> seen);
+										 QList<const Terminal *> seen,
+										 bool pipes_only = false);
 			/// The mark of two sizes is drawn here: at a contact there is
 			/// no pipe to draw it (Conductor::drawDiameterGaps())
 		bool marksContactGap() const;

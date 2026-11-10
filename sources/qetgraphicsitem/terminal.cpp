@@ -1567,7 +1567,21 @@ PipeDiameter Terminal::connectedDiameter() const
 
 Terminal *Terminal::contactNozzle() const
 {
-	if (d->m_medium != TerminalData::Pipe || !m_conductors_list.isEmpty()) {
+	if (d->m_medium != TerminalData::Pipe) {
+		return nullptr;
+	}
+		//Joined by a pipe of no length, which is neither drawn nor clicked
+		//(Conductor::endsTouch()): the automatic connection makes one
+	for (const Conductor *conductor : m_conductors_list) {
+		if (conductor->medium() != TerminalData::Pipe || !conductor->endsTouch()) {
+			continue;
+		}
+		Terminal *other = conductor->terminal1 == this ? conductor->terminal2 : conductor->terminal1;
+		if (other && other != this && other->d->m_medium == TerminalData::Pipe) {
+			return other;
+		}
+	}
+	if (!m_conductors_list.isEmpty()) {
 		return nullptr;
 	}
 	const QGraphicsScene *folio = scene();
@@ -1604,7 +1618,8 @@ QList<Terminal *> Terminal::contactGroup() const
 	return group;
 }
 
-PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Terminal *> seen)
+PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Terminal *> seen,
+									bool pipes_only)
 {
 	seen << todo;
 	auto add = [&todo, &seen](const QList<Terminal *> &nozzles) {
@@ -1627,7 +1642,7 @@ PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Te
 		if (against && !seen.contains(against)) {
 			seen << against;
 			const PipeDiameter own = against->ownDiameter();
-			if (own.isSet()) {
+			if (own.isSet() && !pipes_only) {
 				return own;
 			}
 			add(against->runSiblings());
@@ -1643,20 +1658,29 @@ PipeDiameter Terminal::facingDiameter() const
 	if (connected.isSet()) {
 		return connected;
 	}
+		//Against another nozzle, or joined to it by a pipe of no length
+		//which was given no size
 	const Terminal *against = contactNozzle();
 	if (!against) {
 		return PipeDiameter();
 	}
+	const auto constList = [](const QList<Terminal *> &nozzles) {
+		QList<const Terminal *> list;
+		for (const Terminal *nozzle : nozzles) {
+			list << nozzle;
+		}
+		return list;
+	};
 	const PipeDiameter own = against->ownDiameter();
 	if (own.isSet()) {
-		return own;
+			//The size lives on the line: a nozzle which follows a line
+			//with a size keeps it, and the nozzle against it marks the
+			//difference; without one, it has the size of that nozzle
+		const PipeDiameter mine = lineDiameter(constList(runSiblings()), {this, against}, true);
+		return mine.isSet() ? mine : own;
 	}
 		//The line beyond the symbol placed against this nozzle
-	QList<const Terminal *> beyond;
-	for (const Terminal *sibling : against->runSiblings()) {
-		beyond << sibling;
-	}
-	return lineDiameter(beyond, {this, against});
+	return lineDiameter(constList(against->runSiblings()), {this, against});
 }
 
 PipeDiameter Terminal::pipeDiameter() const

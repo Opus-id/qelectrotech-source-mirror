@@ -882,11 +882,14 @@ class tst_nozzlediameter : public QObject
 				// which stops at the tank
 			QCOMPARE(pipe->inlineRun().size(), 1);
 
-				// another size on that pipe: marked on the valve and at the
-				// contact, where no pipe draws the mark
+				// another size on that pipe: the size lives on the line, so
+				// the valve has it on both sides; the nozzle of the tank
+				// marks the difference, at the contact, where no pipe
+				// draws the mark
 			setDn(pipe, 100);
-			QVERIFY(in->hasDiameterGap());
-			QVERIFY(out->hasDiameterGap());
+			QCOMPARE(out->diameter().value(), 100.0);
+			QVERIFY(!in->hasDiameterGap());
+			QVERIFY(!out->hasDiameterGap());
 			QVERIFY(nozzle->hasDiameterGap());
 			QVERIFY(nozzle->toolTip().contains(QStringLiteral("100")));
 			QVERIFY(nozzle->toolTip().contains(QStringLiteral("without a pipe")));
@@ -1049,6 +1052,121 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!n2->contactNozzle());
 			QVERIFY(!n2->hasDiameterGap());
 			QCOMPARE(n2->toolTip(), QStringLiteral("Plain end"));
+		}
+
+			// The automatic connection joins two symbols placed against
+			// each other by a pipe of no length, neither drawn nor clicked:
+			// it is the same contact. Without a size, it has that of its
+			// line and stops nothing.
+		void aPipeOfNoLengthIsAContact()
+		{
+			QETProject project;
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			const ElementsLocation valve_symbol = addValve(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *start = place(folio, plain);
+			Element *first = place(folio, valve_symbol);
+			Element *second = place(folio, valve_symbol);
+			Element *end = place(folio, plain);
+			QVERIFY(start && first && second && end);
+			first->setPos(400, 200);
+			second->setPos(440, 200);
+			end->setPos(700, 200);
+			Conductor *hidden = connect(folio, first, QStringLiteral("N2"), second, QStringLiteral("N1"));
+			QVERIFY(hidden);
+			QVERIFY(hidden->endsTouch());
+			QCOMPARE(dn(hidden), 0);
+			Terminal *left = terminal(first, QStringLiteral("N2"));
+			Terminal *right = terminal(second, QStringLiteral("N1"));
+			QCOMPARE(left->contactNozzle(), right);
+			QCOMPARE(right->contactNozzle(), left);
+
+				// the line gets a size on the left: seen on the right, and a
+				// pipe drawn there continues the line
+			Conductor *a = connect(folio, start, QStringLiteral("N2"), first, QStringLiteral("N1"));
+			setDn(a, 100);
+			QCOMPARE(terminal(second, QStringLiteral("N2"))->diameter().value(), 100.0);
+			Conductor *b = connect(folio, second, QStringLiteral("N2"), end, QStringLiteral("N1"));
+			QVERIFY(b);
+			QCOMPARE(dn(b), 100);
+			QCOMPARE(a->inlineRun().size(), 3);
+			QVERIFY(!left->hasDiameterGap());
+			QVERIFY(!right->hasDiameterGap());
+
+				// two sizes on the two sides: marked, the pipe of no length
+				// has none of its own
+			setDn(b, 80);
+			QVERIFY(left->hasDiameterGap());
+			QVERIFY(right->hasDiameterGap());
+
+				// a change in the panel gives it the size of the line too
+			PipePropertiesWidget page({a});
+			auto *field = page.findChild<QLineEdit *>(QStringLiteral("diameter"));
+			QVERIFY(field);
+			field->setText(QStringLiteral("150"));
+			field->setModified(true);
+			emit field->editingFinished();
+			QCOMPARE(dn(b), 150);
+			QCOMPARE(dn(hidden), 150);
+			QVERIFY(!left->hasDiameterGap());
+		}
+
+			// such a pipe between a valve and equipment: its ends draw the
+			// mark of two sizes, since it draws nothing itself
+		void aPipeOfNoLengthMarksTwoSizes()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = place(folio, addTank(project));
+			Element *valve = place(folio, addValve(project));
+			Element *far = place(folio, addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0));
+			QVERIFY(tank && valve && far);
+			far->setPos(0, 200);
+			valve->setPos(160, 200);
+			Terminal *nozzle = terminal(tank, QStringLiteral("N1"));
+			Terminal *in = terminal(valve, QStringLiteral("N1"));
+			Terminal *out = terminal(valve, QStringLiteral("N2"));
+				// from the nozzle of the tank, DN 80
+			Conductor *hidden = connect(folio, tank, QStringLiteral("N1"), valve, QStringLiteral("N2"));
+			QVERIFY(hidden && hidden->endsTouch());
+			QCOMPARE(dn(hidden), 80);
+			Conductor *pipe = connect(folio, far, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			QCOMPARE(dn(pipe), 80);
+
+				// the line is given another size: the valve follows, the
+				// nozzle of the tank marks it
+			PipePropertiesWidget page({pipe});
+			auto *field = page.findChild<QLineEdit *>(QStringLiteral("diameter"));
+			QVERIFY(field);
+			field->setText(QStringLiteral("100"));
+			field->setModified(true);
+			emit field->editingFinished();
+			QCOMPARE(dn(hidden), 100);
+			QCOMPARE(out->diameter().value(), 100.0);
+			QVERIFY(!in->hasDiameterGap());
+			QVERIFY(!out->hasDiameterGap());
+			QVERIFY(nozzle->hasDiameterGap());
+			QVERIFY(nozzle->toolTip().contains(QStringLiteral("100")));
+			QImage image(400, 300, QImage::Format_ARGB32);
+			image.fill(Qt::white);
+			QPainter painter(&image);
+			painter.setTransform(nozzle->sceneTransform());
+			QStyleOptionGraphicsItem options;
+			nozzle->paint(&painter, &options, nullptr);
+			painter.end();
+			QCOMPARE(image.pixelColor(nozzle->dockConductor().toPoint()), QColor(255, 140, 0));
+
+				// a pipe of no length made on a line which has a size takes
+				// it, whichever end it starts from: the size lives on the line
+			folio->removeItem(hidden);
+			Conductor *again = connect(folio, tank, QStringLiteral("N1"), valve, QStringLiteral("N2"));
+			QVERIFY(again && again->endsTouch());
+			QCOMPARE(dn(again), 100);
+			QVERIFY(nozzle->hasDiameterGap());
 		}
 
 		void theEditorKeepsThatALineRunsThrough()

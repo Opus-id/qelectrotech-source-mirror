@@ -209,6 +209,13 @@ void Conductor::takeNozzleDiameter()
 	const PipeDiameter start = terminal1 ? terminal1->diameter() : PipeDiameter();
 	PipeDiameter taken = start.isSet() ? start
 									   : (terminal2 ? terminal2->diameter() : PipeDiameter());
+		//A pipe of no length, between two symbols placed against each
+		//other, is of the line: the size of the end which follows a line
+		//goes before the size of a nozzle of equipment
+	if (endsTouch() && !terminal1->followsPipe() && terminal2->followsPipe()
+		&& terminal2->diameter().isSet()) {
+		taken = terminal2->diameter();
+	}
 	if (taken.isThread()) {
 		taken = taken.threadNominal();
 	}
