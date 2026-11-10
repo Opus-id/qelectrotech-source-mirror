@@ -492,6 +492,76 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(before->inlineRun().size(), 1);
 		}
 
+			// a valve given two sizes acts as a reducer: a change stops there,
+			// and its two pipes are not compared
+		void aValveOfTwoSizesStopsAChange()
+		{
+			QETProject project;
+			const ElementsLocation tank = addTank(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *left = place(folio, tank);
+			Element *valve = place(folio, addValve(project));
+			Element *right = place(folio, tank);
+			QVERIFY(left && valve && right);
+			valve->setPos(400, 200);
+			right->setPos(600, 200);
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			Conductor *after = connect(folio, valve, QStringLiteral("N2"), right, QStringLiteral("N2"));
+			QCOMPARE(before->inlineRun().size(), 2);
+			valve->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 80}}));
+			QCOMPARE(before->inlineRun().size(), 1);
+			QCOMPARE(after->inlineRun().size(), 1);
+			setDn(before, 100);
+			setDn(after, 80);
+			QVERIFY(!terminal(valve, QStringLiteral("N1"))->hasDiameterGap());
+			QVERIFY(!terminal(valve, QStringLiteral("N2"))->hasDiameterGap());
+				// one size again: through
+			valve->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}}));
+			QCOMPARE(before->inlineRun().size(), 2);
+		}
+
+			// the run a symbol names (pipe_run): an equal tee takes its
+			// branch in, a reducing tee only its two nozzles in line
+		void aTeeHasTheRunItsSymbolNames()
+		{
+			QETProject project;
+			const ElementsLocation tank = addTank(project);
+			const ElementsLocation equal = addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pipe_run=\"N1 N2 N3\" three=\"true\" "));
+			const ElementsLocation reducing = addSymbol(
+						project, QStringLiteral("reducing.elmt"),
+						QStringLiteral("{7b777777-7777-7777-7777-777777777777}"), 0,
+						QStringLiteral("pipe_run=\"N1 N2\" three=\"true\" "));
+			for (const ElementsLocation &tee_symbol : {equal, reducing})
+			{
+				Diagram *folio = project.addNewDiagram();
+				Element *left = place(folio, tank);
+				Element *tee = place(folio, tee_symbol);
+				Element *right = place(folio, tank);
+				Element *below = place(folio, tank);
+				QVERIFY(left && tee && right && below);
+				tee->setPos(400, 200);
+				right->setPos(600, 200);
+				below->setPos(400, 400);
+				const bool is_equal = tee_symbol == equal;
+				QCOMPARE(tee->pipeRun().size(), is_equal ? 3 : 2);
+				QVERIFY(!tee->isPipeInline());
+				Conductor *before = connect(folio, left, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+				Conductor *after = connect(folio, tee, QStringLiteral("N2"), right, QStringLiteral("N2"));
+				Conductor *branch = connect(folio, tee, QStringLiteral("N3"), below, QStringLiteral("N1"));
+				QVERIFY(before && after && branch);
+				const QList<Conductor *> run = before->inlineRun();
+				QVERIFY(run.contains(after));
+				QCOMPARE(run.contains(branch), is_equal);
+					// a size given to N1: N2 has it, N3 too on an equal tee only
+				tee->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}}));
+				QCOMPARE(terminal(tee, QStringLiteral("N2"))->diameter().value(), 100.0);
+				QCOMPARE(terminal(tee, QStringLiteral("N3"))->ownDiameter().isSet(), is_equal);
+			}
+		}
+
 			// a valve has one DN: given to one nozzle, seen on both
 		void aValveHasOneDiameter()
 		{

@@ -266,6 +266,7 @@ class Element : public QetGraphicsItem
 			/// Those of the <nozzles> block of @p element
 		static NozzleMarks nozzleMarksFromXml(const QDomElement &element);
 		bool isPipeInline() const;
+		QStringList pipeRun() const;
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// The colour of the label of this symbol when the project draws

@@ -285,9 +285,11 @@ void ElementNozzlesWidget::copySizeOfFirst()
 	for (int i = 1 ; i < m_fields.size() ; ++i)
 	{
 		const Field &field = m_fields.at(i);
-			//The other nozzle of a valve without a size of its symbol
-			//follows the first already: nothing written for it
-		const bool follows = !field.symbol_diameter.isSet() && field.terminal->inlineSibling();
+			//A nozzle of the run of the first without a size of its symbol
+			//(the other nozzle of a valve) follows it already: nothing
+			//written for it
+		const bool follows = !field.symbol_diameter.isSet()
+							 && field.terminal->runSiblings().contains(const_cast<Terminal *>(first.terminal));
 		{
 			const QSignalBlocker blocker(field.edit);
 			field.edit->setText(follows ? QString() : text);

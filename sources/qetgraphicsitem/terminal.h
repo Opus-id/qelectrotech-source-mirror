@@ -88,9 +88,18 @@ class Terminal : public QGraphicsObject
 		QString   baseName            () const;
 		TerminalData::Type terminalType() const;
 		TerminalData::Medium medium() const;
-			/// The other nozzle of a symbol a line runs through, nullptr for
-			/// any other (Element::isPipeInline())
-		Terminal *inlineSibling() const;
+			/// The other nozzles of its run, which have one size and which a
+			/// change of DN goes through (Element::pipeRun()): the other
+			/// nozzle of a valve, the others of the run of a tee; none for
+			/// a nozzle out of a run and for any other medium
+		QList<Terminal *> runSiblings() const;
+			/// Its run has one size: the sizes its nozzles are given, if
+			/// any, are alike. A valve given two sizes acts as a reducer:
+			/// a change of DN stops there. False out of a run.
+		bool runIsUniform() const;
+			/// Another nozzle of its run, of one size, whose pipe is not of
+			/// size @p pipe; nullptr if none
+		const Terminal *runSiblingOtherThan(const PipeDiameter &pipe) const;
 			/// The diameter given to this nozzle (a DN or an outside
 			/// diameter): by its element, else by its symbol; none for none
 			/// and for any other medium. A symbol a line runs through has one

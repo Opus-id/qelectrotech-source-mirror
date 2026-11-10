@@ -2937,7 +2937,7 @@ void Conductor::updateFittings() const
 		if (terminal) {
 			terminal->updateDiameterToolTip();
 			terminal->update();
-			if (Terminal *sibling = terminal->inlineSibling()) {
+			for (Terminal *sibling : terminal->runSiblings()) {
 				sibling->updateDiameterToolTip();
 				sibling->update();
 			}
@@ -2947,9 +2947,10 @@ void Conductor::updateFittings() const
 
 /**
 	@brief Conductor::inlineRun
-	@return this pipe and those it continues through the symbols a line runs
-	through, as valves (Element::isPipeInline()): they have one DN. Reducers,
-	tees and equipment stop it.
+	@return this pipe and those it continues through the runs of the symbols
+	(Element::pipeRun()): a valve, the run of a tee, the three nozzles of an
+	equal tee, which have one DN. A run given two sizes (a valve acting as a
+	reducer), reducers, the branch of a reducing tee and equipment stop it.
 */
 QList<Conductor *> Conductor::inlineRun()
 {
@@ -2958,13 +2959,14 @@ QList<Conductor *> Conductor::inlineRun()
 	{
 		for (Terminal *terminal : {run.at(i)->terminal1, run.at(i)->terminal2})
 		{
-			const Terminal *sibling = terminal ? terminal->inlineSibling() : nullptr;
-			if (!sibling) {
+			if (!terminal || !terminal->runIsUniform()) {
 				continue;
 			}
-			for (Conductor *next : sibling->conductors()) {
-				if (next->medium() == TerminalData::Pipe && !run.contains(next)) {
-					run << next;
+			for (const Terminal *sibling : terminal->runSiblings()) {
+				for (Conductor *next : sibling->conductors()) {
+					if (next->medium() == TerminalData::Pipe && !run.contains(next)) {
+						run << next;
+					}
 				}
 			}
 		}

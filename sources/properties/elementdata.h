@@ -346,6 +346,11 @@ class ElementData : public PropertiesInterface
 			/// A line runs through this symbol, as through a valve: it has one
 			/// DN, and a change of DN goes through it (Element::isPipeInline())
 		bool m_pipe_inline = false;
+			/// The nozzles of one size a change of DN goes through, by name
+			/// (attribute pipe_run="N1 N2 N3"): the run of a tee, and its
+			/// branch for an equal tee; none read as the two nozzles of a
+			/// symbol a line runs through (Element::pipeRun())
+		QStringList m_pipe_run;
 			/// The identifier this symbol gives the label of a placed
 			/// element (Element::getPrefix()), such as "PC" for a pump:
 			/// when it has one, it is taken before the one of its folder

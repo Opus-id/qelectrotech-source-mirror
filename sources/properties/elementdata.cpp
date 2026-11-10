@@ -58,6 +58,7 @@ bool ElementData::fromXml(const QDomElement &xml_element)
 	m_options.fromXml(xml_element);
 	m_pid_family = xml_element.attribute(QStringLiteral("pid_family"));
 	m_pipe_inline = xml_element.attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
+	m_pipe_run = xml_element.attribute(QStringLiteral("pipe_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	m_prefix = xml_element.attribute(QStringLiteral("prefix")).trimmed();
 
 	auto xml_draw_info = xml_element.firstChildElement(QStringLiteral("informations"));

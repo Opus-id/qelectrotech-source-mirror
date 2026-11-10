@@ -637,6 +637,29 @@ bool Element::isPipeInline() const
 }
 
 /**
+	@brief Element::pipeRun
+	@return the names of the nozzles of one size a change of DN goes through:
+	those the symbol names (pipe_run, the run of a tee and the branch of an
+	equal tee), else the two of a symbol a line runs through (isPipeInline());
+	none when fewer than two are found
+*/
+QStringList Element::pipeRun() const
+{
+	QStringList names;
+	for (const Terminal *terminal : m_terminals)
+	{
+		const QString name = terminal->baseName();
+		if (terminal->medium() != TerminalData::Pipe || name.isEmpty()) {
+			continue;
+		}
+		if (m_data.m_pipe_run.isEmpty() ? isPipeInline() : m_data.m_pipe_run.contains(name)) {
+			names << name;
+		}
+	}
+	return names.size() >= 2 ? names : QStringList();
+}
+
+/**
 	@brief Element::nozzleDiametersFromXml
 	@param element : an <element> of a project
 	@return the diameters of its <nozzles> block; a nozzle without a name or
@@ -4129,6 +4152,7 @@ Element::ReloadPictureResult Element::reloadPicture(bool adopt_frame)
 	m_data.m_options = options;
 	m_data.m_pid_family = definition.attribute(QStringLiteral("pid_family"));
 	m_data.m_pipe_inline = definition.attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
+	m_data.m_pipe_run = definition.attribute(QStringLiteral("pipe_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	if (adopt_frame) {
 		setSize(definition.attribute(QStringLiteral("width")).toInt(),
 				definition.attribute(QStringLiteral("height")).toInt());
@@ -4256,6 +4280,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 	m_data.m_options = options;
 	m_data.m_pid_family = family;
 	m_data.m_pipe_inline = location.xml().attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
+	m_data.m_pipe_run = location.xml().attribute(QStringLiteral("pipe_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 
 		//A saved conductor names the uuid of the terminal it ends on, and the
 		//project is read back from the new definition: the terminals take its

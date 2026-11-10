@@ -1305,18 +1305,44 @@ void Terminal::setPlaceRank(int rank)
 	m_place_rank = rank;
 }
 
-Terminal *Terminal::inlineSibling() const
+QList<Terminal *> Terminal::runSiblings() const
 {
-	if (d->m_medium != TerminalData::Pipe || !parent_element_
-		|| !parent_element_->isPipeInline()) {
-		return nullptr;
+	QList<Terminal *> siblings;
+	if (d->m_medium != TerminalData::Pipe || !parent_element_) {
+		return siblings;
+	}
+	const QStringList run = parent_element_->pipeRun();
+	if (!run.contains(d->m_name)) {
+		return siblings;
 	}
 	for (Terminal *terminal : parent_element_->terminals()) {
-		if (terminal != this && terminal->medium() == TerminalData::Pipe) {
-			return terminal;
+		if (terminal != this && terminal->medium() == TerminalData::Pipe
+			&& run.contains(terminal->d->m_name)) {
+			siblings << terminal;
 		}
 	}
-	return nullptr;
+	return siblings;
+}
+
+bool Terminal::runIsUniform() const
+{
+	const QList<Terminal *> siblings = runSiblings();
+	if (siblings.isEmpty()) {
+		return false;
+	}
+	PipeDiameter first = givenDiameter();
+	for (const Terminal *sibling : siblings) {
+		const PipeDiameter given = sibling->givenDiameter();
+		if (!given.isSet()) {
+			continue;
+		}
+		if (!first.isSet()) {
+			first = given;
+		} else if (compareDiameters(first, given) != PidCodification::DiameterMatch::Same) {
+			return false;
+		}
+	}
+	return true;
 }
 
 PipeDiameter Terminal::givenDiameter() const
@@ -1502,18 +1528,44 @@ PipeDiameter Terminal::ownDiameter() const
 	if (given.isSet()) {
 		return given;
 	}
-	const Terminal *sibling = inlineSibling();
-	return sibling ? sibling->givenDiameter() : PipeDiameter();
+		//The size of the other nozzles of its run
+	for (const Terminal *sibling : runSiblings()) {
+		const PipeDiameter other = sibling->givenDiameter();
+		if (other.isSet()) {
+			return other;
+		}
+	}
+	return PipeDiameter();
 }
 
 PipeDiameter Terminal::pipeDiameter() const
 {
 	const PipeDiameter connected = connectedDiameter();
-	if (connected.isSet()) {
+	if (connected.isSet() || !runIsUniform()) {
 		return connected;
 	}
-	const Terminal *sibling = inlineSibling();
-	return sibling ? sibling->connectedDiameter() : PipeDiameter();
+		//The pipe of another nozzle of its run, which has one size
+	for (const Terminal *sibling : runSiblings()) {
+		const PipeDiameter other = sibling->connectedDiameter();
+		if (other.isSet()) {
+			return other;
+		}
+	}
+	return PipeDiameter();
+}
+
+const Terminal *Terminal::runSiblingOtherThan(const PipeDiameter &pipe) const
+{
+	const QList<Terminal *> siblings = runSiblings();
+	if (siblings.isEmpty() || !runIsUniform()) {
+		return nullptr;
+	}
+	for (const Terminal *sibling : siblings) {
+		if (compareDiameters(pipe, sibling->connectedDiameter()) != PidCodification::DiameterMatch::Same) {
+			return sibling;
+		}
+	}
+	return nullptr;
 }
 
 PipeDiameter Terminal::diameter() const
@@ -1538,9 +1590,8 @@ bool Terminal::hasDiameterGap() const
 	if (!pipe.isSet()) {
 		return false;
 	}
-	const Terminal *sibling = inlineSibling();
-	const PipeDiameter other = sibling ? sibling->connectedDiameter() : PipeDiameter();
-	if (compareDiameters(pipe, other) != PidCodification::DiameterMatch::Same) {
+		//Another pipe of its run, of one size, which differs
+	if (runSiblingOtherThan(pipe)) {
 		return true;
 	}
 	return compareDiameters(ownDiameter(), pipe) != PidCodification::DiameterMatch::Same;
@@ -1556,9 +1607,9 @@ void Terminal::updateDiameterToolTip()
 	if (d->m_medium != TerminalData::Pipe) {
 		return;
 	}
-	const Terminal *sibling = inlineSibling();
 	const PipeDiameter pipe = connectedDiameter();
-	const PipeDiameter other = sibling ? sibling->connectedDiameter() : PipeDiameter();
+	const Terminal *sibling = runSiblingOtherThan(pipe);
+	const PipeDiameter other = sibling ? sibling->connectedDiameter() : pipe;
 	const PipeDiameter own = ownDiameter();
 	const QLocale locale = sizeLocale();
 	const auto unknown = tr("The table of the diameters of the project does not join %1 to a DN.");
