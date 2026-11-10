@@ -31,6 +31,7 @@ class QCheckBox;
 class QGroupBox;
 class QPushButton;
 class QLineEdit;
+class QComboBox;
 class QScrollBar;
 
 namespace Ui {
@@ -111,7 +112,7 @@ class ElementPropertiesEditorWidget : public QDialog
 
 			// Block "Piping" (created by setPipeNozzles())
 		QGroupBox *m_pipe_gb = nullptr;
-		QLineEdit *m_pipe_family_le = nullptr;
+		QComboBox *m_pipe_family_cb = nullptr;
 		QCheckBox *m_pipe_inline_cb = nullptr;
 		QList<QCheckBox *> m_pipe_run_cbs;
 		QStringList m_pipe_nozzles;

@@ -20,6 +20,7 @@
 #include <qet.h>
 #include <qetapp.h>
 #include <qetinformation.h>
+#include <pidcodification.h>
 #include <TerminalStrip/terminalcatalog.h>
 #include <TerminalStrip/terminalcolor.h>
 #include <TerminalStrip/realterminal.h>
@@ -1742,10 +1743,19 @@ void ElementPropertiesEditorWidget::setPipeNozzles(const QStringList &names)
 	auto *grid = new QGridLayout(m_pipe_gb);
 
 	grid->addWidget(new QLabel(tr("Family:"), m_pipe_gb), 0, 0);
-	m_pipe_family_le = new QLineEdit(m_data.m_pid_family, m_pipe_gb);
-	m_pipe_family_le->setToolTip(tr("Family of the symbol. \"pipe\": a free end or a vent, its only "
+	m_pipe_family_cb = new QComboBox(m_pipe_gb);
+	m_pipe_family_cb->addItem(tr("None"), QString());
+	for (const QString &family : PidCodification::objectFamilies()) {
+		m_pipe_family_cb->addItem(family, family);
+	}
+		//A family the list does not know is kept as it is
+	if (!m_data.m_pid_family.isEmpty() && m_pipe_family_cb->findData(m_data.m_pid_family) < 0) {
+		m_pipe_family_cb->addItem(m_data.m_pid_family, m_data.m_pid_family);
+	}
+	m_pipe_family_cb->setCurrentIndex(m_pipe_family_cb->findData(m_data.m_pid_family));
+	m_pipe_family_cb->setToolTip(tr("Family of the symbol. \"pipe\": a free end or a vent, its only "
 									"nozzle takes the size of its pipe."));
-	grid->addWidget(m_pipe_family_le, 0, 1);
+	grid->addWidget(m_pipe_family_cb, 0, 1);
 
 	m_pipe_inline_cb = new QCheckBox(tr("In-line symbol (a line runs through it)"), m_pipe_gb);
 	m_pipe_inline_cb->setChecked(m_data.m_pipe_inline);
@@ -1817,5 +1827,5 @@ void ElementPropertiesEditorWidget::readPipeBlock()
 		m_data.m_pipe_run = checked;
 	}
 	m_data.m_pipe_inline = m_pipe_inline_cb->isChecked();
-	m_data.m_pid_family = m_pipe_family_le->text().trimmed();
+	m_data.m_pid_family = m_pipe_family_cb->currentData().toString();
 }
