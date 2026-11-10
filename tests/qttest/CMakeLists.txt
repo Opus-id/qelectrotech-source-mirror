@@ -544,11 +544,15 @@ qet_add_app_test(tst_textcolourbutton tst_textcolourbutton.cpp)
 qet_add_app_test(tst_conductordefinitionmark tst_conductordefinitionmark.cpp)
 target_compile_definitions(tst_conductordefinitionmark PRIVATE
   QET_ELEMENTS_DIR="${QET_DIR}/elements")
+# Two different symbols carrying the same uuid (one copied from the other and
+# redrawn) each keep their own drawing (#1789).
+qet_add_app_test(tst_symbolpicturecache tst_symbolpicturecache.cpp)
 # A copy of a conductor definition keeps the point its right-aligned texts
 # stand on, as a copy of a folio report does.
 qet_add_app_test(tst_conductordefcopy tst_conductordefcopy.cpp)
 # The projects of the last session are opened again at start, and the
 # ones open when the editor closes are kept for the next start.
+qet_add_app_test(tst_autoconnecthand tst_autoconnecthand.cpp)
 # A T-junction shown as a dot: drawn, saved and undone.
 qet_add_app_test(tst_junctiondot tst_junctiondot.cpp)
 qet_add_app_test(tst_reopenprojects tst_reopenprojects.cpp)
@@ -635,6 +639,9 @@ qet_add_app_test(tst_touchingconductor tst_touchingconductor.cpp)
 qet_add_app_test(tst_symboloutsideframe tst_symboloutsideframe.cpp)
 qet_add_app_test(tst_updateelements tst_updateelements.cpp)
 qet_add_app_test(tst_selectionrectangle tst_selectionrectangle.cpp)
+# The selection filter (status bar): what a click, a selection rectangle
+# and Select All pick; a click goes through what is left out.
+qet_add_app_test(tst_selectionfilter tst_selectionfilter.cpp)
 # The arrow keys: the crosshair on the leftmost selected symbol's terminal
 # or a text's middle; the folio's grid step when set so.
 qet_add_app_test(tst_keyboardmovereference tst_keyboardmovereference.cpp)
@@ -644,11 +651,17 @@ qet_add_app_test(tst_selectsamesymbols tst_selectsamesymbols.cpp)
 # Duplicate repeating the move of the copy (a setting), and Ctrl+Shift+D
 qet_add_app_test(tst_duplicaterepeatmove tst_duplicaterepeatmove.cpp)
 qet_add_app_test(tst_terminalcolor tst_terminalcolor.cpp)
+# The corner radius of the frame around a selected symbol: 10 as before,
+# 0 square.
+qet_add_app_test(tst_selectionframeradius tst_selectionframeradius.cpp)
 
 # The element editor's collections dock: an element dropped on the drawing
 # pastes its parts, centred on the drop and on the grid; double-clicked, the
 # user chooses where; a read-only element refuses the drag.
 qet_add_app_test(tst_elementeditorcollection tst_elementeditorcollection.cpp)
+# The symbol editor like the folio: frame on the grid around the origin,
+# "Set the insertion point".
+qet_add_app_test(tst_editorlikefolio tst_editorlikefolio.cpp)
 
 # A folio's pictures, decoded in parallel, each come back with its own
 # pixels and position; an <image> with no picture does not stop the others.
@@ -739,6 +752,9 @@ qet_add_app_test(tst_cabletarget tst_cabletarget.cpp)
 # What lies outside the sheet: named per folio, for the warning before
 # printing and exporting; off with the setting.
 qet_add_app_test(tst_outsidesheet tst_outsidesheet.cpp)
+
+# Text field cursor badge and rich text editor font controls
+qet_add_app_test(tst_textfieldcursorandfont tst_textfieldcursorandfont.cpp)
 
 # legacyelementtypes.h is header-only: the rewrite of element type names in
 # nomenclature queries saved before June 2022.

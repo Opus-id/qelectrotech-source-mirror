@@ -750,6 +750,7 @@ void DiagramTextItem::edit()
 		parent = scene()->views().first();
 
 	qdesigner_internal::RichTextEditorDialog editor(parent);
+	editor.setDefaultFont(font());
 	editor.setText(toHtml());
 
 	QVector<Qt::Alignment> alignments;
