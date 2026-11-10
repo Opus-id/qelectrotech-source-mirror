@@ -71,6 +71,10 @@ class ElementPropertiesEditorWidget : public QDialog
 
 		ElementData editedData() {return m_data;}
 
+			/// The names of the nozzles of the symbol: builds the block
+			/// "Piping" (family, in-line symbol, run of the line)
+		void setPipeNozzles(const QStringList &names);
+
 	private:
 		void upDateInterface();
 		void setUpInterface();
@@ -83,6 +87,7 @@ class ElementPropertiesEditorWidget : public QDialog
 		void readPlcTable();
 		void populateTerminalSizeCombos(double section, double width, const QString &catalog_entry);
 		void refreshTerminalWidthCombo();
+		void readPipeBlock();
 		void populateTerminalColorCombo(const QString &spec);
 
 		//SLOTS
@@ -103,6 +108,13 @@ class ElementPropertiesEditorWidget : public QDialog
 	private:
 		Ui::ElementPropertiesEditorWidget *ui;
 		ElementData m_data;
+
+			// Block "Piping" (created by setPipeNozzles())
+		QGroupBox *m_pipe_gb = nullptr;
+		QLineEdit *m_pipe_family_le = nullptr;
+		QCheckBox *m_pipe_inline_cb = nullptr;
+		QList<QCheckBox *> m_pipe_run_cbs;
+		QStringList m_pipe_nozzles;
 
 		// PLC configuration widgets (created programmatically)
 		QGroupBox *m_plc_gb = nullptr;

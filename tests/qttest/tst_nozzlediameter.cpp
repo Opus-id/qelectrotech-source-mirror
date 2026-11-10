@@ -20,6 +20,7 @@
 #include "diagram.h"
 #include "diagramview.h"
 #include "editor/elementscene.h"
+#include "editor/ui/elementpropertieseditorwidget.h"
 #include "editor/graphicspart/partterminal.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
@@ -37,6 +38,8 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialogButtonBox>
+#include <QPushButton>
 #include <QDomDocument>
 #include <QFile>
 #include <QImage>
@@ -889,6 +892,62 @@ class tst_nozzlediameter : public QObject
 			QDomDocument out2;
 			QCOMPARE(n1->toXml(out2).attribute(QStringLiteral("dn")), QStringLiteral("100"));
 			delete plain;
+		}
+
+		void theElementPropertiesGiveTheRunOfTheLine()
+		{
+			QDomDocument doc;
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666668}"), 100,
+								  QStringLiteral("pipe_inline=\"true\" ")));
+			ElementScene scene(nullptr);
+			scene.fromXml(doc, QPointF(), true);
+			const ElementData data = scene.elementData();
+			QVERIFY(data.m_pipe_inline);
+
+			auto open = [](const ElementData &d, ElementPropertiesEditorWidget &w) {
+				Q_UNUSED(d)
+				w.setPipeNozzles({QStringLiteral("N1"), QStringLiteral("N2")});
+				return w.findChildren<QCheckBox *>();
+			};
+				// OK without a change: nothing changes
+			{
+				ElementPropertiesEditorWidget w(data);
+				open(data, w);
+				w.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+					// (the other data are the dialog's business: only the block is checked)
+				QVERIFY(w.editedData().m_pipe_run == data.m_pipe_run);
+				QVERIFY(w.editedData().m_pipe_inline == data.m_pipe_inline);
+				QVERIFY(w.editedData().m_pid_family == data.m_pid_family);
+			}
+				// N2 taken out of the run
+			{
+				ElementPropertiesEditorWidget w(data);
+				const auto boxes = open(data, w);
+				QCheckBox *n2 = nullptr;
+				for (QCheckBox *cb : boxes) {
+					if (cb->text() == QLatin1String("N2")) {
+						n2 = cb;
+					}
+				}
+				QVERIFY(n2);
+				QVERIFY(n2->isChecked());
+				n2->setChecked(false);
+				w.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+				QCOMPARE(w.editedData().m_pipe_run, QStringList{QStringLiteral("N1")});
+
+					// the scene follows, and the nozzle with it
+				PartTerminal *n1 = nullptr, *n2part = nullptr;
+				for (QGraphicsItem *item : scene.items()) {
+					auto *part = qgraphicsitem_cast<PartTerminal *>(item);
+					if (part && part->terminalName() == QLatin1String("N1")) n1 = part;
+					if (part && part->terminalName() == QLatin1String("N2")) n2part = part;
+				}
+				QVERIFY(n1 && n2part);
+				QVERIFY(n1->followsPipe());
+				scene.setElementData(w.editedData());
+				QVERIFY(!n1->followsPipe());
+				QVERIFY(!n2part->followsPipe());
+			}
 		}
 
 		void aDifferenceIsMarkedNotCorrected()

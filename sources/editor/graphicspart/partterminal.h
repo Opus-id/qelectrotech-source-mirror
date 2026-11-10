@@ -140,6 +140,9 @@ class PartTerminal : public CustomElementGraphicPart
 			/// True for a nozzle that takes the size of its pipe (run of an
 			/// inline symbol, only nozzle of a free end): no size of its own
 		bool followsPipe() const;
+			/// The data of the symbol changed (run, family): redraw the
+			/// label and tell the editor
+		void refreshFollows();
 
 		bool showName() const { return d->m_show_name; }
 		void setShowName(bool show);

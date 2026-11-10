@@ -714,6 +714,10 @@ bool ElementData::operator==(const ElementData &data) const
 		return false;
 	}
 
+	if (data.m_pipe_inline != m_pipe_inline || data.m_pipe_run != m_pipe_run) {
+		return false;
+	}
+
 	if (data.m_options != m_options || data.m_pid_family != m_pid_family
 		|| data.m_prefix != m_prefix) {
 		return false;

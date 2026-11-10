@@ -494,6 +494,13 @@ bool PartTerminal::followsPipe() const
 	return data.m_pid_family == QLatin1String("pipe") && others.isEmpty();
 }
 
+void PartTerminal::refreshFollows()
+{
+	prepareGeometryChange();
+	update();
+	emit diameterChanged();
+}
+
 QString PartTerminal::diameterText() const
 {
 	return d->m_diameter.text(PidCodification().locale());

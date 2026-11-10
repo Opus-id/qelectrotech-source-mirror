@@ -141,7 +141,8 @@ void TerminalEditor::updateForm()
 		ui->m_dn_cb->setProperty("ownTip", ui->m_dn_cb->toolTip());
 	}
 	ui->m_dn_cb->setToolTip(follows
-		? tr("This nozzle takes the size of its pipe: it has no size of its own.")
+		? tr("This nozzle takes the size of its pipe: it has no size of its own. "
+			 "See Edit the properties of the element, block Piping.")
 		: ui->m_dn_cb->property("ownTip").toString());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());

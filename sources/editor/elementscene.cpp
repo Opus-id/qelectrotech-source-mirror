@@ -138,6 +138,15 @@ void ElementScene::setElementData(ElementData data)
 
 	m_element_data = data;
 
+		//The nozzles that follow their pipe depend on this data
+	if (emit_info) {
+		for (QGraphicsItem *item : items()) {
+			if (auto *terminal = qgraphicsitem_cast<PartTerminal *>(item)) {
+				terminal->refreshFollows();
+			}
+		}
+	}
+
 	if (emit_info)
 		emit elementInfoChanged();
 	if (type_changed)
@@ -1037,6 +1046,16 @@ void ElementScene::slot_editAuthorInformations()
 void  ElementScene::slot_editProperties()
 {
 	ElementPropertiesEditorWidget epew(m_element_data);
+	QStringList nozzles;
+	for (QGraphicsItem *item : items()) {
+		const auto *terminal = qgraphicsitem_cast<PartTerminal *>(item);
+		if (terminal && terminal->medium() == TerminalData::Pipe
+			&& !terminal->terminalName().isEmpty()) {
+			nozzles << terminal->terminalName();
+		}
+	}
+	nozzles.sort();
+	epew.setPipeNozzles(nozzles);
 	epew.exec();
 
 	if (m_element_data != epew.editedData())
