@@ -27355,6 +27355,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <translation>Piquage %1, tuyauterie %2</translation>
     </message>
     <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1215"/>
+        <source>Nozzle %1 against %2, without a pipe</source>
+        <translation>Piquage %1 contre %2, sans tuyauterie</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1380"/>
         <source>The table of the diameters of the project does not join %1 to a DN.</source>
         <translation>La table des diamètres du projet n&apos;associe %1 à aucun DN.</translation>

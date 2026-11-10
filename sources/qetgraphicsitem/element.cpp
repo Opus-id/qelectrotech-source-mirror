@@ -189,8 +189,11 @@ Element::Element(
 	{
 		for(QGraphicsItem *qgi : childItems())
 		{
-			if (Terminal *t = qgraphicsitem_cast<Terminal *>(qgi))
+			if (Terminal *t = qgraphicsitem_cast<Terminal *>(qgi)) {
 				t->updateConductor();
+					//A nozzle comes against another one, or leaves it
+				t->refreshContact();
+			}
 		}
 			//An end of a bridge docked to a pin of this symbol goes
 			//along: the line grows or shrinks with it the way a wire
@@ -583,9 +586,9 @@ void Element::setNozzleDiameters(const NozzleDiameters &diameters)
 		return;
 	}
 	m_nozzle_diameters = kept;
+		//and the nozzles placed against them, which have their size
 	for (Terminal *terminal : std::as_const(m_terminals)) {
-		terminal->updateDiameterToolTip();
-		terminal->update();
+		terminal->refreshSizes();
 	}
 	emit nozzleDiametersChanged();
 }
@@ -3674,8 +3677,13 @@ QVariant Element::itemChange(GraphicsItemChange change, const QVariant &value)
 	}
 		//Whether the texts of a turned symbol stay horizontal is the
 		//project's setting, known once the element is on one of its folios
-	else if (change == QGraphicsItem::ItemSceneHasChanged)
+	else if (change == QGraphicsItem::ItemSceneHasChanged) {
 		updateSymbolPictures();
+			//Placed against a nozzle of the folio, or taken away from it
+		for (Terminal *terminal : std::as_const(m_terminals)) {
+			terminal->refreshContact();
+		}
+	}
 	return QetGraphicsItem::itemChange(change, value);
 }
 

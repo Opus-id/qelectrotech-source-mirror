@@ -2933,14 +2933,12 @@ void Conductor::updateFittings() const
 		if (element && element->followsPipes()) {
 			element->updateInk();
 		}
-			//A nozzle follows the DN of its pipe, or marks a difference
+			//A nozzle follows the DN of its pipe, or marks a difference;
+			//so do those of its run and the nozzles placed against them.
+			//A pipe which comes or goes ends or starts a contact.
 		if (terminal) {
-			terminal->updateDiameterToolTip();
-			terminal->update();
-			for (Terminal *sibling : terminal->runSiblings()) {
-				sibling->updateDiameterToolTip();
-				sibling->update();
-			}
+			terminal->refreshContact();
+			terminal->refreshSizes();
 		}
 	}
 }
@@ -2950,24 +2948,37 @@ void Conductor::updateFittings() const
 	@return this pipe and those it continues through the runs of the symbols
 	(Element::pipeRun()): a valve, an inline instrument, the three nozzles of
 	a tee, which have no size of their own (Terminal::followsPipe()).
+	A nozzle of a run placed against the nozzle of another symbol, without a
+	pipe, continues through the run of that one (Terminal::contactNozzle()).
 	Reducers and equipment stop it.
 */
 QList<Conductor *> Conductor::inlineRun()
 {
 	QList<Conductor *> run{this};
-	for (int i = 0 ; i < run.size() ; ++i)
+	QList<Terminal *> seen;
+	QList<Terminal *> todo{terminal1, terminal2};
+	for (int i = 0 ; i < todo.size() ; ++i)
 	{
-		for (Terminal *terminal : {run.at(i)->terminal1, run.at(i)->terminal2})
+		Terminal *terminal = todo.at(i);
+		if (!terminal || seen.contains(terminal)) {
+			continue;
+		}
+		seen << terminal;
+		for (Terminal *sibling : terminal->runSiblings())
 		{
-			if (!terminal) {
+			if (seen.contains(sibling)) {
 				continue;
 			}
-			for (const Terminal *sibling : terminal->runSiblings()) {
-				for (Conductor *next : sibling->conductors()) {
-					if (next->medium() == TerminalData::Pipe && !run.contains(next)) {
-						run << next;
-					}
+			seen << sibling;
+			for (Conductor *next : sibling->conductors()) {
+				if (next->medium() == TerminalData::Pipe && !run.contains(next)) {
+					run << next;
+					todo << next->terminal1 << next->terminal2;
 				}
+			}
+				//Against another symbol: on through the run of that one
+			if (Terminal *against = sibling->contactNozzle()) {
+				todo << against;
 			}
 		}
 	}

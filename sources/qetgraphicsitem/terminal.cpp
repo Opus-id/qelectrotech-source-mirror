@@ -348,6 +348,20 @@ void Terminal::paint(
 											: 1.0);
 	}
 
+		//Two sizes where this nozzle is placed against another one: the
+		//orange diamond a pipe draws at its ends, on the screen only
+	if (diagram() && diagram()->drawTerminals() && marksContactGap()) {
+		const QColor orange(255, 140, 0);
+		QPen pen(orange);
+		pen.setCosmetic(true);
+		painter->setPen(pen);
+		painter->setBrush(orange);
+		painter->setRenderHint(QPainter::Antialiasing, true);
+		painter->drawPolygon(QPolygonF({c + QPointF(0, -6), c + QPointF(6, 0),
+										c + QPointF(0, 6), c + QPointF(-6, 0)}));
+		painter->setBrush(Qt::NoBrush);
+	}
+
 	//Draw help line if needed,
 	if (diagram() && m_draw_help_line)
 	{
@@ -570,9 +584,10 @@ QRectF Terminal::boundingRect() const
 	if (d->m_medium != TerminalData::Pipe) {
 		return own;
 	}
-		//The largest mark, with its pen
+		//The largest mark, with its pen; behind the point, the diamond of
+		//two sizes at a contact
 	const qreal h = PipeConnection::markHalfHeight + 3;
-	return own.united(markTransform().mapRect(QRectF(-4, -h, 22, 2 * h)));
+	return own.united(markTransform().mapRect(QRectF(-7, -h, 25, 2 * h)));
 }
 
 /**
@@ -1550,30 +1565,165 @@ PipeDiameter Terminal::connectedDiameter() const
 	return PipeDiameter();
 }
 
-PipeDiameter Terminal::pipeDiameter() const
+Terminal *Terminal::contactNozzle() const
+{
+	if (d->m_medium != TerminalData::Pipe || !m_conductors_list.isEmpty()) {
+		return nullptr;
+	}
+	const QGraphicsScene *folio = scene();
+	if (!folio) {
+		return nullptr;
+	}
+	const QPointF dock = dockConductor();
+	for (QGraphicsItem *item : folio->items(dock)) {
+		Terminal *other = qgraphicsitem_cast<Terminal *>(item);
+		if (other && other != this && other->parent_element_ != parent_element_
+			&& other->d->m_medium == TerminalData::Pipe
+			&& other->m_conductors_list.isEmpty() && other->dockConductor() == dock) {
+			return other;
+		}
+	}
+	return nullptr;
+}
+
+QList<Terminal *> Terminal::contactGroup() const
+{
+	QList<Terminal *> group{const_cast<Terminal *>(this)};
+	for (int i = 0 ; i < group.size() ; ++i)
+	{
+		QList<Terminal *> next = group.at(i)->runSiblings();
+		if (Terminal *against = group.at(i)->contactNozzle()) {
+			next << against;
+		}
+		for (Terminal *nozzle : std::as_const(next)) {
+			if (!group.contains(nozzle)) {
+				group << nozzle;
+			}
+		}
+	}
+	return group;
+}
+
+PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Terminal *> seen)
+{
+	seen << todo;
+	auto add = [&todo, &seen](const QList<Terminal *> &nozzles) {
+		for (const Terminal *nozzle : nozzles) {
+			if (!seen.contains(nozzle)) {
+				seen << nozzle;
+				todo << nozzle;
+			}
+		}
+	};
+	for (int i = 0 ; i < todo.size() ; ++i)
+	{
+		const Terminal *nozzle = todo.at(i);
+		const PipeDiameter pipe = nozzle->connectedDiameter();
+		if (pipe.isSet()) {
+			return pipe;
+		}
+			//Against the nozzle of another symbol: its size, or its line
+		const Terminal *against = nozzle->contactNozzle();
+		if (against && !seen.contains(against)) {
+			seen << against;
+			const PipeDiameter own = against->ownDiameter();
+			if (own.isSet()) {
+				return own;
+			}
+			add(against->runSiblings());
+		}
+		add(nozzle->runSiblings());
+	}
+	return PipeDiameter();
+}
+
+PipeDiameter Terminal::facingDiameter() const
 {
 	const PipeDiameter connected = connectedDiameter();
 	if (connected.isSet()) {
 		return connected;
 	}
-		//The pipe of another nozzle of its run
-	for (const Terminal *sibling : runSiblings()) {
-		const PipeDiameter other = sibling->connectedDiameter();
-		if (other.isSet()) {
-			return other;
-		}
+	const Terminal *against = contactNozzle();
+	if (!against) {
+		return PipeDiameter();
 	}
-	return PipeDiameter();
+	const PipeDiameter own = against->ownDiameter();
+	if (own.isSet()) {
+		return own;
+	}
+		//The line beyond the symbol placed against this nozzle
+	QList<const Terminal *> beyond;
+	for (const Terminal *sibling : against->runSiblings()) {
+		beyond << sibling;
+	}
+	return lineDiameter(beyond, {this, against});
+}
+
+PipeDiameter Terminal::pipeDiameter() const
+{
+	const PipeDiameter facing = facingDiameter();
+	if (facing.isSet()) {
+		return facing;
+	}
+		//What is brought to another nozzle of its run
+	QList<const Terminal *> siblings;
+	for (const Terminal *sibling : runSiblings()) {
+		siblings << sibling;
+	}
+	QList<const Terminal *> seen{this};
+	if (const Terminal *against = contactNozzle()) {
+		seen << against;
+	}
+	return lineDiameter(siblings, seen);
 }
 
 const Terminal *Terminal::runSiblingOtherThan(const PipeDiameter &pipe) const
 {
 	for (const Terminal *sibling : runSiblings()) {
-		if (compareDiameters(pipe, sibling->connectedDiameter()) != PidCodification::DiameterMatch::Same) {
+		if (compareDiameters(pipe, sibling->facingDiameter()) != PidCodification::DiameterMatch::Same) {
 			return sibling;
 		}
 	}
 	return nullptr;
+}
+
+void Terminal::refreshSizes()
+{
+	for (Terminal *nozzle : contactGroup()) {
+		nozzle->updateDiameterToolTip();
+		nozzle->update();
+	}
+}
+
+void Terminal::refreshContact()
+{
+	if (d->m_medium != TerminalData::Pipe) {
+		return;
+	}
+	Terminal *now = contactNozzle();
+	Terminal *before = m_contact.data();
+	if (now == before) {
+		return;
+	}
+	m_contact = now;
+	if (before && before->m_contact == this) {
+		before->m_contact = nullptr;
+	}
+	if (now) {
+		now->m_contact = this;
+	}
+		//Both sides: the one it left has other sizes too
+	refreshSizes();
+	if (before) {
+		before->refreshSizes();
+	}
+}
+
+bool Terminal::marksContactGap() const
+{
+	const Terminal *against = contactNozzle();
+		//Either of the two: the symbol of one may hide the other
+	return against && (hasDiameterGap() || against->hasDiameterGap());
 }
 
 PipeDiameter Terminal::diameter() const
@@ -1594,7 +1744,7 @@ PidCodification::DiameterMatch Terminal::compareDiameters(const PipeDiameter &a,
 
 bool Terminal::hasDiameterGap() const
 {
-	const PipeDiameter pipe = connectedDiameter();
+	const PipeDiameter pipe = facingDiameter();
 	if (!pipe.isSet()) {
 		return false;
 	}
@@ -1615,9 +1765,9 @@ void Terminal::updateDiameterToolTip()
 	if (d->m_medium != TerminalData::Pipe) {
 		return;
 	}
-	const PipeDiameter pipe = connectedDiameter();
+	const PipeDiameter pipe = facingDiameter();
 	const Terminal *sibling = runSiblingOtherThan(pipe);
-	const PipeDiameter other = sibling ? sibling->connectedDiameter() : pipe;
+	const PipeDiameter other = sibling ? sibling->facingDiameter() : pipe;
 	const PipeDiameter own = ownDiameter();
 	const QLocale locale = sizeLocale();
 	const auto unknown = tr("The table of the diameters of the project does not join %1 to a DN.");
@@ -1632,7 +1782,9 @@ void Terminal::updateDiameterToolTip()
 			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : other).text(locale));
 		}
 	} else {
-		tip += QLatin1Char('\n') + tr("Nozzle %1, pipe %2").arg(own.text(locale), pipe.text(locale));
+		tip += QLatin1Char('\n') + (contactNozzle()
+				? tr("Nozzle %1 against %2, without a pipe")
+				: tr("Nozzle %1, pipe %2")).arg(own.text(locale), pipe.text(locale));
 		if (compareDiameters(own, pipe) == PidCodification::DiameterMatch::Unknown) {
 			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : own).text(locale));
 		}

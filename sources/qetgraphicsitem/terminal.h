@@ -101,9 +101,30 @@ class Terminal : public QGraphicsObject
 			/// it is ignored. Any other nozzle (of equipment, of a reducer,
 			/// the outlet of a safety valve) may have a size of its own.
 		bool followsPipe() const;
-			/// Another nozzle of its run whose pipe is not of size @p pipe;
-			/// nullptr if none
+			/// Another nozzle of its run which is not brought the size
+			/// @p pipe (facingDiameter()); nullptr if none
 		const Terminal *runSiblingOtherThan(const PipeDiameter &pipe) const;
+			/// The nozzle of another symbol placed against this one, with
+			/// no pipe on either; nullptr if none. For the sizes, two
+			/// nozzles placed so are joined by a pipe of no length which
+			/// nobody drew: nothing is saved for it.
+		Terminal *contactNozzle() const;
+			/// The nozzles which have their size from each other around
+			/// this one, itself first: those of its run, the nozzles
+			/// placed against them, the runs of those, and so on. Never
+			/// beyond a pipe.
+		QList<Terminal *> contactGroup() const;
+			/// The size brought to this nozzle from outside its symbol:
+			/// that of its pipe; without a pipe, that of the nozzle placed
+			/// against it (contactNozzle()), its own or else the one of the
+			/// line beyond it. None for none.
+		PipeDiameter facingDiameter() const;
+			/// To call when this nozzle may have come against another one
+			/// or left it (its symbol moved, a pipe came or went): the
+			/// sizes shown on both sides are drawn again
+		void refreshContact();
+			/// Draw again the sizes of the nozzles of contactGroup()
+		void refreshSizes();
 			/// The diameter given to this nozzle alone (a DN, an outside
 			/// diameter or a thread): by its element, else by its symbol.
 			/// None for none, for any other medium, for a nozzle which
@@ -111,13 +132,15 @@ class Terminal : public QGraphicsObject
 			/// does not take its kind, a DN and a thread being read as each
 			/// other by the fixed table (PipeConnection::fitted()).
 		PipeDiameter ownDiameter() const;
-			/// The diameter of the pipe connected to this nozzle, none for
-			/// none; in a run, else of the pipe of another nozzle of the run
+			/// The diameter of the line of this nozzle: the one brought to
+			/// it (facingDiameter()); else, in a run, the one brought to
+			/// another nozzle of the run. None for none.
 		PipeDiameter pipeDiameter() const;
 			/// The diameter of this nozzle: its own, else that of its pipe
 		PipeDiameter diameter() const;
 			/// The nozzle has a diameter of its own, its pipe another one; or
 			/// the pipes of its run have two diameters, with no reducer.
+			/// A nozzle placed against it counts as a pipe.
 			/// A DN and an outside diameter are compared with the
 			/// table of the project (PidCodification::compare()): one it does
 			/// not know is a gap too.
@@ -242,6 +265,15 @@ class Terminal : public QGraphicsObject
 	private:
 			/// The diameter of the pipe connected to this nozzle alone
 		PipeDiameter connectedDiameter() const;
+			/// The first size met from the nozzles @p todo, each in turn:
+			/// that of its pipe, else the own size of the nozzle placed
+			/// against it, else further through the runs and the contacts;
+			/// never back through @p seen
+		static PipeDiameter lineDiameter(QList<const Terminal *> todo,
+										 QList<const Terminal *> seen);
+			/// The mark of two sizes is drawn here: at a contact there is
+			/// no pipe to draw it (Conductor::drawDiameterGaps())
+		bool marksContactGap() const;
 			/// How @p a and @p b compare in the project of this nozzle
 		PidCodification::DiameterMatch compareDiameters(const PipeDiameter &a,
 														const PipeDiameter &b) const;
@@ -269,6 +301,9 @@ class Terminal : public QGraphicsObject
 		QRectF m_br;
 			/// Last terminal seen through an attached conductor
 		Terminal *m_previous_terminal = nullptr;
+			/// The nozzle this one was against when refreshContact() last
+			/// looked: only to know which sizes to draw again
+		QPointer<Terminal> m_contact;
 			/// Whether the mouse pointer is hovering the terminal
 		bool m_hovered = false;
 			/// How many terminals of the definition, before this one, sit at
