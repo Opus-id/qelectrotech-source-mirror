@@ -547,6 +547,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/ui/dynamictextfieldeditor.h
   ${QET_DIR}/sources/editor/ui/elementpropertieseditorwidget.cpp
   ${QET_DIR}/sources/editor/ui/elementpropertieseditorwidget.h
+  ${QET_DIR}/sources/editor/ui/pipingblockwidget.cpp
+  ${QET_DIR}/sources/editor/ui/pipingblockwidget.h
   ${QET_DIR}/sources/editor/ui/ellipseeditor.cpp
   ${QET_DIR}/sources/editor/ui/ellipseeditor.h
   ${QET_DIR}/sources/editor/ui/lineeditor.cpp

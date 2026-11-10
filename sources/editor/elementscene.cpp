@@ -1040,12 +1040,12 @@ void ElementScene::slot_editAuthorInformations()
 }
 
 /**
-	@brief ElementScene::slot_editProperties
-	Open dialog to edit the element properties
+	@brief ElementScene::pipeNozzleNames
+	@return the names of the nozzles (terminals of the medium pipe) of the
+	symbol, sorted
 */
-void  ElementScene::slot_editProperties()
+QStringList ElementScene::pipeNozzleNames() const
 {
-	ElementPropertiesEditorWidget epew(m_element_data);
 	QStringList nozzles;
 	for (QGraphicsItem *item : items()) {
 		const auto *terminal = qgraphicsitem_cast<PartTerminal *>(item);
@@ -1055,7 +1055,16 @@ void  ElementScene::slot_editProperties()
 		}
 	}
 	nozzles.sort();
-	epew.setPipeNozzles(nozzles);
+	return nozzles;
+}
+
+/**
+	@brief ElementScene::slot_editProperties
+	Open dialog to edit the element properties
+*/
+void  ElementScene::slot_editProperties()
+{
+	ElementPropertiesEditorWidget epew(m_element_data);
 	epew.exec();
 
 	if (m_element_data != epew.editedData())

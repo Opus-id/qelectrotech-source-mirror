@@ -42,6 +42,7 @@
 #include <editor/esevent/eseventmeasure.h>
 #include <elementdialog.h>
 #include <editor/graphicspart/partterminal.h>
+#include <editor/ui/pipingblockwidget.h>
 #include <editor/terminalnamecheck.h>
 #include <editor/arceditor.h>
 #include "ellipseeditor.h"
@@ -67,6 +68,7 @@
 #include <QFileDialog>
 #include <QSvgGenerator>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
@@ -511,6 +513,7 @@ void QETElementEditor::updateTitle()
  */
 void QETElementEditor::fillPartsList()
 {
+	refreshPipingBlock();
 	m_parts_list -> blockSignals(true);
 	m_parts_list -> clear();
 	QList<QGraphicsItem *> qgis = m_elmt_scene -> zItems();
@@ -585,6 +588,7 @@ void QETElementEditor::updateInformations()
 	if (selected_qgis.isEmpty())
 	{
 		clearToolsDock();
+		refreshPipingBlock();
 		m_default_informations -> setText(tr("%n selected parts.",
 											 "",
 											 selected_qgis.size()));
@@ -740,6 +744,7 @@ void QETElementEditor::updateInformations()
 	//Else we only display the number of selected items
 	else {
 		clearToolsDock();
+		refreshPipingBlock();
 		m_default_informations -> setText(tr("%n selected parts.",
 											 "",
 											 selected_qgis.size()));
@@ -1468,7 +1473,16 @@ void QETElementEditor::initGui()
 		//Part dock editor
 	m_default_informations = new QLabel(this);
 	m_tools_dock_stack = new QStackedWidget(this);
-	m_tools_dock_stack->insertWidget(0, m_default_informations);
+		//The first page: the number of selected parts, and the block Piping
+	auto *information_page = new QWidget(this);
+	auto *information_layout = new QVBoxLayout(information_page);
+	information_layout->addWidget(m_default_informations);
+	m_piping_block = new PipingBlockWidget(information_page);
+	information_layout->addWidget(m_piping_block);
+	information_layout->addStretch();
+	m_tools_dock_stack->insertWidget(0, information_page);
+	connect(m_piping_block, &PipingBlockWidget::edited, this, &QETElementEditor::pipingBlockEdited);
+	connect(m_elmt_scene, &ElementScene::elementInfoChanged, this, &QETElementEditor::refreshPipingBlock);
 	ui->m_tools_dock->setWidget(m_tools_dock_stack);
 
 		//Undo dock
@@ -1632,6 +1646,34 @@ void QETElementEditor::setUpCollectionDock()
 		m_collection_dock->raise();
 	});
 	ui->m_paste_from_menu->addAction(show_dock);
+}
+
+/**
+	@brief QETElementEditor::refreshPipingBlock
+	Show in the block Piping the data and the nozzles of the symbol
+*/
+void QETElementEditor::refreshPipingBlock()
+{
+	if (m_piping_block && m_elmt_scene) {
+		m_piping_block->setData(m_elmt_scene->elementData(), m_elmt_scene->pipeNozzleNames());
+	}
+}
+
+/**
+	@brief QETElementEditor::pipingBlockEdited
+	The user changed the block Piping: the new data of the symbol, in one
+	undo step. The nozzles that follow their pipe are refreshed by the scene.
+*/
+void QETElementEditor::pipingBlockEdited()
+{
+	const ElementData old_data = m_elmt_scene->elementData();
+	const ElementData new_data = m_piping_block->applyTo(old_data);
+	if (new_data == old_data) {
+		return;
+	}
+	auto *command = new changeElementDataCommand(m_elmt_scene, old_data, new_data);
+	command->setText(tr("Change the piping of the element"));
+	m_elmt_scene->undoStack().push(command);
 }
 
 /**

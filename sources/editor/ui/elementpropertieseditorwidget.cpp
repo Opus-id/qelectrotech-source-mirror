@@ -20,7 +20,6 @@
 #include <qet.h>
 #include <qetapp.h>
 #include <qetinformation.h>
-#include <pidcodification.h>
 #include <TerminalStrip/terminalcatalog.h>
 #include <TerminalStrip/terminalcolor.h>
 #include <TerminalStrip/realterminal.h>
@@ -657,7 +656,6 @@ void ElementPropertiesEditorWidget::refreshTerminalWidthCombo()
 void ElementPropertiesEditorWidget::on_m_buttonBox_accepted()
 {
 	m_data.m_type = ui->m_base_type_cb->currentData().value<ElementData::Type>();
-	readPipeBlock();
 
 	if (m_data.m_type == ElementData::Slave)
 	{
@@ -1722,110 +1720,4 @@ void ElementPropertiesEditorWidget::plcSelectCellFont()
 		m_plc_cell_font_btn->setText(tr("Font size: %1 %2pt")
 			.arg(font.family()).arg(font.pointSize()));
 	}
-}
-
-/**
-	@brief ElementPropertiesEditorWidget::setPipeNozzles
-	Build the block "Piping" of the tab Type: the family of the symbol, the
-	case "in-line symbol" and one case per nozzle for the run of the line (the
-	nozzles whose size follows the pipe, and through which a change of size
-	goes). The block is shown only for a symbol that has nozzles, or that
-	already has one of these data.
-	@param names : the names of the nozzles (pipe terminals) of the symbol
-*/
-void ElementPropertiesEditorWidget::setPipeNozzles(const QStringList &names)
-{
-	m_pipe_nozzles = names;
-	if (m_pipe_gb) {
-		return;
-	}
-	m_pipe_gb = new QGroupBox(tr("Piping"), ui->Type);
-	auto *grid = new QGridLayout(m_pipe_gb);
-
-	grid->addWidget(new QLabel(tr("Family:"), m_pipe_gb), 0, 0);
-	m_pipe_family_cb = new QComboBox(m_pipe_gb);
-	m_pipe_family_cb->addItem(tr("None"), QString());
-	for (const QString &family : PidCodification::objectFamilies()) {
-		m_pipe_family_cb->addItem(family, family);
-	}
-		//A family the list does not know is kept as it is
-	if (!m_data.m_pid_family.isEmpty() && m_pipe_family_cb->findData(m_data.m_pid_family) < 0) {
-		m_pipe_family_cb->addItem(m_data.m_pid_family, m_data.m_pid_family);
-	}
-	m_pipe_family_cb->setCurrentIndex(m_pipe_family_cb->findData(m_data.m_pid_family));
-	m_pipe_family_cb->setToolTip(tr("Family of the symbol. \"pipe\": a free end or a vent, its only "
-									"nozzle takes the size of its pipe."));
-	grid->addWidget(m_pipe_family_cb, 0, 1);
-
-	m_pipe_inline_cb = new QCheckBox(tr("In-line symbol (a line runs through it)"), m_pipe_gb);
-	m_pipe_inline_cb->setChecked(m_data.m_pipe_inline);
-	m_pipe_inline_cb->setToolTip(tr("Without a run chosen below, all the nozzles take the size of "
-									"their pipe, and a change of size goes through the symbol."));
-	grid->addWidget(m_pipe_inline_cb, 1, 0, 1, 2);
-
-	grid->addWidget(new QLabel(tr("Run of the line:"), m_pipe_gb), 2, 0);
-	auto *run_layout = new QHBoxLayout();
-	const QStringList effective = !m_data.m_pipe_run.isEmpty() ? m_data.m_pipe_run
-								: (m_data.m_pipe_inline ? names : QStringList());
-	for (const QString &name : names) {
-		auto *cb = new QCheckBox(name, m_pipe_gb);
-		cb->setChecked(effective.contains(name));
-		cb->setToolTip(tr("This nozzle takes the size of its pipe and passes a change of size "
-						  "to the other nozzles of the run."));
-		m_pipe_run_cbs << cb;
-		run_layout->addWidget(cb);
-	}
-	run_layout->addStretch();
-	grid->addLayout(run_layout, 2, 1);
-
-		//In-line with no nozzle of the run ticked: all of them
-	connect(m_pipe_inline_cb, &QCheckBox::toggled, this, [this](bool on) {
-		if (!on) {
-			return;
-		}
-		bool any = false;
-		for (const QCheckBox *cb : std::as_const(m_pipe_run_cbs)) {
-			any = any || cb->isChecked();
-		}
-		if (!any) {
-			for (QCheckBox *cb : std::as_const(m_pipe_run_cbs)) {
-				cb->setChecked(true);
-			}
-		}
-	});
-
-	ui->verticalLayout_3->addWidget(m_pipe_gb);
-	m_pipe_gb->setVisible(!names.isEmpty() || !m_data.m_pid_family.isEmpty()
-						  || m_data.m_pipe_inline || !m_data.m_pipe_run.isEmpty());
-}
-
-/**
-	@brief ElementPropertiesEditorWidget::readPipeBlock
-	Read the block "Piping" into m_data. A run equal to the one the data
-	already gave (an in-line symbol without a run: all its nozzles) is left
-	as it was, so that opening the dialog and pressing OK changes nothing.
-*/
-void ElementPropertiesEditorWidget::readPipeBlock()
-{
-	if (!m_pipe_gb) {
-		return;
-	}
-	QStringList checked;
-	for (int i = 0; i < m_pipe_run_cbs.size(); ++i) {
-		if (m_pipe_run_cbs.at(i)->isChecked()) {
-			checked << m_pipe_nozzles.at(i);
-		}
-	}
-	const QStringList before = !m_data.m_pipe_run.isEmpty() ? m_data.m_pipe_run
-							 : (m_data.m_pipe_inline ? m_pipe_nozzles : QStringList());
-	auto sameSet = [](QStringList a, QStringList b) {
-		a.sort();
-		b.sort();
-		return a == b;
-	};
-	if (!sameSet(checked, before)) {
-		m_data.m_pipe_run = checked;
-	}
-	m_data.m_pipe_inline = m_pipe_inline_cb->isChecked();
-	m_data.m_pid_family = m_pipe_family_cb->currentData().toString();
 }

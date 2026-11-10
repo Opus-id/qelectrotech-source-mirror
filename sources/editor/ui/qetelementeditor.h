@@ -32,6 +32,7 @@ class QStackedWidget;
 class QLabel;
 class QDockWidget;
 class ElementsCollectionWidget;
+class PipingBlockWidget;
 
 namespace Ui {
 	class QETElementEditor;
@@ -129,6 +130,8 @@ class QETElementEditor : public QMainWindow
 		void copyAndPasteXml(const QDomDocument &xml_document);
 		void setUpCollectionDock();
 		void pasteElement(const ElementsLocation &location);
+		void refreshPipingBlock();
+		void pipingBlockEdited();
 
 	private:
 		Ui::QETElementEditor *ui;
@@ -170,6 +173,9 @@ class QETElementEditor : public QMainWindow
 		QStackedWidget *m_tools_dock_stack = nullptr;
 
 		QLabel *m_default_informations = nullptr;
+			/// The block "Piping", under the label of the panel Informations
+			/// (shown when no part is selected)
+		PipingBlockWidget *m_piping_block = nullptr;
 
 		QLabel *m_position_label = nullptr;
 

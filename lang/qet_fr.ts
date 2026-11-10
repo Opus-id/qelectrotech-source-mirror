@@ -6303,41 +6303,6 @@ Continuer ?</translation>
 <context>
     <name>ElementPropertiesEditorWidget</name>
     <message>
-        <location filename="../sources/editor/ui/elementpropertieseditorwidget.cpp" line="1730"/>
-        <source>Piping</source>
-        <translation>Tuyauterie</translation>
-    </message>
-    <message>
-        <location filename="../sources/editor/ui/elementpropertieseditorwidget.cpp" line="1734"/>
-        <source>Family:</source>
-        <translation>Famille :</translation>
-    </message>
-    <message>
-        <location filename="../sources/editor/ui/elementpropertieseditorwidget.cpp" line="1736"/>
-        <source>Family of the symbol. "pipe": a free end or a vent, its only nozzle takes the size of its pipe.</source>
-        <translation>Famille du symbole. « pipe » : une extrémité libre ou un évent, son seul piquage prend la taille de sa tuyauterie.</translation>
-    </message>
-    <message>
-        <location filename="../sources/editor/ui/elementpropertieseditorwidget.cpp" line="1740"/>
-        <source>In-line symbol (a line runs through it)</source>
-        <translation>Symbole en ligne (une ligne le traverse)</translation>
-    </message>
-    <message>
-        <location filename="../sources/editor/ui/elementpropertieseditorwidget.cpp" line="1742"/>
-        <source>Without a run chosen below, all the nozzles take the size of their pipe, and a change of size goes through the symbol.</source>
-        <translation>Sans groupe choisi ci-dessous, tous les piquages prennent la taille de leur tuyauterie, et un changement de taille traverse le symbole.</translation>
-    </message>
-    <message>
-        <location filename="../sources/editor/ui/elementpropertieseditorwidget.cpp" line="1746"/>
-        <source>Run of the line:</source>
-        <translation>Groupe de la ligne :</translation>
-    </message>
-    <message>
-        <location filename="../sources/editor/ui/elementpropertieseditorwidget.cpp" line="1753"/>
-        <source>This nozzle takes the size of its pipe and passes a change of size to the other nozzles of the run.</source>
-        <translation>Ce piquage prend la taille de sa tuyauterie et transmet un changement de taille aux autres piquages du groupe.</translation>
-    </message>
-    <message>
         <location filename="../sources/editor/ui/elementpropertieseditorwidget.ui" line="14"/>
         <source>Element Property</source>
         <translation>Propriété de l&apos;élément</translation>
@@ -18311,6 +18276,11 @@ Déponter et/ou supprimer les niveaux des bornes concerné afin de pouvoir les s
 <context>
     <name>QETElementEditor</name>
     <message>
+        <location filename="../sources/editor/ui/qetelementeditor.cpp" line="1690"/>
+        <source>Change the piping of the element</source>
+        <translation>Modifier la tuyauterie de l'élément</translation>
+    </message>
+    <message>
         <location filename="../sources/editor/ui/qetelementeditor.ui" line="214"/>
         <source>&amp;New</source>
         <translation>&amp;Nouveau</translation>
@@ -27447,11 +27417,54 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
 </context>
 <context>
+    <name>PipingBlockWidget</name>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="31"/>
+        <source>Piping</source>
+        <translation>Tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="35"/>
+        <source>Family:</source>
+        <translation>Famille :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="37"/>
+        <source>Family of the symbol. "pipe": a free end or a vent, its only nozzle takes the size of its pipe.</source>
+        <translation>Famille du symbole. « pipe » : une extrémité libre ou un évent, son seul piquage prend la taille de sa tuyauterie.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="41"/>
+        <source>In-line symbol (a line runs through it)</source>
+        <translation>Symbole en ligne (une ligne le traverse)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="42"/>
+        <source>Without a run chosen below, all the nozzles take the size of their pipe, and a change of size goes through the symbol.</source>
+        <translation>Sans groupe choisi ci-dessous, tous les piquages prennent la taille de leur tuyauterie, et un changement de taille traverse le symbole.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="46"/>
+        <source>Run of the line:</source>
+        <translation>Groupe de la ligne :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="80"/>
+        <source>None</source>
+        <translation>Aucune</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="104"/>
+        <source>This nozzle takes the size of its pipe and passes a change of size to the other nozzles of the run.</source>
+        <translation>Ce piquage prend la taille de sa tuyauterie et transmet un changement de taille aux autres piquages du groupe.</translation>
+    </message>
+</context>
+<context>
     <name>TerminalEditor</name>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="143"/>
-        <source>This nozzle takes the size of its pipe: it has no size of its own. See Edit the properties of the element, block Piping.</source>
-        <translation>Ce piquage prend la taille de sa tuyauterie : il n'a pas de taille propre. Voir Éditer les propriétés de l'élément, bloc Tuyauterie.</translation>
+        <source>This nozzle takes the size of its pipe: it has no size of its own. See the block Piping of the panel Informations (nothing selected).</source>
+        <translation>Ce piquage prend la taille de sa tuyauterie : il n'a pas de taille propre. Voir le bloc Tuyauterie du panneau Informations (rien de sélectionné).</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="178"/>

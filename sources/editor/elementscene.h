@@ -102,6 +102,7 @@ class ElementScene : public QGraphicsScene
 		// methods
 	public:
 		ElementData elementData();
+		QStringList pipeNozzleNames() const;
 		void setElementData(ElementData data);
 
 		void setEventInterface (ESEventInterface *event_interface);
