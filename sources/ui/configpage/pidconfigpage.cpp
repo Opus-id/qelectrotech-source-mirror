@@ -36,6 +36,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPoint>
 #include <QPushButton>
 #include <QSet>
 #include <QShortcut>
@@ -56,6 +57,28 @@ namespace {
 	constexpr int original_role = Qt::UserRole + 2;
 		/// On the code of a line of codes: its last code accepted
 	constexpr int previous_role = Qt::UserRole + 3;
+		/// On the cell "Sizes" of a material: its sizes, each a point of its
+		/// outside diameter (tenths of a millimetre) and of its DN, 0 for
+		/// none. They follow the line when the table is sorted.
+	constexpr int sizes_role = Qt::UserRole + 4;
+	constexpr int sizes_column = 3;
+
+	QVariantList sizesToData(const QList<PidCodification::Size> &sizes)
+	{
+		QVariantList data;
+		for (const PidCodification::Size &size : sizes) {
+			data << QPoint(size.outside, size.nominal);
+		}
+		return data;
+	}
+
+		/// A cell "Sizes", which is not typed in
+	QTableWidgetItem *sizesItem(QTableWidgetItem *item, const QList<PidCodification::Size> &sizes)
+	{
+		item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+		item->setData(sizes_role, sizesToData(sizes));
+		return item;
+	}
 
 	const QList<PidCodification::List> code_lists{PidCodification::List::Fluids,
 												  PidCodification::List::Materials,
@@ -186,16 +209,17 @@ void PidConfigPage::initWidgets()
 		table->setObjectName(object_names.at(i));
 		table->setHorizontalHeaderLabels(
 					fluids ? QStringList{tr("Code"), tr("Name"), tr("Family")}
-						   : materials ? QStringList{tr("Code"), tr("Name"), tr("Named by"), tr("Series")}
+						   : materials ? QStringList{tr("Code"), tr("Name"), tr("Named by"), tr("Sizes")}
 									   : QStringList{tr("Code"), tr("Name")});
 		if (materials) {
 			table->horizontalHeaderItem(2)->setToolTip(
 						tr("Checked: the pipes of this material are named by their outside diameter "
 						   "(Ø 110), as plastic pipes; else by their DN, as metal pipes."));
-			table->horizontalHeaderItem(3)->setToolTip(
-						tr("The sizes of this material found in trade, separated by /, such as "
-						   "25/32/40/50/63; a tenth for an outside diameter, such as 88,9. Its pipes "
-						   "take no other: without a series, none."));
+			table->horizontalHeaderItem(sizes_column)->setToolTip(
+						tr("The sizes of this material found in trade, each an outside diameter and "
+						   "its DN: the first and the last, and how many. Its pipes take no other: "
+						   "without sizes, none. A CSV file gives them, by lines such as "
+						   "size;M04;125;100 (material, outside diameter, DN)."));
 		}
 		table->setSelectionBehavior(QAbstractItemView::SelectRows);
 		table->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -223,53 +247,10 @@ void PidConfigPage::initWidgets()
 	m_code_message->setObjectName(QStringLiteral("codification_message"));
 	m_code_message->setWordWrap(true);
 		//The buttons under the tabs act on the tab shown
-	connect(m_add_entry, &QPushButton::clicked, this, [this]() {
-		if (m_code_tabs->currentWidget() == m_diameters_tab) {
-			addDiameter(m_od_table);
-		} else {
-			addEntry();
-		}
-	});
-	connect(m_remove_entry, &QPushButton::clicked, this, [this]() {
-		if (m_code_tabs->currentWidget() == m_diameters_tab) {
-			removeSelectedDiameters(m_od_table);
-		} else {
-			removeSelectedEntries();
-		}
-	});
-
-		//The table joining the outside diameters of the project to the DN
-		//each may be joined to
-	m_od_table = new QTableWidget(0, 2, this);
-	m_od_table->setObjectName(QStringLiteral("outside_diameters"));
-	m_od_table->setHorizontalHeaderLabels({tr("Outside diameter (Ø)"), tr("DN it may be joined to")});
-	m_od_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-	m_od_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
-	m_od_table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed
-								| QAbstractItemView::AnyKeyPressed);
-	m_od_table->verticalHeader()->hide();
-	m_od_table->horizontalHeader()->setStretchLastSection(true);
-	m_od_table->setItemPrototype(new CodeItem());
-	m_od_table->horizontalHeader()->setSortIndicator(0, Qt::AscendingOrder);
-	m_od_table->horizontalHeader()->setSortIndicatorShown(true);
-	connect(m_od_table, &QTableWidget::itemChanged, this, &PidConfigPage::diameterItemChanged);
-	m_od_table->horizontalHeaderItem(1)->setToolTip(
-				tr("The DN of the flanges a pipe of this outside diameter may be joined to, separated "
-				   "by /, such as 100/125. Empty: a nozzle of another kind is marked."));
-	m_diameters_tab = new QWidget(this);
-	m_diameters_tab->setObjectName(QStringLiteral("diameters"));
-	auto *diameters_layout = new QVBoxLayout(m_diameters_tab);
-	auto *diameters_help = new QLabel(
-				tr("Which DN an outside diameter is joined to (a collar and flange): a nozzle and a pipe "
-				   "the table does not join are marked, and a pipe whose material changes from one kind "
-				   "to the other takes the size the table gives. The sizes themselves are the series of "
-				   "the materials."), m_diameters_tab);
-	diameters_help->setWordWrap(true);
-	diameters_layout->addWidget(diameters_help);
-	diameters_layout->addWidget(m_od_table);
-	m_code_tabs->addTab(m_diameters_tab, tr("Diameters"));
+	connect(m_add_entry, &QPushButton::clicked, this, &PidConfigPage::addEntry);
+	connect(m_remove_entry, &QPushButton::clicked, this, &PidConfigPage::removeSelectedEntries);
 	connect(m_import, &QPushButton::clicked, this, [this]() {
-			//Several files at once: the codes, the diameters...
+			//Several files at once: the codes, the sizes of the materials...
 		const QStringList paths = QFileDialog::getOpenFileNames(
 					this, tr("Import a P&ID codification"), QString(),
 					tr("CSV files (*.csv *.txt);;All files (*)"));
@@ -324,8 +305,8 @@ void PidConfigPage::initWidgets()
 	connect(m_save_palette, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultPalette);
 	m_save_codification = new QPushButton(tr("Save as default codification"), this);
 	m_save_codification->setObjectName(QStringLiteral("save_codification"));
-	m_save_codification->setToolTip(tr("New projects will start with these codes, the series of these "
-									   "materials and this table of diameters; the palette is saved apart. "
+	m_save_codification->setToolTip(tr("New projects will start with these codes and the sizes of these "
+									   "materials; the palette is saved apart. "
 									   "Projects that already exist do not change."));
 	connect(m_save_codification, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultCodification);
 	m_default_saved = new QLabel(this);
@@ -496,7 +477,6 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 {
 	if (fill_codes) {
 		fillCodeTables(codes_from_project);
-		fillDiameterTables();
 	}
 	fillTable();
 
@@ -532,10 +512,6 @@ void PidConfigPage::adjustReadOnly()
 	}
 	m_add_entry->setEnabled(!read_only);
 	m_remove_entry->setEnabled(!read_only);
-	m_od_table->setEditTriggers(read_only ? QAbstractItemView::NoEditTriggers
-										  : QAbstractItemView::DoubleClicked
-											| QAbstractItemView::EditKeyPressed
-											| QAbstractItemView::AnyKeyPressed);
 	m_show_nozzle_sizes->setEnabled(!read_only);
 	m_decimal->setEnabled(!read_only);
 	m_import->setEnabled(!read_only);
@@ -590,17 +566,17 @@ void PidConfigPage::readTextWidgets()
 	if (decimal != m_codification.effectiveDecimal()) {
 		m_codification.decimal = decimal;
 			//The sizes of the page are written with it
-		showSeries();
-		fillDiameterTables();
+		showSizes();
 	}
 }
 
 /**
-	@brief PidConfigPage::showSeries
-	Write in its cell the series of each material, with the separator of the
-	page; a material without series is in orange
+	@brief PidConfigPage::showSizes
+	Write in its cell what sizes each material has, those its pipes are named
+	by, with the separator of the page: the first, the last, how many; a
+	material without one is in orange
 */
-void PidConfigPage::showSeries()
+void PidConfigPage::showSizes()
 {
 	QTableWidget *table = m_code_tables.value(PidCodification::List::Materials);
 	const QSignalBlocker blocker(table);
@@ -608,22 +584,25 @@ void PidConfigPage::showSeries()
 	for (int row = 0 ; row < table->rowCount() ; ++row)
 	{
 		const PidCodification::Entry *entry = m_codification.material(codeOf(table, row));
-		QTableWidgetItem *series = table->item(row, 3);
-		if (!series) {
+		QTableWidgetItem *cell = table->item(row, sizes_column);
+		if (!cell) {
 			continue;
 		}
-		if (entry) {
-			series->setText(PidCodification::seriesToText(entry->series, locale));
-			series->setData(previous_role, series->text());
-		}
-		const bool missing = !codeOf(table, row).isEmpty() && (!entry || entry->series.isEmpty());
+		const QList<PipeDiameter> sizes = entry ? PidCodification::sizesOf(*entry)
+												: QList<PipeDiameter>();
+		cell->setText(sizes.isEmpty() ? QString()
+					  : sizes.size() == 1 ? sizes.first().text(locale)
+					  : QStringLiteral("%1 … %2 (%3)").arg(sizes.first().text(locale),
+														   sizes.last().text(locale))
+						.arg(sizes.size()));
+		const bool missing = !codeOf(table, row).isEmpty() && sizes.isEmpty();
 		for (int column = 0 ; column < table->columnCount() ; ++column) {
 			if (QTableWidgetItem *item = table->item(row, column)) {
 				item->setBackground(missing ? QBrush(QColor(255, 200, 120)) : QBrush());
 			}
 		}
-		series->setToolTip(missing ? tr("Without a series, no pipe of this material can be given a size.")
-								   : QString());
+		cell->setToolTip(missing ? tr("Without sizes, no pipe of this material can be given a size.")
+								 : QString());
 	}
 }
 
@@ -841,7 +820,7 @@ void PidConfigPage::fillCodeTables(bool from_project)
 				auto *named = new CodeItem();
 				showNamedBy(named, entry.outside_diameter);
 				table->setItem(row, 2, named);
-				table->setItem(row, 3, new CodeItem());
+				table->setItem(row, sizes_column, sizesItem(new CodeItem(), entry.sizes));
 			} else if (table->columnCount() > 2) {
 				table->setItem(row, 2, new CodeItem(entry.family));
 			}
@@ -849,7 +828,7 @@ void PidConfigPage::fillCodeTables(bool from_project)
 		table->setSortingEnabled(true);
 		table->resizeColumnToContents(0);
 	}
-	showSeries();
+	showSizes();
 }
 
 /**
@@ -873,12 +852,11 @@ void PidConfigPage::readCodeTable(PidCodification::List list)
 		entry.name = name ? name->text().trimmed() : QString();
 		if (list == PidCodification::List::Materials) {
 			entry.outside_diameter = third && third->checkState() == Qt::Checked;
-			const QTableWidgetItem *series = table->item(row, 3);
-				//A DN is whole: a tenth left after a change of kind is dropped
-			for (int tenths : PidCodification::seriesFromText(series ? series->text() : QString())) {
-				if (entry.outside_diameter || tenths % 10 == 0) {
-					entry.series << tenths;
-				}
+				//Its sizes are kept whole, whatever names its pipes
+			const QTableWidgetItem *cell = table->item(row, sizes_column);
+			const QVariantList sizes = cell ? cell->data(sizes_role).toList() : QVariantList();
+			for (const QVariant &size : sizes) {
+				entry.addSize(size.toPoint().x(), size.toPoint().y());
 			}
 		} else {
 			entry.family = third ? third->text().trimmed() : QString();
@@ -891,7 +869,7 @@ void PidConfigPage::readCodeTable(PidCodification::List list)
 		fillTable();
 	}
 	if (list == PidCodification::List::Materials) {
-		showSeries();
+		showSizes();
 	}
 }
 
@@ -909,23 +887,6 @@ void PidConfigPage::codeItemChanged(QTableWidgetItem *item)
 			//Its text follows the box
 		const QSignalBlocker blocker(table);
 		showNamedBy(item, item->checkState() == Qt::Checked);
-	}
-	if (list == PidCodification::List::Materials && item->column() == 3)
-	{
-			//Sizes separated by /, whole for a DN
-		const QTableWidgetItem *named = table->item(item->row(), 2);
-		const bool outside = named && named->checkState() == Qt::Checked;
-		bool ok = false;
-		const QList<int> sizes = PidCodification::seriesFromText(item->text(), &ok);
-		const bool whole = std::all_of(sizes.cbegin(), sizes.cend(), [](int tenths) { return tenths % 10 == 0; });
-		if (!ok || (!outside && !whole)) {
-			const QSignalBlocker blocker(table);
-			item->setText(item->data(previous_role).toString());
-			m_code_message->setText(tr("Write the sizes separated by /, such as 25/32/40; a tenth "
-									   "after a comma for an outside diameter only, such as 88,9."));
-			return;
-		}
-		m_code_message->clear();
 	}
 	if (item->column() == 0)
 	{
@@ -988,147 +949,11 @@ void PidConfigPage::addEntry()
 		}
 		if (shownList() == PidCodification::List::Materials) {
 			showNamedBy(table->item(row, 2), false);
+			sizesItem(table->item(row, sizes_column), {});
 		}
 	}
 	table->setCurrentCell(row, 0);
 	table->editItem(table->item(row, 0));
-}
-
-/**
-	@brief PidConfigPage::fillDiameterTables
-	One line per outside diameter of the table of the page
-*/
-void PidConfigPage::fillDiameterTables()
-{
-	const QSignalBlocker blocker(m_od_table);
-	m_od_table->setSortingEnabled(false);
-	m_od_table->setRowCount(0);
-	const QLocale locale = m_codification.locale();
-	for (auto it = m_codification.outside_diameters.cbegin() ;
-		 it != m_codification.outside_diameters.cend() ; ++it)
-	{
-		const int row = m_od_table->rowCount();
-		m_od_table->insertRow(row);
-		auto *item = new CodeItem(PipeDiameter::number(it.key(), locale));
-		item->setData(previous_role, item->text());
-		auto *joined = new CodeItem(PidCodification::diametersToText(it.value()));
-		joined->setData(previous_role, joined->text());
-		m_od_table->setItem(row, 0, item);
-		m_od_table->setItem(row, 1, joined);
-	}
-	m_od_table->setSortingEnabled(true);
-}
-
-/**
-	@brief PidConfigPage::diameterItemChanged
-	An outside diameter is a number to the tenth, once in the table; the DN
-	joined to it are whole numbers separated by /. Anything else gets its last
-	value back.
-*/
-void PidConfigPage::diameterItemChanged(QTableWidgetItem *item)
-{
-	QTableWidget *table = item->tableWidget();
-	const QString text = item->text().trimmed();
-	const QString previous = item->data(previous_role).toString();
-	QString refused, written;
-	if (item->column() == 0)
-	{
-		const int value = PipeDiameter::tenthsOf(text);
-		written = PipeDiameter::number(value, m_codification.locale());
-		if (text.isEmpty() && previous.isEmpty()) {
-			return;
-		} else if (!value) {
-			refused = tr("An outside diameter is a number of millimetres, to the tenth.");
-		}
-		for (int row = 0 ; row < table->rowCount() && refused.isEmpty() ; ++row) {
-			if (row != item->row() && PipeDiameter::tenthsOf(codeOf(table, row)) == value) {
-				refused = tr("%1 is already in this list.").arg(written);
-			}
-		}
-	}
-	else
-	{
-		bool ok = false;
-		written = PidCodification::diametersToText(PidCodification::diametersFromText(text, &ok));
-		if (!ok) {
-			refused = tr("Write the DN separated by /, such as 100/125.");
-		}
-	}
-	{
-		const QSignalBlocker blocker(table);
-		if (!refused.isEmpty()) {
-			item->setText(previous);
-		} else {
-			item->setText(written);
-			item->setData(previous_role, written);
-		}
-		if (item->column() == 0 && !item->text().isEmpty() && !table->isSortingEnabled()) {
-			table->setSortingEnabled(true);
-			table->scrollToItem(item);
-		}
-	}
-	m_code_message->setText(refused);
-	readDiameterTables();
-}
-
-/**
-	@brief PidConfigPage::readDiameterTables
-	Take the table of the page; a line without a diameter yet (just added)
-	is none
-*/
-void PidConfigPage::readDiameterTables()
-{
-	m_codification.outside_diameters.clear();
-	for (int row = 0 ; row < m_od_table->rowCount() ; ++row)
-	{
-		const int value = PipeDiameter::tenthsOf(codeOf(m_od_table, row));
-		const QTableWidgetItem *joined = m_od_table->item(row, 1);
-		if (value) {
-			m_codification.outside_diameters.insert(
-						value, PidCodification::diametersFromText(joined ? joined->text() : QString()));
-		}
-	}
-}
-
-/**
-	@brief PidConfigPage::addDiameter
-	See the declaration
-*/
-void PidConfigPage::addDiameter(QTableWidget *table)
-{
-	const int row = table->rowCount();
-	{
-		const QSignalBlocker blocker(table);
-			//The line stays at the bottom until it has its diameter
-		table->setSortingEnabled(false);
-		table->insertRow(row);
-		for (int column = 0 ; column < table->columnCount() ; ++column) {
-			table->setItem(row, column, new CodeItem());
-		}
-	}
-	table->setCurrentCell(row, 0);
-	table->editItem(table->item(row, 0));
-}
-
-/**
-	@brief PidConfigPage::removeSelectedDiameters
-	See the declaration
-*/
-void PidConfigPage::removeSelectedDiameters(QTableWidget *table)
-{
-	QList<int> rows;
-	for (const QModelIndex &index : table->selectionModel()->selectedRows()) {
-		rows << index.row();
-	}
-	std::sort(rows.begin(), rows.end(), std::greater<int>());
-	{
-		const QSignalBlocker blocker(table);
-		for (int row : std::as_const(rows)) {
-			table->removeRow(row);
-		}
-	}
-	m_code_message->clear();
-	readDiameterTables();
 }
 
 /**
@@ -1260,33 +1085,23 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 					.arg(read.functional_units.size()))) {
 		return false;
 	}
-	if (read.hasDiameters() && m_codification.hasDiameters()
-		&& !confirm(tr("Replace the table of the outside diameters of this page with %n line(s)?", "",
-					   int(read.outside_diameters.size())))) {
-		return false;
-	}
 	m_codification = read.completedWith(m_codification);
 		//A code read is no code renamed: no line keeps a former code
 	if (read.hasCodeLists()) {
 		fillCodeTables(false);
 	}
 	showCodification(false, false);
-	if (read.hasDiameters()) {
-		fillDiameterTables();
-	}
-	QString read_text = tr("%1 fluids, %2 materials and %3 functional units read")
-						.arg(read.fluids.size()).arg(read.materials.size()).arg(read.functional_units.size());
-	if (read.hasDiameters()) {
-		read_text += tr(", with %n outside diameter(s) in the table", "", int(read.outside_diameters.size()));
-	}
+	const QString read_text = tr("%1 fluids, %2 materials and %3 functional units read")
+							  .arg(read.fluids.size()).arg(read.materials.size())
+							  .arg(read.functional_units.size());
 	QString message = tr("%1: apply this page to keep them.").arg(read_text);
 	if (skipped) {
 		message += QStringLiteral(" ") + tr("%n line(s) could not be read.", "", skipped);
 	}
-		//A material without series: none of its pipes can have a size
-	const QStringList without = read.hasCodeLists() ? m_codification.materialsWithoutSeries() : QStringList();
+		//A material without sizes: none of its pipes can have a size
+	const QStringList without = read.hasCodeLists() ? m_codification.materialsWithoutSizes() : QStringList();
 	if (!without.isEmpty()) {
-		message += QStringLiteral(" ") + tr("Materials without series: %1.").arg(without.join(QStringLiteral(", ")));
+		message += QStringLiteral(" ") + tr("Materials without sizes: %1.").arg(without.join(QStringLiteral(", ")));
 	}
 	m_code_message->setText(message);
 	return true;

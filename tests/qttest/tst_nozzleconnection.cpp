@@ -104,19 +104,20 @@ class tst_nozzleconnection : public QObject
 		return nullptr;
 	}
 
-		// Sizes DN 80, DN 100, Ø 110, Ø 125; Ø 110 joined to DN 100 only
+		// Sizes DN 80, DN 100, Ø 110, Ø 125; Ø 110 is DN 100, Ø 125 has no DN
 	static PidCodification codification()
 	{
 		PidCodification codification;
 		PidCodification::Entry plastic;
 		plastic.code = QStringLiteral("M01");
 		plastic.outside_diameter = true;
-		plastic.series = {1100, 1250};
+		plastic.addSize(1100, 100);
+		plastic.addSize(1250, 0);
 		PidCodification::Entry metal;
 		metal.code = QStringLiteral("M02");
-		metal.series = {800, 1000};
+		metal.addSize(0, 80);
+		metal.addSize(0, 100);
 		codification.materials = {plastic, metal};
-		codification.outside_diameters.insert(1100, {100});
 		codification.decimal = PidCodification::Decimal::Point;
 		return codification;
 	}
@@ -454,12 +455,17 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(valve->nozzleDiameters().isEmpty());
 		}
 
-		void aSizeTheTableJoinsTwiceIsRemoved()
+		void aSizeTheMaterialsDoNotAgreeOnIsRemoved()
 		{
 			QETProject project;
 			PidCodification table = codification();
-			table.materials[1].series << 1250;
-			table.outside_diameters.insert(1100, {100, 125});
+				// another plastic, whose Ø 110 is DN 125
+			PidCodification::Entry other;
+			other.code = QStringLiteral("M03");
+			other.outside_diameter = true;
+			other.addSize(1100, 125);
+			table.materials << other;
+			table.materials[1].addSize(0, 125);
 			project.setPidCodification(table);
 			Diagram *folio = project.addNewDiagram();
 			Element *tank = placeTank(project, folio);

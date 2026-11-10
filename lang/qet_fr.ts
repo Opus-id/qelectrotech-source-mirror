@@ -5937,8 +5937,8 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="320"/>
-        <source>%1 → %2: the size the table of the diameters of the project joins to it.</source>
-        <translation>%1 → %2 : la taille que la table des diamètres du projet lui associe.</translation>
+        <source>%1 → %2: the size the materials of the project give it.</source>
+        <translation>%1 → %2 : la taille que les matériaux du projet lui donnent.</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="324"/>
@@ -12524,51 +12524,30 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <source>%1 fluids, %2 materials and %3 functional units read</source>
         <translation>%1 fluides, %2 matériaux et %3 unités fonctionnelles lus</translation>
     </message>
-    <message numerus="yes">
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="152"/>
-        <source>, with %n outside diameter(s) in the table</source>
-        <translation>
-            <numerusform>, avec %n diamètre extérieur dans la table</numerusform>
-            <numerusform>, avec %n diamètres extérieurs dans la table</numerusform>
-        </translation>
-    </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="153"/>
-        <source>Materials without series: %1.</source>
-        <translation>Matériaux sans série : %1.</translation>
+        <source>Materials without sizes: %1.</source>
+        <translation>Matériaux sans tailles : %1.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="154"/>
         <source>%1: apply this page to keep them.</source>
         <translation>%1 : appliquez cette page pour les garder.</translation>
     </message>
-    <message numerus="yes">
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="156"/>
-        <source>Replace the table of the outside diameters of this page with %n line(s)?</source>
-        <translation>
-            <numerusform>Remplacer la table des diamètres extérieurs de cette page par %n ligne ?</numerusform>
-            <numerusform>Remplacer la table des diamètres extérieurs de cette page par %n lignes ?</numerusform>
-        </translation>
-    </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="157"/>
-        <source>Series</source>
-        <translation>Série</translation>
+        <source>Sizes</source>
+        <translation>Tailles</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
-        <source>The sizes of this material found in trade, separated by /, such as 25/32/40/50/63; a tenth for an outside diameter, such as 88,9. Its pipes take no other: without a series, none.</source>
-        <translation>Les tailles de ce matériau disponibles dans le commerce, séparées par /, par exemple 25/32/40/50/63 ; un dixième pour un diamètre extérieur, par exemple 88,9. Ses tuyauteries n&apos;en prennent pas d&apos;autre : sans série, aucune.</translation>
+        <source>The sizes of this material found in trade, each an outside diameter and its DN: the first and the last, and how many. Its pipes take no other: without sizes, none. A CSV file gives them, by lines such as size;M04;125;100 (material, outside diameter, DN).</source>
+        <translation>Les tailles de ce matériau disponibles dans le commerce, chacune un diamètre extérieur et son DN : la première, la dernière et leur nombre. Ses tuyauteries n&apos;en prennent pas d&apos;autre : sans tailles, aucune. Un fichier CSV les donne, par des lignes comme size;M04;125;100 (matériau, diamètre extérieur, DN).</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
-        <source>Without a series, no pipe of this material can be given a size.</source>
-        <translation>Sans série, aucune tuyauterie de ce matériau ne peut recevoir de taille.</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
-        <source>Write the sizes separated by /, such as 25/32/40; a tenth after a comma for an outside diameter only, such as 88,9.</source>
-        <translation>Écrivez les tailles séparées par /, par exemple 25/32/40 ; un dixième après une virgule pour un diamètre extérieur seulement, par exemple 88,9.</translation>
+        <source>Without sizes, no pipe of this material can be given a size.</source>
+        <translation>Sans tailles, aucune tuyauterie de ce matériau ne peut recevoir de taille.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
@@ -12604,46 +12583,6 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="161"/>
         <source>Checked: the pipes of this material are named by their outside diameter (Ø 110), as plastic pipes; else by their DN, as metal pipes.</source>
         <translation>Coché : les tuyauteries de ce matériau sont désignées par leur diamètre extérieur (Ø 110), comme les tuyauteries plastiques ; sinon par leur DN, comme les tuyauteries métalliques.</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="163"/>
-        <source>Outside diameter (Ø)</source>
-        <translation>Diamètre extérieur (Ø)</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="164"/>
-        <source>DN it may be joined to</source>
-        <translation>DN de raccordement</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="165"/>
-        <source>The DN of the flanges a pipe of this outside diameter may be joined to, separated by /, such as 100/125. Empty: a nozzle of another kind is marked.</source>
-        <translation>Les DN des brides auxquelles une tuyauterie de ce diamètre extérieur peut se raccorder, séparés par /, par exemple 100/125. Vide : un piquage de l&apos;autre type est signalé.</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="166"/>
-        <source>Which DN an outside diameter is joined to (a collar and flange): a nozzle and a pipe the table does not join are marked, and a pipe whose material changes from one kind to the other takes the size the table gives. The sizes themselves are the series of the materials.</source>
-        <translation>À quels DN un diamètre extérieur se raccorde (collet et bride) : un piquage et une tuyauterie que la table n&apos;associe pas sont signalés, et une tuyauterie dont le matériau passe d&apos;un type à l&apos;autre prend la taille que donne la table. Les tailles elles-mêmes sont les séries des matériaux.</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="167"/>
-        <source>Diameters</source>
-        <translation>Diamètres</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="168"/>
-        <source>An outside diameter is a number of millimetres, to the tenth.</source>
-        <translation>Un diamètre extérieur est un nombre de millimètres, au dixième.</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="170"/>
-        <source>%1 is already in this list.</source>
-        <translation>%1 est déjà dans cette liste.</translation>
-    </message>
-    <message>
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="171"/>
-        <source>Write the DN separated by /, such as 100/125.</source>
-        <translation>Écrivez les DN séparés par /, par exemple 100/125.</translation>
     </message>
     <message numerus="yes">
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
@@ -12790,8 +12729,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="328"/>
-        <source>New projects will start with these codes, the series of these materials and this table of diameters; the palette is saved apart. Projects that already exist do not change.</source>
-        <translation>Les nouveaux projets commenceront avec ces codes, les séries de ces matériaux et cette table des diamètres ; la palette s&apos;enregistre à part. Les projets existants ne changent pas.</translation>
+        <source>New projects will start with these codes and the sizes of these materials; the palette is saved apart. Projects that already exist do not change.</source>
+        <translation>Les nouveaux projets commenceront avec ces codes et les tailles de ces matériaux ; la palette s&apos;enregistre à part. Les projets existants ne changent pas.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="592"/>
@@ -12992,8 +12931,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
-        <source>%1 → %2: the nearest DN the table of the diameters joins to the series of the material.</source>
-        <translation>%1 → %2 : le DN le plus proche que la table des diamètres associe à la série du matériau.</translation>
+        <source>%1 → %2: the nearest DN of the sizes of the material.</source>
+        <translation>%1 → %2 : le DN le plus proche parmi les tailles du matériau.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 → %2: the same size of line, as the material %3 has it.</source>
+        <translation>%1 → %2 : la même taille de ligne, telle que le matériau %3 la propose.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
@@ -13022,8 +12966,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
-        <source>%1: the table of the diameters of the project joins no DN to it: nothing changed.</source>
-        <translation>%1 : la table des diamètres du projet ne lui associe aucun DN : rien n&apos;a changé.</translation>
+        <source>%1: no material of the project has a DN for it: nothing changed.</source>
+        <translation>%1 : aucun matériau du projet ne lui donne de DN : rien n&apos;a changé.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
@@ -13032,13 +12976,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
-        <source>%1 has no DN: the table of the diameters of the project joins none to it, or several.</source>
-        <translation>%1 n&apos;a pas de DN : la table des diamètres du projet ne lui en associe aucun, ou plusieurs.</translation>
+        <source>%1 has no DN: the sizes of the material %2 give it none.</source>
+        <translation>%1 n&apos;a pas de DN : les tailles du matériau %2 ne lui en donnent pas.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
-        <source>%1: the table of the diameters of the project joins no outside diameter of the material %2 to it.</source>
-        <translation>%1 : la table des diamètres du projet ne lui associe aucun diamètre extérieur du matériau %2.</translation>
+        <source>%1: the material %2 has no outside diameter for this DN.</source>
+        <translation>%1 : le matériau %2 n&apos;a pas de diamètre extérieur pour ce DN.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
@@ -13047,8 +12991,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
-        <source>%1 is not in the series of the material (P&amp;ID properties of the project, Codification): nothing changed.</source>
-        <translation>%1 n&apos;est pas dans la série du matériau (propriétés P&amp;ID du projet, Codification) : rien n&apos;a changé.</translation>
+        <source>%1 is not a size of the material (P&amp;ID properties of the project, Codification): nothing changed.</source>
+        <translation>%1 n&apos;est pas une taille du matériau (propriétés P&amp;ID du projet, Codification) : rien n&apos;a changé.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="315"/>
@@ -13057,18 +13001,18 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="316"/>
-        <source>%1 → %2: the nearest size of the series of the material.</source>
-        <translation>%1 → %2 : la taille la plus proche de la série du matériau.</translation>
+        <source>%1 → %2: the nearest size of the material.</source>
+        <translation>%1 → %2 : la taille la plus proche du matériau.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="317"/>
-        <source>%1 → %2, as the table of the diameters joins them.</source>
-        <translation>%1 → %2, d&apos;après la table des diamètres.</translation>
+        <source>%1 → %2: its DN in the sizes of the materials.</source>
+        <translation>%1 → %2 : son DN dans les tailles des matériaux.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="320"/>
-        <source>%1 is not in the series of the material %2.</source>
-        <translation>%1 n&apos;est pas dans la série du matériau %2.</translation>
+        <source>%1 is not a size of the material %2.</source>
+        <translation>%1 n&apos;est pas une taille du matériau %2.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="322"/>
@@ -27401,8 +27345,8 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
     <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1380"/>
-        <source>The table of the diameters of the project does not join %1 to a DN.</source>
-        <translation>La table des diamètres du projet n&apos;associe %1 à aucun DN.</translation>
+        <source>The materials of the project give %1 no DN, or not the same.</source>
+        <translation>Les matériaux du projet ne donnent à %1 aucun DN, ou pas le même.</translation>
     </message>
     <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1270"/>

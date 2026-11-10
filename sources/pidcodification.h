@@ -51,6 +51,21 @@
 class PidCodification
 {
 	public:
+			/// A size of a material found in trade: an outside diameter and
+			/// the DN of the line it makes (that of its flange), either of
+			/// which may be unknown, not both
+		struct Size
+		{
+				/// In tenths of a millimetre; 0 when it is not known
+			int outside = 0;
+				/// The DN, a whole number; 0 when it is not known
+			int nominal = 0;
+
+			bool operator==(const Size &other) const {
+				return outside == other.outside && nominal == other.nominal;
+			}
+		};
+
 		struct Entry
 		{
 				/// The code written on the pipe line, unique in its list
@@ -63,10 +78,22 @@ class PidCodification
 				/// A material whose pipes are named by their outside
 				/// diameter (PVC, PE), not by their DN (steel, cast iron)
 			bool outside_diameter = false;
-				/// The sizes of a material found in trade, its standard
-				/// series, in tenths of a millimetre (a DN times ten), in
-				/// order: its pipes take no other
-			QList<int> series;
+				/// The sizes of a material found in trade, in order (see
+				/// addSize()): its pipes take no other. A material named by
+				/// its outside diameter needs the outside diameter of each,
+				/// and its DN to be joined to a flange; one named by its DN
+				/// needs the DN, its outside diameter being for a nozzle
+				/// given by its outside diameter only.
+			QList<Size> sizes;
+
+				/// Add the size of @p outside (tenths of a millimetre, 0 for
+				/// none) and of the DN @p nominal (0 for none), at its place:
+				/// by outside diameter, or by DN without one. False, nothing
+				/// being added, when it has neither, when this outside
+				/// diameter is already there (an outside diameter has one DN
+				/// only; a DN may have several outside diameters), or this DN
+				/// alone.
+			bool addSize(int outside, int nominal);
 
 			bool operator==(const Entry &other) const;
 		};
@@ -97,21 +124,37 @@ class PidCodification
 		QList<Entry> &entries(List list);
 		const QList<Entry> &entries(List list) const;
 
-			/// The table of the project joining its outside diameters to DN
-			/// (a collar and flange): by outside diameter, in tenths of a
-			/// millimetre, the DN it may be joined to; none known for some
-		QMap<int, QList<int>> outside_diameters;
+			/// The DN of the project which are the same size of line, by
+			/// pairs, the smaller first, in order: DN 60 exists for cast
+			/// iron only, where other materials have DN 65, and their
+			/// flanges are joined. Nothing is known without the project
+			/// saying so.
+		QList<QPair<int, int>> equal_nominals;
+			/// Say that the DN @p a and @p b are the same size of line;
+			/// false when they are not two DN, or are said so already
+		bool addEqualNominals(int a, int b);
+			/// The DN @p a and @p b are the same size of line: the same, or
+			/// a pair of equal_nominals
+		bool sameNominal(int a, int b) const;
+			/// The DN a pipe of the material of code @p material_code takes
+			/// for the size of line @p nominal: itself when the material has
+			/// it, else the first DN of the material equal_nominals says the
+			/// same; itself when there is none, for a material the project
+			/// has not or which has no size
+		PipeDiameter nominalIn(const PipeDiameter &nominal, const QString &material_code) const;
 
-			/// The sizes of the material @p entry, of its kind
-		static QList<PipeDiameter> seriesOf(const Entry &entry);
+			/// The sizes the pipes of the material @p entry are named by, of
+			/// its kind, in order, each once
+		static QList<PipeDiameter> sizesOf(const Entry &entry);
 			/// What sizes a pipe of the material of code @p material_code may
 			/// have, written in @p sizes (empty when none)
 		SizeRule pipeSizes(const QString &material_code, QList<PipeDiameter> *sizes = nullptr) const;
 			/// @p diameter may be given to a pipe of the material of code
 			/// @p material_code; none always
 		bool acceptsForPipe(const PipeDiameter &diameter, const QString &material_code) const;
-			/// The sizes a nozzle may have, having no material: the series of
-			/// all the materials, DN then outside diameters; those of ISO 6708
+			/// The sizes a nozzle may have, having no material: the DN of
+			/// the sizes of all the materials, then the outside diameters of
+			/// those named by their outside diameter; the DN of ISO 6708
 			/// in a project without material; then always the pipe threads,
 			/// which are fixed (PipeDiameter::threadSeries())
 		QList<PipeDiameter> nozzleSizes() const;
@@ -119,36 +162,42 @@ class PidCodification
 			/// in a project without material any outside diameter too; none
 			/// always
 		bool acceptsForNozzle(const PipeDiameter &diameter) const;
-			/// How @p a and @p b compare at a nozzle: a DN and an outside
-			/// diameter are the same when the table of the project joins them,
-			/// unknown when it has not this outside diameter; a thread is
-			/// compared by the DN of the fixed table
-			/// (PipeDiameter::threadNominal()); a diameter not set differs
-			/// from nothing
+			/// How @p a and @p b compare at a nozzle. Two DN are the same
+			/// when sameNominal() says so. A DN and an outside diameter,
+			/// which no material comes with, are compared by the DN the
+			/// materials of the project give this outside diameter
+			/// (nominalsOf()): the same when they all give this DN,
+			/// different when none does, unknown when none has this outside
+			/// diameter or when they do not agree. A thread is compared by
+			/// the DN of the fixed table (PipeDiameter::threadNominal()); a
+			/// diameter not set differs from nothing.
 		DiameterMatch compare(const PipeDiameter &a, const PipeDiameter &b) const;
-			/// The DN the table of the project joins to the outside diameter
-			/// @p outside, in the order of the table; none when it has not
-			/// this outside diameter, or for another kind of size
-		QList<PipeDiameter> nominalsOf(const PipeDiameter &outside) const;
-			/// The DN of a pipe of the outside diameter @p outside: the one
-			/// the table of the project joins to it, when it joins one
-			/// only; none when it joins none, or several
-		PipeDiameter nominalOf(const PipeDiameter &outside) const;
+			/// The DN of a pipe of the outside diameter @p outside in the
+			/// material of code @p material_code: the one of its sizes.
+			/// When the material has not this outside diameter, or without
+			/// material: the DN the other materials give it, as this
+			/// material takes them (nominalIn()), in order, each once. None
+			/// when no material has it, or for another kind of size.
+		QList<PipeDiameter> nominalsOf(const PipeDiameter &outside,
+									   const QString &material_code = QString()) const;
+			/// The one DN of nominalsOf(); none when there is none, or
+			/// several
+		PipeDiameter nominalOf(const PipeDiameter &outside,
+							   const QString &material_code = QString()) const;
 			/// The DN a pipe without material may have, the DN being the
-			/// size of a line whatever its material: those of the series of
-			/// the materials named by their DN, in order, each once; those
-			/// of ISO 6708 when the project has none
+			/// size of a line whatever its material: those of the sizes of
+			/// all the materials, in order, each once; those of ISO 6708
+			/// when the project has none
 		QList<PipeDiameter> nominalSizes() const;
 			/// The DN a pipe of the material of code @p material_code may
-			/// have: its series for a material named by its DN; for one
-			/// named by its outside diameter, the DN the table joins to the
-			/// sizes of its series, in order, each once; nominalSizes() for
-			/// a material the project has not
+			/// have: those of its sizes, in order, each once;
+			/// nominalSizes() for a material the project has not
 		QList<PipeDiameter> lineSizes(const QString &material_code) const;
 			/// The outside diameters a pipe of the DN @p nominal may have in
-			/// the material of code @p material_code: those of its series
-			/// the table joins to this DN, in the order of the series; none
-			/// for a material named by its DN, or which the project has not
+			/// the material of code @p material_code: those of its sizes of
+			/// this DN, in order; none for a material named by its DN,
+			/// whose pipes have no outside diameter, or which the project
+			/// has not
 		QList<PipeDiameter> outsidesOf(const PipeDiameter &nominal,
 									   const QString &material_code) const;
 			/// The size of @p sizes nearest to @p typed, of its kind; the
@@ -157,23 +206,9 @@ class PidCodification
 			/// The material of code @p code names its pipes by their outside
 			/// diameter
 		bool outsideDiameterFor(const QString &material_code) const;
-			/// The codes of the materials without series, which no pipe can
-			/// be given a size of
-		QStringList materialsWithoutSeries() const;
-			/// The DN written in @p text as "100/125" (or separated by
-			/// spaces), whole, in order, each once; @p ok false when something
-			/// else is written
-		static QList<int> diametersFromText(const QString &text, bool *ok = nullptr);
-			/// @p values as "100/125"
-		static QString diametersToText(const QList<int> &values);
-			/// The sizes written in @p text as "25/32/88,9" (or separated by
-			/// spaces; a tenth after a comma or a point), in tenths of a
-			/// millimetre, in order, each once; @p ok false when something
-			/// else is written
-		static QList<int> seriesFromText(const QString &text, bool *ok = nullptr);
-			/// @p tenths as "25/32/88.9", as a file writes them; with commas
-			/// in a language which writes them so when @p locale says so
-		static QString seriesToText(const QList<int> &tenths, const QLocale &locale = QLocale::c());
+			/// The codes of the materials without a size their pipes can be
+			/// named by, which no pipe can be given a size of
+		QStringList materialsWithoutSizes() const;
 
 			/// @p a comes before @p b in a list of codes: in their natural
 			/// order, W2 before W10, without regard to case
@@ -228,11 +263,10 @@ class PidCodification
 			/// What writes a size with the separator of the project
 		QLocale locale() const;
 
-		bool hasCodes() const { return hasCodeLists() || hasDiameters(); }
+		bool hasCodes() const { return hasCodeLists() || !equal_nominals.isEmpty(); }
 		bool hasCodeLists() const {
 			return !fluids.isEmpty() || !materials.isEmpty() || !functional_units.isEmpty();
 		}
-		bool hasDiameters() const { return !outside_diameters.isEmpty(); }
 		bool hasColors() const {
 			return !fluid_family_colors.isEmpty() || !object_colors.isEmpty()
 					|| !status_colors.isEmpty();
@@ -261,8 +295,8 @@ class PidCodification
 		static QString nozzleTexts() { return QStringLiteral("nozzle"); }
 
 			/// This codification, with the codes of @p other when it has
-			/// none, its diameters when it has none, its colours when it has
-			/// none and its settings of texts
+			/// none (and its equal DN when it has none either), its colours
+			/// when it has none and its settings of texts
 			/// when it has none: a file of codes does not take the colours of
 			/// a project away, nor the reverse
 		PidCodification completedWith(const PidCodification &other) const;
@@ -277,9 +311,11 @@ class PidCodification
 			/// "fluid", "material" or "unit" (a functional unit; or their
 			/// French words), the last field of a material being "od" (or
 			/// "Ø") when its pipes are named by their outside diameter, of
-			/// lines "series;M05;25/32/40" (the series of a material, which
-			/// may come before or after it), of lines "od;125;100/125" (an
-			/// outside diameter and the DN it may be joined to, maybe none), of
+			/// lines "size;M05;125;100" ("taille": a size of a material,
+			/// which may come before or after it, its outside diameter then
+			/// its DN, either of which may be empty: "size;M01;;100"), of
+			/// lines "dn_equal;60;65" ("dn_equivalent": two DN which are the
+			/// same size of line), of
 			/// lines "tag_model;family;model"
 			/// ("modele_repere"), and of lines
 			/// "kind;key;color", kind being "fluid_color", "object_color" or
@@ -298,8 +334,8 @@ class PidCodification
 			/// reads: the palette kept in the settings, for new projects. The
 			/// codes stay out, kept apart (codesToCsv())
 		QString paletteToCsv() const;
-			/// The codes, the series of the materials and the table of the
-			/// outside diameters, as lines fromCsv() reads: the codification
+			/// The codes, the sizes of the materials and the equal DN, as
+			/// lines fromCsv() reads: the codification
 			/// kept in the settings, for new projects, apart from the palette,
 			/// as a company may keep its colours with codes of another client
 		QString codesToCsv() const;

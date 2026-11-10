@@ -232,7 +232,7 @@ void Conductor::takeNozzleDiameter()
 	PipeProperties &data = pipe.m_pipe;
 	if (taken.isOutside())
 	{
-		data.nominal = codes.nominalOf(taken);
+		data.nominal = codes.nominalOf(taken, data.material);
 			//A material named by its DN has no outside diameter
 		const PidCodification::Entry *material = codes.material(data.material);
 		if (!data.nominal.isSet() || !material || material->outside_diameter) {
@@ -241,8 +241,9 @@ void Conductor::takeNozzleDiameter()
 	}
 	else
 	{
-		data.nominal = taken;
-		const QList<PipeDiameter> outsides = codes.outsidesOf(taken, data.material);
+			//DN 65 on a material which has DN 60 for it
+		data.nominal = codes.nominalIn(taken, data.material);
+		const QList<PipeDiameter> outsides = codes.outsidesOf(data.nominal, data.material);
 		if (outsides.size() == 1) {
 			data.outside = outsides.first();
 		}

@@ -630,8 +630,8 @@ void ElementNozzlesWidget::connectionPicked(const Field &field)
 	const QSignalBlocker blocker(field.edit);
 	if (joined.size() == 1) {
 		field.edit->setText(joined.constFirst().text(locale));
-		m_message->setText(tr("%1 → %2: the size the table of the diameters of the project "
-							  "joins to it.").arg(diameter.text(locale), joined.constFirst().text(locale)));
+		m_message->setText(tr("%1 → %2: the size the materials of the project give it.")
+						   .arg(diameter.text(locale), joined.constFirst().text(locale)));
 	} else {
 		field.edit->clear();
 		m_message->setText(tr("%1 does not name a nozzle of this connection (%2): the nozzle "

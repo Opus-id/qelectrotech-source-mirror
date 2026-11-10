@@ -19,35 +19,43 @@ Q_DECLARE_METATYPE(PipeDiameter)
 
 // The size of a pipe or a nozzle: a DN, as for a metal pipe or a flange, or
 // an outside diameter (Ø) to the tenth, as for a plastic pipe. The kind is
-// always kept with the number. Each material of a project has its series of
-// sizes and says which kind names its pipes; a table joins outside diameters
-// to DN. The values are those of no company.
+// always kept with the number. Each material of a project has its sizes, an
+// outside diameter and its DN each, and says which names its pipes; the
+// project says which DN are the same size of line. The values are those of no
+// company.
 class tst_pipediameter : public QObject
 {
 	Q_OBJECT
 
-	static PidCodification::Entry material(const QString &code, bool outside, const QList<int> &series)
+		// A material with its sizes: outside diameter in tenths, then DN
+	static PidCodification::Entry material(const QString &code, bool outside,
+										   const QList<PidCodification::Size> &sizes)
 	{
 		PidCodification::Entry e;
 		e.code = code;
 		e.name = code;
 		e.outside_diameter = outside;
-		e.series = series;
+		for (const PidCodification::Size &size : sizes) {
+			e.addSize(size.outside, size.nominal);
+		}
 		return e;
 	}
 
-		// A codification every test of the page starts from
+		// A codification every test of the page starts from: two plastics
+		// which do not give Ø 125 the same DN, a steel, a stainless steel
+		// named by its outside diameter, a material without sizes, and a
+		// cast iron, the only one with DN 60
 	static PidCodification table()
 	{
 		PidCodification codification;
-		codification.materials = {material(QStringLiteral("M01"), true, {1100, 1250}),
-								  material(QStringLiteral("M02"), false, {800, 1000, 1250}),
-								  material(QStringLiteral("M03"), true, {889, 1143}),
-								  material(QStringLiteral("M04"), false, {})};
-		codification.outside_diameters.insert(1100, {100});
-		codification.outside_diameters.insert(1250, {100, 125});
-		codification.outside_diameters.insert(889, {80});
-		codification.outside_diameters.insert(4500, {});
+		codification.materials = {
+			material(QStringLiteral("M01"), true, {{1100, 100}, {1250, 100}, {4500, 0}}),
+			material(QStringLiteral("M02"), false, {{0, 80}, {0, 100}, {0, 125}}),
+			material(QStringLiteral("M03"), true, {{889, 80}, {1143, 100}}),
+			material(QStringLiteral("M04"), false, {}),
+			material(QStringLiteral("M05"), true, {{750, 65}, {1250, 125}}),
+			material(QStringLiteral("M06"), false, {{0, 60}, {0, 80}, {0, 100}})};
+		codification.addEqualNominals(65, 60);
 		codification.decimal = PidCodification::Decimal::Point;
 		return codification;
 	}
@@ -131,35 +139,63 @@ class tst_pipediameter : public QObject
 			QVERIFY(none.attributes().isEmpty());
 		}
 
-			// ---- the series of the materials ----
-		void aPipeTakesTheSeriesOfItsMaterial()
+			// ---- the sizes of the materials ----
+		void aMaterialKeepsItsSizesInOrder()
+		{
+			PidCodification::Entry e;
+			QVERIFY(e.addSize(1250, 100));
+			QVERIFY(e.addSize(1100, 100));
+			QVERIFY(e.addSize(0, 150));
+				// neither; an outside diameter has one DN; a DN alone once
+			QVERIFY(!e.addSize(0, 0));
+			QVERIFY(!e.addSize(1250, 125));
+			QVERIFY(!e.addSize(0, 150));
+			QVERIFY(!e.addSize(-5, 100));
+				// a DN may have several outside diameters, or one more with one
+			QVERIFY(e.addSize(1600, 150));
+			QVERIFY(e.addSize(900, 0));
+			QCOMPARE(e.sizes, (QList<PidCodification::Size>{{900, 0}, {1100, 100}, {1250, 100},
+															 {0, 150}, {1600, 150}}));
+				// what names its pipes: its outside diameters, or its DN
+			e.outside_diameter = true;
+			QCOMPARE(PidCodification::sizesOf(e).size(), 4);
+			e.outside_diameter = false;
+			QCOMPARE(PidCodification::sizesOf(e),
+					 (QList<PipeDiameter>{PipeDiameter::nominal(100), PipeDiameter::nominal(150)}));
+		}
+
+		void aPipeTakesTheSizesOfItsMaterial()
 		{
 			const PidCodification codification = table();
 			QList<PipeDiameter> sizes;
 			QCOMPARE(codification.pipeSizes(QStringLiteral("M01"), &sizes), PidCodification::SizeRule::Series);
-			QCOMPARE(sizes, (QList<PipeDiameter>{PipeDiameter::outside(110), PipeDiameter::outside(125)}));
+			QCOMPARE(sizes, (QList<PipeDiameter>{PipeDiameter::outside(110), PipeDiameter::outside(125),
+												 PipeDiameter::outside(450)}));
 			QVERIFY(codification.acceptsForPipe(PipeDiameter::outside(110), QStringLiteral("M01")));
 			QVERIFY(!codification.acceptsForPipe(PipeDiameter::outside(90), QStringLiteral("M01")));
 			QVERIFY(!codification.acceptsForPipe(PipeDiameter::nominal(100), QStringLiteral("M01")));
 			QVERIFY(codification.acceptsForPipe(PipeDiameter::outside(88.9), QStringLiteral("M03")));
 			QVERIFY(codification.acceptsForPipe(PipeDiameter(), QStringLiteral("M01")));
-				// without series, without material, none
+				// without sizes, without material, none
 			QCOMPARE(codification.pipeSizes(QStringLiteral("M04"), &sizes), PidCodification::SizeRule::NoSeries);
 			QVERIFY(sizes.isEmpty());
 			QCOMPARE(codification.pipeSizes(QString(), &sizes), PidCodification::SizeRule::NoMaterial);
 			QCOMPARE(codification.pipeSizes(QStringLiteral("M99"), &sizes), PidCodification::SizeRule::NoMaterial);
-			QCOMPARE(codification.materialsWithoutSeries(), QStringList{QStringLiteral("M04")});
+			QCOMPARE(codification.materialsWithoutSizes(), QStringList{QStringLiteral("M04")});
 				// a project which lists no material: the DN of ISO 6708
 			QCOMPARE(PidCodification().pipeSizes(QStringLiteral("M01"), &sizes), PidCodification::SizeRule::Iso);
 			QCOMPARE(sizes.size(), PipeProperties::preferredDiameters().size());
 		}
 
-		void aNozzleTakesTheSeriesOfAllMaterials()
+		void aNozzleTakesTheSizesOfAllMaterials()
 		{
+				// the DN of all, a flange having the DN of its line; the
+				// outside diameters of the materials named by them
 			const QList<PipeDiameter> expected{
-				PipeDiameter::nominal(80), PipeDiameter::nominal(100), PipeDiameter::nominal(125),
-				PipeDiameter::outside(88.9), PipeDiameter::outside(110), PipeDiameter::outside(114.3),
-				PipeDiameter::outside(125)};
+				PipeDiameter::nominal(60), PipeDiameter::nominal(65), PipeDiameter::nominal(80),
+				PipeDiameter::nominal(100), PipeDiameter::nominal(125),
+				PipeDiameter::outside(75), PipeDiameter::outside(88.9), PipeDiameter::outside(110),
+				PipeDiameter::outside(114.3), PipeDiameter::outside(125), PipeDiameter::outside(450)};
 				// then the pipe threads, which are fixed
 			QCOMPARE(table().nozzleSizes(), expected + PipeDiameter::threadSeries());
 			QVERIFY(!table().acceptsForNozzle(PipeDiameter::outside(90)));
@@ -169,7 +205,7 @@ class tst_pipediameter : public QObject
 			QVERIFY(!PidCodification().acceptsForNozzle(PipeDiameter::nominal(123)));
 		}
 
-		void anOutsideDiameterIsComparedWithItsTable_data()
+		void anOutsideDiameterIsComparedByItsDn_data()
 		{
 			QTest::addColumn<PipeDiameter>("a");
 			QTest::addColumn<PipeDiameter>("b");
@@ -183,14 +219,22 @@ class tst_pipediameter : public QObject
 			QTest::newRow("joined") << PipeDiameter::outside(110) << PipeDiameter::nominal(100) << same;
 			QTest::newRow("joined, other way") << PipeDiameter::nominal(100) << PipeDiameter::outside(110) << same;
 			QTest::newRow("tenth joined") << PipeDiameter::outside(88.9) << PipeDiameter::nominal(80) << same;
-			QTest::newRow("one of two") << PipeDiameter::outside(125) << PipeDiameter::nominal(125) << same;
+				// no material comes with them: two plastics do not agree on Ø 125
+			QTest::newRow("one of two") << PipeDiameter::outside(125) << PipeDiameter::nominal(125) << unknown;
+			QTest::newRow("the other of two") << PipeDiameter::outside(125) << PipeDiameter::nominal(100) << unknown;
+			QTest::newRow("neither of two") << PipeDiameter::outside(125) << PipeDiameter::nominal(80) << different;
 			QTest::newRow("not joined") << PipeDiameter::outside(110) << PipeDiameter::nominal(80) << different;
 			QTest::newRow("no DN known") << PipeDiameter::outside(450) << PipeDiameter::nominal(400) << unknown;
-			QTest::newRow("not in table") << PipeDiameter::outside(90) << PipeDiameter::nominal(80) << unknown;
+			QTest::newRow("in no material") << PipeDiameter::outside(90) << PipeDiameter::nominal(80) << unknown;
 			QTest::newRow("none") << PipeDiameter() << PipeDiameter::nominal(80) << same;
+				// DN 60 and DN 65, which the project says equal
+			QTest::newRow("equal DN") << PipeDiameter::nominal(60) << PipeDiameter::nominal(65) << same;
+			QTest::newRow("equal DN, other way") << PipeDiameter::nominal(65) << PipeDiameter::nominal(60) << same;
+			QTest::newRow("Ø of an equal DN") << PipeDiameter::outside(75) << PipeDiameter::nominal(60) << same;
+			QTest::newRow("not said equal") << PipeDiameter::nominal(100) << PipeDiameter::nominal(125) << different;
 		}
 
-		void anOutsideDiameterIsComparedWithItsTable()
+		void anOutsideDiameterIsComparedByItsDn()
 		{
 			QFETCH(PipeDiameter, a);
 			QFETCH(PipeDiameter, b);
@@ -198,34 +242,92 @@ class tst_pipediameter : public QObject
 			QCOMPARE(int(table().compare(a, b)), match);
 		}
 
-			// The DN is the size of a line whatever its material: the table
-			// joins it to the outside diameters of the series of a plastic
+			// The DN is the size of a line whatever its material: each
+			// material gives the DN of its outside diameters
 		void theDnOfALineGoesWithAnyMaterial()
 		{
 			const PidCodification codification = table();
-			const PipeDiameter dn80 = PipeDiameter::nominal(80), dn100 = PipeDiameter::nominal(100),
+			const PipeDiameter dn60 = PipeDiameter::nominal(60), dn65 = PipeDiameter::nominal(65),
+					dn80 = PipeDiameter::nominal(80), dn100 = PipeDiameter::nominal(100),
 					dn125 = PipeDiameter::nominal(125);
-				// the DN of an outside diameter: one, several, none
+			const QString pe = QStringLiteral("M01"), steel = QStringLiteral("M02"),
+					pvc = QStringLiteral("M05"), iron = QStringLiteral("M06");
+				// the DN of an outside diameter in its material: one
+			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(125), pe), QList<PipeDiameter>{dn100});
+			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(125), pvc), QList<PipeDiameter>{dn125});
+			QCOMPARE(codification.nominalOf(PipeDiameter::outside(125), pe), dn100);
+				// without material, or in one which has not this outside
+				// diameter: what the others say, one, several, none
 			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(110)), QList<PipeDiameter>{dn100});
 			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(125)),
 					 (QList<PipeDiameter>{dn100, dn125}));
+			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(125), steel),
+					 (QList<PipeDiameter>{dn100, dn125}));
+			QVERIFY(!codification.nominalOf(PipeDiameter::outside(125)).isSet());
 			QVERIFY(codification.nominalsOf(PipeDiameter::outside(450)).isEmpty());
 			QVERIFY(codification.nominalsOf(PipeDiameter::outside(90)).isEmpty());
 			QVERIFY(codification.nominalsOf(dn100).isEmpty());
-				// without material: the DN of the materials named by their DN
-			QCOMPARE(codification.nominalSizes(), (QList<PipeDiameter>{dn80, dn100, dn125}));
+				// as the material has it: DN 65 is DN 60 in cast iron
+			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(75), iron), QList<PipeDiameter>{dn60});
+			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(75), steel), QList<PipeDiameter>{dn65});
+				// without material: the DN of all the materials
+			QCOMPARE(codification.nominalSizes(), (QList<PipeDiameter>{dn60, dn65, dn80, dn100, dn125}));
 			QCOMPARE(codification.lineSizes(QString()), codification.nominalSizes());
 			QCOMPARE(codification.lineSizes(QStringLiteral("M99")), codification.nominalSizes());
 				// those of ISO 6708 when the project has none
 			PidCodification plastics;
-			plastics.materials = {material(QStringLiteral("M01"), true, {1100, 1250})};
+			plastics.materials = {material(pe, true, {{1100, 0}, {1250, 0}})};
 			QCOMPARE(plastics.nominalSizes().size(), PipeProperties::preferredDiameters().size());
 			QCOMPARE(PidCodification().nominalSizes().size(), PipeProperties::preferredDiameters().size());
-				// of a material: its series, or the DN joined to its series
-			QCOMPARE(codification.lineSizes(QStringLiteral("M02")), (QList<PipeDiameter>{dn80, dn100, dn125}));
-			QCOMPARE(codification.lineSizes(QStringLiteral("M01")), (QList<PipeDiameter>{dn100, dn125}));
-			QCOMPARE(codification.lineSizes(QStringLiteral("M03")), QList<PipeDiameter>{dn80});
+				// of a material: the DN of its sizes
+			QCOMPARE(codification.lineSizes(steel), (QList<PipeDiameter>{dn80, dn100, dn125}));
+			QCOMPARE(codification.lineSizes(pe), QList<PipeDiameter>{dn100});
+			QCOMPARE(codification.lineSizes(QStringLiteral("M03")), (QList<PipeDiameter>{dn80, dn100}));
+			QCOMPARE(codification.lineSizes(iron), (QList<PipeDiameter>{dn60, dn80, dn100}));
 			QVERIFY(codification.lineSizes(QStringLiteral("M04")).isEmpty());
+				// the outside diameters of a DN: several, one, none for a
+				// material named by its DN
+			QCOMPARE(codification.outsidesOf(dn100, pe),
+					 (QList<PipeDiameter>{PipeDiameter::outside(110), PipeDiameter::outside(125)}));
+			QCOMPARE(codification.outsidesOf(dn100, QStringLiteral("M03")),
+					 QList<PipeDiameter>{PipeDiameter::outside(114.3)});
+			QVERIFY(codification.outsidesOf(dn100, steel).isEmpty());
+			QVERIFY(codification.outsidesOf(dn80, pe).isEmpty());
+		}
+
+			// DN 60 exists for cast iron only, where the others have DN 65:
+			// the project says them the same size of line
+		void equalDnAreTheSameSizeOfLine()
+		{
+			PidCodification codification = table();
+			const PipeDiameter dn60 = PipeDiameter::nominal(60), dn65 = PipeDiameter::nominal(65);
+			QVERIFY(codification.sameNominal(60, 65));
+			QVERIFY(codification.sameNominal(65, 60));
+			QVERIFY(codification.sameNominal(80, 80));
+			QVERIFY(!codification.sameNominal(80, 100));
+				// said once, of two DN
+			QVERIFY(!codification.addEqualNominals(60, 65));
+			QVERIFY(!codification.addEqualNominals(80, 80));
+			QVERIFY(!codification.addEqualNominals(0, 80));
+			QVERIFY(codification.addEqualNominals(125, 100));
+			QCOMPARE(codification.equal_nominals,
+					 (QList<QPair<int, int>>{{60, 65}, {100, 125}}));
+				// a line keeps its DN in a material which has it, else takes
+				// the equal one the material has
+			QCOMPARE(codification.nominalIn(dn65, QStringLiteral("M06")), dn60);
+			QCOMPARE(codification.nominalIn(dn60, QStringLiteral("M05")), dn65);
+			QCOMPARE(codification.nominalIn(dn60, QStringLiteral("M06")), dn60);
+				// neither in the material, no material, no size: as it is
+			QCOMPARE(codification.nominalIn(dn60, QStringLiteral("M03")), dn60);
+			QCOMPARE(codification.nominalIn(dn65, QString()), dn65);
+			QCOMPARE(codification.nominalIn(dn65, QStringLiteral("M04")), dn65);
+				// nothing is equal without the project saying so
+			QVERIFY(!PidCodification().sameNominal(60, 65));
+			QVERIFY(PidCodification().equal_nominals.isEmpty());
+			PidCodification alone;
+			alone.addEqualNominals(60, 65);
+			QVERIFY(alone.hasCodes());
+			QVERIFY(!alone.isEmpty());
 		}
 
 		void theNearestSizeIsFound()
@@ -241,7 +343,7 @@ class tst_pipediameter : public QObject
 			QVERIFY(!PidCodification::nearest(PipeDiameter::nominal(65), {PipeDiameter::outside(63)}).isSet());
 		}
 
-			// Several files read as one: the codes, then the diameters
+			// Several files read as one: the codes, then the sizes
 		void severalFilesAreReadAsOne()
 		{
 			QTemporaryDir dir;
@@ -250,25 +352,31 @@ class tst_pipediameter : public QObject
 			const QString table = dir.filePath(QStringLiteral("table.csv"));
 			QFile a(codes);
 			QVERIFY(a.open(QIODevice::WriteOnly));
-			a.write("\xEF\xBB\xBFkind;code;name;family\nmaterial;M01;PE;od\nseries;M01;90/110\n");
+			a.write("\xEF\xBB\xBFkind;code;name;family\nmaterial;M01;PE;od\n");
 			a.close();
 			QFile b(table);
 			QVERIFY(b.open(QIODevice::WriteOnly));
 			a.close();
-			b.write("\xEF\xBB\xBFkind;code;name;family\nod;110;100\nod;90;80");
+			b.write("\xEF\xBB\xBFkind;code;name;family\nsize;M01;110;100\nsize;M01;90;80\ndn_equal;60;65");
 			b.close();
 			int skipped = -1;
 			const PidCodification read = PidCodification::fromCsv(
 						PidCodification::textOfFiles({codes, table}), &skipped);
 			QCOMPARE(skipped, 0);
 			QCOMPARE(read.materials.size(), 1);
-			QCOMPARE(read.outside_diameters.size(), 2);
+			QCOMPARE(read.materials.first().sizes,
+					 (QList<PidCodification::Size>{{900, 80}, {1100, 100}}));
+			QCOMPARE(read.equal_nominals.size(), 1);
+				// the sizes alone have no material to go to
+			QVERIFY(PidCodification::fromCsv(PidCodification::textOfFiles({table}), &skipped)
+					.materials.isEmpty());
+			QCOMPARE(skipped, 2);
 			QStringList unreadable;
 			PidCodification::textOfFiles({dir.filePath(QStringLiteral("none.csv"))}, &unreadable);
 			QCOMPARE(unreadable.size(), 1);
 		}
 
-		void theCodificationIsSavedWithItsSeries()
+		void theCodificationIsSavedWithItsSizes()
 		{
 			const PidCodification codification = table();
 			QDomDocument doc;
@@ -277,20 +385,37 @@ class tst_pipediameter : public QObject
 			const QDomElement block = project.firstChildElement(QStringLiteral("pid_codification"));
 			const QDomElement first = block.firstChildElement(QStringLiteral("material"));
 			QCOMPARE(first.attribute(QStringLiteral("diameter")), QStringLiteral("outside"));
-			QCOMPARE(first.attribute(QStringLiteral("series")), QStringLiteral("110/125"));
+			QVERIFY(!first.hasAttribute(QStringLiteral("series")));
 			QCOMPARE(block.attribute(QStringLiteral("decimal_separator")), QStringLiteral("point"));
-			bool tenth = false;
-			for (QDomElement e = block.firstChildElement(QStringLiteral("outside_diameter")) ; !e.isNull() ;
-				 e = e.nextSiblingElement(QStringLiteral("outside_diameter"))) {
-				if (e.attribute(QStringLiteral("value")) == QLatin1String("88.9")) tenth = true;
-			}
-			QVERIFY(tenth);
+				// a size by element, with what is known of it only
+			const QDomNodeList sizes = first.elementsByTagName(QStringLiteral("size"));
+			QCOMPARE(sizes.size(), 3);
+			QCOMPARE(sizes.at(0).toElement().attribute(QStringLiteral("od")), QStringLiteral("110"));
+			QCOMPARE(sizes.at(0).toElement().attribute(QStringLiteral("dn")), QStringLiteral("100"));
+			QVERIFY(!sizes.at(2).toElement().hasAttribute(QStringLiteral("dn")));
+			const QDomElement steel = first.nextSiblingElement(QStringLiteral("material"));
+			QVERIFY(!steel.firstChildElement(QStringLiteral("size")).hasAttribute(QStringLiteral("od")));
+				// always a point in a file
+			const QDomElement stainless = steel.nextSiblingElement(QStringLiteral("material"));
+			QCOMPARE(stainless.firstChildElement(QStringLiteral("size")).attribute(QStringLiteral("od")),
+					 QStringLiteral("88.9"));
+			QVERIFY(block.firstChildElement(QStringLiteral("outside_diameter")).isNull());
+			const QDomElement equal = block.firstChildElement(QStringLiteral("equal_dn"));
+			QCOMPARE(equal.attribute(QStringLiteral("a")), QStringLiteral("60"));
+			QCOMPARE(equal.attribute(QStringLiteral("b")), QStringLiteral("65"));
 			PidCodification back;
 			back.fromXml(project);
 			QCOMPARE(back, codification);
+				// a project without sizes nor equal DN writes none
+			PidCodification plain;
+			plain.materials = {material(QStringLiteral("M01"), false, {})};
+			QDomElement other = doc.createElement(QStringLiteral("project"));
+			other.appendChild(plain.toXml(doc));
+			QVERIFY(other.elementsByTagName(QStringLiteral("size")).isEmpty());
+			QVERIFY(other.elementsByTagName(QStringLiteral("equal_dn")).isEmpty());
 		}
 
-		void theSeriesAreReadFromAFileOfCodes()
+		void theSizesAreReadFromAFileOfCodes()
 		{
 			const PidCodification codification = table();
 			int skipped = -1;
@@ -299,105 +424,109 @@ class tst_pipediameter : public QObject
 
 			const PidCodification read = PidCodification::fromCsv(QStringLiteral(
 				"kind;code;name;family\n"
-				"series;M01;25/32/40\n"
+				"size;M01;32;25\n"
 				"material;M01;PE;Ø\n"
 				"material;M02;Steel\n"
 				"material;M03;Stainless;od\n"
-				"series;M02;50 65 80\n"
-				"series;M03;60,3/88,9\n"
-				"series;M09;100\n"
+				"size;M01;25;20\n"
+				"size;M02;;50\n"
+				"size;M02;;65\n"
+				"size;M03;88,9;80\n"
+				"size;M09;;100\n"
 				"material;M04;Iron\n"
-				"series;M04;88,9\n"
+				"size;M04;;88,9\n"
+				"size;M01;25;32\n"
+				"size;M02;;\n"
+				"size;M03;x;80\n"
+				"taille;M04;;60\n"
+				"series;M02;50 65 80\n"
 				"od;88,9;80\n"
-				"od;125;100/125\n"
-				"od;450\n"
-				"od;90;80/DN\n"
+				"dn_equal;60;65\n"
+				"dn_equivalent;65;60\n"
+				"dn_equal;60;60\n"
 				"text_option;decimal_separator;comma\n"), &skipped);
-				// M09 unknown, a DN with a tenth, a DN not readable
-			QCOMPARE(skipped, 3);
-			QCOMPARE(read.material(QStringLiteral("M01"))->series, (QList<int>{250, 320, 400}));
-			QCOMPARE(read.material(QStringLiteral("M02"))->series, (QList<int>{500, 650, 800}));
-			QCOMPARE(read.material(QStringLiteral("M03"))->series, (QList<int>{603, 889}));
-			QVERIFY(read.material(QStringLiteral("M04"))->series.isEmpty());
+				// M09 unknown, a DN with a tenth, an outside diameter read
+				// already, a size with neither, one not readable, two lines
+				// of a former version, two DN said equal already, one DN
+			QCOMPARE(skipped, 9);
+			QCOMPARE(read.material(QStringLiteral("M01"))->sizes,
+					 (QList<PidCodification::Size>{{250, 20}, {320, 25}}));
+			QCOMPARE(read.material(QStringLiteral("M02"))->sizes,
+					 (QList<PidCodification::Size>{{0, 50}, {0, 65}}));
+			QCOMPARE(read.material(QStringLiteral("M03"))->sizes,
+					 (QList<PidCodification::Size>{{889, 80}}));
+			QCOMPARE(read.material(QStringLiteral("M04"))->sizes,
+					 (QList<PidCodification::Size>{{0, 60}}));
 			QVERIFY(read.outsideDiameterFor(QStringLiteral("M01")));
 			QVERIFY(read.materials.first().family.isEmpty());
-			QCOMPARE(read.outside_diameters.value(889), QList<int>{80});
-			QCOMPARE(read.outside_diameters.value(1250), (QList<int>{100, 125}));
-			QVERIFY(read.outside_diameters.contains(4500));
-			QVERIFY(!read.outside_diameters.contains(900));
+			QCOMPARE(read.equal_nominals, (QList<QPair<int, int>>{{60, 65}}));
 			QCOMPARE(read.decimal, PidCodification::Decimal::Comma);
 		}
 
-			// A file of codes without table keeps that of the project, and
-			// the reverse
-		void aFileWithoutTableKeepsThatOfTheProject()
+			// A file of codes replaces the equal DN of the project with its
+			// codes; a file which says the equal DN only keeps the codes
+		void aFileOfEqualDnKeepsTheCodesOfTheProject()
 		{
 			PidCodification codes;
-			codes.materials = {material(QStringLiteral("M09"), false, {1000})};
+			codes.materials = {material(QStringLiteral("M09"), false, {{0, 100}})};
 			const PidCodification merged = codes.completedWith(table());
 			QCOMPARE(merged.materials.size(), 1);
-			QCOMPARE(merged.outside_diameters, table().outside_diameters);
+			QVERIFY(merged.equal_nominals.isEmpty());
 
-			PidCodification diameters;
-			diameters.outside_diameters.insert(630, {50});
-			const PidCodification other = diameters.completedWith(table());
+			PidCodification equal;
+			equal.addEqualNominals(100, 110);
+			const PidCodification other = equal.completedWith(table());
 			QCOMPARE(other.materials, table().materials);
-			QCOMPARE(other.outside_diameters.size(), 1);
+			QCOMPARE(other.equal_nominals, (QList<QPair<int, int>>{{100, 110}}));
+
+			PidCodification colours;
+			colours.object_colors.insert(QStringLiteral("valve"), QColor(Qt::blue));
+			QCOMPARE(colours.completedWith(table()).equal_nominals, table().equal_nominals);
 		}
 
 			// ---- the page of the project ----
-		void thePageEditsTheSeriesAndTheTable()
+		void thePageShowsTheSizesOfTheMaterials()
 		{
 			QETProject project;
 			project.undoStack()->push(new ChangePidCodificationCommand(&project, table()));
 			PidConfigPage page(&project);
-			QTableWidget *od = page.outsideDiameterTable();
 			QTableWidget *materials = page.codeTable(PidCodification::List::Materials);
-			QCOMPARE(od->rowCount(), 4);
+			QCOMPARE(materials->rowCount(), 6);
 			QCOMPARE(materials->item(0, 2)->checkState(), Qt::Checked);
-			QCOMPARE(materials->item(0, 3)->text(), QStringLiteral("110/125"));
-				// a material without series is in orange
+				// the first, the last, how many; not typed in
+			QCOMPARE(materials->item(0, 3)->text(), QStringLiteral("Ø 110 … Ø 450 (3)"));
+			QCOMPARE(materials->item(1, 3)->text(), QStringLiteral("DN 80 … DN 125 (3)"));
+			QVERIFY(!(materials->item(0, 3)->flags() & Qt::ItemIsEditable));
+				// a material without sizes is in orange
+			QVERIFY(materials->item(3, 3)->text().isEmpty());
 			QVERIFY(materials->item(3, 0)->background() != QBrush());
 			QVERIFY(materials->item(0, 0)->background() == QBrush());
-
-				// a series: a tenth for an outside diameter only
-			materials->item(1, 3)->setText(QStringLiteral("80/88,9"));
-			QVERIFY(!page.codeMessage().isEmpty());
-			QCOMPARE(materials->item(1, 3)->text(), QStringLiteral("80/100/125"));
-			materials->item(3, 3)->setText(QStringLiteral("150 / 100"));
-			QCOMPARE(materials->item(3, 3)->text(), QStringLiteral("100/150"));
-			QVERIFY(materials->item(3, 0)->background() == QBrush());
-
-				// an outside diameter to the tenth and the DN it is joined to
-			page.addDiameter(od);
-			const int row = od->rowCount() - 1;
-			od->item(row, 1)->setText(QStringLiteral("100 / 90"));
-			od->item(row, 0)->setText(QStringLiteral("114,3"));
-			bool found = false;
-			for (int r = 0 ; r < od->rowCount() ; ++r) {
-				if (od->item(r, 0)->text() == QStringLiteral("114.3")) {
-					found = true;
-					QCOMPARE(od->item(r, 1)->text(), QStringLiteral("90/100"));
-					od->item(r, 1)->setText(QStringLiteral("80, DN"));
-					QVERIFY(!page.codeMessage().isEmpty());
-					QCOMPARE(od->item(r, 1)->text(), QStringLiteral("90/100"));
-				}
-			}
-			QVERIFY(found);
 
 				// the separator of the project
 			auto *decimal = page.findChild<QComboBox *>(QStringLiteral("decimal_separator"));
 			decimal->setCurrentIndex(decimal->findData(int(PidCodification::Decimal::Comma)));
 			emit decimal->activated(decimal->currentIndex());
-			QCOMPARE(materials->item(2, 3)->text(), QStringLiteral("88,9/114,3"));
+			QCOMPARE(materials->item(2, 3)->text(), QStringLiteral("Ø 88,9 … Ø 114,3 (2)"));
+
+				// named by its DN instead: its sizes stay whole
+			materials->item(2, 2)->setCheckState(Qt::Unchecked);
+			QCOMPARE(materials->item(2, 3)->text(), QStringLiteral("DN 80 … DN 100 (2)"));
+				// a code changed keeps its sizes
+			materials->item(0, 0)->setText(QStringLiteral("P01"));
 
 			page.applyProjectConf();
 			const PidCodification &applied = project.pidCodification();
-			QCOMPARE(applied.material(QStringLiteral("M04"))->series, (QList<int>{1000, 1500}));
-			QCOMPARE(applied.outside_diameters.value(1143), (QList<int>{90, 100}));
+			QCOMPARE(applied.material(QStringLiteral("M03"))->sizes,
+					 table().material(QStringLiteral("M03"))->sizes);
+			QVERIFY(!applied.outsideDiameterFor(QStringLiteral("M03")));
+			QVERIFY(!applied.material(QStringLiteral("M01")));
+			QCOMPARE(applied.material(QStringLiteral("P01"))->sizes,
+					 table().material(QStringLiteral("M01"))->sizes);
+			QCOMPARE(applied.equal_nominals, table().equal_nominals);
 			QCOMPARE(applied.decimal, PidCodification::Decimal::Comma);
 			project.undoStack()->undo();
-			QVERIFY(project.pidCodification().material(QStringLiteral("M04"))->series.isEmpty());
+			QVERIFY(project.pidCodification().outsideDiameterFor(QStringLiteral("M03")));
+			QVERIFY(project.pidCodification().material(QStringLiteral("M01")));
 		}
 
 			// A project with codes keeps its separator, whatever the language

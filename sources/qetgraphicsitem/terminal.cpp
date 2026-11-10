@@ -1810,7 +1810,7 @@ void Terminal::updateDiameterToolTip()
 	const PipeDiameter other = sibling ? sibling->facingDiameter() : pipe;
 	const PipeDiameter own = ownDiameter();
 	const QLocale locale = sizeLocale();
-	const auto unknown = tr("The table of the diameters of the project does not join %1 to a DN.");
+	const auto unknown = tr("The materials of the project give %1 no DN, or not the same.");
 	QString tip = PipeConnection::name(connection());
 	const auto match = compareDiameters(pipe, other);
 	if (!hasDiameterGap()) {

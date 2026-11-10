@@ -34,6 +34,8 @@ namespace
 	const QString nozzle_sizes_word = QStringLiteral("show_nozzle_sizes");
 	const QString decimal_word = QStringLiteral("decimal_separator");
 	const QString drawn_connections_word = QStringLiteral("drawn_connections");
+	const QString size_tag = QStringLiteral("size");
+	const QString equal_tag = QStringLiteral("equal_dn");
 
 		/// @p connections as words separated by spaces: a list the CSV
 		/// separators (semicolon, tab, comma) never cut
@@ -117,33 +119,49 @@ namespace
 			if (entry.outside_diameter) {
 				e.setAttribute(QStringLiteral("diameter"), QStringLiteral("outside"));
 			}
-			if (!entry.series.isEmpty()) {
-				e.setAttribute(QStringLiteral("series"), PidCodification::seriesToText(entry.series));
+				//The sizes of a material: what is known of each only
+			for (const PidCodification::Size &size : entry.sizes)
+			{
+				QDomElement s = document.createElement(size_tag);
+				if (size.outside) {
+					s.setAttribute(QStringLiteral("od"), PipeDiameter::fileNumber(size.outside));
+				}
+				if (size.nominal) {
+					s.setAttribute(QStringLiteral("dn"), size.nominal);
+				}
+				e.appendChild(s);
 			}
 			block.appendChild(e);
 		}
 	}
 
-		/// The numbers of "25/32/88,9" (or separated by spaces), in tenths of
-		/// a millimetre, in order, each once; whole ones only when @p whole;
-		/// @p ok false when something else is written
-	QList<int> readNumbers(const QString &text, bool whole, bool *ok)
+		/// The DN written in @p text, a whole number; 0 for anything else,
+		/// and for nothing
+	int nominalOfText(const QString &text)
 	{
-		QList<int> values;
-		bool all = true;
-		const QStringList parts = QString(text).replace(QLatin1Char('/'), QLatin1Char(' '))
-								  .split(QLatin1Char(' '), Qt::SkipEmptyParts);
-		for (const QString &part : parts) {
-			const int value = PipeDiameter::tenthsOf(part);
-			if (!value || (whole && value % 10)) {
-				all = false;
-			} else if (!values.contains(value)) {
-				values << value;
+		const int tenths = PipeDiameter::tenthsOf(text);
+		return tenths % 10 ? 0 : tenths / 10;
+	}
+
+		/// What orders the sizes of a material: its outside diameter, or its
+		/// DN without one
+	int sizeKey(const PidCodification::Size &size)
+	{
+		return size.outside ? size.outside : size.nominal * 10;
+	}
+
+		/// The DN of @p tenths, sorted, each once
+	QList<PipeDiameter> sortedNominals(QList<int> values)
+	{
+		std::sort(values.begin(), values.end());
+		QList<PipeDiameter> sizes;
+		for (int value : std::as_const(values)) {
+			const PipeDiameter size = PipeDiameter::nominal(value);
+			if (size.isSet() && !sizes.contains(size)) {
+				sizes << size;
 			}
 		}
-		std::sort(values.begin(), values.end());
-		if (ok) *ok = all;
-		return values;
+		return sizes;
 	}
 
 	void writeColors(QDomDocument &document, QDomElement &block, const QString &group,
@@ -236,11 +254,17 @@ namespace
 			entry.name = e.attribute(QStringLiteral("name")).trimmed();
 			entry.family = e.attribute(QStringLiteral("family")).trimmed();
 			entry.outside_diameter = e.attribute(QStringLiteral("diameter")) == QLatin1String("outside");
-				//A DN is whole: a series which says otherwise is not read
-			bool ok = false;
-			entry.series = readNumbers(e.attribute(QStringLiteral("series")), !entry.outside_diameter, &ok);
-			if (!ok) {
-				entry.series.clear();
+				//A size which cannot be read, or read already, is left out
+			for (QDomElement s = e.firstChildElement(size_tag) ; !s.isNull() ;
+				 s = s.nextSiblingElement(size_tag))
+			{
+				const QString od = s.attribute(QStringLiteral("od"));
+				const QString dn = s.attribute(QStringLiteral("dn"));
+				const int outside = PipeDiameter::tenthsOf(od);
+				const int nominal = nominalOfText(dn);
+				if ((od.isEmpty() || outside) && (dn.isEmpty() || nominal)) {
+					entry.addSize(outside, nominal);
+				}
 			}
 			if (entry.code.isEmpty() || codes.contains(entry.code)) {
 				continue;
@@ -255,18 +279,100 @@ namespace
 bool PidCodification::Entry::operator==(const Entry &other) const
 {
 	return code == other.code && name == other.name && family == other.family
-			&& outside_diameter == other.outside_diameter && series == other.series;
+			&& outside_diameter == other.outside_diameter && sizes == other.sizes;
 }
 
-QList<PipeDiameter> PidCodification::seriesOf(const Entry &entry)
+/**
+	@brief PidCodification::Entry::addSize
+	See the declaration
+*/
+bool PidCodification::Entry::addSize(int outside, int nominal)
 {
+	if (outside < 0 || nominal < 0 || (!outside && !nominal)
+		|| (outside && !PipeDiameter::fromTenths(PipeDiameter::Outside, outside).isSet())
+		|| (nominal && !PipeDiameter::nominal(nominal).isSet())) {
+		return false;
+	}
+	for (const Size &size : std::as_const(sizes)) {
+		if (outside ? size.outside == outside : (!size.outside && size.nominal == nominal)) {
+			return false;
+		}
+	}
+	Size added;
+	added.outside = outside;
+	added.nominal = nominal;
+	const auto place = std::upper_bound(sizes.begin(), sizes.end(), added,
+										[](const Size &a, const Size &b) {
+		if (sizeKey(a) != sizeKey(b)) return sizeKey(a) < sizeKey(b);
+		return a.nominal != b.nominal ? a.nominal < b.nominal : a.outside < b.outside;
+	});
+	sizes.insert(place, added);
+	return true;
+}
+
+/**
+	@brief PidCodification::addEqualNominals
+	See the declaration
+*/
+bool PidCodification::addEqualNominals(int a, int b)
+{
+	if (a == b || !PipeDiameter::nominal(a).isSet() || !PipeDiameter::nominal(b).isSet()) {
+		return false;
+	}
+	const QPair<int, int> pair(qMin(a, b), qMax(a, b));
+	if (equal_nominals.contains(pair)) {
+		return false;
+	}
+	equal_nominals.insert(std::upper_bound(equal_nominals.begin(), equal_nominals.end(), pair), pair);
+	return true;
+}
+
+bool PidCodification::sameNominal(int a, int b) const
+{
+	return a == b || equal_nominals.contains(QPair<int, int>(qMin(a, b), qMax(a, b)));
+}
+
+/**
+	@brief PidCodification::nominalIn
+	See the declaration
+*/
+PipeDiameter PidCodification::nominalIn(const PipeDiameter &nominal,
+										const QString &material_code) const
+{
+	const Entry *entry = material(material_code);
+	if (!nominal.isNominal() || !entry) {
+		return nominal;
+	}
+	const int dn = nominal.tenths() / 10;
+	int equal = 0;
+	for (const Size &size : entry->sizes) {
+		if (size.nominal == dn) {
+			return nominal;
+		}
+		if (size.nominal && sameNominal(size.nominal, dn) && (!equal || size.nominal < equal)) {
+			equal = size.nominal;
+		}
+	}
+	return equal ? PipeDiameter::nominal(equal) : nominal;
+}
+
+QList<PipeDiameter> PidCodification::sizesOf(const Entry &entry)
+{
+	if (!entry.outside_diameter)
+	{
+		QList<int> nominals;
+		for (const Size &size : entry.sizes) {
+			if (size.nominal) {
+				nominals << size.nominal;
+			}
+		}
+		return sortedNominals(nominals);
+	}
+		//In the order of the sizes, that of their outside diameters
 	QList<PipeDiameter> sizes;
-	const PipeDiameter::Kind kind = entry.outside_diameter ? PipeDiameter::Outside
-														   : PipeDiameter::Nominal;
-	for (int tenths : entry.series) {
-		const PipeDiameter size = PipeDiameter::fromTenths(kind, tenths);
-		if (size.isSet()) {
-			sizes << size;
+	for (const Size &size : entry.sizes) {
+		if (size.outside) {
+			sizes << PipeDiameter::fromTenths(PipeDiameter::Outside, size.outside);
 		}
 	}
 	return sizes;
@@ -291,7 +397,7 @@ PidCodification::SizeRule PidCodification::pipeSizes(const QString &material_cod
 	}
 	else if (const Entry *entry = material(material_code))
 	{
-		list = seriesOf(*entry);
+		list = sizesOf(*entry);
 		if (list.isEmpty()) {
 			rule = SizeRule::NoSeries;
 		}
@@ -326,22 +432,20 @@ QList<PipeDiameter> PidCodification::nozzleSizes() const
 		pipeSizes(QString(), &iso);
 		return iso + PipeDiameter::threadSeries();
 	}
+		//A flange has the DN of its line, whatever the material names
 	QList<int> nominal, outside;
 	for (const Entry &entry : materials) {
-		QList<int> &list = entry.outside_diameter ? outside : nominal;
-		for (int tenths : entry.series) {
-			if (!list.contains(tenths)) {
-				list << tenths;
+		for (const Size &size : entry.sizes) {
+			if (size.nominal) {
+				nominal << size.nominal;
+			}
+			if (entry.outside_diameter && size.outside && !outside.contains(size.outside)) {
+				outside << size.outside;
 			}
 		}
 	}
-	std::sort(nominal.begin(), nominal.end());
 	std::sort(outside.begin(), outside.end());
-	QList<PipeDiameter> sizes;
-	for (int tenths : std::as_const(nominal)) {
-		const PipeDiameter size = PipeDiameter::fromTenths(PipeDiameter::Nominal, tenths);
-		if (size.isSet()) sizes << size;
-	}
+	QList<PipeDiameter> sizes = sortedNominals(nominal);
 	for (int tenths : std::as_const(outside)) {
 		sizes << PipeDiameter::fromTenths(PipeDiameter::Outside, tenths);
 	}
@@ -384,29 +488,15 @@ PipeDiameter PidCodification::nearest(const PipeDiameter &typed, const QList<Pip
 	return best;
 }
 
-QStringList PidCodification::materialsWithoutSeries() const
+QStringList PidCodification::materialsWithoutSizes() const
 {
 	QStringList codes;
 	for (const Entry &entry : materials) {
-		if (entry.series.isEmpty()) {
+		if (sizesOf(entry).isEmpty()) {
 			codes << entry.code;
 		}
 	}
 	return codes;
-}
-
-QList<int> PidCodification::seriesFromText(const QString &text, bool *ok)
-{
-	return readNumbers(text, false, ok);
-}
-
-QString PidCodification::seriesToText(const QList<int> &tenths, const QLocale &locale)
-{
-	QStringList parts;
-	for (int value : tenths) {
-		parts << PipeDiameter::number(value, locale);
-	}
-	return parts.join(QLatin1Char('/'));
 }
 
 /**
@@ -420,7 +510,8 @@ PidCodification::DiameterMatch PidCodification::compare(const PipeDiameter &a,
 		return DiameterMatch::Same;
 	}
 	if (a.kind() == b.kind()) {
-		return a == b ? DiameterMatch::Same : DiameterMatch::Different;
+		const bool same = a == b || (a.isNominal() && sameNominal(a.tenths() / 10, b.tenths() / 10));
+		return same ? DiameterMatch::Same : DiameterMatch::Different;
 	}
 		//A thread is compared by its DN, of the fixed table
 	if (a.isThread() || b.isThread()) {
@@ -431,22 +522,32 @@ PidCodification::DiameterMatch PidCodification::compare(const PipeDiameter &a,
 		}
 		return compare(dn_a, dn_b);
 	}
+		//No material comes with them: what all the materials say of this
+		//outside diameter
 	const PipeDiameter &outside = a.isOutside() ? a : b;
-	const PipeDiameter &nominal = a.isOutside() ? b : a;
-	const auto it = outside_diameters.constFind(outside.tenths());
-	if (it == outside_diameters.constEnd() || it.value().isEmpty()) {
+	const int dn = (a.isOutside() ? b : a).tenths() / 10;
+	const QList<PipeDiameter> given = nominalsOf(outside);
+	if (given.isEmpty()) {
 		return DiameterMatch::Unknown;
 	}
-	return it.value().contains(nominal.tenths() / 10) ? DiameterMatch::Same : DiameterMatch::Different;
+	int same = 0;
+	for (const PipeDiameter &nominal : given) {
+		if (sameNominal(nominal.tenths() / 10, dn)) {
+			++same;
+		}
+	}
+	return same == given.size() ? DiameterMatch::Same
+								: same ? DiameterMatch::Unknown : DiameterMatch::Different;
 }
 
 /**
 	@brief PidCodification::nominalOf
 	See the declaration
 */
-PipeDiameter PidCodification::nominalOf(const PipeDiameter &outside) const
+PipeDiameter PidCodification::nominalOf(const PipeDiameter &outside,
+										const QString &material_code) const
 {
-	const QList<PipeDiameter> joined = nominalsOf(outside);
+	const QList<PipeDiameter> joined = nominalsOf(outside, material_code);
 	return joined.size() == 1 ? joined.first() : PipeDiameter();
 }
 
@@ -454,19 +555,34 @@ PipeDiameter PidCodification::nominalOf(const PipeDiameter &outside) const
 	@brief PidCodification::nominalsOf
 	See the declaration
 */
-QList<PipeDiameter> PidCodification::nominalsOf(const PipeDiameter &outside) const
+QList<PipeDiameter> PidCodification::nominalsOf(const PipeDiameter &outside,
+												const QString &material_code) const
 {
-	QList<PipeDiameter> found;
 	if (!outside.isOutside()) {
-		return found;
+		return {};
 	}
-	for (int dn : outside_diameters.value(outside.tenths())) {
-		const PipeDiameter size = PipeDiameter::nominal(dn);
-		if (size.isSet() && !found.contains(size)) {
-			found << size;
+		//An outside diameter has one DN in a material
+	const auto nominalOfSize = [&outside](const Entry &entry) {
+		for (const Size &size : entry.sizes) {
+			if (size.outside == outside.tenths()) {
+				return size.nominal;
+			}
+		}
+		return 0;
+	};
+	const Entry *own = material(material_code);
+	if (own) {
+		if (const int dn = nominalOfSize(*own)) {
+			return {PipeDiameter::nominal(dn)};
 		}
 	}
-	return found;
+	QList<int> found;
+	for (const Entry &entry : materials) {
+		if (const int dn = nominalOfSize(entry)) {
+			found << (own ? nominalIn(PipeDiameter::nominal(dn), material_code).tenths() / 10 : dn);
+		}
+	}
+	return sortedNominals(found);
 }
 
 /**
@@ -475,25 +591,15 @@ QList<PipeDiameter> PidCodification::nominalsOf(const PipeDiameter &outside) con
 */
 QList<PipeDiameter> PidCodification::nominalSizes() const
 {
-	QList<int> tenths;
+	QList<int> nominals;
 	for (const Entry &entry : materials) {
-		if (entry.outside_diameter) {
-			continue;
-		}
-		for (int value : entry.series) {
-			if (!tenths.contains(value)) {
-				tenths << value;
+		for (const Size &size : entry.sizes) {
+			if (size.nominal) {
+				nominals << size.nominal;
 			}
 		}
 	}
-	std::sort(tenths.begin(), tenths.end());
-	QList<PipeDiameter> sizes;
-	for (int value : std::as_const(tenths)) {
-		const PipeDiameter size = PipeDiameter::fromTenths(PipeDiameter::Nominal, value);
-		if (size.isSet()) {
-			sizes << size;
-		}
-	}
+	QList<PipeDiameter> sizes = sortedNominals(nominals);
 	if (sizes.isEmpty()) {
 		for (int dn : PipeProperties::preferredDiameters()) {
 			sizes << PipeDiameter::nominal(dn);
@@ -512,21 +618,13 @@ QList<PipeDiameter> PidCodification::lineSizes(const QString &material_code) con
 	if (!entry) {
 		return nominalSizes();
 	}
-	if (!entry->outside_diameter) {
-		return seriesOf(*entry);
-	}
-	QList<PipeDiameter> sizes;
-	for (const PipeDiameter &outside : seriesOf(*entry)) {
-		for (const PipeDiameter &dn : nominalsOf(outside)) {
-			if (!sizes.contains(dn)) {
-				sizes << dn;
-			}
+	QList<int> nominals;
+	for (const Size &size : entry->sizes) {
+		if (size.nominal) {
+			nominals << size.nominal;
 		}
 	}
-	std::sort(sizes.begin(), sizes.end(), [](const PipeDiameter &a, const PipeDiameter &b) {
-		return a.tenths() < b.tenths();
-	});
-	return sizes;
+	return sortedNominals(nominals);
 }
 
 /**
@@ -541,9 +639,9 @@ QList<PipeDiameter> PidCodification::outsidesOf(const PipeDiameter &nominal,
 	if (!nominal.isNominal() || !entry || !entry->outside_diameter) {
 		return found;
 	}
-	for (const PipeDiameter &size : seriesOf(*entry)) {
-		if (outside_diameters.value(size.tenths()).contains(nominal.tenths() / 10)) {
-			found << size;
+	for (const Size &size : entry->sizes) {
+		if (size.outside && size.nominal == nominal.tenths() / 10) {
+			found << PipeDiameter::fromTenths(PipeDiameter::Outside, size.outside);
 		}
 	}
 	return found;
@@ -569,24 +667,6 @@ bool PidCodification::outsideDiameterFor(const QString &material_code) const
 {
 	const Entry *entry = material(material_code);
 	return entry && entry->outside_diameter;
-}
-
-QList<int> PidCodification::diametersFromText(const QString &text, bool *ok)
-{
-	QList<int> values = readNumbers(text, true, ok);
-	for (int &value : values) {
-		value /= 10;
-	}
-	return values;
-}
-
-QString PidCodification::diametersToText(const QList<int> &values)
-{
-	QStringList parts;
-	for (int value : values) {
-		parts << QString::number(value);
-	}
-	return parts.join(QLatin1Char('/'));
 }
 
 QList<PidCodification::Entry> &PidCodification::entries(List list)
@@ -715,10 +795,10 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.fluids = other.fluids;
 		result.materials = other.materials;
 		result.functional_units = other.functional_units;
-	}
-		//A file of codes may have no diameters, and the reverse
-	if (!hasDiameters()) {
-		result.outside_diameters = other.outside_diameters;
+			//A file may say the equal DN only
+		if (equal_nominals.isEmpty()) {
+			result.equal_nominals = other.equal_nominals;
+		}
 	}
 	if (!hasColors()) {
 		result.fluid_family_colors = other.fluid_family_colors;
@@ -753,13 +833,11 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	writeList(document, block, QStringLiteral("fluid"), fluids);
 	writeList(document, block, QStringLiteral("material"), materials);
 	writeList(document, block, QStringLiteral("functional_unit"), functional_units);
-	for (auto it = outside_diameters.cbegin() ; it != outside_diameters.cend() ; ++it)
+	for (const QPair<int, int> &pair : equal_nominals)
 	{
-		QDomElement e = document.createElement(QStringLiteral("outside_diameter"));
-		e.setAttribute(QStringLiteral("value"), PipeDiameter::fileNumber(it.key()));
-		if (!it.value().isEmpty()) {
-			e.setAttribute(QStringLiteral("dn"), diametersToText(it.value()));
-		}
+		QDomElement e = document.createElement(equal_tag);
+		e.setAttribute(QStringLiteral("a"), pair.first);
+		e.setAttribute(QStringLiteral("b"), pair.second);
 		block.appendChild(e);
 	}
 	for (auto it = tag_models.cbegin() ; it != tag_models.cend() ; ++it)
@@ -807,15 +885,12 @@ void PidCodification::fromXml(const QDomElement &parent)
 	fluids = readList(block, QStringLiteral("fluid"));
 	materials = readList(block, QStringLiteral("material"));
 	functional_units = readList(block, QStringLiteral("functional_unit"));
-	outside_diameters.clear();
-	const QString od_tag = QStringLiteral("outside_diameter");
-	for (QDomElement e = block.firstChildElement(od_tag) ; !e.isNull() ;
-		 e = e.nextSiblingElement(od_tag))
+	equal_nominals.clear();
+	for (QDomElement e = block.firstChildElement(equal_tag) ; !e.isNull() ;
+		 e = e.nextSiblingElement(equal_tag))
 	{
-		const int value = PipeDiameter::tenthsOf(e.attribute(QStringLiteral("value")));
-		if (value && !outside_diameters.contains(value)) {
-			outside_diameters.insert(value, diametersFromText(e.attribute(QStringLiteral("dn"))));
-		}
+		addEqualNominals(nominalOfText(e.attribute(QStringLiteral("a"))),
+						 nominalOfText(e.attribute(QStringLiteral("b"))));
 	}
 	tag_models.clear();
 	const QString model_tag = QStringLiteral("tag_model");
@@ -927,18 +1002,18 @@ QString PidCodification::codesToCsv() const
 	write(QStringLiteral("fluid"), fluids);
 	write(QStringLiteral("material"), materials);
 	write(QStringLiteral("unit"), functional_units);
+		//A size of a material by line: its outside diameter, then its DN
 	for (const Entry &entry : materials) {
-		if (!entry.series.isEmpty()) {
-			text += QStringLiteral("series;") + csvField(entry.code) + QLatin1Char(';')
-					+ seriesToText(entry.series) + QLatin1Char('\n');
+		for (const Size &size : entry.sizes) {
+			text += QStringLiteral("size;") + csvField(entry.code) + QLatin1Char(';')
+					+ (size.outside ? PipeDiameter::fileNumber(size.outside) : QString())
+					+ QLatin1Char(';')
+					+ (size.nominal ? QString::number(size.nominal) : QString()) + QLatin1Char('\n');
 		}
 	}
-	for (auto it = outside_diameters.cbegin() ; it != outside_diameters.cend() ; ++it) {
-		text += QStringLiteral("od;") + PipeDiameter::fileNumber(it.key());
-		if (!it.value().isEmpty()) {
-			text += QLatin1Char(';') + diametersToText(it.value());
-		}
-		text += QLatin1Char('\n');
+	for (const QPair<int, int> &pair : equal_nominals) {
+		text += QStringLiteral("dn_equal;") + QString::number(pair.first) + QLatin1Char(';')
+				+ QString::number(pair.second) + QLatin1Char('\n');
 	}
 	return text;
 }
@@ -991,8 +1066,10 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 	PidCodification codification;
 	int left_out = 0;
 	QSet<QString> fluid_codes, material_codes, unit_codes;
-		//The series read, by code of material
-	QMap<QString, QString> series;
+		//The sizes read, with the code of their material, which may come
+		//after them
+	struct SizeLine { QString code; int outside; int nominal; };
+	QList<SizeLine> size_lines;
 	const QStringList lines = text.split(QLatin1Char('\n'));
 	for (int i = 0 ; i < lines.size() ; ++i)
 	{
@@ -1069,27 +1146,26 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 			}
 			continue;
 		}
-		if (kind == QLatin1String("series") || kind == QStringLiteral("série")
-			|| kind == QLatin1String("serie"))
+		if (kind == QLatin1String("size") || kind == QLatin1String("taille"))
 		{
-				//Read with its material, which may come after it
-			if (fields.value(1).isEmpty() || series.contains(fields.value(1))) {
+				//An outside diameter to the tenth, a whole DN, one at least
+			const QString od = fields.value(2), dn = fields.value(3);
+			const int outside = PipeDiameter::tenthsOf(od);
+			const int nominal = nominalOfText(dn);
+			if (fields.value(1).isEmpty() || (od.isEmpty() && dn.isEmpty())
+				|| (!od.isEmpty() && !outside) || (!dn.isEmpty() && !nominal)) {
 				++left_out;
 			} else {
-				series.insert(fields.value(1), fields.value(2));
+				size_lines << SizeLine{fields.value(1), outside, nominal};
 			}
 			continue;
 		}
-		if (kind == QLatin1String("od") || kind == QLatin1String("outside_diameter")
-			|| kind == QStringLiteral("diamètre_extérieur") || kind == QLatin1String("diametre_exterieur"))
+		if (kind == QLatin1String("dn_equal") || kind == QLatin1String("dn_equivalent")
+			|| kind == QStringLiteral("dn_équivalent"))
 		{
-			const int value = PipeDiameter::tenthsOf(fields.value(1));
-			bool ok = true;
-			const QList<int> joined = diametersFromText(fields.value(2), &ok);
-			if (!value || !ok || codification.outside_diameters.contains(value)) {
+			if (!codification.addEqualNominals(nominalOfText(fields.value(1)),
+											   nominalOfText(fields.value(2)))) {
 				++left_out;
-			} else {
-				codification.outside_diameters.insert(value, joined);
 			}
 			continue;
 		}
@@ -1151,18 +1227,14 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 		(is_fluid ? codification.fluids
 				  : is_material ? codification.materials : codification.functional_units) << entry;
 	}
-		//Each series to its material: a DN is whole
-	for (auto it = series.cbegin() ; it != series.cend() ; ++it)
+		//Each size to its material
+	for (const SizeLine &line : std::as_const(size_lines))
 	{
 		auto material = std::find_if(codification.materials.begin(), codification.materials.end(),
-									 [&it](const Entry &entry) { return entry.code == it.key(); });
-		bool ok = false;
-		const QList<int> sizes = material == codification.materials.end()
-				? QList<int>() : readNumbers(it.value(), !material->outside_diameter, &ok);
-		if (!ok || sizes.isEmpty()) {
+									 [&line](const Entry &entry) { return entry.code == line.code; });
+		if (material == codification.materials.end()
+			|| !material->addSize(line.outside, line.nominal)) {
 			++left_out;
-		} else {
-			material->series = sizes;
 		}
 	}
 	if (skipped) {
@@ -1175,7 +1247,7 @@ bool PidCodification::operator==(const PidCodification &other) const
 {
 	return fluids == other.fluids && materials == other.materials
 			&& functional_units == other.functional_units
-			&& outside_diameters == other.outside_diameters
+			&& equal_nominals == other.equal_nominals
 			&& tag_models == other.tag_models
 			&& fluid_family_colors == other.fluid_family_colors
 			&& object_colors == other.object_colors

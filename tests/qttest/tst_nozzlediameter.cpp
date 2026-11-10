@@ -63,6 +63,20 @@ class tst_nozzlediameter : public QObject
 {
 	Q_OBJECT
 
+		// A plastic, named by its outside diameter, of the sizes @p sizes:
+		// outside diameter in tenths of a millimetre, then DN (0 for none)
+	static PidCodification::Entry plasticOf(const QString &code,
+											const QList<PidCodification::Size> &sizes)
+	{
+		PidCodification::Entry plastic;
+		plastic.code = code;
+		plastic.outside_diameter = true;
+		for (const PidCodification::Size &size : sizes) {
+			plastic.addSize(size.outside, size.nominal);
+		}
+		return plastic;
+	}
+
 		// N1 has a usual size, N2 none, E1 is electrical: a dn means nothing
 	static QString symbol(const QString &uuid, int n1_dn, const QString &extra = QString())
 	{
@@ -1341,9 +1355,9 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(n1->hasDiameterGap());
 		}
 
-			// An outside diameter and a DN: the table of the project says
-			// whether they are joined, nothing is converted
-		void anOutsideDiameterIsComparedWithTheTableOfTheProject()
+			// An outside diameter and a DN: the sizes of the materials of the
+			// project say whether they are the same, nothing is converted
+		void anOutsideDiameterIsComparedByTheSizesOfTheMaterials()
 		{
 			QETProject project;
 			const ElementsLocation location = addTank(project);
@@ -1357,24 +1371,34 @@ class tst_nozzlediameter : public QObject
 			Terminal *n1 = terminal(b, QStringLiteral("N1"));
 			setDiameter(pipe, PipeDiameter::outside(90));
 
-				// a project without table: not known, so marked
+				// a project without material: not known, so marked
 			QVERIFY(n1->hasDiameterGap());
 			QVERIFY(n1->toolTip().contains(QStringLiteral("Ø 90")));
 			QVERIFY(n1->toolTip().contains(QStringLiteral("DN 80")));
 
-				// joined by the table: the same
+				// a material has it for this DN: the same
 			PidCodification codification;
-			codification.outside_diameters.insert(900, {80});
+			codification.materials = {plasticOf(QStringLiteral("M01"), {{900, 80}})};
 			project.setPidCodification(codification);
 			QVERIFY(!n1->hasDiameterGap());
 			QCOMPARE(n1->toolTip(), QStringLiteral("Plain end"));
 
-				// joined to another DN: different
-			codification.outside_diameters.insert(900, {65});
+				// for another DN: different
+			codification.materials = {plasticOf(QStringLiteral("M01"), {{900, 65}})};
 			project.setPidCodification(codification);
 			QVERIFY(n1->hasDiameterGap());
+				// unless the project says both DN the same size of line
+			codification.addEqualNominals(65, 80);
+			project.setPidCodification(codification);
+			QVERIFY(!n1->hasDiameterGap());
+			codification.equal_nominals.clear();
+				// two materials which do not agree: not known, so marked
+			codification.materials << plasticOf(QStringLiteral("M02"), {{900, 80}});
+			project.setPidCodification(codification);
+			QVERIFY(n1->hasDiameterGap());
+			QVERIFY(n1->toolTip().contains(QStringLiteral("Ø 90")));
 
-				// two outside diameters: equal or not, no table needed
+				// two outside diameters: equal or not, no size needed
 			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(90)}});
 			QVERIFY(!terminal(a, QStringLiteral("N2"))->hasDiameterGap());
 			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(110)}});
@@ -1415,10 +1439,9 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 100"));
 
 				// a nozzle given as an outside diameter: against that of the
-				// pipe, though the table joins both to the same DN
+				// pipe, though both are of the same DN
 			PidCodification codification;
-			codification.outside_diameters.insert(1100, {100});
-			codification.outside_diameters.insert(1250, {100});
+			codification.materials = {plasticOf(QStringLiteral("M01"), {{1100, 100}, {1250, 100}})};
 			project.setPidCodification(codification);
 			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(110)}});
 			QVERIFY(!n2->hasDiameterGap());
@@ -1427,7 +1450,7 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(n2->toolTip().contains(QStringLiteral("Ø 125")));
 			QVERIFY(n2->toolTip().contains(QStringLiteral("Ø 110")));
 				// a pipe without an outside diameter: against its DN, by the
-				// table
+				// sizes of the materials
 			setSizes(pipe, PipeDiameter::nominal(100), PipeDiameter());
 			QVERIFY(!n2->hasDiameterGap());
 			setSizes(pipe, PipeDiameter::nominal(80), PipeDiameter());
@@ -1435,7 +1458,7 @@ class tst_nozzlediameter : public QObject
 		}
 
 			// a new pipe takes an outside diameter as its second value, and
-			// the DN the table of the project joins to it
+			// the DN the materials of the project have for it
 		void aNewPipeTakesTheOutsideDiameterOfANozzle()
 		{
 			QETProject project;
@@ -1446,16 +1469,17 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(a && b);
 			b->setPos(400, 200);
 			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(110)}});
-				// no table: the outside diameter alone
+				// no material: the outside diameter alone
 			Conductor *pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N2"));
 			QCOMPARE(pipe->properties().m_pipe.outside, PipeDiameter::outside(110));
 			QVERIFY(!pipe->properties().m_pipe.nominal.isSet());
 			QCOMPARE(terminal(b, QStringLiteral("N2"))->labelText(), QStringLiteral("N2\nØ 110"));
 
-				// one DN in the table: both, and the DN is the size of the line
+				// one DN in the materials: both, and the DN is the size of the
+				// line
 			PidCodification codification;
-			codification.outside_diameters.insert(1100, {100});
-			codification.outside_diameters.insert(1250, {100, 125});
+			codification.materials = {plasticOf(QStringLiteral("M01"), {{1100, 100}, {1250, 100}}),
+									  plasticOf(QStringLiteral("M02"), {{1250, 125}})};
 			project.setPidCodification(codification);
 			setSizes(pipe, PipeDiameter(), PipeDiameter());
 			pipe->takeNozzleDiameter();
@@ -1464,7 +1488,7 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(terminal(b, QStringLiteral("N2"))->labelText(), QStringLiteral("N2\nDN 100"));
 			QVERIFY(!terminal(a, QStringLiteral("N2"))->hasDiameterGap());
 
-				// two DN in the table: no DN is guessed
+				// two materials which do not agree: no DN is guessed
 			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(125)}});
 			setSizes(pipe, PipeDiameter(), PipeDiameter());
 			pipe->takeNozzleDiameter();
@@ -1480,23 +1504,18 @@ class tst_nozzlediameter : public QObject
 
 			// The material of the pipe, when it has one already (a symbol
 			// dropped on a pipe without a size): with a DN goes the outside
-			// diameter of a plastic, if its series has one only for this DN;
+			// diameter of a plastic, if it has one only for this DN;
 			// a material named by its DN keeps no outside diameter
 		void aNewPipeTakesTheSizesItsMaterialNames()
 		{
 			QETProject project;
 			PidCodification codification;
-			PidCodification::Entry plastic;
-			plastic.code = QStringLiteral("M01");
-			plastic.outside_diameter = true;
-			plastic.series = {900, 1100, 1250};
 			PidCodification::Entry steel;
 			steel.code = QStringLiteral("M02");
-			steel.series = {800, 1000};
-			codification.materials = {plastic, steel};
-			codification.outside_diameters.insert(900, {80});
-			codification.outside_diameters.insert(1100, {100});
-			codification.outside_diameters.insert(1250, {100});
+			steel.addSize(0, 80);
+			steel.addSize(0, 100);
+			codification.materials = {plasticOf(QStringLiteral("M01"),
+												{{900, 80}, {1100, 100}, {1250, 100}}), steel};
 			project.setPidCodification(codification);
 			QCOMPARE(codification.nominalOf(PipeDiameter::outside(90)), PipeDiameter::nominal(80));
 			QVERIFY(!codification.nominalOf(PipeDiameter::outside(63)).isSet());
@@ -1543,7 +1562,7 @@ class tst_nozzlediameter : public QObject
 			taken = takeAgain(QStringLiteral("M01"));
 			QCOMPARE(taken.nominal, PipeDiameter::nominal(80));
 			QCOMPARE(taken.outside, PipeDiameter::outside(90));
-				// an outside diameter the table has not: kept, rather than
+				// an outside diameter no material has: kept, rather than
 				// nothing
 			a->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::outside(63)}});
 			taken = takeAgain(QStringLiteral("M02"));
@@ -1858,10 +1877,12 @@ class tst_nozzlediameter : public QObject
 			PidCodification::Entry plastic;
 			plastic.code = QStringLiteral("M01");
 			plastic.outside_diameter = true;
-			plastic.series = {1100, 1250};
+			plastic.addSize(1100, 0);
+			plastic.addSize(1250, 0);
 			PidCodification::Entry metal;
 			metal.code = QStringLiteral("M02");
-			metal.series = {800, 1000};
+			metal.addSize(0, 80);
+			metal.addSize(0, 100);
 			codification.materials = {plastic, metal};
 			codification.decimal = PidCodification::Decimal::Point;
 			project.setPidCodification(codification);
@@ -1872,7 +1893,7 @@ class tst_nozzlediameter : public QObject
 			tab.setLiveEdit(true);
 			QLineEdit *n1 = tab.fieldFor(QStringLiteral("N1"));
 			auto *list = qobject_cast<QComboBox *>(n1->parentWidget());
-				// no material: the series of all of them, DN first
+				// no material: the sizes of all of them, DN first
 			QCOMPARE(list->count(), 5);
 			QCOMPARE(list->itemText(1), QStringLiteral("DN 80"));
 			QCOMPARE(list->itemText(list->count() - 1), QStringLiteral("Ø 125"));

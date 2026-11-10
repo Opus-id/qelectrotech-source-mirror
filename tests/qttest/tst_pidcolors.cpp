@@ -864,12 +864,15 @@ class tst_pidcolors : public QObject
 			const QString codes = QStringLiteral(
 						"fluid;W01;Raw water;E\n"
 						"material;M05;HDPE;od\n"
-						"series;M05;90/110/125\n"
-						"od;110;100\n"
+						"size;M05;90;80\n"
+						"size;M05;110;100\n"
+						"size;M05;125;100\n"
+						"dn_equal;60;65\n"
 						"unit;U10;Intake\n");
 			const PidCodification expected = PidCodification::fromCsv(codes);
-			QVERIFY(!expected.materials.isEmpty() && !expected.materials.first().series.isEmpty());
-			QVERIFY(expected.hasDiameters());
+			QVERIFY(!expected.materials.isEmpty());
+			QCOMPARE(expected.materials.first().sizes.size(), 3);
+			QCOMPARE(expected.equal_nominals.size(), 1);
 
 				// nothing saved: as before
 			QVERIFY(QetSettings::pidDefaultCodification().isEmpty());

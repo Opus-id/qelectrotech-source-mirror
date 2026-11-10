@@ -48,32 +48,45 @@ PipeDiameter writtenSize(const PipeProperties &p, const PidCodification &codes)
 	return p.writtenSize(codes.outsideDiameterFor(p.material));
 }
 
-	/// The DN of the pipe @p p: its own; without one, the DN the table of
-	/// @p codes joins to its outside diameter, the one of @p chosen (by
-	/// outside diameter, in tenths) when it joins several; else none
+	/// The DN of the pipe @p p: its own; without one, the DN the sizes of
+	/// its material give its outside diameter (those of the other materials
+	/// when it has none), the one of @p chosen (by outside diameter, in
+	/// tenths) among several; else none
 PipeDiameter nominalFor(const PipeProperties &p, const PidCodification &codes,
 						const QMap<int, PipeDiameter> &chosen)
 {
 	if (p.nominal.isSet() || !p.outside.isSet()) {
 		return p.nominal;
 	}
-	const QList<PipeDiameter> joined = codes.nominalsOf(p.outside);
+	const QList<PipeDiameter> joined = codes.nominalsOf(p.outside, p.material);
 	return joined.size() == 1 ? joined.first() : chosen.value(p.outside.tenths());
 }
 
+	/// The DN the pipe @p p has once given the material of code @p code: its
+	/// DN (nominalFor()), the size of the line, as this material has it
+	/// (PidCodification::nominalIn(): DN 65 becomes DN 60 in a material
+	/// which has that one only, when the project says them equal)
+PipeDiameter nominalInMaterial(const PipeProperties &p, const QString &code,
+							   const PidCodification &codes,
+							   const QMap<int, PipeDiameter> &chosen)
+{
+	return codes.nominalIn(nominalFor(p, codes, chosen), code);
+}
+
 	/// Give the pipe @p p the material of code @p code. Its DN, the size of
-	/// the line, stays (found by nominalFor() when it had none); its outside
-	/// diameter is the one of the new material: none for a material named
-	/// by its DN or which the project has not; else the one it had when the
-	/// series of the new material joins it to this DN, the only one the
-	/// series joins to it, or the one of @p outside_of (by DN, in tenths)
-	/// among several. A pipe which has no DN and gets none keeps its sizes.
+	/// the line, stays (nominalInMaterial()); its outside diameter is the
+	/// one of the new material: none for a material named by its DN or
+	/// which the project has not; else the one it had when the new material
+	/// has it for this DN, the only one it has for this DN, or the one of
+	/// @p outside_of (by DN, in tenths) among several. A pipe which has no
+	/// DN and gets none keeps its sizes.
 void giveMaterial(PipeProperties &p, const QString &code, const PidCodification &codes,
 				  const QMap<int, PipeDiameter> &nominal_of,
 				  const QMap<int, PipeDiameter> &outside_of)
 {
+		//Its DN first: without one, it comes from the material it leaves
+	const PipeDiameter dn = nominalInMaterial(p, code, codes, nominal_of);
 	p.material = code;
-	const PipeDiameter dn = nominalFor(p, codes, nominal_of);
 	if (!dn.isSet()) {
 		return;
 	}
@@ -407,12 +420,21 @@ void PipePropertiesWidget::diameterEdited()
 		return value;
 	};
 	auto nearest_note = [&](const PipeDiameter &from, const PipeDiameter &to) {
-		return (known ? tr("%1 → %2: the nearest size of the series of the material.")
+		return (known ? tr("%1 → %2: the nearest size of the material.")
 					  : tr("%1 → %2: the nearest DN the project offers."))
 				.arg(from.text(locale), to.text(locale));
 	};
-	const QString out_of_series = tr("%1 is not in the series of the material (P&ID properties of "
+	const QString out_of_series = tr("%1 is not a size of the material (P&ID properties of "
 									 "the project, Codification): nothing changed.").arg(text);
+		//DN 65 typed for a material which has DN 60, said equal
+	auto as_the_material_has_it = [&](const PipeDiameter &dn, QStringList &said) {
+		const PipeDiameter own = codes.nominalIn(dn, material);
+		if (own != dn) {
+			said << tr("%1 → %2: the same size of line, as the material %3 has it.")
+					.arg(dn.text(locale), own.text(locale), material);
+		}
+		return own;
+	};
 
 	bool ok = false;
 	const PipeDiameter typed = PipeDiameter::fromText(
@@ -431,8 +453,8 @@ void PipePropertiesWidget::diameterEdited()
 	}
 	else if (by_outside && typed.isOutside())
 	{
-			//The outside diameter of a plastic pipe, of its series; its DN
-			//comes from the table of the project
+			//The outside diameter of a plastic pipe, one of its sizes, which
+			//gives its DN
 		outside = typed;
 		if (!sizes.contains(outside)) {
 			outside = PidCodification::nearest(typed, sizes);
@@ -443,7 +465,7 @@ void PipePropertiesWidget::diameterEdited()
 			}
 		}
 		if (outside.isSet()) {
-			const QList<PipeDiameter> joined = codes.nominalsOf(outside);
+			const QList<PipeDiameter> joined = codes.nominalsOf(outside, material);
 			const PipeDiameter kept = shared(&PipeProperties::nominal);
 			if (joined.size() == 1) {
 				nominal = joined.first();
@@ -459,13 +481,13 @@ void PipePropertiesWidget::diameterEdited()
 	else if (by_outside)
 	{
 			//The DN of a plastic pipe: its outside diameter is the one the
-			//series of the material joins to it
-		nominal = typed;
+			//material has for it
+		nominal = as_the_material_has_it(typed, notes);
 		const QList<PipeDiameter> allowed = codes.lineSizes(material);
 		if (!allowed.isEmpty() && !allowed.contains(nominal)) {
 			nominal = PidCodification::nearest(typed, allowed);
-			notes << tr("%1 → %2: the nearest DN the table of the diameters joins to the series "
-						"of the material.").arg(typed.text(locale), nominal.text(locale));
+			notes << tr("%1 → %2: the nearest DN of the sizes of the material.")
+					 .arg(typed.text(locale), nominal.text(locale));
 		}
 		const QList<PipeDiameter> outsides = codes.outsidesOf(nominal, material);
 		const PipeDiameter kept = shared(&PipeProperties::outside);
@@ -482,14 +504,14 @@ void PipePropertiesWidget::diameterEdited()
 	else
 	{
 			//A pipe named by its DN, or without material: a DN only; an
-			//outside diameter typed gives the DN the table joins to it
+			//outside diameter typed gives the DN the materials have for it
 		nominal = typed;
 		if (typed.isOutside()) {
-			const QList<PipeDiameter> joined = codes.nominalsOf(typed);
+			const QList<PipeDiameter> joined = codes.nominalsOf(typed, material);
 			nominal = PipeDiameter();
 			if (joined.isEmpty()) {
-				refusal = tr("%1: the table of the diameters of the project joins no DN to it: "
-							 "nothing changed.").arg(typed.text(locale));
+				refusal = tr("%1: no material of the project has a DN for it: nothing changed.")
+						  .arg(typed.text(locale));
 			} else if (joined.size() == 1) {
 				nominal = joined.first();
 			} else {
@@ -499,9 +521,12 @@ void PipePropertiesWidget::diameterEdited()
 				cancelled = !nominal.isSet();
 			}
 			if (nominal.isSet()) {
-				notes << tr("%1 → %2, as the table of the diameters joins them.")
+				notes << tr("%1 → %2: its DN in the sizes of the materials.")
 						 .arg(typed.text(locale), nominal.text(locale));
 			}
+		}
+		else {
+			nominal = as_the_material_has_it(typed, notes);
 		}
 		if (nominal.isSet() && !sizes.contains(nominal)) {
 			const PipeDiameter near = PidCodification::nearest(nominal, sizes);
@@ -540,14 +565,14 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 	const QLocale locale = codes.locale();
 	const bool by_outside = codes.outsideDiameterFor(code);
 		//What is asked once, whatever the number of pipes: the DN of an
-		//outside diameter the table joins to several, by outside diameter;
-		//the outside diameter of a DN the series joins to several, by DN
+		//outside diameter the materials give several, by outside diameter;
+		//the outside diameter of a DN the material has several for, by DN
 	QMap<int, PipeDiameter> nominal_of, outside_of;
 	for (Conductor *pipe : pipes())
 	{
 		const PipeProperties p = pipe->properties().m_pipe;
 		if (!p.nominal.isSet() && p.outside.isSet() && !nominal_of.contains(p.outside.tenths())) {
-			const QList<PipeDiameter> joined = codes.nominalsOf(p.outside);
+			const QList<PipeDiameter> joined = codes.nominalsOf(p.outside, p.material);
 			if (joined.size() > 1) {
 				nominal_of.insert(p.outside.tenths(),
 								  chooseSize(tr("%1 may be joined to several DN. Which one is the "
@@ -555,7 +580,7 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 											 joined, tr("Keep it as it is")));
 			}
 		}
-		const PipeDiameter dn = nominalFor(p, codes, nominal_of);
+		const PipeDiameter dn = nominalInMaterial(p, code, codes, nominal_of);
 		if (!by_outside || !dn.isSet() || outside_of.contains(dn.tenths())) {
 			continue;
 		}
@@ -576,8 +601,11 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 		giveMaterial(after, code, codes, nominal_of, outside_of);
 		QString note;
 		if (!before.nominal.isSet() && after.nominal.isSet()) {
-			note = tr("%1 → %2, as the table of the diameters joins them.")
+			note = tr("%1 → %2: its DN in the sizes of the materials.")
 				   .arg(before.outside.text(locale), after.nominal.text(locale));
+		} else if (before.nominal.isSet() && after.nominal != before.nominal) {
+			note = tr("%1 → %2: the same size of line, as the material %3 has it.")
+				   .arg(before.nominal.text(locale), after.nominal.text(locale), code);
 		} else if (before.outside.isSet() && after.outside.isSet() && before.outside != after.outside) {
 			note = tr("%1 → %2: the outside diameter of %3 in the material %4.")
 				   .arg(before.outside.text(locale), after.outside.text(locale),
@@ -645,17 +673,17 @@ QString PipePropertiesWidget::diameterWarning() const
 				//A pipe named by its outside diameter has both sizes
 			if (p.outside.isSet()) {
 				if (!codes.acceptsForPipe(p.outside, p.material)) {
-					return tr("%1 is not in the series of the material %2.")
+					return tr("%1 is not a size of the material %2.")
 							.arg(p.outside.text(locale), p.material);
 				}
 				if (!p.nominal.isSet()) {
-					return tr("%1 has no DN: the table of the diameters of the project joins none "
-							  "to it, or several.").arg(p.outside.text(locale));
+					return tr("%1 has no DN: the sizes of the material %2 give it none.")
+							.arg(p.outside.text(locale), p.material);
 				}
 			} else if (p.nominal.isSet()) {
 				return codes.outsidesOf(p.nominal, p.material).isEmpty()
-						? tr("%1: the table of the diameters of the project joins no outside "
-							 "diameter of the material %2 to it.").arg(p.nominal.text(locale), p.material)
+						? tr("%1: the material %2 has no outside diameter for this DN.")
+						  .arg(p.nominal.text(locale), p.material)
 						: tr("%1: the outside diameter of the material %2 is not chosen yet.")
 						  .arg(p.nominal.text(locale), p.material);
 			}
@@ -669,7 +697,7 @@ QString PipePropertiesWidget::diameterWarning() const
 			return size.isOutside()
 					? tr("%1: the material %2 names its pipes by their DN.")
 					  .arg(size.text(locale), p.material)
-					: tr("%1 is not in the series of the material %2.")
+					: tr("%1 is not a size of the material %2.")
 					  .arg(size.text(locale), p.material);
 		}
 		if (codes.materials.isEmpty()) {
