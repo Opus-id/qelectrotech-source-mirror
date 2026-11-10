@@ -130,6 +130,19 @@ void TerminalEditor::updateForm()
 	DiameterList::fill(ui->m_dn_cb, sizesOfKind(ui->m_dn_kind_cb->currentData().toInt()),
 					   PidCodification().locale());
 	ui->m_dn_cb->lineEdit()->setText(m_part->diameterText());
+		//A nozzle that follows its pipe has no size of its own: greyed, empty
+	const bool follows = m_part->followsPipe();
+	ui->m_dn_cb->setEnabled(!follows);
+	ui->m_dn_kind_cb->setEnabled(!follows);
+	if (follows) {
+		ui->m_dn_cb->lineEdit()->clear();
+	}
+	if (!ui->m_dn_cb->property("ownTip").isValid()) {
+		ui->m_dn_cb->setProperty("ownTip", ui->m_dn_cb->toolTip());
+	}
+	ui->m_dn_cb->setToolTip(follows
+		? tr("This nozzle takes the size of its pipe: it has no size of its own.")
+		: ui->m_dn_cb->property("ownTip").toString());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());
 	ui->m_label_x_dsb->setValue(m_part->labelPos().x());

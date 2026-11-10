@@ -137,6 +137,9 @@ class PartTerminal : public CustomElementGraphicPart
 		void setConnectionWord(const QString &word) {setConnection(PipeConnection::fromString(word));}
 			/// The text shown at the terminal: its name, and the DN of a nozzle
 		QString labelText() const;
+			/// True for a nozzle that takes the size of its pipe (run of an
+			/// inline symbol, only nozzle of a free end): no size of its own
+		bool followsPipe() const;
 
 		bool showName() const { return d->m_show_name; }
 		void setShowName(bool show);

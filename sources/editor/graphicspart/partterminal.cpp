@@ -61,7 +61,14 @@ void PartTerminal::fromXml(const QDomElement &xml_elmt) {
 */
 const QDomElement PartTerminal::toXml(QDomDocument &xml_document) const
 {
-	return d -> toXml(xml_document);
+	QDomElement xml_element = d -> toXml(xml_document);
+		//A nozzle that follows its pipe has no size of its own: none written
+	if (followsPipe()) {
+		xml_element.removeAttribute(QStringLiteral("dn"));
+		xml_element.removeAttribute(QStringLiteral("od"));
+		xml_element.removeAttribute(QStringLiteral("thread"));
+	}
+	return xml_element;
 }
 
 /**
@@ -449,8 +456,42 @@ QString PartTerminal::labelText() const
 {
 		//A symbol belongs to no project: the separator of the language
 	return TerminalData::labelText(d->m_name,
-								   d->m_medium == TerminalData::Pipe ? d->m_diameter : PipeDiameter(),
+								   d->m_medium == TerminalData::Pipe && !followsPipe() ? d->m_diameter : PipeDiameter(),
 								   PidCodification().locale());
+}
+
+/**
+	@brief PartTerminal::followsPipe
+	Same criterion as Terminal::followsPipe() of a placed symbol, read from
+	the data of the symbol being edited: the nozzle belongs to the run of the
+	symbol (pipe_run, or every nozzle of a pipe_inline), or it is the only
+	nozzle of a symbol of the family pipe.
+*/
+bool PartTerminal::followsPipe() const
+{
+	auto *scene = qobject_cast<ElementScene *>(QGraphicsItem::scene());
+	if (d->m_medium != TerminalData::Pipe || !scene) {
+		return false;
+	}
+	const ElementData data = scene->elementData();
+	QStringList run, others;
+	for (QGraphicsItem *item : scene->items())
+	{
+		const auto *other = qgraphicsitem_cast<PartTerminal *>(item);
+		if (!other || other->d->m_medium != TerminalData::Pipe || other->d->m_name.isEmpty()) {
+			continue;
+		}
+		if (other != this) {
+			others << other->d->m_name;
+		}
+		if (data.m_pipe_run.isEmpty() ? data.m_pipe_inline : data.m_pipe_run.contains(other->d->m_name)) {
+			run << other->d->m_name;
+		}
+	}
+	if (run.size() >= 2 && run.contains(d->m_name)) {
+		return true;
+	}
+	return data.m_pid_family == QLatin1String("pipe") && others.isEmpty();
 }
 
 QString PartTerminal::diameterText() const

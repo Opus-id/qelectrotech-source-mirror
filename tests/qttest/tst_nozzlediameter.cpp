@@ -857,6 +857,40 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!other_scene.toXml().documentElement().hasAttribute(QStringLiteral("pipe_inline")));
 		}
 
+		void theEditorGreysTheSizeOfANozzleWhichFollows()
+		{
+			auto sizesWritten = [](const QString &extra, PartTerminal **first) {
+				QDomDocument doc;
+				doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666667}"), 100, extra));
+				auto *scene = new ElementScene(nullptr);
+				scene->fromXml(doc, QPointF(), true);
+				*first = nullptr;
+				for (QGraphicsItem *item : scene->items()) {
+					auto *part = qgraphicsitem_cast<PartTerminal *>(item);
+					if (part && part->terminalName() == QLatin1String("N1")) {
+						*first = part;
+					}
+				}
+				return scene;
+			};
+			PartTerminal *n1 = nullptr;
+				// inline symbol: N1 follows its pipe, no size shown nor written
+			ElementScene *inl = sizesWritten(QStringLiteral("pipe_inline=\"true\" "), &n1);
+			QVERIFY(n1);
+			QVERIFY(n1->followsPipe());
+			QVERIFY(!n1->labelText().contains(QStringLiteral("100")));
+			QDomDocument out;
+			QVERIFY(!n1->toXml(out).hasAttribute(QStringLiteral("dn")));
+			delete inl;
+				// another symbol: N1 keeps its own size
+			ElementScene *plain = sizesWritten(QString(), &n1);
+			QVERIFY(n1);
+			QVERIFY(!n1->followsPipe());
+			QDomDocument out2;
+			QCOMPARE(n1->toXml(out2).attribute(QStringLiteral("dn")), QStringLiteral("100"));
+			delete plain;
+		}
+
 		void aDifferenceIsMarkedNotCorrected()
 		{
 			QETProject project;
