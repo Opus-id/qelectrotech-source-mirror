@@ -63,11 +63,13 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 		if (!value.isEmpty())
 			a << qMakePair(QString::fromLatin1(name), value);
 	};
-		//A DN as before, or an outside diameter: never both; a pipe never
-		//has a thread, which only names a nozzle
-	if (diameter.isSet() && !diameter.isThread())
-		a << qMakePair(diameter.attributeName(QStringLiteral("pipe_dn"), QStringLiteral("pipe_od")),
-					   PipeDiameter::fileNumber(diameter.tenths()));
+		//The DN, the size of the line, then the outside diameter of a
+		//material named by it: each one only when set; a pipe never has a
+		//thread, which only names a nozzle
+	if (nominal.isNominal())
+		a << qMakePair(QStringLiteral("pipe_dn"), PipeDiameter::fileNumber(nominal.tenths()));
+	if (outside.isOutside())
+		a << qMakePair(QStringLiteral("pipe_od"), PipeDiameter::fileNumber(outside.tenths()));
 	add("pipe_fluid", fluid);
 	add("pipe_material", material);
 	add("pipe_flow", flow);
@@ -92,7 +94,12 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 */
 void PipeProperties::fromXml(const QDomElement &e)
 {
-	diameter = PipeDiameter::fromXml(e, QStringLiteral("pipe_dn"), QStringLiteral("pipe_od"));
+		//Each as it is written: a pipe saved with its outside diameter
+		//alone, before both were kept, has no DN, and is given none
+	nominal = PipeDiameter::fromTenths(
+				PipeDiameter::Nominal, PipeDiameter::tenthsOf(e.attribute(QStringLiteral("pipe_dn"))));
+	outside = PipeDiameter::fromTenths(
+				PipeDiameter::Outside, PipeDiameter::tenthsOf(e.attribute(QStringLiteral("pipe_od"))));
 
 	fluid            = e.attribute(QStringLiteral("pipe_fluid"));
 	material         = e.attribute(QStringLiteral("pipe_material"));
@@ -144,7 +151,8 @@ QStringList PipeProperties::defaultFluids()
 */
 bool PipeProperties::operator==(const PipeProperties &other) const
 {
-	return diameter == other.diameter
+	return nominal == other.nominal
+		&& outside == other.outside
 		&& material == other.material
 		&& fluid == other.fluid
 		&& flow == other.flow

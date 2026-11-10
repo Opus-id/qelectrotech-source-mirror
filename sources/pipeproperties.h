@@ -30,7 +30,8 @@
 /**
 	@brief The PipeProperties class
 	The data of a pipe: a conductor of the pipe medium
-	(ConductorProperties::m_medium). Nominal diameter, material, fluid,
+	(ConductorProperties::m_medium). Nominal diameter, and outside diameter
+	for a material named by it, material, fluid,
 	flow, line number, piping class, nominal pressure, kind of line, spool
 	and external finish.
 	They belong to one pipe only: they are never passed on to the pipes it
@@ -47,9 +48,30 @@ class PipeProperties
 			/// primary and a secondary segment only.
 		enum LineKind { Main, Secondary, Auxiliary };
 
-			/// Diameter: a DN (attribute pipe_dn) or, for a plastic pipe, an
-			/// outside diameter (pipe_od); none when not set
-		PipeDiameter diameter;
+			/// The size of the line: its DN (attribute pipe_dn), whatever
+			/// the material. It is what is passed on along the line,
+			/// compared with the nozzles and shown by the nozzles which
+			/// follow the pipe; none when not set
+		PipeDiameter nominal;
+			/// A second value (attribute pipe_od), for a material whose
+			/// pipes are named by their outside diameter: a plastic pipe of
+			/// DN 100 is a Ø 110 or a Ø 125; none when not set
+		PipeDiameter outside;
+			/// The size of the line: the DN; without one, the outside
+			/// diameter (a pipe drawn before both were kept)
+		PipeDiameter lineSize() const { return nominal.isSet() ? nominal : outside; }
+			/// What is written of the size: the material chooses, its
+			/// outside diameter when it names its pipes so
+			/// (@p named_by_outside), else the DN; the other value when the
+			/// one it names is not set
+		PipeDiameter writtenSize(bool named_by_outside) const {
+			if (named_by_outside) {
+				return outside.isSet() ? outside : nominal;
+			}
+			return lineSize();
+		}
+			/// The pipe has a DN or an outside diameter
+		bool hasSize() const { return nominal.isSet() || outside.isSet(); }
 			/// Pipe material: a code of the project's codification, or free
 			/// text (steel, PVC, cast iron...)
 		QString material;

@@ -267,8 +267,15 @@ class Terminal : public QGraphicsObject
 		static void setTakesConductorColor(bool takes);
 
 	private:
-			/// The diameter of the pipe connected to this nozzle alone
+			/// The size of the pipe connected to this nozzle alone: its DN
+			/// (PipeProperties::lineSize())
 		PipeDiameter connectedDiameter() const;
+			/// What the own size of this nozzle is compared with: the size
+			/// brought to it (facingDiameter()), a DN; but for a nozzle
+			/// given as an outside diameter, the outside diameter of its
+			/// pipe when it has one, as two plastic pipes of the same DN may
+			/// have two outside diameters
+		PipeDiameter comparedDiameter() const;
 			/// The first size met from the nozzles @p todo, each in turn:
 			/// that of its pipe, else the own size of the nozzle placed
 			/// against it, else further through the runs and the contacts;

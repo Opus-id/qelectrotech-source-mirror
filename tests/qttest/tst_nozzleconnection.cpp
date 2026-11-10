@@ -661,7 +661,8 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(start->canBeLinkedTo(end));
 			auto *pipe = new Conductor(start, end);
 			folio->addItem(pipe);
-			QCOMPARE(pipe->properties().m_pipe.diameter, PipeDiameter::nominal(40));
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(40));
+			QVERIFY(!pipe->properties().m_pipe.outside.isSet());
 			QVERIFY(!n2->hasDiameterGap());
 				// DN 100 at the other end: marked
 			QVERIFY(end->hasDiameterGap());
@@ -675,7 +676,7 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(has_dn);
 				// a pipe of another DN: marked at the thread
 			ConductorProperties properties = pipe->properties();
-			properties.m_pipe.diameter = PipeDiameter::nominal(50);
+			properties.m_pipe.nominal = PipeDiameter::nominal(50);
 			pipe->setProperties(properties);
 			QVERIFY(n2->hasDiameterGap());
 		}

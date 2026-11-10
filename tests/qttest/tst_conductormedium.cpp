@@ -442,7 +442,7 @@ class tst_conductormedium : public QObject
 			QCOMPARE(pipe->medium(), TerminalData::Pipe);
 			ConductorProperties data = pipe->properties();
 			data.m_pipe.fluid = QStringLiteral("W01");
-			data.m_pipe.diameter = PipeDiameter::nominal(80);
+			data.m_pipe.nominal = PipeDiameter::nominal(80);
 			data.m_pipe.line_number = QStringLiteral("L1");
 			pipe->setProperties(data);
 
@@ -492,7 +492,7 @@ class tst_conductormedium : public QObject
 			Element *b = place(m_pipe, QPointF(200, y + 300));
 			QVERIFY(a && b);
 			Conductor *pipe = draw(a->terminals().at(1), b->terminals().at(0));
-			QCOMPARE(pipe->properties().m_pipe.diameter.value(), 0.0);
+			QVERIFY(!pipe->properties().m_pipe.hasSize());
 
 			Element *tee = place(m_tee, QPointF(50, y));
 			QVERIFY(tee);
@@ -513,12 +513,11 @@ class tst_conductormedium : public QObject
 			m_project.setAutoBreakConductor(was);
 
 			QCOMPARE(n1->conductors().size(), 1);
-			QCOMPARE(n1->conductors().first()->properties().m_pipe.diameter.value(), 65.0);
+			QCOMPARE(n1->conductors().first()->properties().m_pipe.nominal, PipeDiameter::nominal(65));
 
 				// undone, the pipe is back without a DN
 			m_folio->undoStack().undo();
-			QCOMPARE(a->terminals().at(1)->conductors().first()
-					 ->properties().m_pipe.diameter.value(), 0.0);
+			QVERIFY(!a->terminals().at(1)->conductors().first()->properties().m_pipe.hasSize());
 		}
 
 			// ---- the defaults and the number of a new conductor ----
@@ -579,7 +578,7 @@ class tst_conductormedium : public QObject
 		static PipeProperties someData()
 		{
 			PipeProperties p;
-			p.diameter = PipeDiameter::nominal(150);
+			p.nominal = PipeDiameter::nominal(150);
 			p.fluid = QStringLiteral("W01");
 			p.material = QStringLiteral("M01");
 			p.flow = QStringLiteral("120 m3/h");
@@ -615,7 +614,7 @@ class tst_conductormedium : public QObject
 
 				// a main line is not written: the default
 			PipeProperties main;
-			main.diameter = PipeDiameter::nominal(80);
+			main.nominal = PipeDiameter::nominal(80);
 			QCOMPARE(main.attributes().size(), 1);
 
 				// read back; what cannot be read is left unset
@@ -628,23 +627,51 @@ class tst_conductormedium : public QObject
 			e.setAttribute(QStringLiteral("pipe_dn"), QStringLiteral("abc"));
 			e.setAttribute(QStringLiteral("pipe_line_kind"), QStringLiteral("steam"));
 			in.fromXml(e);
-			QCOMPARE(in.diameter.value(), 0.0);
+			QVERIFY(!in.hasSize());
 			QCOMPARE(in.line_kind, PipeProperties::Main);
 
-				// an outside diameter is pipe_od, never pipe_dn
+				// the DN is the size of the line, pipe_dn; a plastic pipe has
+				// its outside diameter too, pipe_od: each one written only
+				// when it is set
 			PipeProperties plastic;
-			plastic.diameter = PipeDiameter::outside(110);
-			QCOMPARE(plastic.attributes().size(), 1);
-			QCOMPARE(plastic.attributes().first().first, QStringLiteral("pipe_od"));
-			QCOMPARE(plastic.attributes().first().second, QStringLiteral("110"));
+			plastic.nominal = PipeDiameter::nominal(100);
+			plastic.outside = PipeDiameter::outside(110);
+			QCOMPARE(plastic.attributes().size(), 2);
+			QCOMPARE(plastic.attributes().at(0), qMakePair(QStringLiteral("pipe_dn"), QStringLiteral("100")));
+			QCOMPARE(plastic.attributes().at(1), qMakePair(QStringLiteral("pipe_od"), QStringLiteral("110")));
+			QCOMPARE(plastic.lineSize(), PipeDiameter::nominal(100));
+				// the material chooses what is written
+			QCOMPARE(plastic.writtenSize(true), PipeDiameter::outside(110));
+			QCOMPARE(plastic.writtenSize(false), PipeDiameter::nominal(100));
+			QDomElement both = doc.createElement(QStringLiteral("conductor"));
+			for (const auto &pair : plastic.attributes()) both.setAttribute(pair.first, pair.second);
+			in.fromXml(both);
+			QVERIFY(in == plastic);
+			QCOMPARE(in.nominal, PipeDiameter::nominal(100));
+			QCOMPARE(in.outside, PipeDiameter::outside(110));
+
+				// a pipe saved with its outside diameter alone, before both
+				// were kept: read as it is, without a DN, and written back
+				// the same
 			QDomElement od = doc.createElement(QStringLiteral("conductor"));
-			od.setAttribute(QStringLiteral("pipe_od"), QStringLiteral("110"));
+			od.setAttribute(QStringLiteral("pipe_od"), QStringLiteral("88.9"));
 			in.fromXml(od);
-			QCOMPARE(in.diameter, PipeDiameter::outside(110));
-				// both written by hand: the DN, which an older version knew
-			od.setAttribute(QStringLiteral("pipe_dn"), QStringLiteral("100"));
-			in.fromXml(od);
-			QCOMPARE(in.diameter, PipeDiameter::nominal(100));
+			QVERIFY(!in.nominal.isSet());
+			QCOMPARE(in.outside, PipeDiameter::outside(88.9));
+			QCOMPARE(in.lineSize(), PipeDiameter::outside(88.9));
+			QCOMPARE(in.writtenSize(false), PipeDiameter::outside(88.9));
+			QCOMPARE(in.attributes().size(), 1);
+			QCOMPARE(in.attributes().first(), qMakePair(QStringLiteral("pipe_od"), QStringLiteral("88.9")));
+				// a DN alone on a plastic: written until its outside diameter
+				// is chosen
+			PipeProperties waiting;
+			waiting.nominal = PipeDiameter::nominal(100);
+			QCOMPARE(waiting.writtenSize(true), PipeDiameter::nominal(100));
+				// a value of the other kind is never written
+			PipeProperties wrong;
+			wrong.nominal = PipeDiameter::outside(110);
+			wrong.outside = PipeDiameter::nominal(100);
+			QVERIFY(wrong.attributes().isEmpty());
 		}
 
 			// A pipe keeps its data through a file; a wire never has any

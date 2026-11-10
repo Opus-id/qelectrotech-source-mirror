@@ -86,6 +86,14 @@ class tst_pipepanel : public QObject
 	}
 
 		// What a user does in a text field: type, then leave it
+		// The one size the panel shows of a pipe: the one its material
+		// names it by, of its DN and its outside diameter
+	PipeDiameter written(const Conductor *pipe)
+	{
+		const PipeProperties p = pipe->properties().m_pipe;
+		return p.writtenSize(m_project.pidCodification().outsideDiameterFor(p.material));
+	}
+
 	static void type(QLineEdit *edit, const QString &text)
 	{
 		edit->setText(text);
@@ -180,7 +188,8 @@ class tst_pipepanel : public QObject
 			type(edit("spool"), QStringLiteral("2"));
 			type(edit("external_finish"), QStringLiteral("EA"));
 			const PipeProperties data = pipe->properties().m_pipe;
-			QCOMPARE(data.diameter.value(), 80.0);
+			QCOMPARE(data.nominal, PipeDiameter::nominal(80));
+			QVERIFY(!data.outside.isSet());
 			QCOMPARE(data.flow, QStringLiteral("120 m3/h"));
 			QCOMPARE(data.piping_class, QStringLiteral("75HB13"));
 			QCOMPARE(data.nominal_pressure, QStringLiteral("PN16"));
@@ -189,7 +198,7 @@ class tst_pipepanel : public QObject
 
 				// an empty diameter is no diameter, shown as nothing
 			type(edit("diameter"), QString());
-			QCOMPARE(pipe->properties().m_pipe.diameter.value(), 0.0);
+			QVERIFY(!pipe->properties().m_pipe.hasSize());
 			QVERIFY(edit("diameter")->text().isEmpty());
 
 				// the lists offer entries and take free text
@@ -247,7 +256,7 @@ class tst_pipepanel : public QObject
 				p.m_pipe.material = material;
 				pipe->setProperties(p);
 			};
-			auto diameter = [pipe]() { return pipe->properties().m_pipe.diameter; };
+			auto diameter = [this, pipe]() { return written(pipe); };
 			setMaterial(QStringLiteral("M01"));
 			PipePropertiesWidget page({pipe});
 			auto *list = page.findChild<QComboBox *>(QStringLiteral("diameter_list"));
@@ -262,12 +271,16 @@ class tst_pipepanel : public QObject
 			QCOMPARE(diameter(), PipeDiameter::outside(110));
 			QCOMPARE(edit->text(), QStringLiteral("Ø 110"));
 			QVERIFY(page.diameterMessage().isEmpty());
+				// with it, the DN the table joins to it: the size of the line
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
 
 				// a size out of its series: the nearest one, and said; the
 				// greater of two as near
 			type(edit, QStringLiteral("123"));
 			QCOMPARE(diameter(), PipeDiameter::outside(125));
 			QCOMPARE(edit->text(), QStringLiteral("Ø 125"));
+				// joined to DN 100 and DN 125: the DN the pipe had stays
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("123")));
 			type(edit, QStringLiteral("112"));
 			QCOMPARE(diameter(), PipeDiameter::outside(110));
@@ -285,6 +298,8 @@ class tst_pipepanel : public QObject
 			type(edit, QStringLiteral("88.9"));
 			QCOMPARE(diameter(), PipeDiameter::outside(88.9));
 			QCOMPARE(edit->text(), QStringLiteral("Ø 88,9"));
+				// which the table has not: no DN is kept, nor guessed
+			QVERIFY(!pipe->properties().m_pipe.nominal.isSet());
 
 				// a material without series, none of the codification, or no
 				// material: nothing to choose, and said
@@ -313,6 +328,8 @@ class tst_pipepanel : public QObject
 			QCOMPARE(list->count(), int(PipeProperties::preferredDiameters().size()) + 1);
 			type(edit, QStringLiteral("100"));
 			QCOMPARE(diameter(), PipeDiameter::nominal(100));
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
+			QVERIFY(!pipe->properties().m_pipe.outside.isSet());
 		}
 
 			// A material of the other kind: the table gives the size, in the
@@ -336,9 +353,12 @@ class tst_pipepanel : public QObject
 			QVERIFY(pipe);
 			ConductorProperties p = pipe->properties();
 			p.m_pipe.material = QStringLiteral("M01");
-			p.m_pipe.diameter = PipeDiameter::outside(110);
+				// an outside diameter alone, as a pipe drawn before both
+				// sizes were kept
+			p.m_pipe.outside = PipeDiameter::outside(110);
 			pipe->setProperties(p);
-			auto diameter = [pipe]() { return pipe->properties().m_pipe.diameter; };
+			auto diameter = [this, pipe]() { return written(pipe); };
+			auto sizes = [pipe]() { return pipe->properties().m_pipe; };
 			PipePropertiesWidget page({pipe});
 			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
 			QVERIFY(material);
@@ -355,24 +375,44 @@ class tst_pipepanel : public QObject
 			type(material->lineEdit(), QStringLiteral("M02"));
 			QCOMPARE(pipe->properties().m_pipe.material, QStringLiteral("M02"));
 			QCOMPARE(diameter(), PipeDiameter::nominal(100));
+				// a steel pipe has a DN, and no outside diameter
+			QVERIFY(!sizes().outside.isSet());
 			QCOMPARE(asked, 0);
 			QCOMPARE(stack.count(), steps + 1);
 			stack.undo();
 			QCOMPARE(pipe->properties().m_pipe.material, QStringLiteral("M01"));
 			QCOMPARE(diameter(), PipeDiameter::outside(110));
+			QVERIFY(!sizes().nominal.isSet());
 			stack.redo();
 
-				// back to the plastic: Ø 110 and Ø 125 are joined to DN 100
+				// back to the plastic: Ø 110 and Ø 125 are joined to DN 100,
+				// which stays the size of the line
 			answer = 1;
 			type(material->lineEdit(), QStringLiteral("M01"));
 			QCOMPARE(asked, 1);
 			QCOMPARE(diameter(), PipeDiameter::outside(125));
+			QCOMPARE(sizes().nominal, PipeDiameter::nominal(100));
 
-				// no answer: the size stays, said not to suit the material
+				// to the steel again: the DN is there, nothing is asked, and
+				// the outside diameter goes
+			type(material->lineEdit(), QStringLiteral("M02"));
+			QCOMPARE(asked, 1);
+			QCOMPARE(diameter(), PipeDiameter::nominal(100));
+			QVERIFY(!sizes().outside.isSet());
+			QVERIFY(page.diameterMessage().isEmpty());
+
+				// an outside diameter alone, joined to two DN, and no answer:
+				// the size stays, said not to suit the material
+			p = pipe->properties();
+			p.m_pipe.material = QStringLiteral("M01");
+			p.m_pipe.nominal = PipeDiameter();
+			p.m_pipe.outside = PipeDiameter::outside(125);
+			pipe->setProperties(p);
 			answer = -1;
 			type(material->lineEdit(), QStringLiteral("M02"));
 			QCOMPARE(asked, 2);
 			QCOMPARE(diameter(), PipeDiameter::outside(125));
+			QVERIFY(!sizes().nominal.isSet());
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("M02")));
 			m_project.setPidCodification(PidCodification());
 		}
@@ -405,9 +445,10 @@ class tst_pipepanel : public QObject
 			Conductor *pipe = draw(m_nozzles);
 			ConductorProperties p = pipe->properties();
 			p.m_pipe.material = QStringLiteral("M01");
-			p.m_pipe.diameter = PipeDiameter::outside(110);
+			p.m_pipe.nominal = PipeDiameter::nominal(100);
+			p.m_pipe.outside = PipeDiameter::outside(110);
 			pipe->setProperties(p);
-			auto diameter = [pipe]() { return pipe->properties().m_pipe.diameter; };
+			auto diameter = [this, pipe]() { return written(pipe); };
 			PipePropertiesWidget page({pipe});
 			page.setChooser([](const QString &, const QStringList &) { return -1; });
 			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
@@ -415,11 +456,14 @@ class tst_pipepanel : public QObject
 			type(material->lineEdit(), QStringLiteral("M02"));
 			QCOMPARE(diameter(), PipeDiameter::outside(114.3));
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("Ø 114,3")));
+				// the DN of the line stays
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
 
 				// two DN without table: the nearest one
 			p = pipe->properties();
 			p.m_pipe.material = QStringLiteral("M03");
-			p.m_pipe.diameter = PipeDiameter::nominal(65);
+			p.m_pipe.nominal = PipeDiameter::nominal(65);
+			p.m_pipe.outside = PipeDiameter();
 			pipe->setProperties(p);
 			type(material->lineEdit(), QStringLiteral("M04"));
 			QCOMPARE(diameter(), PipeDiameter::nominal(60));
@@ -433,11 +477,11 @@ class tst_pipepanel : public QObject
 			Conductor *second = draw(m_nozzles);
 			QVERIFY(first && second);
 			ConductorProperties p = first->properties();
-			p.m_pipe.diameter = PipeDiameter::nominal(80);
+			p.m_pipe.nominal = PipeDiameter::nominal(80);
 			p.m_pipe.material = QStringLiteral("M01");
 			first->setProperties(p);
 			p = second->properties();
-			p.m_pipe.diameter = PipeDiameter::nominal(100);
+			p.m_pipe.nominal = PipeDiameter::nominal(100);
 			p.m_pipe.material = QStringLiteral("M01");
 			p.m_pipe.line_kind = PipeProperties::Secondary;
 			second->setProperties(p);
@@ -460,16 +504,16 @@ class tst_pipepanel : public QObject
 			const int steps = stack.count();
 			emit dn->editingFinished();
 			QCOMPARE(stack.count(), steps);
-			QCOMPARE(first->properties().m_pipe.diameter.value(), 80.0);
-			QCOMPARE(second->properties().m_pipe.diameter.value(), 100.0);
+			QCOMPARE(first->properties().m_pipe.nominal.value(), 80.0);
+			QCOMPARE(second->properties().m_pipe.nominal.value(), 100.0);
 
 				// a field edited reaches both, in one step, and no other field
 			type(fluid->lineEdit(), QStringLiteral("W02"));
 			QCOMPARE(stack.count(), steps + 1);
 			QCOMPARE(first->properties().m_pipe.fluid, QStringLiteral("W02"));
 			QCOMPARE(second->properties().m_pipe.fluid, QStringLiteral("W02"));
-			QCOMPARE(first->properties().m_pipe.diameter.value(), 80.0);
-			QCOMPARE(second->properties().m_pipe.diameter.value(), 100.0);
+			QCOMPARE(first->properties().m_pipe.nominal.value(), 80.0);
+			QCOMPARE(second->properties().m_pipe.nominal.value(), 100.0);
 			QCOMPARE(second->properties().m_pipe.line_kind, PipeProperties::Secondary);
 
 			stack.undo();

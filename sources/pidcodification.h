@@ -126,6 +126,16 @@ class PidCodification
 			/// (PipeDiameter::threadNominal()); a diameter not set differs
 			/// from nothing
 		DiameterMatch compare(const PipeDiameter &a, const PipeDiameter &b) const;
+			/// The DN of a pipe of the outside diameter @p outside: the one
+			/// the table of the project joins to it, when it joins one
+			/// only; none when it joins none, or several
+		PipeDiameter nominalOf(const PipeDiameter &outside) const;
+			/// The outside diameters a pipe of the DN @p nominal may have in
+			/// the material of code @p material_code: those of its series
+			/// the table joins to this DN, in the order of the series; none
+			/// for a material named by its DN, or which the project has not
+		QList<PipeDiameter> outsidesOf(const PipeDiameter &nominal,
+									   const QString &material_code) const;
 			/// What @p diameter may become on a pipe of the material of code
 			/// @p material_code, when its series has it not: the sizes of the
 			/// series the table joins to it, through a DN when both are

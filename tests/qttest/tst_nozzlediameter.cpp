@@ -149,7 +149,7 @@ class tst_nozzlediameter : public QObject
 
 	static int dn(const Conductor *pipe)
 	{
-		return qRound(pipe->properties().m_pipe.diameter.value());
+		return qRound(pipe->properties().m_pipe.nominal.value());
 	}
 
 	static void setDn(Conductor *pipe, int value)
@@ -157,10 +157,19 @@ class tst_nozzlediameter : public QObject
 		setDiameter(pipe, PipeDiameter::nominal(value));
 	}
 
+		// One size alone: a DN, or an outside diameter without a DN
 	static void setDiameter(Conductor *pipe, const PipeDiameter &diameter)
 	{
+		setSizes(pipe, diameter.isOutside() ? PipeDiameter() : diameter,
+				 diameter.isOutside() ? diameter : PipeDiameter());
+	}
+
+		// The DN of the line and the outside diameter of a plastic pipe
+	static void setSizes(Conductor *pipe, const PipeDiameter &nominal, const PipeDiameter &outside)
+	{
 		ConductorProperties properties = pipe->properties();
-		properties.m_pipe.diameter = diameter;
+		properties.m_pipe.nominal = nominal;
+		properties.m_pipe.outside = outside;
 		pipe->setProperties(properties);
 	}
 
@@ -1370,11 +1379,63 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!terminal(a, QStringLiteral("N2"))->hasDiameterGap());
 			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(110)}});
 			QVERIFY(terminal(a, QStringLiteral("N2"))->hasDiameterGap());
-				// the pipe keeps its outside diameter
-			QCOMPARE(pipe->properties().m_pipe.diameter, PipeDiameter::outside(90));
+				// the pipe keeps its outside diameter, and is given no DN
+			QCOMPARE(pipe->properties().m_pipe.outside, PipeDiameter::outside(90));
+			QVERIFY(!pipe->properties().m_pipe.nominal.isSet());
 		}
 
-			// a new pipe takes an outside diameter as it is
+			// The DN is the size of the line, of a plastic pipe too: it is
+			// what a nozzle is compared with, and what a nozzle without a
+			// size shows; its outside diameter is a second value, which a
+			// nozzle given as an outside diameter is compared with
+		void aPipeWithBothSizesIsComparedByItsDn()
+		{
+			QETProject project;
+			const ElementsLocation location = addTank(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			QVERIFY(a && b);
+			b->setPos(400, 200);
+				// N1 of b has the DN 80 of its symbol, N2 of a no size
+			Conductor *pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			Terminal *n1 = terminal(b, QStringLiteral("N1"));
+			Terminal *n2 = terminal(a, QStringLiteral("N2"));
+			setSizes(pipe, PipeDiameter::nominal(80), PipeDiameter::outside(90));
+
+				// no table needed: a DN against a DN
+			QVERIFY(!n1->hasDiameterGap());
+			QCOMPARE(n1->toolTip(), QStringLiteral("Plain end"));
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 80"));
+			setSizes(pipe, PipeDiameter::nominal(100), PipeDiameter::outside(110));
+			QVERIFY(n1->hasDiameterGap());
+			QVERIFY(n1->toolTip().contains(QStringLiteral("DN 80")));
+			QVERIFY(n1->toolTip().contains(QStringLiteral("DN 100")));
+			QVERIFY(!n1->toolTip().contains(QStringLiteral("110")));
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 100"));
+
+				// a nozzle given as an outside diameter: against that of the
+				// pipe, though the table joins both to the same DN
+			PidCodification codification;
+			codification.outside_diameters.insert(1100, {100});
+			codification.outside_diameters.insert(1250, {100});
+			project.setPidCodification(codification);
+			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(110)}});
+			QVERIFY(!n2->hasDiameterGap());
+			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(125)}});
+			QVERIFY(n2->hasDiameterGap());
+			QVERIFY(n2->toolTip().contains(QStringLiteral("Ø 125")));
+			QVERIFY(n2->toolTip().contains(QStringLiteral("Ø 110")));
+				// a pipe without an outside diameter: against its DN, by the
+				// table
+			setSizes(pipe, PipeDiameter::nominal(100), PipeDiameter());
+			QVERIFY(!n2->hasDiameterGap());
+			setSizes(pipe, PipeDiameter::nominal(80), PipeDiameter());
+			QVERIFY(n2->hasDiameterGap());
+		}
+
+			// a new pipe takes an outside diameter as its second value, and
+			// the DN the table of the project joins to it
 		void aNewPipeTakesTheOutsideDiameterOfANozzle()
 		{
 			QETProject project;
@@ -1385,9 +1446,109 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(a && b);
 			b->setPos(400, 200);
 			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(110)}});
+				// no table: the outside diameter alone
 			Conductor *pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N2"));
-			QCOMPARE(pipe->properties().m_pipe.diameter, PipeDiameter::outside(110));
+			QCOMPARE(pipe->properties().m_pipe.outside, PipeDiameter::outside(110));
+			QVERIFY(!pipe->properties().m_pipe.nominal.isSet());
 			QCOMPARE(terminal(b, QStringLiteral("N2"))->labelText(), QStringLiteral("N2\nØ 110"));
+
+				// one DN in the table: both, and the DN is the size of the line
+			PidCodification codification;
+			codification.outside_diameters.insert(1100, {100});
+			codification.outside_diameters.insert(1250, {100, 125});
+			project.setPidCodification(codification);
+			setSizes(pipe, PipeDiameter(), PipeDiameter());
+			pipe->takeNozzleDiameter();
+			QCOMPARE(pipe->properties().m_pipe.outside, PipeDiameter::outside(110));
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
+			QCOMPARE(terminal(b, QStringLiteral("N2"))->labelText(), QStringLiteral("N2\nDN 100"));
+			QVERIFY(!terminal(a, QStringLiteral("N2"))->hasDiameterGap());
+
+				// two DN in the table: no DN is guessed
+			a->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::outside(125)}});
+			setSizes(pipe, PipeDiameter(), PipeDiameter());
+			pipe->takeNozzleDiameter();
+			QCOMPARE(pipe->properties().m_pipe.outside, PipeDiameter::outside(125));
+			QVERIFY(!pipe->properties().m_pipe.nominal.isSet());
+
+				// a pipe which has a size takes none
+			setSizes(pipe, PipeDiameter::nominal(65), PipeDiameter());
+			pipe->takeNozzleDiameter();
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(65));
+			QVERIFY(!pipe->properties().m_pipe.outside.isSet());
+		}
+
+			// The material of the pipe, when it has one already (a symbol
+			// dropped on a pipe without a size): with a DN goes the outside
+			// diameter of a plastic, if its series has one only for this DN;
+			// a material named by its DN keeps no outside diameter
+		void aNewPipeTakesTheSizesItsMaterialNames()
+		{
+			QETProject project;
+			PidCodification codification;
+			PidCodification::Entry plastic;
+			plastic.code = QStringLiteral("M01");
+			plastic.outside_diameter = true;
+			plastic.series = {900, 1100, 1250};
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.series = {800, 1000};
+			codification.materials = {plastic, steel};
+			codification.outside_diameters.insert(900, {80});
+			codification.outside_diameters.insert(1100, {100});
+			codification.outside_diameters.insert(1250, {100});
+			project.setPidCodification(codification);
+			QCOMPARE(codification.nominalOf(PipeDiameter::outside(90)), PipeDiameter::nominal(80));
+			QVERIFY(!codification.nominalOf(PipeDiameter::outside(63)).isSet());
+			QVERIFY(!codification.nominalOf(PipeDiameter::nominal(80)).isSet());
+			QCOMPARE(codification.outsidesOf(PipeDiameter::nominal(100), QStringLiteral("M01")),
+					 QList<PipeDiameter>({PipeDiameter::outside(110), PipeDiameter::outside(125)}));
+			QVERIFY(codification.outsidesOf(PipeDiameter::nominal(100), QStringLiteral("M02")).isEmpty());
+			QVERIFY(codification.outsidesOf(PipeDiameter::nominal(100), QString()).isEmpty());
+
+			const ElementsLocation location = addTank(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			QVERIFY(a && b);
+			b->setPos(400, 200);
+				// N1 of a has the DN 80 of its symbol: without a material,
+				// the DN alone
+			Conductor *pipe = connect(folio, a, QStringLiteral("N1"), b, QStringLiteral("N2"));
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(80));
+			QVERIFY(!pipe->properties().m_pipe.outside.isSet());
+			auto takeAgain = [pipe](const QString &material) {
+				ConductorProperties properties = pipe->properties();
+				properties.m_pipe.material = material;
+				properties.m_pipe.nominal = PipeDiameter();
+				properties.m_pipe.outside = PipeDiameter();
+				pipe->setProperties(properties);
+				pipe->takeNozzleDiameter();
+				return pipe->properties().m_pipe;
+			};
+				// the plastic has one outside diameter of DN 80
+			PipeProperties taken = takeAgain(QStringLiteral("M01"));
+			QCOMPARE(taken.nominal, PipeDiameter::nominal(80));
+			QCOMPARE(taken.outside, PipeDiameter::outside(90));
+				// and two of DN 100: the DN alone, until one is chosen
+			a->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::nominal(100)}});
+			taken = takeAgain(QStringLiteral("M01"));
+			QCOMPARE(taken.nominal, PipeDiameter::nominal(100));
+			QVERIFY(!taken.outside.isSet());
+				// a nozzle given as an outside diameter, a steel pipe: its DN
+			a->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::outside(90)}});
+			taken = takeAgain(QStringLiteral("M02"));
+			QCOMPARE(taken.nominal, PipeDiameter::nominal(80));
+			QVERIFY(!taken.outside.isSet());
+			taken = takeAgain(QStringLiteral("M01"));
+			QCOMPARE(taken.nominal, PipeDiameter::nominal(80));
+			QCOMPARE(taken.outside, PipeDiameter::outside(90));
+				// an outside diameter the table has not: kept, rather than
+				// nothing
+			a->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::outside(63)}});
+			taken = takeAgain(QStringLiteral("M02"));
+			QVERIFY(!taken.nominal.isSet());
+			QCOMPARE(taken.outside, PipeDiameter::outside(63));
 		}
 
 			// the DN of the pipe is that of the file, whatever its nozzles say

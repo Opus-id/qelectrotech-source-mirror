@@ -1559,10 +1559,26 @@ PipeDiameter Terminal::connectedDiameter() const
 	}
 	for (const Conductor *conductor : m_conductors_list) {
 		if (conductor->medium() == TerminalData::Pipe) {
-			return conductor->properties().m_pipe.diameter;
+			return conductor->properties().m_pipe.lineSize();
 		}
 	}
 	return PipeDiameter();
+}
+
+PipeDiameter Terminal::comparedDiameter() const
+{
+	if (ownDiameter().isOutside()) {
+		for (const Conductor *conductor : m_conductors_list) {
+			if (conductor->medium() == TerminalData::Pipe) {
+				const PipeDiameter outside = conductor->properties().m_pipe.outside;
+				if (outside.isSet()) {
+					return outside;
+				}
+				break;
+			}
+		}
+	}
+	return facingDiameter();
 }
 
 Terminal *Terminal::contactNozzle() const
@@ -1776,7 +1792,7 @@ bool Terminal::hasDiameterGap() const
 	if (runSiblingOtherThan(pipe)) {
 		return true;
 	}
-	return compareDiameters(ownDiameter(), pipe) != PidCodification::DiameterMatch::Same;
+	return compareDiameters(ownDiameter(), comparedDiameter()) != PidCodification::DiameterMatch::Same;
 }
 
 /**
@@ -1806,11 +1822,13 @@ void Terminal::updateDiameterToolTip()
 			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : other).text(locale));
 		}
 	} else {
+			//An outside diameter against that of the pipe, when it has one
+		const PipeDiameter compared = comparedDiameter();
 		tip += QLatin1Char('\n') + (contactNozzle()
 				? tr("Nozzle %1 against %2, without a pipe")
-				: tr("Nozzle %1, pipe %2")).arg(own.text(locale), pipe.text(locale));
-		if (compareDiameters(own, pipe) == PidCodification::DiameterMatch::Unknown) {
-			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : own).text(locale));
+				: tr("Nozzle %1, pipe %2")).arg(own.text(locale), compared.text(locale));
+		if (compareDiameters(own, compared) == PidCodification::DiameterMatch::Unknown) {
+			tip += QLatin1Char('\n') + unknown.arg((compared.isOutside() ? compared : own).text(locale));
 		}
 	}
 	setToolTip(tip);

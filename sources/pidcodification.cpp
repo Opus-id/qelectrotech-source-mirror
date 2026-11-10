@@ -472,6 +472,39 @@ PidCodification::DiameterMatch PidCodification::compare(const PipeDiameter &a,
 }
 
 /**
+	@brief PidCodification::nominalOf
+	See the declaration
+*/
+PipeDiameter PidCodification::nominalOf(const PipeDiameter &outside) const
+{
+	if (!outside.isOutside()) {
+		return PipeDiameter();
+	}
+	const QList<int> joined = outside_diameters.value(outside.tenths());
+	return joined.size() == 1 ? PipeDiameter::nominal(joined.first()) : PipeDiameter();
+}
+
+/**
+	@brief PidCodification::outsidesOf
+	See the declaration
+*/
+QList<PipeDiameter> PidCodification::outsidesOf(const PipeDiameter &nominal,
+												const QString &material_code) const
+{
+	QList<PipeDiameter> found;
+	const Entry *entry = material(material_code);
+	if (!nominal.isNominal() || !entry || !entry->outside_diameter) {
+		return found;
+	}
+	for (const PipeDiameter &size : seriesOf(*entry)) {
+		if (outside_diameters.value(size.tenths()).contains(nominal.tenths() / 10)) {
+			found << size;
+		}
+	}
+	return found;
+}
+
+/**
 	@brief PidCodification::languageDecimal
 	See the declaration: the separator the language chosen in QElectroTech
 	writes, not that of the computer

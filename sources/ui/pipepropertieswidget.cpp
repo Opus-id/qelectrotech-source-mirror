@@ -39,6 +39,36 @@
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
+namespace {
+
+	/// The one size the panel shows of the pipe @p p, the one its material
+	/// names it by (PipeProperties::writtenSize())
+PipeDiameter writtenSize(const PipeProperties &p, const PidCodification &codes)
+{
+	return p.writtenSize(codes.outsideDiameterFor(p.material));
+}
+
+	/// Give the pipe @p p the one size @p size the panel handles: a DN is
+	/// its DN, and it has no outside diameter then; an outside diameter is
+	/// its second value, and it keeps its DN when the table of @p codes
+	/// joins both, else gets the DN the table joins to it, when it joins
+	/// one only. None clears both.
+void setWrittenSize(PipeProperties &p, const PipeDiameter &size, const PidCodification &codes)
+{
+	if (size.isOutside()) {
+		p.outside = size;
+		if (!p.nominal.isSet()
+			|| codes.compare(size, p.nominal) != PidCodification::DiameterMatch::Same) {
+			p.nominal = codes.nominalOf(size);
+		}
+	} else {
+		p.nominal = size;
+		p.outside = PipeDiameter();
+	}
+}
+
+}
+
 /**
 	@brief PipePropertiesWidget::PipePropertiesWidget
 	@param pipes : the pipes to edit
@@ -345,7 +375,8 @@ void PipePropertiesWidget::diameterEdited()
 					   "Codification): nothing changed.").arg(text);
 	} else {
 		m_refused.clear();
-		applyChange([diameter](PipeProperties &p) { p.diameter = diameter; }, true);
+		const PidCodification codes = codification();
+		applyChange([diameter, codes](PipeProperties &p) { setWrittenSize(p, diameter, codes); }, true);
 			//Said after the change, which clears what was said
 		m_refused = note;
 	}
@@ -361,11 +392,16 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 {
 	const PidCodification codes = codification();
 	const QLocale locale = codes.locale();
+		//The size the new material would write of each pipe as it is: its
+		//DN, kept, for a material named by its DN; that one is converted
+	const PidCodification::Entry *entry = codes.material(code);
+	const bool named_by_outside = entry && entry->outside_diameter;
+	const bool named_by_nominal = entry && !entry->outside_diameter;
 		//What a diameter becomes when the table gives several sizes
 	QMap<QPair<int, int>, PipeDiameter> chosen;
 	for (Conductor *pipe : pipes())
 	{
-		const PipeDiameter diameter = pipe->properties().m_pipe.diameter;
+		const PipeDiameter diameter = pipe->properties().m_pipe.writtenSize(named_by_outside);
 		const QPair<int, int> key(diameter.kind(), diameter.tenths());
 		const QList<PipeDiameter> found = codes.conversions(diameter, code);
 		if (found.size() < 2 || chosen.contains(key)) {
@@ -413,12 +449,20 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 	};
 	QMap<QPair<int, int>, PipeDiameter> results;
 	for (Conductor *pipe : pipes()) {
-		const PipeDiameter diameter = pipe->properties().m_pipe.diameter;
+		const PipeDiameter diameter = pipe->properties().m_pipe.writtenSize(named_by_outside);
 		results.insert(qMakePair(int(diameter.kind()), diameter.tenths()), convert(diameter));
 	}
-	applyChange([code, results](PipeProperties &p) {
+	applyChange([code, results, codes, named_by_outside, named_by_nominal](PipeProperties &p) {
+		const PipeDiameter before = p.writtenSize(named_by_outside);
+		const PipeDiameter after = results.value(qMakePair(int(before.kind()), before.tenths()), before);
 		p.material = code;
-		p.diameter = results.value(qMakePair(int(p.diameter.kind()), p.diameter.tenths()), p.diameter);
+		if (after != before) {
+			setWrittenSize(p, after, codes);
+		} else if (named_by_nominal && p.nominal.isSet()) {
+				//The DN stays, and a material named by it has no outside
+				//diameter
+			p.outside = PipeDiameter();
+		}
 	});
 		//Said after the change, which clears what was said
 	m_refused = notes.join(QLatin1Char('\n'));
@@ -451,23 +495,24 @@ QString PipePropertiesWidget::diameterWarning() const
 	const QLocale locale = codes.locale();
 	for (Conductor *pipe : pipes())
 	{
-		const PipeProperties &p = pipe->properties().m_pipe;
-		if (!p.diameter.isSet() || codes.acceptsForPipe(p.diameter, p.material)) {
+		const PipeProperties p = pipe->properties().m_pipe;
+		const PipeDiameter size = writtenSize(p, codes);
+		if (!size.isSet() || codes.acceptsForPipe(size, p.material)) {
 			continue;
 		}
 		const PidCodification::Entry *material = codes.material(p.material);
-		if (material && material->outside_diameter != p.diameter.isOutside()) {
+		if (material && material->outside_diameter != size.isOutside()) {
 			return material->outside_diameter
 					? tr("%1: the material %2 names its pipes by their outside diameter.")
-					  .arg(p.diameter.text(locale), p.material)
+					  .arg(size.text(locale), p.material)
 					: tr("%1: the material %2 names its pipes by their DN.")
-					  .arg(p.diameter.text(locale), p.material);
+					  .arg(size.text(locale), p.material);
 		}
 		if (material) {
-			return tr("%1 is not in the series of the material %2.").arg(p.diameter.text(locale), p.material);
+			return tr("%1 is not in the series of the material %2.").arg(size.text(locale), p.material);
 		}
 		if (codes.materials.isEmpty()) {
-			return tr("%1 is not a DN of ISO 6708.").arg(p.diameter.text(locale));
+			return tr("%1 is not a DN of ISO 6708.").arg(size.text(locale));
 		}
 	}
 	return QString();
@@ -661,7 +706,10 @@ void PipePropertiesWidget::updateUi()
 	const QLocale locale = codification().locale();
 	DiameterList::fill(m_diameter, sizes, locale);
 	m_diameter->setEnabled(!sizes.isEmpty());
-	showText(m_diameter->lineEdit(), [locale](const PipeProperties &p) { return p.diameter.text(locale); });
+	const PidCodification codes = codification();
+	showText(m_diameter->lineEdit(), [locale, codes](const PipeProperties &p) {
+		return writtenSize(p, codes).text(locale);
+	});
 		//What was just done or refused, then what is wrong now
 	QStringList lines;
 	if (!m_refused.isEmpty()) {
