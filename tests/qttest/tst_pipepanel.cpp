@@ -781,13 +781,14 @@ class tst_pipepanel : public QObject
 				// nothing, DN 50, DN 60/65, DN 80
 			QCOMPARE(list->count(), 4);
 			QCOMPARE(list->itemText(2), QStringLiteral("DN 60/65"));
-				// either typed, or both, is the same, and nothing is said
+				// either typed, or both, is the same, and nothing is said; the
+				// pipe keeps the usual one, DN 60 being of cast iron only
 			for (const QString &typed : {QStringLiteral("65"), QStringLiteral("DN 60"),
 										 QStringLiteral("DN 60/65"), QStringLiteral("65/60")})
 			{
 				type(edit, QStringLiteral("80"));
 				type(edit, typed);
-				QCOMPARE(dn(), PipeDiameter::nominal(60));
+				QCOMPARE(dn(), PipeDiameter::nominal(65));
 				QCOMPARE(edit->text(), QStringLiteral("DN 60/65"));
 				QVERIFY2(page.diameterMessage().isEmpty(), qPrintable(typed));
 			}
@@ -797,7 +798,7 @@ class tst_pipepanel : public QObject
 			QCOMPARE(list->validator()->validate(written, position), QValidator::Acceptable);
 				// DN which are not said equal are no size
 			type(edit, QStringLiteral("60/80"));
-			QCOMPARE(dn(), PipeDiameter::nominal(60));
+			QCOMPARE(dn(), PipeDiameter::nominal(65));
 			QVERIFY(!page.diameterMessage().isEmpty());
 
 				// its material chooses: the one it has
@@ -808,9 +809,8 @@ class tst_pipepanel : public QObject
 			QCOMPARE(dn(), PipeDiameter::nominal(60));
 			QCOMPARE(edit->text(), QStringLiteral("DN 60"));
 				// and both again without it, whichever it had
-			type(material->lineEdit(), QStringLiteral("M03"));
 			type(material->lineEdit(), QString());
-			QCOMPARE(dn(), PipeDiameter::nominal(60));
+			QCOMPARE(dn(), PipeDiameter::nominal(65));
 			QCOMPARE(edit->text(), QStringLiteral("DN 60/65"));
 			QVERIFY(page.diameterMessage().isEmpty());
 			m_project.setPidCodification(PidCodification());

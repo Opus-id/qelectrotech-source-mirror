@@ -191,6 +191,11 @@ class Terminal : public QGraphicsObject
 			/// this terminal: the pipe draws the part it brings in the same
 			/// frame, turned and mirrored as the element
 		QTransform markTransform() const;
+			/// The diameter of this nozzle (diameter()) as it is written:
+			/// its own; else that of its pipe, as the project writes the
+			/// size of this pipe ("DN 60/65" without material,
+			/// PidCodification::text()). Nothing for none.
+		QString diameterText() const;
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 			/// The font of labelText(): the one of the symbol, at the size

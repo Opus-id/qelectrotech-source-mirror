@@ -1531,6 +1531,11 @@ class tst_nozzlediameter : public QObject
 			project.setPidCodification(codification);
 			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 60/65"));
 			QCOMPARE(terminal(a, QStringLiteral("N2"))->labelText(), QStringLiteral("N2\nDN 60/65"));
+				// and so in the tab of the nozzles, in grey
+			{
+				ElementNozzlesWidget tab(b);
+				QCOMPARE(tab.fieldFor(QStringLiteral("N2"))->placeholderText(), QStringLiteral("DN 60/65"));
+			}
 				// a size said equal to no other is written alone
 			setSizes(pipe, PipeDiameter::nominal(80), PipeDiameter());
 			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 80"));

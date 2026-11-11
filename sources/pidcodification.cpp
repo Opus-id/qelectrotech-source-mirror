@@ -353,6 +353,37 @@ bool PidCodification::sameNominal(int a, int b) const
 }
 
 /**
+	@brief PidCodification::usualNominal
+	See the declaration
+*/
+int PidCodification::usualNominal(int dn) const
+{
+	const QList<int> equal = equalNominals(dn);
+	if (equal.size() < 2) {
+		return dn;
+	}
+	int usual = 0, most = -1;
+	for (int candidate : equal)
+	{
+		int users = 0;
+		for (const Entry &entry : materials) {
+			for (const Size &size : entry.sizes) {
+				if (size.nominal == candidate) {
+					++users;
+					break;
+				}
+			}
+		}
+			//In order: of two as usual, the greater
+		if (users >= most) {
+			most = users;
+			usual = candidate;
+		}
+	}
+	return usual;
+}
+
+/**
 	@brief PidCodification::text
 	See the declaration
 */
@@ -394,7 +425,7 @@ PipeDiameter PidCodification::nominalOfEqualText(const QString &text) const
 		}
 		numbers << dn;
 	}
-	return PipeDiameter::nominal(equalNominals(numbers.first()).first());
+	return PipeDiameter::nominal(usualNominal(numbers.first()));
 }
 
 /**
@@ -410,8 +441,8 @@ PipeDiameter PidCodification::nominalIn(const PipeDiameter &nominal,
 	}
 	const int dn = nominal.tenths() / 10;
 	if (!entry) {
-			//No material chooses among equal DN: the first stands for all
-		return PipeDiameter::nominal(equalNominals(dn).first());
+			//No material chooses among equal DN: the usual one stands for all
+		return PipeDiameter::nominal(usualNominal(dn));
 	}
 	int equal = 0;
 	for (const Size &size : entry->sizes) {
@@ -660,12 +691,12 @@ QList<PipeDiameter> PidCodification::nominalsOf(const PipeDiameter &outside,
 */
 QList<PipeDiameter> PidCodification::nominalSizes() const
 {
-		//Equal DN as one, the first of them
+		//Equal DN as one, the usual one of them
 	QList<int> nominals;
 	for (const Entry &entry : materials) {
 		for (const Size &size : entry.sizes) {
 			if (size.nominal) {
-				nominals << equalNominals(size.nominal).first();
+				nominals << usualNominal(size.nominal);
 			}
 		}
 	}

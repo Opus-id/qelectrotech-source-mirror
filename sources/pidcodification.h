@@ -140,12 +140,17 @@ class PidCodification
 			/// The DN @p a and @p b are the same size of line: the same, or
 			/// joined by equal_nominals
 		bool sameNominal(int a, int b) const;
+			/// The usual one of equalNominals(@p dn), which stands for all
+			/// of them where none is chosen: the one most materials of the
+			/// project have a size of, the greater of two as usual. DN 60
+			/// being of cast iron only, DN 65 is the usual one.
+		int usualNominal(int dn) const;
 			/// The DN a pipe of the material of code @p material_code takes
 			/// for the size of line @p nominal: itself when the material has
 			/// it, else the first DN of the material equal_nominals says the
 			/// same, else itself. Without material, or with one the project
-			/// has not, the first of equalNominals(): no DN is chosen yet,
-			/// and the pipe is written "DN 60/65" (text()).
+			/// has not, usualNominal(): no DN is chosen yet, and the pipe is
+			/// written "DN 60/65" (text()).
 		PipeDiameter nominalIn(const PipeDiameter &nominal, const QString &material_code) const;
 			/// How the size @p size of a pipe of the material of code
 			/// @p material_code is written, with the separator of the
@@ -154,8 +159,8 @@ class PidCodification
 			/// written with them, "DN 60/65", its material choosing later
 		QString text(const PipeDiameter &size, const QString &material_code) const;
 			/// The DN written in @p text as text() writes several, "DN 60/65"
-			/// or "60/65": the first of them; none when @p text is anything
-			/// else, or when they are not said equal
+			/// or "60/65": the usual one of them (usualNominal()); none when
+			/// @p text is anything else, or when they are not said equal
 		PipeDiameter nominalOfEqualText(const QString &text) const;
 
 			/// The sizes the pipes of the material @p entry are named by, of

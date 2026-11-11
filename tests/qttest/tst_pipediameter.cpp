@@ -270,10 +270,10 @@ class tst_pipediameter : public QObject
 				// as the material has it: DN 65 is DN 60 in cast iron
 			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(75), iron), QList<PipeDiameter>{dn60});
 			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(75), steel), QList<PipeDiameter>{dn65});
-			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(75)), QList<PipeDiameter>{dn60});
+			QCOMPARE(codification.nominalsOf(PipeDiameter::outside(75)), QList<PipeDiameter>{dn65});
 				// without material: the DN of all the materials, equal ones
-				// as one
-			QCOMPARE(codification.nominalSizes(), (QList<PipeDiameter>{dn60, dn80, dn100, dn125}));
+				// as one, the usual one
+			QCOMPARE(codification.nominalSizes(), (QList<PipeDiameter>{dn65, dn80, dn100, dn125}));
 			QCOMPARE(codification.lineSizes(QString()), codification.nominalSizes());
 			QCOMPARE(codification.lineSizes(QStringLiteral("M99")), codification.nominalSizes());
 				// those of ISO 6708 when the project has none
@@ -309,10 +309,19 @@ class tst_pipediameter : public QObject
 			QVERIFY(!codification.sameNominal(80, 100));
 			QCOMPARE(codification.equalNominals(65), (QList<int>{60, 65}));
 			QCOMPARE(codification.equalNominals(80), QList<int>{80});
-				// without material no DN is chosen among them: the first
+				// the usual one: the DN most materials have, the greater of
+				// two as usual; DN 60 is of cast iron only
+			QCOMPARE(codification.usualNominal(60), 65);
+			QCOMPARE(codification.usualNominal(65), 65);
+			QCOMPARE(codification.usualNominal(80), 80);
+			PidCodification irons = codification;
+			irons.materials << material(QStringLiteral("M07"), false, {{0, 60}});
+			QCOMPARE(irons.usualNominal(65), 60);
+				// without material no DN is chosen among them: the usual one
 				// stands for all, and they are written together
-			QCOMPARE(codification.nominalIn(dn65, QString()), dn60);
-			QCOMPARE(codification.nominalIn(dn65, QStringLiteral("M99")), dn60);
+			QCOMPARE(codification.nominalIn(dn65, QString()), dn65);
+			QCOMPARE(codification.nominalIn(dn60, QString()), dn65);
+			QCOMPARE(codification.nominalIn(dn60, QStringLiteral("M99")), dn65);
 			QCOMPARE(codification.text(dn65, QString()), QStringLiteral("DN 60/65"));
 			QCOMPARE(codification.text(dn60, QStringLiteral("M99")), QStringLiteral("DN 60/65"));
 			QCOMPARE(codification.text(dn60, QStringLiteral("M06")), QStringLiteral("DN 60"));
@@ -321,8 +330,8 @@ class tst_pipediameter : public QObject
 			QCOMPARE(codification.text(PipeDiameter::outside(88.9), QString()), QStringLiteral("Ø 88.9"));
 			QVERIFY(codification.text(PipeDiameter(), QString()).isEmpty());
 				// read back as written, in any order
-			QCOMPARE(codification.nominalOfEqualText(QStringLiteral("DN 60/65")), dn60);
-			QCOMPARE(codification.nominalOfEqualText(QStringLiteral("65/60")), dn60);
+			QCOMPARE(codification.nominalOfEqualText(QStringLiteral("DN 60/65")), dn65);
+			QCOMPARE(codification.nominalOfEqualText(QStringLiteral("65/60")), dn65);
 			QVERIFY(!codification.nominalOfEqualText(QStringLiteral("60/80")).isSet());
 			QVERIFY(!codification.nominalOfEqualText(QStringLiteral("DN 60")).isSet());
 			QVERIFY(!codification.nominalOfEqualText(QStringLiteral("60/x")).isSet());

@@ -1881,6 +1881,15 @@ QString Terminal::labelText() const
 	if (folio && folio->project() && !folio->project()->pidCodification().show_nozzle_sizes) {
 		return name();
 	}
+	const QString shown = diameterText();
+	if (shown.isEmpty()) {
+		return name();
+	}
+	return name().isEmpty() ? shown : name() + QLatin1Char('\n') + shown;
+}
+
+QString Terminal::diameterText() const
+{
 		//Its own size, else that of its line, written as the project
 		//writes the size of this pipe
 	const Conductor *pipe = nullptr;
@@ -1888,11 +1897,7 @@ QString Terminal::labelText() const
 	if (!size.isSet()) {
 		size = pipeDiameter(&pipe);
 	}
-	if (!size.isSet()) {
-		return name();
-	}
-	const QString shown = sizeText(size, pipe);
-	return name().isEmpty() ? shown : name() + QLatin1Char('\n') + shown;
+	return size.isSet() ? sizeText(size, pipe) : QString();
 }
 
 QLocale Terminal::sizeLocale() const
