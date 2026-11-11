@@ -541,6 +541,96 @@ class tst_pipepanel : public QObject
 			m_project.setPidCodification(PidCodification());
 		}
 
+			// The outside diameter chosen for a DN which has several may be
+			// remembered: it becomes the default one of this DN in the
+			// material, in the step of the pipe, and is no longer asked
+		void theOutsideDiameterChosenMayBeRemembered()
+		{
+			PidCodification codification;
+			PidCodification::Entry plastic;
+			plastic.code = QStringLiteral("M01");
+			plastic.outside_diameter = true;
+			plastic.addSize(1100, 100);
+			plastic.addSize(1250, 100);
+			codification.materials = {plastic};
+			m_project.setPidCodification(codification);
+			auto usual = [this]() {
+				return m_project.pidCodification().defaultOutside(PipeDiameter::nominal(100),
+																   QStringLiteral("M01"));
+			};
+
+			QList<Conductor *> pipes;
+			for (int i = 0 ; i < 3 ; ++i) {
+				Conductor *pipe = draw(m_nozzles);
+				QVERIFY(pipe);
+				ConductorProperties p = pipe->properties();
+				p.m_pipe.material = QStringLiteral("M01");
+				pipe->setProperties(p);
+				pipes << pipe;
+			}
+			int asked = 0;
+			bool remember = false;
+			QString box;
+			auto chooser = [&asked](const QString &, const QStringList &) {
+				++asked;
+				return 1;
+			};
+			auto rememberer = [&remember, &box](const QString &text) {
+				box = text;
+				return remember;
+			};
+
+				// not remembered: nothing changes in the project
+			{
+				PipePropertiesWidget page({pipes.at(0)});
+				page.setChooser(chooser);
+				page.setRememberer(rememberer);
+				auto *list = page.findChild<QComboBox *>(QStringLiteral("diameter_list"));
+				QVERIFY(list);
+				type(list->lineEdit(), QStringLiteral("DN 100"));
+				QCOMPARE(asked, 1);
+				QCOMPARE(pipes.at(0)->properties().m_pipe.outside, PipeDiameter::outside(125));
+				QVERIFY(box.contains(QStringLiteral("DN 100")) && box.contains(QStringLiteral("M01")));
+				QVERIFY(!usual().isSet());
+			}
+
+				// remembered: the default one of the material, in the same step
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.count();
+			remember = true;
+			{
+				PipePropertiesWidget page({pipes.at(1)});
+				page.setChooser(chooser);
+				page.setRememberer(rememberer);
+				auto *list = page.findChild<QComboBox *>(QStringLiteral("diameter_list"));
+				QVERIFY(list);
+				type(list->lineEdit(), QStringLiteral("DN 100"));
+				QCOMPARE(asked, 2);
+				QCOMPARE(pipes.at(1)->properties().m_pipe.outside, PipeDiameter::outside(125));
+				QCOMPARE(usual(), PipeDiameter::outside(125));
+				QCOMPARE(stack.count(), steps + 1);
+				QVERIFY(page.diameterMessage().contains(QStringLiteral("Codification")));
+			}
+			stack.undo();
+			QVERIFY(!usual().isSet());
+			QVERIFY(!pipes.at(1)->properties().m_pipe.outside.isSet());
+			stack.redo();
+			QCOMPARE(usual(), PipeDiameter::outside(125));
+
+				// then it is taken without a question
+			{
+				PipePropertiesWidget page({pipes.at(2)});
+				page.setChooser(chooser);
+				page.setRememberer(rememberer);
+				auto *list = page.findChild<QComboBox *>(QStringLiteral("diameter_list"));
+				QVERIFY(list);
+				type(list->lineEdit(), QStringLiteral("DN 100"));
+				QCOMPARE(asked, 2);
+				QCOMPARE(pipes.at(2)->properties().m_pipe.outside, PipeDiameter::outside(125));
+			}
+			m_project.setPidCodification(PidCodification());
+		}
+
 			// A change of material keeps the DN, the size of the line, in the
 			// same step; the outside diameter is the one of the new material,
 			// which the user chooses among several

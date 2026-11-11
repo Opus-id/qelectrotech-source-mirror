@@ -24,8 +24,10 @@
 #include "../pidstatus.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetproject.h"
+#include "../undocommand/changepidcodificationcommand.h"
 #include "diameterlist.h"
 
+#include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDialog>
@@ -557,9 +559,7 @@ void PipePropertiesWidget::diameterEdited()
 			notes << tr("%1 → %2: the default outside diameter of the material %3.")
 					 .arg(nominal.text(locale), outside.text(locale), material);
 		} else if (outsides.size() > 1) {
-			outside = chooseSize(tr("Which outside diameter for %1 in the material %2?")
-								 .arg(nominal.text(locale), material),
-								 outsides, tr("Leave it empty"));
+			outside = chooseOutside(nominal, material, outsides, notes);
 		}
 	}
 	else
@@ -602,6 +602,8 @@ void PipePropertiesWidget::diameterEdited()
 
 	if (!refusal.isEmpty() || cancelled) {
 		m_refused = refusal;
+			//Nothing changed: no default outside diameter either
+		m_new_defaults.clear();
 	} else {
 		m_refused.clear();
 			//The pipes continued through valves get the same size of line
@@ -647,9 +649,7 @@ void PipePropertiesWidget::resizeLine(const PipeDiameter &nominal, const PipeDia
 			|| codes.defaultOutside(dn, p.material).isSet()) {
 			continue;
 		}
-		outside_of.insert(key, chooseSize(tr("Which outside diameter for %1 in the material %2?")
-										  .arg(dn.text(locale), p.material),
-										  outsides, tr("Leave it empty")));
+		outside_of.insert(key, chooseOutside(dn, p.material, outsides, notes));
 	}
 
 	auto resize = [&](PipeProperties &p) {
@@ -716,6 +716,9 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 		//the outside diameter of a DN the material has several for, by DN
 	QMap<int, PipeDiameter> nominal_of;
 	QMap<QString, PipeDiameter> outside_of;
+		//What is said of it: a default outside diameter remembered, a DN
+		//found, an outside diameter replaced
+	QStringList notes;
 	for (Conductor *pipe : pipes())
 	{
 		const PipeProperties p = pipe->properties().m_pipe;
@@ -736,14 +739,9 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 		const QList<PipeDiameter> outsides = codes.outsidesOf(dn, code);
 		if (outsides.size() > 1 && !outsides.contains(p.outside)
 			&& !codes.defaultOutside(dn, code).isSet()) {
-			outside_of.insert(sizeKey(code, dn),
-							  chooseSize(tr("Which outside diameter for %1 in the material %2?")
-										 .arg(dn.text(locale), code),
-										 outsides, tr("Leave it empty")));
+			outside_of.insert(sizeKey(code, dn), chooseOutside(dn, code, outsides, notes));
 		}
 	}
-		//What is said of it: a DN found, an outside diameter replaced
-	QStringList notes;
 	for (Conductor *pipe : pipes())
 	{
 		const PipeProperties before = pipe->properties().m_pipe;
@@ -782,16 +780,52 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 	See the declaration
 */
 int PipePropertiesWidget::choose(const QString &question, const QStringList &items,
-								 const QString &none)
+								 const QString &none, const QString &remember, bool *remembered)
 {
+	if (remembered) {
+		*remembered = false;
+	}
 	if (m_chooser) {
-		return m_chooser(question, items);
+		const int index = m_chooser(question, items);
+		if (remembered && !remember.isEmpty() && index >= 0 && m_rememberer) {
+			*remembered = m_rememberer(remember);
+		}
+		return index;
 	}
 	QStringList offered = items;
 	offered << none;
-	bool ok = false;
-	const QString picked = QInputDialog::getItem(this, title(), question, offered, 0, false, &ok);
-	return ok ? int(items.indexOf(picked)) : -1;
+	if (remember.isEmpty() || !remembered) {
+		bool ok = false;
+		const QString picked = QInputDialog::getItem(this, title(), question, offered, 0, false, &ok);
+		return ok ? int(items.indexOf(picked)) : -1;
+	}
+		//The list, and the box which keeps the answer
+	QDialog dialog(this);
+	dialog.setWindowTitle(title());
+	auto *layout = new QVBoxLayout(&dialog);
+	auto *label = new QLabel(question, &dialog);
+	label->setWordWrap(true);
+	auto *list = new QComboBox(&dialog);
+	list->addItems(offered);
+	auto *box = new QCheckBox(remember, &dialog);
+	auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+	layout->addWidget(label);
+	layout->addWidget(list);
+	layout->addWidget(box);
+	layout->addWidget(buttons);
+	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+		//Nothing to remember for none
+	const int count = int(items.size());
+	connect(list, &QComboBox::currentIndexChanged, box, [box, count](int index) {
+		box->setEnabled(index < count);
+	});
+	if (dialog.exec() != QDialog::Accepted) {
+		return -1;
+	}
+	const int index = list->currentIndex() < count ? list->currentIndex() : -1;
+	*remembered = index >= 0 && box->isChecked();
+	return index;
 }
 
 /**
@@ -799,15 +833,40 @@ int PipePropertiesWidget::choose(const QString &question, const QStringList &ite
 	See the declaration
 */
 PipeDiameter PipePropertiesWidget::chooseSize(const QString &question, const QList<PipeDiameter> &sizes,
-											  const QString &none)
+											  const QString &none, const QString &remember,
+											  bool *remembered)
 {
 	const QLocale locale = codification().locale();
 	QStringList items;
 	for (const PipeDiameter &size : sizes) {
 		items << size.text(locale);
 	}
-	const int index = choose(question, items, none);
+	const int index = choose(question, items, none, remember, remembered);
 	return index >= 0 && index < sizes.size() ? sizes.at(index) : PipeDiameter();
+}
+
+/**
+	@brief PipePropertiesWidget::chooseOutside
+	See the declaration
+*/
+PipeDiameter PipePropertiesWidget::chooseOutside(const PipeDiameter &nominal, const QString &material,
+												 const QList<PipeDiameter> &outsides, QStringList &notes)
+{
+	const QLocale locale = codification().locale();
+	bool remembered = false;
+	const PipeDiameter outside = chooseSize(
+				tr("Which outside diameter for %1 in the material %2?").arg(nominal.text(locale), material),
+				outsides, tr("Leave it empty"),
+				m_project ? tr("Remember it as the default outside diameter of %1 in the material %2")
+							.arg(nominal.text(locale), material)
+						  : QString(),
+				&remembered);
+	if (remembered && outside.isSet()) {
+		m_new_defaults << qMakePair(material, outside);
+		notes << tr("%1 is now the default outside diameter of %2 in the material %3 (Codification).")
+				 .arg(outside.text(locale), nominal.text(locale), material);
+	}
+	return outside;
 }
 
 /**
@@ -975,6 +1034,29 @@ void PipePropertiesWidget::applyChange(const std::function<void(PipeProperties &
 	const QList<Conductor *> changed = changedPipes(through_valves);
 	auto *undo = new QUndoCommand(tr("Change the properties of a pipe line"));
 	Diagram *diagram = nullptr;
+		//The outside diameters the user chose to remember become the
+		//default ones of their DN, first: the pipes are drawn with them
+	const QList<QPair<QString, PipeDiameter>> new_defaults = m_new_defaults;
+	m_new_defaults.clear();
+	if (!new_defaults.isEmpty() && m_project) {
+		PidCodification codes = m_project->pidCodification();
+		for (const auto &chosen : new_defaults) {
+			for (PidCodification::Entry &entry : codes.materials) {
+				if (entry.code == chosen.first) {
+					entry.setDefaultSize(chosen.second.tenths());
+				}
+			}
+		}
+		if (!(codes == m_project->pidCodification())) {
+			new ChangePidCodificationCommand(m_project, codes, {}, undo);
+			for (Conductor *pipe : std::as_const(m_pipes)) {
+				if (pipe && pipe->diagram()) {
+					diagram = pipe->diagram();
+					break;
+				}
+			}
+		}
+	}
 	for (Conductor *pipe : changed)
 	{
 		ConductorProperties properties = pipe->properties();

@@ -123,11 +123,22 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// DN; none for a material named by its DN
 		void materialEdited(const QString &code);
 			/// The answer to @p question among @p items, -1 for none, which
-			/// the dialog offers last as @p none
-		int choose(const QString &question, const QStringList &items, const QString &none);
+			/// the dialog offers last as @p none. With @p remember, the
+			/// dialog has a box of this text too, unchecked, whose state is
+			/// written in @p remembered (false for none).
+		int choose(const QString &question, const QStringList &items, const QString &none,
+				   const QString &remember = QString(), bool *remembered = nullptr);
 			/// The size chosen among @p sizes, see choose(); none for none
 		PipeDiameter chooseSize(const QString &question, const QList<PipeDiameter> &sizes,
-								const QString &none);
+								const QString &none, const QString &remember = QString(),
+								bool *remembered = nullptr);
+			/// The outside diameter the user chooses among @p outsides for
+			/// the DN @p nominal in the material @p material, none for none.
+			/// The answer may be kept as the default one of this DN in the
+			/// material: the codification of the project is then changed in
+			/// the step of the next applyChange(), and it is said in @p notes.
+		PipeDiameter chooseOutside(const PipeDiameter &nominal, const QString &material,
+								   const QList<PipeDiameter> &outsides, QStringList &notes);
 			/// What is wrong with the diameter shown, empty when nothing
 		QString diameterWarning() const;
 
@@ -142,6 +153,12 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		void setChooser(const std::function<int(const QString &, const QStringList &)> &chooser) {
 			m_chooser = chooser;
 		}
+			/// With a chooser (setChooser()), what answers the box of a
+			/// question which may be remembered, from its text; unchecked
+			/// without it
+		void setRememberer(const std::function<bool(const QString &)> &rememberer) {
+			m_rememberer = rememberer;
+		}
 
 	private:
 		QComboBox *m_diameter = nullptr;
@@ -149,6 +166,10 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// A value typed and refused, said until the next change
 		QString m_refused;
 		std::function<int(const QString &, const QStringList &)> m_chooser;
+		std::function<bool(const QString &)> m_rememberer;
+			/// The outside diameters chosen to be the default ones of their
+			/// DN, by material (chooseOutside()), until applyChange()
+		QList<QPair<QString, PipeDiameter>> m_new_defaults;
 
 		QList<QPointer<Conductor>> m_pipes;
 			/// The project of the pipes, for its codification

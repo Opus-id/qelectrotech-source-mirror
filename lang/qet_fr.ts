@@ -13082,6 +13082,16 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>Remember it as the default outside diameter of %1 in the material %2</source>
+        <translation>Retenir comme diamètre extérieur par défaut de %1 dans le matériau %2</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
+        <source>%1 is now the default outside diameter of %2 in the material %3 (Codification).</source>
+        <translation>%1 est désormais le diamètre extérieur par défaut de %2 dans le matériau %3 (Codification).</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="300"/>
         <source>Change nothing</source>
         <translation>Ne rien changer</translation>
     </message>
