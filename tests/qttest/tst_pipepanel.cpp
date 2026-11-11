@@ -584,6 +584,74 @@ class tst_pipepanel : public QObject
 			m_project.setPidCodification(PidCodification());
 		}
 
+			// A DN which has several outside diameters in a material, one of
+			// them its default one: taken without a question, and said
+		void aDefaultOutsideDiameterIsTakenWithoutAQuestion()
+		{
+			PidCodification codification;
+			PidCodification::Entry plastic;
+			plastic.code = QStringLiteral("M01");
+			plastic.outside_diameter = true;
+			plastic.addSize(1100, 100);
+			plastic.addSize(1250, 100, true);
+				// DN 150 has two too, and no default one
+			plastic.addSize(1600, 150);
+			plastic.addSize(1800, 150);
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.addSize(0, 100);
+			steel.addSize(0, 150);
+			codification.materials = {plastic, steel};
+			m_project.setPidCodification(codification);
+
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(pipe);
+			ConductorProperties p = pipe->properties();
+			p.m_pipe.material = QStringLiteral("M01");
+			pipe->setProperties(p);
+			PipePropertiesWidget page({pipe});
+			QLineEdit *edit = page.findChild<QComboBox *>(QStringLiteral("diameter_list"))->lineEdit();
+			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
+			QVERIFY(edit && material);
+			auto dn = [pipe]() { return pipe->properties().m_pipe.nominal; };
+			auto od = [pipe]() { return pipe->properties().m_pipe.outside; };
+			int asked = 0;
+			page.setChooser([&asked](const QString &, const QStringList &) {
+				++asked;
+				return 0;
+			});
+
+				// a DN typed: its default outside diameter, in the same step
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.count();
+			type(edit, QStringLiteral("DN 100"));
+			QCOMPARE(asked, 0);
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QCOMPARE(od(), PipeDiameter::outside(125));
+			QCOMPARE(stack.count(), steps + 1);
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("125")));
+				// the other one of this DN stays when the pipe has it
+			type(edit, QStringLiteral("110"));
+			type(edit, QStringLiteral("DN 100"));
+			QCOMPARE(od(), PipeDiameter::outside(110));
+			QCOMPARE(asked, 0);
+				// no default one: the question, as before
+			type(edit, QStringLiteral("DN 150"));
+			QCOMPARE(asked, 1);
+			QCOMPARE(od(), PipeDiameter::outside(160));
+
+				// a change of material: the default one again, and said
+			type(material->lineEdit(), QStringLiteral("M02"));
+			type(edit, QStringLiteral("100"));
+			QVERIFY(!od().isSet());
+			type(material->lineEdit(), QStringLiteral("M01"));
+			QCOMPARE(asked, 1);
+			QCOMPARE(dn(), PipeDiameter::nominal(100));
+			QCOMPARE(od(), PipeDiameter::outside(125));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("125")));
+			m_project.setPidCodification(PidCodification());
+		}
+
 			// Several pipes get a material at once: one question for a DN,
 			// whatever their number
 		void aQuestionIsAskedOnceForADn()

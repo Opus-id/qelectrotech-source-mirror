@@ -11,6 +11,8 @@
 #include <QComboBox>
 #include <QDomDocument>
 #include <QFile>
+#include <QGroupBox>
+#include <QLineEdit>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QUndoStack>
@@ -162,6 +164,127 @@ class tst_pipediameter : public QObject
 			e.outside_diameter = false;
 			QCOMPARE(PidCodification::sizesOf(e),
 					 (QList<PipeDiameter>{PipeDiameter::nominal(100), PipeDiameter::nominal(150)}));
+		}
+
+			// A DN which has several outside diameters in a material may have
+			// a default one, taken without a question: one at most by DN
+		void aDnMayHaveADefaultOutsideDiameter()
+		{
+			PidCodification::Entry e;
+			e.code = QStringLiteral("M01");
+			e.name = e.code;
+			e.outside_diameter = true;
+			QVERIFY(e.addSize(1100, 100));
+			QVERIFY(e.addSize(1250, 100, true));
+			QVERIFY(e.addSize(1600, 150));
+			QVERIFY(e.addSize(4500, 0));
+			QCOMPARE(e.outsideCount(100), 2);
+			PidCodification codification;
+			codification.materials = {e};
+			PidCodification::Entry &material = codification.materials.first();
+			const QString code = QStringLiteral("M01");
+			const PipeDiameter dn100 = PipeDiameter::nominal(100), dn150 = PipeDiameter::nominal(150);
+			QCOMPARE(codification.defaultOutside(dn100, code), PipeDiameter::outside(125));
+			QCOMPARE(codification.outsideOf(dn100, code), PipeDiameter::outside(125));
+				// the only one of a DN is taken, and is no default
+			QCOMPARE(codification.outsideOf(dn150, code), PipeDiameter::outside(160));
+			QVERIFY(!codification.defaultOutside(dn150, code).isSet());
+
+				// written in a file of codes and in the project, where it is only
+			const QString csv = codification.toCsv();
+			QVERIFY(csv.contains(QStringLiteral("size;M01;125;100;default\n")));
+			QVERIFY(csv.contains(QStringLiteral("size;M01;110;100\n")));
+			int skipped = -1;
+			QCOMPARE(PidCodification::fromCsv(csv, &skipped), codification);
+			QCOMPARE(skipped, 0);
+			QDomDocument doc;
+			QDomElement project = doc.createElement(QStringLiteral("project"));
+			project.appendChild(codification.toXml(doc));
+			const QDomNodeList sizes = project.elementsByTagName(QStringLiteral("size"));
+			QCOMPARE(sizes.size(), 4);
+			QVERIFY(!sizes.at(0).toElement().hasAttribute(QStringLiteral("default")));
+			QCOMPARE(sizes.at(1).toElement().attribute(QStringLiteral("default")), QStringLiteral("true"));
+			PidCodification back;
+			back.fromXml(project);
+			QCOMPARE(back, codification);
+
+				// one by DN: the one before is so no more
+			QVERIFY(material.setDefaultSize(1100));
+			QCOMPARE(codification.defaultOutside(dn100, code), PipeDiameter::outside(110));
+			QVERIFY(!material.sizes.at(1).by_default);
+				// none: the user chooses
+			QVERIFY(material.setDefaultSize(1100, false));
+			QVERIFY(!codification.outsideOf(dn100, code).isSet());
+				// a size which is not there, or without a DN
+			QVERIFY(!material.setDefaultSize(999));
+			QVERIFY(!material.setDefaultSize(4500));
+				// the one left alone for its DN is no default any more
+			QVERIFY(material.setDefaultSize(1250));
+			QVERIFY(material.removeSize(1100, 100));
+			QVERIFY(!material.removeSize(1100, 100));
+			QCOMPARE(material.sizes.first(), (PidCodification::Size{1250, 100, false}));
+			QCOMPARE(codification.outsideOf(dn100, code), PipeDiameter::outside(125));
+
+				// the French word; a word not known, a default without both
+				// values: lines left out
+			const PidCodification read = PidCodification::fromCsv(QStringLiteral(
+				"material;M01;PE;od\n"
+				"size;M01;110;100;défaut\n"
+				"size;M01;125;100\n"
+				"size;M01;160;150;maybe\n"
+				"size;M01;200;;default\n"), &skipped);
+			QCOMPARE(skipped, 2);
+			QCOMPARE(read.materials.first().sizes.size(), 2);
+			QCOMPARE(read.defaultOutside(dn100, code), PipeDiameter::outside(110));
+				// a material named by its DN gives its pipes no outside diameter
+			material.outside_diameter = false;
+			QVERIFY(!codification.outsideOf(dn100, code).isSet());
+		}
+
+			// The sizes of a material the file does not list are lines left
+			// out, unless they are asked for the materials of a page
+		void theSizesAloneAreKeptForWhoAsksThem()
+		{
+			const QString text = QStringLiteral("size;M01;125;100;default\n"
+												"size;M01;110;100\n"
+												"size;M01;110;80\n"
+												"size;M07;;80\n"
+												"dn_equal;60;65\n");
+			int skipped = -1;
+			QMap<QString, QList<PidCodification::Size>> loose;
+			const PidCodification read = PidCodification::fromCsv(text, &skipped, &loose);
+				// an outside diameter has one DN
+			QCOMPARE(skipped, 1);
+			QVERIFY(read.materials.isEmpty());
+			QCOMPARE(read.equal_nominals.size(), 1);
+			QCOMPARE(loose.keys(), (QStringList{QStringLiteral("M01"), QStringLiteral("M07")}));
+			QCOMPARE(loose.value(QStringLiteral("M01")),
+					 (QList<PidCodification::Size>{{1100, 100, false}, {1250, 100, true}}));
+			QVERIFY(PidCodification::fromCsv(text, &skipped).materials.isEmpty());
+			QCOMPARE(skipped, 4);
+		}
+
+			// The DN which are the same size of line are typed together
+		void equalDnAreTypedTogether()
+		{
+			PidCodification codification;
+			QVERIFY(codification.equalNominalsText().isEmpty());
+			QVERIFY(codification.setEqualNominalsText(QStringLiteral("125/130, 60/65")));
+			QCOMPARE(codification.equal_nominals, (QList<QPair<int, int>>{{60, 65}, {125, 130}}));
+			QCOMPARE(codification.equalNominalsText(), QStringLiteral("60/65, 125/130"));
+				// three of them, with what a user may type around
+			QVERIFY(codification.setEqualNominalsText(QStringLiteral(" DN 60 / 65 ; 70/65  60/65")));
+			QCOMPARE(codification.equalNominalsText(), QStringLiteral("60/65/70"));
+			QVERIFY(codification.sameNominal(60, 70));
+				// what cannot be read changes nothing
+			for (const QString &wrong : {QStringLiteral("60"), QStringLiteral("60/60"),
+										 QStringLiteral("60/x"), QStringLiteral("60/65,5"),
+										 QStringLiteral("60/0"), QStringLiteral("60/65.5")}) {
+				QVERIFY2(!codification.setEqualNominalsText(wrong), qPrintable(wrong));
+				QCOMPARE(codification.equalNominalsText(), QStringLiteral("60/65/70"));
+			}
+			QVERIFY(codification.setEqualNominalsText(QStringLiteral("  ")));
+			QVERIFY(codification.equal_nominals.isEmpty());
 		}
 
 		void aPipeTakesTheSizesOfItsMaterial()
@@ -562,6 +685,134 @@ class tst_pipediameter : public QObject
 			project.undoStack()->undo();
 			QVERIFY(project.pidCodification().outsideDiameterFor(QStringLiteral("M03")));
 			QVERIFY(project.pidCodification().material(QStringLiteral("M01")));
+		}
+
+			// The sizes of the material of the current line are typed in the
+			// list beside the materials
+		void theSizesOfAMaterialAreTypedInThePage()
+		{
+			QETProject project;
+			project.undoStack()->push(new ChangePidCodificationCommand(&project, table()));
+			PidConfigPage page(&project);
+			QTableWidget *materials = page.codeTable(PidCodification::List::Materials);
+			QTableWidget *sizes = page.sizeTable();
+			auto *box = page.findChild<QGroupBox *>(QStringLiteral("size_box"));
+			QVERIFY(sizes && box);
+			auto text = [sizes](int row, int column) { return sizes->item(row, column)->text(); };
+			auto hasBox = [sizes](int row) {
+				return sizes->item(row, 2)->data(Qt::CheckStateRole).isValid();
+			};
+
+				// those of the first material at first, in order
+			QVERIFY(box->isEnabled());
+			QVERIFY(box->title().contains(QStringLiteral("M01")));
+			QCOMPARE(sizes->rowCount(), 3);
+			QCOMPARE(text(0, 0), QStringLiteral("110"));
+			QCOMPARE(text(0, 1), QStringLiteral("100"));
+			QCOMPARE(text(2, 0), QStringLiteral("450"));
+			QVERIFY(text(2, 1).isEmpty());
+				// DN 100 has two outside diameters: a box each, none checked
+			QVERIFY(hasBox(0) && hasBox(1) && !hasBox(2));
+			QCOMPARE(sizes->item(0, 2)->checkState(), Qt::Unchecked);
+
+				// a steel: a DN each
+			materials->setCurrentCell(1, 0);
+			QVERIFY(box->title().contains(QStringLiteral("M02")));
+			QCOMPARE(sizes->rowCount(), 3);
+			QVERIFY(text(0, 0).isEmpty());
+			QCOMPARE(text(0, 1), QStringLiteral("80"));
+			QVERIFY(!hasBox(0));
+				// a size added, as it is typed
+			page.addSize();
+			QCOMPARE(sizes->rowCount(), 4);
+			sizes->item(3, 1)->setText(QStringLiteral("DN 150"));
+			QCOMPARE(text(3, 1), QStringLiteral("150"));
+			QCOMPARE(materials->item(1, 3)->text(), QStringLiteral("DN 80 … DN 150 (4)"));
+			QVERIFY(page.codeMessage().isEmpty());
+				// its outside diameter, to the tenth, with the separator of the page
+			sizes->item(3, 0)->setText(QStringLiteral("168,3"));
+			QCOMPARE(text(3, 0), QStringLiteral("168.3"));
+				// what is no size gets its value back, and it is said
+			sizes->item(3, 1)->setText(QStringLiteral("abc"));
+			QCOMPARE(text(3, 1), QStringLiteral("150"));
+			QVERIFY(!page.codeMessage().isEmpty());
+			sizes->item(3, 1)->setText(QStringLiteral("150,5"));
+			QCOMPARE(text(3, 1), QStringLiteral("150"));
+			sizes->item(3, 0)->setText(QStringLiteral("DN 200"));
+			QCOMPARE(text(3, 0), QStringLiteral("168.3"));
+				// a DN alone is listed once
+			page.addSize();
+			sizes->item(4, 1)->setText(QStringLiteral("100"));
+			QVERIFY(text(4, 1).isEmpty());
+			QVERIFY(!page.codeMessage().isEmpty());
+				// a size removed; the line not filled is no size
+			sizes->clearSelection();
+			sizes->selectRow(0);
+			page.removeSelectedSizes();
+			QCOMPARE(sizes->rowCount(), 4);
+			QCOMPARE(materials->item(1, 3)->text(), QStringLiteral("DN 100 … DN 150 (3)"));
+
+				// a plastic: the default outside diameter of a DN, one by DN
+			materials->setCurrentCell(0, 0);
+			QCOMPARE(sizes->rowCount(), 3);
+			sizes->item(1, 2)->setCheckState(Qt::Checked);
+			QCOMPARE(sizes->item(1, 2)->checkState(), Qt::Checked);
+			sizes->item(0, 2)->setCheckState(Qt::Checked);
+			QCOMPARE(sizes->item(0, 2)->checkState(), Qt::Checked);
+			QCOMPARE(sizes->item(1, 2)->checkState(), Qt::Unchecked);
+				// an outside diameter has one DN
+			page.addSize();
+			sizes->item(3, 0)->setText(QStringLiteral("125"));
+			QVERIFY(text(3, 0).isEmpty());
+			sizes->item(3, 0)->setText(QStringLiteral("Ø 140"));
+			sizes->item(3, 1)->setText(QStringLiteral("125"));
+			QCOMPARE(text(3, 0), QStringLiteral("140"));
+			QVERIFY(!hasBox(3));
+				// a line which lacks what names the pipes is in orange
+			page.addSize();
+			sizes->item(4, 1)->setText(QStringLiteral("200"));
+			QVERIFY(sizes->item(4, 0)->background() != QBrush());
+			QVERIFY(sizes->item(0, 0)->background() == QBrush());
+				// named by its DN instead: no default to choose, nothing lacks
+			materials->item(0, 2)->setCheckState(Qt::Unchecked);
+			QVERIFY(!hasBox(0));
+			QVERIFY(sizes->item(4, 0)->background() == QBrush());
+			materials->item(0, 2)->setCheckState(Qt::Checked);
+			QVERIFY(hasBox(0));
+			QCOMPARE(sizes->item(0, 2)->checkState(), Qt::Checked);
+
+				// the equal DN of the project, typed together
+			auto *equal = page.findChild<QLineEdit *>(QStringLiteral("equal_dn"));
+			QVERIFY(equal);
+			QCOMPARE(equal->text(), QStringLiteral("60/65"));
+			equal->setText(QStringLiteral("60/65; 100/110"));
+			emit equal->editingFinished();
+			QCOMPARE(equal->text(), QStringLiteral("60/65, 100/110"));
+			equal->setText(QStringLiteral("60"));
+			emit equal->editingFinished();
+			QCOMPARE(equal->text(), QStringLiteral("60/65, 100/110"));
+			QVERIFY(!page.codeMessage().isEmpty());
+
+				// nothing before the page is applied; then in one step
+			QCOMPARE(project.pidCodification(), table());
+			const int steps = project.undoStack()->count();
+			page.applyProjectConf();
+			QCOMPARE(project.undoStack()->count(), steps + 1);
+			const PidCodification applied = project.pidCodification();
+			QCOMPARE(applied.material(QStringLiteral("M02"))->sizes,
+					 (QList<PidCodification::Size>{{0, 100}, {0, 125}, {1683, 150}}));
+			QCOMPARE(applied.material(QStringLiteral("M01"))->sizes,
+					 (QList<PidCodification::Size>{{1100, 100, true}, {1250, 100}, {1400, 125},
+												   {0, 200}, {4500, 0}}));
+			QCOMPARE(applied.outsideOf(PipeDiameter::nominal(100), QStringLiteral("M01")),
+					 PipeDiameter::outside(110));
+			QCOMPARE(applied.equal_nominals, (QList<QPair<int, int>>{{60, 65}, {100, 110}}));
+				// the page shows the project again, in order
+			QCOMPARE(sizes->rowCount(), 5);
+			QCOMPARE(text(3, 1), QStringLiteral("200"));
+			project.undoStack()->undo();
+			QCOMPARE(project.pidCodification(), table());
+			QCOMPARE(sizes->rowCount(), 3);
 		}
 
 			// A project with codes keeps its separator, whatever the language

@@ -60,9 +60,14 @@ class PidCodification
 			int outside = 0;
 				/// The DN, a whole number; 0 when it is not known
 			int nominal = 0;
+				/// The outside diameter a pipe of this DN takes without a
+				/// question, where the material has several for it: one at
+				/// most by DN (Entry::setDefaultSize())
+			bool by_default = false;
 
 			bool operator==(const Size &other) const {
-				return outside == other.outside && nominal == other.nominal;
+				return outside == other.outside && nominal == other.nominal
+						&& by_default == other.by_default;
 			}
 		};
 
@@ -92,8 +97,20 @@ class PidCodification
 				/// being added, when it has neither, when this outside
 				/// diameter is already there (an outside diameter has one DN
 				/// only; a DN may have several outside diameters), or this DN
-				/// alone.
-			bool addSize(int outside, int nominal);
+				/// alone. With @p by_default it becomes the default one of
+				/// its DN (setDefaultSize()).
+			bool addSize(int outside, int nominal, bool by_default = false);
+				/// Remove the size of @p outside and @p nominal; false when
+				/// it is not there. The outside diameter left alone for its
+				/// DN is no default any more: there is nothing to choose.
+			bool removeSize(int outside, int nominal);
+				/// Make the size of the outside diameter @p outside the
+				/// default one of its DN, the one before being so no more,
+				/// or with @p on false no default any more. False when it
+				/// is not there, or has no DN.
+			bool setDefaultSize(int outside, bool on = true);
+				/// How many outside diameters the DN @p nominal has
+			int outsideCount(int nominal) const;
 
 			bool operator==(const Entry &other) const;
 		};
@@ -137,6 +154,14 @@ class PidCodification
 			/// them, in order: those equal_nominals joins to it, one after
 			/// the other
 		QList<int> equalNominals(int dn) const;
+			/// equal_nominals as it is typed: "60/65, 125/130", the DN which
+			/// are the same size of line together
+		QString equalNominalsText() const;
+			/// Take equal_nominals from @p text, written as
+			/// equalNominalsText() does ("DN 60/65" too; a semicolon or a
+			/// space between two groups too); none for an empty text. False,
+			/// nothing changed, when it cannot be read.
+		bool setEqualNominalsText(const QString &text);
 			/// The DN @p a and @p b are the same size of line: the same, or
 			/// joined by equal_nominals
 		bool sameNominal(int a, int b) const;
@@ -220,6 +245,17 @@ class PidCodification
 			/// has not
 		QList<PipeDiameter> outsidesOf(const PipeDiameter &nominal,
 									   const QString &material_code) const;
+			/// The one of several outsidesOf() the material says the default
+			/// one (Size::by_default); none when it says none, or has one
+			/// outside diameter only for this DN
+		PipeDiameter defaultOutside(const PipeDiameter &nominal,
+									const QString &material_code) const;
+			/// The outside diameter a pipe of the DN @p nominal takes in the
+			/// material of code @p material_code without a question: the
+			/// only one of outsidesOf(), or defaultOutside() among several;
+			/// none when the user has to choose, or when there is none
+		PipeDiameter outsideOf(const PipeDiameter &nominal,
+							   const QString &material_code) const;
 			/// The size of @p sizes nearest to @p typed, of its kind; the
 			/// greater of two as near; none when there is none of its kind
 		static PipeDiameter nearest(const PipeDiameter &typed, const QList<PipeDiameter> &sizes);
@@ -333,7 +369,10 @@ class PidCodification
 			/// "Ø") when its pipes are named by their outside diameter, of
 			/// lines "size;M05;125;100" ("taille": a size of a material,
 			/// which may come before or after it, its outside diameter then
-			/// its DN, either of which may be empty: "size;M01;;100"), of
+			/// its DN, either of which may be empty: "size;M01;;100"; a
+			/// last field "default", or "défaut", says the outside diameter
+			/// a pipe of this DN takes without a question:
+			/// "size;M05;125;100;default"), of
 			/// lines "dn_equal;60;65" ("dn_equivalent": two DN which are the
 			/// same size of line), of
 			/// lines "tag_model;family;model"
@@ -349,7 +388,12 @@ class PidCodification
 			/// may also be a tab or a comma, a first line naming the columns
 			/// is skipped, and so is a line that cannot be read, counted in
 			/// @p skipped. Returns the codification read, empty when none.
-		static PidCodification fromCsv(const QString &text, int *skipped = nullptr);
+			/// The sizes of a material the file does not list are lines left
+			/// out, unless @p loose_sizes is given: they are written there,
+			/// by code of material, for who knows these materials (a file of
+			/// sizes alone, read for the materials of a page).
+		static PidCodification fromCsv(const QString &text, int *skipped = nullptr,
+									   QMap<QString, QList<Size>> *loose_sizes = nullptr);
 			/// The colours and the settings of texts, as lines fromCsv()
 			/// reads: the palette kept in the settings, for new projects. The
 			/// codes stay out, kept apart (codesToCsv())

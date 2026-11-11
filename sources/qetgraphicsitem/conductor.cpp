@@ -191,10 +191,10 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	A new pipe without a size takes the one of a nozzle at its ends, the
 	nozzle it starts from first: given to it, or on a valve that of the pipe
 	on the other side. A DN is the size of the line; with it goes the outside
-	diameter of the material of the pipe, when its series has one only for
-	this DN. An outside diameter is kept as the second value, with the DN the
-	table of the project joins to it, when it joins one only; a material
-	named by its DN keeps that DN alone. A thread, which a pipe never has,
+	diameter of the material of the pipe, when it has one only for this DN,
+	or a default one among several. An outside diameter is kept as the
+	second value, with the DN the sizes of the materials join to it, when
+	they join one only; a material named by its DN keeps that DN alone. A thread, which a pipe never has,
 	becomes its DN of the fixed table (1"1/2, DN 40). Done once, when it is
 	connected: from then on each side keeps its value, and a difference is
 	marked. Read back from a file, a pipe has the size saved there.
@@ -243,10 +243,8 @@ void Conductor::takeNozzleDiameter()
 	{
 			//DN 65 on a material which has DN 60 for it
 		data.nominal = codes.nominalIn(taken, data.material);
-		const QList<PipeDiameter> outsides = codes.outsidesOf(data.nominal, data.material);
-		if (outsides.size() == 1) {
-			data.outside = outsides.first();
-		}
+			//The only outside diameter of this DN, or the default one
+		data.outside = codes.outsideOf(data.nominal, data.material);
 	}
 	setProperties(pipe);
 }

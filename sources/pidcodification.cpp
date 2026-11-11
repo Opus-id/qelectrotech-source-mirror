@@ -129,6 +129,9 @@ namespace
 				if (size.nominal) {
 					s.setAttribute(QStringLiteral("dn"), size.nominal);
 				}
+				if (size.by_default) {
+					s.setAttribute(QStringLiteral("default"), QStringLiteral("true"));
+				}
 				e.appendChild(s);
 			}
 			block.appendChild(e);
@@ -263,7 +266,8 @@ namespace
 				const int outside = PipeDiameter::tenthsOf(od);
 				const int nominal = nominalOfText(dn);
 				if ((od.isEmpty() || outside) && (dn.isEmpty() || nominal)) {
-					entry.addSize(outside, nominal);
+					entry.addSize(outside, nominal,
+								  s.attribute(QStringLiteral("default")) == QLatin1String("true"));
 				}
 			}
 			if (entry.code.isEmpty() || codes.contains(entry.code)) {
@@ -286,7 +290,7 @@ bool PidCodification::Entry::operator==(const Entry &other) const
 	@brief PidCodification::Entry::addSize
 	See the declaration
 */
-bool PidCodification::Entry::addSize(int outside, int nominal)
+bool PidCodification::Entry::addSize(int outside, int nominal, bool by_default)
 {
 	if (outside < 0 || nominal < 0 || (!outside && !nominal)
 		|| (outside && !PipeDiameter::fromTenths(PipeDiameter::Outside, outside).isSet())
@@ -307,7 +311,72 @@ bool PidCodification::Entry::addSize(int outside, int nominal)
 		return a.nominal != b.nominal ? a.nominal < b.nominal : a.outside < b.outside;
 	});
 	sizes.insert(place, added);
+	if (by_default) {
+		setDefaultSize(outside);
+	}
 	return true;
+}
+
+/**
+	@brief PidCodification::Entry::removeSize
+	See the declaration
+*/
+bool PidCodification::Entry::removeSize(int outside, int nominal)
+{
+	Size removed;
+	removed.outside = outside;
+	removed.nominal = nominal;
+	const auto same = [&removed](const Size &size) {
+		return size.outside == removed.outside && size.nominal == removed.nominal;
+	};
+	const auto place = std::find_if(sizes.begin(), sizes.end(), same);
+	if (place == sizes.end()) {
+		return false;
+	}
+	sizes.erase(place);
+		//Nothing to choose any more for its DN
+	if (nominal && outsideCount(nominal) < 2) {
+		for (Size &size : sizes) {
+			if (size.nominal == nominal) {
+				size.by_default = false;
+			}
+		}
+	}
+	return true;
+}
+
+/**
+	@brief PidCodification::Entry::setDefaultSize
+	See the declaration
+*/
+bool PidCodification::Entry::setDefaultSize(int outside, bool on)
+{
+	const auto place = std::find_if(sizes.begin(), sizes.end(), [outside](const Size &size) {
+		return outside && size.outside == outside;
+	});
+	if (place == sizes.end() || !place->nominal) {
+		return false;
+	}
+		//One at most by DN
+	const int nominal = place->nominal;
+	for (Size &size : sizes) {
+		if (size.nominal == nominal) {
+			size.by_default = false;
+		}
+	}
+	place->by_default = on;
+	return true;
+}
+
+int PidCodification::Entry::outsideCount(int nominal) const
+{
+	int count = 0;
+	for (const Size &size : sizes) {
+		if (size.outside && size.nominal == nominal) {
+			++count;
+		}
+	}
+	return count;
 }
 
 /**
@@ -350,6 +419,62 @@ QList<int> PidCodification::equalNominals(int dn) const
 bool PidCodification::sameNominal(int a, int b) const
 {
 	return a == b || equalNominals(a).contains(b);
+}
+
+/**
+	@brief PidCodification::equalNominalsText
+	See the declaration
+*/
+QString PidCodification::equalNominalsText() const
+{
+	QStringList groups;
+	QList<int> written;
+	for (const QPair<int, int> &pair : equal_nominals)
+	{
+		if (written.contains(pair.first)) {
+			continue;
+		}
+		QStringList numbers;
+		for (int dn : equalNominals(pair.first)) {
+			numbers << QString::number(dn);
+			written << dn;
+		}
+		groups << numbers.join(QLatin1Char('/'));
+	}
+	return groups.join(QStringLiteral(", "));
+}
+
+/**
+	@brief PidCodification::setEqualNominalsText
+	See the declaration
+*/
+bool PidCodification::setEqualNominalsText(const QString &text)
+{
+	QString written = text;
+	written.remove(QStringLiteral("DN"), Qt::CaseInsensitive);
+		//A space around a bar joins nothing more
+	static const QRegularExpression around_bar(QStringLiteral("\\s*/\\s*"));
+	written.replace(around_bar, QStringLiteral("/"));
+	static const QRegularExpression between_groups(QStringLiteral("[,;\\s]+"));
+	PidCodification read;
+	for (const QString &group : written.split(between_groups, Qt::SkipEmptyParts))
+	{
+		const QStringList parts = group.split(QLatin1Char('/'));
+		if (parts.size() < 2) {
+			return false;
+		}
+		for (int i = 0 ; i + 1 < parts.size() ; ++i)
+		{
+			const int a = nominalOfText(parts.at(i)), b = nominalOfText(parts.at(i + 1));
+			if (!a || !b || a == b) {
+				return false;
+			}
+				//Said twice is said once
+			read.addEqualNominals(a, b);
+		}
+	}
+	equal_nominals = read.equal_nominals;
+	return true;
 }
 
 /**
@@ -749,6 +874,35 @@ QList<PipeDiameter> PidCodification::outsidesOf(const PipeDiameter &nominal,
 }
 
 /**
+	@brief PidCodification::defaultOutside
+	See the declaration
+*/
+PipeDiameter PidCodification::defaultOutside(const PipeDiameter &nominal,
+											 const QString &material_code) const
+{
+	if (outsidesOf(nominal, material_code).size() < 2) {
+		return PipeDiameter();
+	}
+	for (const Size &size : material(material_code)->sizes) {
+		if (size.by_default && size.outside && size.nominal == nominal.tenths() / 10) {
+			return PipeDiameter::fromTenths(PipeDiameter::Outside, size.outside);
+		}
+	}
+	return PipeDiameter();
+}
+
+/**
+	@brief PidCodification::outsideOf
+	See the declaration
+*/
+PipeDiameter PidCodification::outsideOf(const PipeDiameter &nominal,
+										const QString &material_code) const
+{
+	const QList<PipeDiameter> outsides = outsidesOf(nominal, material_code);
+	return outsides.size() == 1 ? outsides.first() : defaultOutside(nominal, material_code);
+}
+
+/**
 	@brief PidCodification::languageDecimal
 	See the declaration: the separator the language chosen in QElectroTech
 	writes, not that of the computer
@@ -1109,7 +1263,8 @@ QString PidCodification::codesToCsv() const
 			text += QStringLiteral("size;") + csvField(entry.code) + QLatin1Char(';')
 					+ (size.outside ? PipeDiameter::fileNumber(size.outside) : QString())
 					+ QLatin1Char(';')
-					+ (size.nominal ? QString::number(size.nominal) : QString()) + QLatin1Char('\n');
+					+ (size.nominal ? QString::number(size.nominal) : QString())
+					+ (size.by_default ? QStringLiteral(";default") : QString()) + QLatin1Char('\n');
 		}
 	}
 	for (const QPair<int, int> &pair : equal_nominals) {
@@ -1162,14 +1317,15 @@ QString PidCodification::textOfFiles(const QStringList &paths, QStringList *unre
 	@param skipped : the lines left out, if not nullptr
 	@return the codification read
 */
-PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
+PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
+										 QMap<QString, QList<Size>> *loose_sizes)
 {
 	PidCodification codification;
 	int left_out = 0;
 	QSet<QString> fluid_codes, material_codes, unit_codes;
 		//The sizes read, with the code of their material, which may come
 		//after them
-	struct SizeLine { QString code; int outside; int nominal; };
+	struct SizeLine { QString code; int outside; int nominal; bool by_default; };
 	QList<SizeLine> size_lines;
 	const QStringList lines = text.split(QLatin1Char('\n'));
 	for (int i = 0 ; i < lines.size() ; ++i)
@@ -1253,11 +1409,16 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 			const QString od = fields.value(2), dn = fields.value(3);
 			const int outside = PipeDiameter::tenthsOf(od);
 			const int nominal = nominalOfText(dn);
+				//Then nothing, or the word which says it the default one
+			const QString last = fields.value(4).toLower();
+			const bool by_default = last == QLatin1String("default") || last == QStringLiteral("défaut")
+									|| last == QLatin1String("defaut");
 			if (fields.value(1).isEmpty() || (od.isEmpty() && dn.isEmpty())
-				|| (!od.isEmpty() && !outside) || (!dn.isEmpty() && !nominal)) {
+				|| (!od.isEmpty() && !outside) || (!dn.isEmpty() && !nominal)
+				|| (!last.isEmpty() && !by_default) || (by_default && (!outside || !nominal))) {
 				++left_out;
 			} else {
-				size_lines << SizeLine{fields.value(1), outside, nominal};
+				size_lines << SizeLine{fields.value(1), outside, nominal, by_default};
 			}
 			continue;
 		}
@@ -1328,14 +1489,29 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped)
 		(is_fluid ? codification.fluids
 				  : is_material ? codification.materials : codification.functional_units) << entry;
 	}
-		//Each size to its material
+		//Each size to its material; those of a material the file does not
+		//list are kept apart for who asks them
+	QMap<QString, Entry> loose;
 	for (const SizeLine &line : std::as_const(size_lines))
 	{
 		auto material = std::find_if(codification.materials.begin(), codification.materials.end(),
 									 [&line](const Entry &entry) { return entry.code == line.code; });
-		if (material == codification.materials.end()
-			|| !material->addSize(line.outside, line.nominal)) {
+		const bool listed = material != codification.materials.end();
+		if (!listed && !loose_sizes) {
 			++left_out;
+			continue;
+		}
+		Entry &entry = listed ? *material : loose[line.code];
+		if (!entry.addSize(line.outside, line.nominal, line.by_default)) {
+			++left_out;
+		}
+	}
+	if (loose_sizes) {
+		loose_sizes->clear();
+		for (auto it = loose.cbegin() ; it != loose.cend() ; ++it) {
+			if (!it.value().sizes.isEmpty()) {
+				loose_sizes->insert(it.key(), it.value().sizes);
+			}
 		}
 	}
 	if (skipped) {

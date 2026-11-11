@@ -84,7 +84,7 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// The codification of the project, an empty one without it
 		PidCodification codification() const;
 			/// The sizes offered for the pipes edited, written in @p sizes:
-			/// the series of their material; the DN of the project
+			/// the sizes of their material; the DN of the project
 			/// (PidCodification::nominalSizes()) without material, or with
 			/// one the project has not; @p several says they have several
 			/// materials, and then none
@@ -92,16 +92,17 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// The size typed or picked, a DN or an outside diameter, given
 			/// to the pipes: a pipe has a DN, the size of the line, and for
 			/// a material named by it an outside diameter. The one typed
-			/// gives the other, through the table of the project and the
-			/// series of the material; the user chooses among several. A
-			/// size out of the series becomes the nearest one. Otherwise
-			/// the field gets its value back.
+			/// gives the other, through the sizes of the material; among
+			/// several outside diameters of a DN, the default one of the
+			/// material is taken, and said, or without one the user
+			/// chooses. A size the material has not becomes the nearest
+			/// one. Otherwise the field gets its value back.
 		void diameterEdited();
 			/// The material of code @p code given to the pipes, in one step:
-			/// their DN stays, their outside diameter is the one the series
-			/// of the new material joins to it, which the user chooses
-			/// among several, once for a DN; none for a material named by
-			/// its DN
+			/// their DN stays, their outside diameter is the one the sizes
+			/// of the new material join to it: among several, its default
+			/// one, or without one the one the user chooses, once for a
+			/// DN; none for a material named by its DN
 		void materialEdited(const QString &code);
 			/// The answer to @p question among @p items, -1 for none, which
 			/// the dialog offers last as @p none

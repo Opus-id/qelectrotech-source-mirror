@@ -77,9 +77,10 @@ PipeDiameter nominalInMaterial(const PipeProperties &p, const QString &code,
 	/// the line, stays (nominalInMaterial()); its outside diameter is the
 	/// one of the new material: none for a material named by its DN or
 	/// which the project has not; else the one it had when the new material
-	/// has it for this DN, the only one it has for this DN, or the one of
-	/// @p outside_of (by DN, in tenths) among several. A pipe which has no
-	/// DN and gets none keeps its sizes.
+	/// has it for this DN, the only one it has for this DN, the default
+	/// one among several (PidCodification::outsideOf()), or without one the
+	/// one of @p outside_of (by DN, in tenths). A pipe which has no DN and
+	/// gets none keeps its sizes.
 void giveMaterial(PipeProperties &p, const QString &code, const PidCodification &codes,
 				  const QMap<int, PipeDiameter> &nominal_of,
 				  const QMap<int, PipeDiameter> &outside_of)
@@ -95,9 +96,9 @@ void giveMaterial(PipeProperties &p, const QString &code, const PidCodification 
 		p.outside = PipeDiameter();
 		return;
 	}
-	const QList<PipeDiameter> outsides = codes.outsidesOf(dn, code);
-	if (!outsides.contains(p.outside)) {
-		p.outside = outsides.size() == 1 ? outsides.first() : outside_of.value(dn.tenths());
+	if (!codes.outsidesOf(dn, code).contains(p.outside)) {
+		const PipeDiameter taken = codes.outsideOf(dn, code);
+		p.outside = taken.isSet() ? taken : outside_of.value(dn.tenths());
 	}
 }
 
@@ -498,10 +499,16 @@ void PipePropertiesWidget::diameterEdited()
 		}
 		const QList<PipeDiameter> outsides = codes.outsidesOf(nominal, material);
 		const PipeDiameter kept = shared(&PipeProperties::outside);
+		const PipeDiameter usual = codes.defaultOutside(nominal, material);
 		if (outsides.size() == 1) {
 			outside = outsides.first();
 		} else if (kept.isSet() && outsides.contains(kept)) {
 			outside = kept;
+		} else if (usual.isSet()) {
+				//The default one of the material: no question, and said
+			outside = usual;
+			notes << tr("%1 → %2: the default outside diameter of the material %3.")
+					 .arg(nominal.text(locale), outside.text(locale), material);
 		} else if (outsides.size() > 1) {
 			outside = chooseSize(tr("Which outside diameter for %1 in the material %2?")
 								 .arg(nominal.text(locale), material),
@@ -591,8 +598,10 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 		if (!by_outside || !dn.isSet() || outside_of.contains(dn.tenths())) {
 			continue;
 		}
+			//Nothing is asked for a DN the material has a default one for
 		const QList<PipeDiameter> outsides = codes.outsidesOf(dn, code);
-		if (outsides.size() > 1 && !outsides.contains(p.outside)) {
+		if (outsides.size() > 1 && !outsides.contains(p.outside)
+			&& !codes.defaultOutside(dn, code).isSet()) {
 			outside_of.insert(dn.tenths(),
 							  chooseSize(tr("Which outside diameter for %1 in the material %2?")
 										 .arg(dn.text(locale), code),
@@ -613,6 +622,10 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 		} else if (before.nominal.isSet() && after.nominal != before.nominal && codes.material(code)) {
 			note = tr("%1 → %2: the same size of line, as the material %3 has it.")
 				   .arg(before.nominal.text(locale), after.nominal.text(locale), code);
+		} else if (after.outside.isSet() && before.outside != after.outside
+				   && after.outside == codes.defaultOutside(after.nominal, code)) {
+			note = tr("%1 → %2: the default outside diameter of the material %3.")
+				   .arg(after.nominal.text(locale), after.outside.text(locale), code);
 		} else if (before.outside.isSet() && after.outside.isSet() && before.outside != after.outside) {
 			note = tr("%1 → %2: the outside diameter of %3 in the material %4.")
 				   .arg(before.outside.text(locale), after.outside.text(locale),
@@ -895,8 +908,8 @@ void PipePropertiesWidget::updateUi()
 	showText(m_fluid->lineEdit(), [this, shown](const PipeProperties &p) { return shown(m_fluid, p.fluid); });
 	showText(m_material->lineEdit(), [this, shown](const PipeProperties &p) { return shown(m_material, p.material); });
 
-		//The series of the material, or the DN of the project without
-		//material; none, greyed, for a material without series or several
+		//The sizes of the material, or the DN of the project without
+		//material; none, greyed, for a material without sizes or several
 		//materials
 	QList<PipeDiameter> sizes;
 	bool several = false;
@@ -922,7 +935,7 @@ void PipePropertiesWidget::updateUi()
 	if (several) {
 		lines << tr("Several materials: give the pipes one material to give them a size.");
 	} else if (rule == PidCodification::SizeRule::NoSeries) {
-		lines << tr("The material %1 has no series (P&ID properties of the project, Codification).")
+		lines << tr("The material %1 has no sizes (P&ID properties of the project, Codification).")
 				 .arg(list.first()->properties().m_pipe.material);
 	}
 	const QString warning = diameterWarning();

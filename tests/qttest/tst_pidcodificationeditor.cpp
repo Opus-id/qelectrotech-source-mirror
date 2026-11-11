@@ -468,6 +468,68 @@ class tst_pidcodificationeditor : public QObject
 			QCOMPARE(m_project.pidCodification().fluids.size(), 4);
 			QCOMPARE(m_project.pidCodification().object_colors.value("equipment"), QColor(Qt::red));
 		}
+
+			// A file of sizes alone gives them to the materials the page has
+			// already: those it names take its sizes, the others keep theirs
+		void aFileOfSizesAloneGoesToTheMaterialsOfThePage()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString path = dir.filePath(QStringLiteral("sizes.csv"));
+			auto write = [&path](const QByteArray &lines) {
+				QFile file(path);
+				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+				file.write(lines);
+				return true;
+			};
+			QVERIFY(write("size;M01;;80\nsize;M01;;100\nsize;M09;;50\ndn_equal;60;65\n"));
+			PidConfigPage page(&m_project);
+			QString asked;
+			bool answer = true;
+			page.setConfirmer([&](const QString &question) { asked = question; return answer; });
+			QVERIFY(page.importCsv(path));
+				// no code replaced, no size either: nothing to ask; the
+				// material the page has not is said
+			QVERIFY(asked.isEmpty());
+			QVERIFY(message(page).contains(QStringLiteral("M09")));
+			QTableWidget *materials = page.codeTable(PidCodification::List::Materials);
+			QCOMPARE(materials->rowCount(), 2);
+			QCOMPARE(page.sizeTable()->rowCount(), 2);
+			QVERIFY(page.codeChanges().isEmpty());
+				// nothing before the page is applied
+			QVERIFY(m_project.pidCodification().material("M01")->sizes.isEmpty());
+			page.applyProjectConf();
+			QCOMPARE(m_project.pidCodification().material("M01")->sizes,
+					 (QList<PidCodification::Size>{{0, 80}, {0, 100}}));
+			QVERIFY(m_project.pidCodification().material("M02")->sizes.isEmpty());
+			QCOMPARE(m_project.pidCodification().fluids.size(), 4);
+			QCOMPARE(m_project.pidCodification().equal_nominals, (QList<QPair<int, int>>{{60, 65}}));
+
+				// sizes replaced: asked first
+			QVERIFY(write("size;M01;;150\n"));
+			answer = false;
+			QVERIFY(!page.importCsv(path));
+			QVERIFY(!asked.isEmpty());
+			QCOMPARE(page.sizeTable()->rowCount(), 2);
+			answer = true;
+			QVERIFY(page.importCsv(path));
+			QCOMPARE(page.sizeTable()->rowCount(), 1);
+				// a code changed in the page is not forgotten for all that
+			materials->item(rowOf(materials, "M02"), 0)->setText(QStringLiteral("M20"));
+			QVERIFY(write("size;M20;;200\n"));
+			QVERIFY(page.importCsv(path));
+			QCOMPARE(page.codeChanges().materials.value("M02"), QStringLiteral("M20"));
+			page.applyProjectConf();
+			QCOMPARE(m_project.pidCodification().material("M20")->sizes,
+					 (QList<PidCodification::Size>{{0, 200}}));
+			QCOMPARE(m_project.pidCodification().material("M01")->sizes,
+					 (QList<PidCodification::Size>{{0, 150}}));
+
+				// materials the page has not, only: nothing changed, and said
+			QVERIFY(write("size;M09;;50\n"));
+			QVERIFY(!page.importCsv(path));
+			QVERIFY(message(page).contains(QStringLiteral("M09")));
+		}
 };
 
 QTEST_MAIN(tst_pidcodificationeditor)

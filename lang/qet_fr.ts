@@ -12541,8 +12541,119 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
-        <source>The sizes of this material found in trade, each an outside diameter and its DN: the first and the last, and how many. Its pipes take no other: without sizes, none. A CSV file gives them, by lines such as size;M04;125;100 (material, outside diameter, DN).</source>
-        <translation>Les tailles de ce matériau disponibles dans le commerce, chacune un diamètre extérieur et son DN : la première, la dernière et leur nombre. Ses tuyauteries n&apos;en prennent pas d&apos;autre : sans tailles, aucune. Un fichier CSV les donne, par des lignes comme size;M04;125;100 (matériau, diamètre extérieur, DN).</translation>
+        <source>The sizes of this material found in trade: the first and the last of those which name its pipes, and how many. Its pipes take no other: without sizes, none. They are typed in the list beside, which shows those of the material of the current line, or read from a CSV file, by lines such as size;M04;125;100 (material, outside diameter, DN).</source>
+        <translation>Les tailles de ce matériau disponibles dans le commerce : la première et la dernière de celles qui désignent ses tuyauteries, et leur nombre. Ses tuyauteries n&apos;en prennent pas d&apos;autre : sans tailles, aucune. Elles se saisissent dans la liste d&apos;à côté, qui montre celles du matériau de la ligne courante, ou se lisent dans un fichier CSV, par des lignes comme size;M04;125;100 (matériau, diamètre extérieur, DN).</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Outside Ø</source>
+        <translation>Ø ext.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>DN</source>
+        <translation>DN</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Default</source>
+        <translation>Par défaut</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>The outside diameter of this size, in millimetres, to the tenth. A material named by its outside diameter needs it; a material named by its DN may do without.</source>
+        <translation>Le diamètre extérieur de cette taille, en millimètres, au dixième. Un matériau désigné par son diamètre extérieur en a besoin ; un matériau désigné par son DN peut s&apos;en passer.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>The DN of the line this size makes, that of its flange. A material named by its DN needs it. An outside diameter has one DN only; a DN may have several outside diameters.</source>
+        <translation>Le DN de la ligne que fait cette taille, celui de sa bride. Un matériau désigné par son DN en a besoin. Un diamètre extérieur n&apos;a qu&apos;un DN ; un DN peut avoir plusieurs diamètres extérieurs.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Where a DN has several outside diameters: the one a pipe of this DN takes without a question. One by DN; without one, the question is asked.</source>
+        <translation>Quand un DN a plusieurs diamètres extérieurs : celui qu&apos;une tuyauterie de ce DN prend sans question. Un seul par DN ; sans défaut, la question est posée.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Add a size</source>
+        <translation>Ajouter une taille</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Remove the size</source>
+        <translation>Supprimer la taille</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>The DN which are the same size of line, written together: 60/65. They compare as the same at a nozzle, and a pipe whose material changes takes the one its new material has. Several: 60/65, 125/130.</source>
+        <translation>Les DN qui sont la même taille de ligne, écrits ensemble : 60/65. Ils comptent comme la même taille face à un piquage, et une tuyauterie qui change de matériau prend celui que propose son nouveau matériau. Plusieurs : 60/65, 125/130.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Equal DN:</source>
+        <translation>DN équivalents :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Sizes of %1</source>
+        <translation>Tailles de %1</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>The outside diameter is missing: the pipes of this material are named by it.</source>
+        <translation>Il manque le diamètre extérieur : c&apos;est lui qui désigne les tuyauteries de ce matériau.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>The DN is missing: the pipes of this material are named by it.</source>
+        <translation>Il manque le DN : c&apos;est lui qui désigne les tuyauteries de ce matériau.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>%1 is not an outside diameter: a number of millimetres, to the tenth.</source>
+        <translation>%1 n&apos;est pas un diamètre extérieur : un nombre de millimètres, au dixième.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>%1 is not a DN: a whole number.</source>
+        <translation>%1 n&apos;est pas un DN : un nombre entier.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>This size is in the list already: an outside diameter has one DN only, and a DN without outside diameter is listed once.</source>
+        <translation>Cette taille est déjà dans la liste : un diamètre extérieur n&apos;a qu&apos;un DN, et un DN sans diamètre extérieur n&apos;y figure qu&apos;une fois.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>%1 cannot be read: write together the DN which are the same size of line, such as 60/65.</source>
+        <translation>%1 n&apos;a pas pu être lu : écrivez ensemble les DN qui sont la même taille de ligne, par exemple 60/65.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>%1 gives sizes to materials this page has not: %2. Nothing changed.</source>
+        <translation>%1 donne des tailles à des matériaux absents de cette page : %2. Rien n&apos;a changé.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Replace the sizes of %n material(s) of this page?</source>
+        <translation>
+            <numerusform>Remplacer les tailles de %n matériau de cette page ?</numerusform>
+            <numerusform>Remplacer les tailles de %n matériaux de cette page ?</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>The sizes of %n material(s) read: apply this page to keep them.</source>
+        <translation>
+            <numerusform>Tailles de %n matériau lues : appliquez cette page pour les garder.</numerusform>
+            <numerusform>Tailles de %n matériaux lues : appliquez cette page pour les garder.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>Materials this page has not: %1.</source>
+        <translation>Matériaux absents de cette page : %1.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
@@ -13026,8 +13137,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="328"/>
-        <source>The material %1 has no series (P&amp;ID properties of the project, Codification).</source>
-        <translation>Le matériau %1 n&apos;a pas de série (propriétés P&amp;ID du projet, Codification).</translation>
+        <source>The material %1 has no sizes (P&amp;ID properties of the project, Codification).</source>
+        <translation>Le matériau %1 n&apos;a pas de tailles (propriétés P&amp;ID du projet, Codification).</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="328"/>
+        <source>%1 → %2: the default outside diameter of the material %3.</source>
+        <translation>%1 → %2 : le diamètre extérieur par défaut du matériau %3.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="328"/>

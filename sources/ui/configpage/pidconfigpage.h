@@ -26,7 +26,9 @@
 
 class QCheckBox;
 class QComboBox;
+class QGroupBox;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QSpinBox;
 class QTabWidget;
@@ -43,7 +45,10 @@ class QTableWidgetItem;
 	code is unique in its list. Its colours, by family
 	of fluid, by family of object and by status of works (PidCodification):
 	the code knows no colour of its own, what has none is drawn in black, as
-	before. The size of its texts by category: what has none keeps the size
+	before. The sizes of each material, an outside diameter and its DN each,
+	in a list beside the materials, which shows those of the material of the
+	current line; and the DN of the project which are the same size of line.
+	The size of its texts by category: what has none keeps the size
 	of its symbol. The connections drawn at the end of the nozzles: none by
 	default.
 */
@@ -81,8 +86,11 @@ class PidConfigPage : public ProjectConfigPage
 
 			/// Read the file @p path in this page: its codes replace those of
 			/// the page, its colours and texts those of the page when it has
-			/// some; the project takes them when the page is applied. False
-			/// when nothing could be read, or when the user said no.
+			/// some; the project takes them when the page is applied. A file
+			/// without codes may give sizes to the materials of the page:
+			/// they replace those of the materials it names, the others
+			/// keep theirs. False when nothing could be read, or when the
+			/// user said no.
 		bool importCsv(const QString &path);
 			/// The same with the files @p paths, read one after the other as
 			/// one: a file of codes and one of sizes, for instance
@@ -105,6 +113,14 @@ class PidConfigPage : public ProjectConfigPage
 		void removeSelectedEntries();
 			/// What the page says of the last change of its codes
 		QString codeMessage() const;
+			/// The sizes of the material of the current line of the
+			/// materials: its outside diameter, its DN, and a box checked
+			/// for the default outside diameter of a DN which has several
+		QTableWidget *sizeTable() const { return m_size_table; }
+			/// Add an empty line to the sizes shown, and edit it
+		void addSize();
+			/// Remove the lines selected of the sizes shown
+		void removeSelectedSizes();
 
 	protected:
 		void initWidgets() override;
@@ -129,6 +145,26 @@ class PidConfigPage : public ProjectConfigPage
 		PidCodification::List shownList() const;
 		bool confirm(const QString &question);
 		void showSizes();
+			/// Fill the list of sizes with those of the material of the
+			/// current line of the materials; none, greyed, without one
+		void showMaterialSizes();
+			/// How each line of the list of sizes looks: its numbers as the
+			/// page writes them, its box where there is a default one to
+			/// choose, in orange the line which lacks what names the pipes
+		void decorateSizeRows();
+			/// Give the material shown the sizes of the list; false, nothing
+			/// changed, when two lines cannot go together
+		bool storeSizes(const QTableWidgetItem *changed = nullptr);
+		void sizeItemChanged(QTableWidgetItem *item);
+		void equalDnEdited();
+
+		QTableWidget *m_size_table = nullptr;
+		QGroupBox *m_size_box = nullptr;
+		QPushButton *m_add_size = nullptr;
+		QPushButton *m_remove_size = nullptr;
+			/// The DN of the project which are the same size of line, typed
+			/// together: "60/65"
+		QLineEdit *m_equal_dn = nullptr;
 
 		QCheckBox *m_show_nozzle_sizes = nullptr;
 		QComboBox *m_decimal = nullptr;
