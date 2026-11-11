@@ -297,7 +297,12 @@ void PidConfigPage::initWidgets()
 		m_size_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
 		m_size_table->setEditTriggers(table->editTriggers());
 		m_size_table->verticalHeader()->hide();
-		m_size_table->horizontalHeader()->setStretchLastSection(true);
+			//The box of the default size keeps the width of its title; the
+			//two numbers share what is left
+		m_size_table->horizontalHeader()->setSectionResizeMode(size_nominal_column, QHeaderView::Stretch);
+		m_size_table->horizontalHeader()->setSectionResizeMode(size_outside_column, QHeaderView::Stretch);
+		m_size_table->horizontalHeader()->setSectionResizeMode(size_default_column,
+																QHeaderView::ResizeToContents);
 		connect(m_size_table, &QTableWidget::itemChanged, this, &PidConfigPage::sizeItemChanged);
 		connect(table, &QTableWidget::currentCellChanged, this, [this](int row, int, int previous) {
 			if (row != previous) {
@@ -332,8 +337,10 @@ void PidConfigPage::initWidgets()
 		auto *splitter = new QSplitter(Qt::Horizontal, this);
 		splitter->addWidget(table);
 		splitter->addWidget(m_size_box);
-		splitter->setStretchFactor(0, 3);
-		splitter->setStretchFactor(1, 2);
+			//A wider page gives its width to the materials: the list of
+			//sizes, a few numbers, keeps its own unless the handle is dragged
+		splitter->setStretchFactor(0, 1);
+		splitter->setStretchFactor(1, 0);
 		splitter->setChildrenCollapsible(false);
 		auto *materials_tab = new QWidget(this);
 		auto *tab_layout = new QVBoxLayout(materials_tab);
