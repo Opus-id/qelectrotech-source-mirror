@@ -69,8 +69,9 @@ namespace {
 		/// a millimetre, its DN, 0 for none, or whether it is the default
 		/// one; the text and the box of the cell only show it
 	constexpr int value_role = Qt::UserRole + 5;
-	constexpr int size_outside_column = 0;
-	constexpr int size_nominal_column = 1;
+		//The DN, the size of the line, comes first
+	constexpr int size_nominal_column = 0;
+	constexpr int size_outside_column = 1;
 	constexpr int size_default_column = 2;
 
 	QVariantList sizesToData(const QList<PidCodification::Size> &sizes)
@@ -256,7 +257,16 @@ void PidConfigPage::initWidgets()
 		table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed
 							   | QAbstractItemView::AnyKeyPressed);
 		table->verticalHeader()->hide();
-		table->horizontalHeader()->setStretchLastSection(true);
+			//The name takes the width left, the other columns that of what
+			//they hold
+		for (int column = 0 ; column < table->columnCount() ; ++column) {
+			table->horizontalHeader()->setSectionResizeMode(
+						column, column == 1 ? QHeaderView::Stretch : QHeaderView::ResizeToContents);
+		}
+			//The family of a fluid is shown beside its code, before its name
+		if (fluids) {
+			table->horizontalHeader()->moveSection(2, 1);
+		}
 			//Sorted by code; a click on a heading sorts by another column
 		table->setItemPrototype(new CodeItem());
 		table->horizontalHeader()->setSortIndicator(0, Qt::AscendingOrder);
@@ -271,7 +281,7 @@ void PidConfigPage::initWidgets()
 			//Beside the materials, the sizes of the one of the current line
 		m_size_table = new QTableWidget(0, 3, this);
 		m_size_table->setObjectName(QStringLiteral("sizes"));
-		m_size_table->setHorizontalHeaderLabels({tr("Outside Ø"), tr("DN"), tr("Default")});
+		m_size_table->setHorizontalHeaderLabels({tr("DN"), tr("Outside Ø"), tr("Default")});
 		m_size_table->horizontalHeaderItem(size_outside_column)->setToolTip(
 					tr("The outside diameter of this size, in millimetres, to the tenth. A material "
 					   "named by its outside diameter needs it; a material named by its DN may do "
@@ -312,7 +322,8 @@ void PidConfigPage::initWidgets()
 
 		m_equal_dn = new QLineEdit(this);
 		m_equal_dn->setObjectName(QStringLiteral("equal_dn"));
-		m_equal_dn->setPlaceholderText(QStringLiteral("60/65"));
+			//Empty, it says so: its example must not be taken for a value
+		m_equal_dn->setPlaceholderText(tr("None (for example 60/65)"));
 		m_equal_dn->setToolTip(tr("The DN which are the same size of line, written together: 60/65. "
 								  "They compare as the same at a nozzle, and a pipe whose material "
 								  "changes takes the one its new material has. Several: 60/65, 125/130."));
@@ -327,8 +338,14 @@ void PidConfigPage::initWidgets()
 		auto *materials_tab = new QWidget(this);
 		auto *tab_layout = new QVBoxLayout(materials_tab);
 		tab_layout->addWidget(splitter);
+			//Wide enough for a few groups, no more
+		m_equal_dn->setMinimumWidth(m_equal_dn->fontMetrics().horizontalAdvance(
+										QStringLiteral("60/65, 125/130, 200/225, 250/280")));
+		auto *equal_row = new QHBoxLayout();
+		equal_row->addWidget(m_equal_dn);
+		equal_row->addStretch(1);
 		auto *equal = new QFormLayout();
-		equal->addRow(tr("Equal DN:"), m_equal_dn);
+		equal->addRow(tr("Equal DN:"), equal_row);
 		tab_layout->addLayout(equal);
 		m_code_tabs->addTab(materials_tab, list_names.at(i));
 	}
@@ -494,8 +511,12 @@ void PidConfigPage::initLayout()
 	texts_layout->addWidget(m_colored_labels);
 	texts_layout->addWidget(m_nozzle_texts_on_paper);
 	texts_layout->addWidget(m_show_nozzle_sizes);
+		//A list of the width of its choices
+	auto *decimal_row = new QHBoxLayout();
+	decimal_row->addWidget(m_decimal);
+	decimal_row->addStretch(1);
 	auto *decimal = new QFormLayout();
-	decimal->addRow(tr("Decimal separator of the sizes:"), m_decimal);
+	decimal->addRow(tr("Decimal separator of the sizes:"), decimal_row);
 	texts_layout->addLayout(decimal);
 	texts_layout->addStretch();
 
@@ -931,7 +952,6 @@ void PidConfigPage::fillCodeTables(bool from_project)
 			}
 		}
 		table->setSortingEnabled(true);
-		table->resizeColumnToContents(0);
 			//The list of sizes shows those of the first material, which is
 			//not selected for all that
 		if (list == PidCodification::List::Materials && table->rowCount()) {
@@ -1154,11 +1174,13 @@ void PidConfigPage::showMaterialSizes()
 		{
 			const int line = m_size_table->rowCount();
 			m_size_table->insertRow(line);
-			const QList<QVariant> values{size.outside, size.nominal, size.by_default};
-			for (int column = 0 ; column < values.size() ; ++column) {
+			const QMap<int, QVariant> values{{size_nominal_column, size.nominal},
+											 {size_outside_column, size.outside},
+											 {size_default_column, size.by_default}};
+			for (auto it = values.cbegin() ; it != values.cend() ; ++it) {
 				auto *item = new QTableWidgetItem();
-				item->setData(value_role, values.at(column));
-				m_size_table->setItem(line, column, item);
+				item->setData(value_role, it.value());
+				m_size_table->setItem(line, it.key(), item);
 			}
 		}
 	}
@@ -1358,13 +1380,9 @@ void PidConfigPage::addSize()
 		}
 	}
 	decorateSizeRows();
-		//What names the pipes of the material first
-	const QTableWidget *materials = m_code_tables.value(PidCodification::List::Materials);
-	const QTableWidgetItem *named = materials->item(materials->currentRow(), 2);
-	const int column = named && named->checkState() == Qt::Checked ? size_outside_column
-																   : size_nominal_column;
-	m_size_table->setCurrentCell(row, column);
-	m_size_table->editItem(m_size_table->item(row, column));
+		//From its first cell, the DN: the tabulation goes on to the others
+	m_size_table->setCurrentCell(row, size_nominal_column);
+	m_size_table->editItem(m_size_table->item(row, size_nominal_column));
 }
 
 /**

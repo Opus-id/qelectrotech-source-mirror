@@ -12596,6 +12596,11 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
+        <source>None (for example 60/65)</source>
+        <translation>Aucun (par exemple 60/65)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
         <source>Sizes of %1</source>
         <translation>Tailles de %1</translation>
     </message>

@@ -114,7 +114,7 @@ class PidConfigPage : public ProjectConfigPage
 			/// What the page says of the last change of its codes
 		QString codeMessage() const;
 			/// The sizes of the material of the current line of the
-			/// materials: its outside diameter, its DN, and a box checked
+			/// materials: its DN, its outside diameter, and a box checked
 			/// for the default outside diameter of a DN which has several
 		QTableWidget *sizeTable() const { return m_size_table; }
 			/// Add an empty line to the sizes shown, and edit it

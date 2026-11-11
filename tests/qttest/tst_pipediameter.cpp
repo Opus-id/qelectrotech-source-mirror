@@ -698,6 +698,9 @@ class tst_pipediameter : public QObject
 			QTableWidget *sizes = page.sizeTable();
 			auto *box = page.findChild<QGroupBox *>(QStringLiteral("size_box"));
 			QVERIFY(sizes && box);
+				// its columns: the DN, the size of the line, comes first
+			const int dn = 0, od = 1;
+			QCOMPARE(sizes->horizontalHeaderItem(dn)->text(), QStringLiteral("DN"));
 			auto text = [sizes](int row, int column) { return sizes->item(row, column)->text(); };
 			auto hasBox = [sizes](int row) {
 				return sizes->item(row, 2)->data(Qt::CheckStateRole).isValid();
@@ -707,10 +710,10 @@ class tst_pipediameter : public QObject
 			QVERIFY(box->isEnabled());
 			QVERIFY(box->title().contains(QStringLiteral("M01")));
 			QCOMPARE(sizes->rowCount(), 3);
-			QCOMPARE(text(0, 0), QStringLiteral("110"));
-			QCOMPARE(text(0, 1), QStringLiteral("100"));
-			QCOMPARE(text(2, 0), QStringLiteral("450"));
-			QVERIFY(text(2, 1).isEmpty());
+			QCOMPARE(text(0, od), QStringLiteral("110"));
+			QCOMPARE(text(0, dn), QStringLiteral("100"));
+			QCOMPARE(text(2, od), QStringLiteral("450"));
+			QVERIFY(text(2, dn).isEmpty());
 				// DN 100 has two outside diameters: a box each, none checked
 			QVERIFY(hasBox(0) && hasBox(1) && !hasBox(2));
 			QCOMPARE(sizes->item(0, 2)->checkState(), Qt::Unchecked);
@@ -719,31 +722,31 @@ class tst_pipediameter : public QObject
 			materials->setCurrentCell(1, 0);
 			QVERIFY(box->title().contains(QStringLiteral("M02")));
 			QCOMPARE(sizes->rowCount(), 3);
-			QVERIFY(text(0, 0).isEmpty());
-			QCOMPARE(text(0, 1), QStringLiteral("80"));
+			QVERIFY(text(0, od).isEmpty());
+			QCOMPARE(text(0, dn), QStringLiteral("80"));
 			QVERIFY(!hasBox(0));
 				// a size added, as it is typed
 			page.addSize();
 			QCOMPARE(sizes->rowCount(), 4);
-			sizes->item(3, 1)->setText(QStringLiteral("DN 150"));
-			QCOMPARE(text(3, 1), QStringLiteral("150"));
+			sizes->item(3, dn)->setText(QStringLiteral("DN 150"));
+			QCOMPARE(text(3, dn), QStringLiteral("150"));
 			QCOMPARE(materials->item(1, 3)->text(), QStringLiteral("DN 80 … DN 150 (4)"));
 			QVERIFY(page.codeMessage().isEmpty());
 				// its outside diameter, to the tenth, with the separator of the page
-			sizes->item(3, 0)->setText(QStringLiteral("168,3"));
-			QCOMPARE(text(3, 0), QStringLiteral("168.3"));
+			sizes->item(3, od)->setText(QStringLiteral("168,3"));
+			QCOMPARE(text(3, od), QStringLiteral("168.3"));
 				// what is no size gets its value back, and it is said
-			sizes->item(3, 1)->setText(QStringLiteral("abc"));
-			QCOMPARE(text(3, 1), QStringLiteral("150"));
+			sizes->item(3, dn)->setText(QStringLiteral("abc"));
+			QCOMPARE(text(3, dn), QStringLiteral("150"));
 			QVERIFY(!page.codeMessage().isEmpty());
-			sizes->item(3, 1)->setText(QStringLiteral("150,5"));
-			QCOMPARE(text(3, 1), QStringLiteral("150"));
-			sizes->item(3, 0)->setText(QStringLiteral("DN 200"));
-			QCOMPARE(text(3, 0), QStringLiteral("168.3"));
+			sizes->item(3, dn)->setText(QStringLiteral("150,5"));
+			QCOMPARE(text(3, dn), QStringLiteral("150"));
+			sizes->item(3, od)->setText(QStringLiteral("DN 200"));
+			QCOMPARE(text(3, od), QStringLiteral("168.3"));
 				// a DN alone is listed once
 			page.addSize();
-			sizes->item(4, 1)->setText(QStringLiteral("100"));
-			QVERIFY(text(4, 1).isEmpty());
+			sizes->item(4, dn)->setText(QStringLiteral("100"));
+			QVERIFY(text(4, dn).isEmpty());
 			QVERIFY(!page.codeMessage().isEmpty());
 				// a size removed; the line not filled is no size
 			sizes->clearSelection();
@@ -762,21 +765,21 @@ class tst_pipediameter : public QObject
 			QCOMPARE(sizes->item(1, 2)->checkState(), Qt::Unchecked);
 				// an outside diameter has one DN
 			page.addSize();
-			sizes->item(3, 0)->setText(QStringLiteral("125"));
-			QVERIFY(text(3, 0).isEmpty());
-			sizes->item(3, 0)->setText(QStringLiteral("Ø 140"));
-			sizes->item(3, 1)->setText(QStringLiteral("125"));
-			QCOMPARE(text(3, 0), QStringLiteral("140"));
+			sizes->item(3, od)->setText(QStringLiteral("125"));
+			QVERIFY(text(3, od).isEmpty());
+			sizes->item(3, od)->setText(QStringLiteral("Ø 140"));
+			sizes->item(3, dn)->setText(QStringLiteral("125"));
+			QCOMPARE(text(3, od), QStringLiteral("140"));
 			QVERIFY(!hasBox(3));
 				// a line which lacks what names the pipes is in orange
 			page.addSize();
-			sizes->item(4, 1)->setText(QStringLiteral("200"));
-			QVERIFY(sizes->item(4, 0)->background() != QBrush());
-			QVERIFY(sizes->item(0, 0)->background() == QBrush());
+			sizes->item(4, dn)->setText(QStringLiteral("200"));
+			QVERIFY(sizes->item(4, od)->background() != QBrush());
+			QVERIFY(sizes->item(0, od)->background() == QBrush());
 				// named by its DN instead: no default to choose, nothing lacks
 			materials->item(0, 2)->setCheckState(Qt::Unchecked);
 			QVERIFY(!hasBox(0));
-			QVERIFY(sizes->item(4, 0)->background() == QBrush());
+			QVERIFY(sizes->item(4, od)->background() == QBrush());
 			materials->item(0, 2)->setCheckState(Qt::Checked);
 			QVERIFY(hasBox(0));
 			QCOMPARE(sizes->item(0, 2)->checkState(), Qt::Checked);
@@ -809,7 +812,7 @@ class tst_pipediameter : public QObject
 			QCOMPARE(applied.equal_nominals, (QList<QPair<int, int>>{{60, 65}, {100, 110}}));
 				// the page shows the project again, in order
 			QCOMPARE(sizes->rowCount(), 5);
-			QCOMPARE(text(3, 1), QStringLiteral("200"));
+			QCOMPARE(text(3, dn), QStringLiteral("200"));
 			project.undoStack()->undo();
 			QCOMPARE(project.pidCodification(), table());
 			QCOMPARE(sizes->rowCount(), 3);

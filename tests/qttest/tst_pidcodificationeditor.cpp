@@ -16,6 +16,7 @@
 
 #include <QDomDocument>
 #include <QFile>
+#include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
 #include <QTabWidget>
@@ -226,6 +227,9 @@ class tst_pidcodificationeditor : public QObject
 			QVERIFY(row >= 0);
 			QCOMPARE(fluids->item(row, 1)->text(), QStringLiteral("Sludge"));
 			QCOMPARE(fluids->item(row, 2)->text(), QStringLiteral("S"));
+				// the family is shown beside the code, the name after them
+			QCOMPARE(fluids->horizontalHeader()->visualIndex(2), 1);
+			QCOMPARE(fluids->horizontalHeader()->visualIndex(1), 2);
 		}
 
 		void codesComeInTheirNaturalOrder()
