@@ -193,6 +193,9 @@ namespace DuplicateLabels
 				pending.append(bridgedTerminals(terminal));
 				for (Conductor* part : terminal->conductors())
 				{
+					// A potential is electrical: a pipe, a signal or a drive
+					// line is never part of one, even on the same terminal.
+					if (part->medium() != TerminalData::Electrical) continue;
 					if (connected.contains(part)
 						|| ! diagrams.contains(part->diagram()))
 						continue;
@@ -282,6 +285,9 @@ namespace DuplicateLabels
 		{
 			for (Conductor* wire : diagram->conductors())
 			{
+				// The number of a pipe line is shared by its pipes: no wire
+				// number, never a duplicate.
+				if (wire->medium() != TerminalData::Electrical) continue;
 				if (visited_wires.contains(wire)) continue;
 				++potential;
 				// QET follows actual terminals, function separation and linked

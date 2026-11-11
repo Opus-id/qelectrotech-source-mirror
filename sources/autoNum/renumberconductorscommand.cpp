@@ -95,6 +95,9 @@ RenumberConductorsCommand::Plan RenumberConductorsCommand::plan(
 		QList<Conductor *> wires = d->conductors();
 		std::sort(wires.begin(), wires.end(), readsBefore);
 		for (Conductor *wire : std::as_const(wires)) {
+				//A potential is electrical: a pipe, a signal or a drive
+				//line has no wire number to renumber
+			if (wire->medium() != TerminalData::Electrical) continue;
 			if (seen.contains(wire)) continue;
 			QSet<Conductor *> group = wire->relatedPotentialConductors(true);
 			group.insert(wire);
@@ -148,13 +151,16 @@ RenumberConductorsCommand::Plan RenumberConductorsCommand::plan(
 		QSet<QString> chosen_uuids;
 		for (Diagram *d : std::as_const(order))
 			chosen_uuids.insert(d->uuid().toString());
+			//The text of a pipe, a signal or a drive line is no wire number
+		const QSet<QUuid> other_media = db->otherMediumWires();
 		QString error;
 		QSqlQuery query = db->newQuery(QStringLiteral(
-				"SELECT c.diagram_uuid, c.text, di.plant FROM conductor c "
+				"SELECT c.diagram_uuid, c.text, di.plant, c.uuid FROM conductor c "
 				"LEFT JOIN diagram_info di ON di.diagram_uuid = c.diagram_uuid "
 				"WHERE c.text <> ''"), &error);
 		while (error.isEmpty() && query.next()) {
 			if (chosen_uuids.contains(query.value(0).toString())) continue;
+			if (other_media.contains(QUuid(query.value(3).toString()))) continue;
 			const QString text = query.value(1).toString();
 			reserved.insert(per_plant ? query.value(2).toString() + QChar(0x1f) + text : text);
 		}

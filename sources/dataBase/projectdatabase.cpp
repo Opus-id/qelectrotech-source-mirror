@@ -2012,7 +2012,10 @@ QSet<QUuid> projectDataBase::otherMediumWires() const
 */
 bool projectDataBase::refreshPotentialMembersOf(QSqlDatabase db, QHash<int, QStringList> *conflicts)
 {
-	const PotentialGroups groups = potentialGroupsOf(db);
+		//A pipe, a signal or a drive line has no potential: it is no member
+		//of one, so potential_view never lists it
+	const QSet<QUuid> other_media = otherMediumWiresOf(db);
+	const PotentialGroups groups = potentialGroupsOf(db, &other_media);
 		//Types from the source terminals count only in the mode that
 		//draws from them: in the others they are kept, never applied
 	DerivedPotentialTypes derived;
@@ -2099,6 +2102,7 @@ bool projectDataBase::refreshPotentialMembersOf(QSqlDatabase db, QHash<int, QStr
 	query.prepare(QStringLiteral("INSERT INTO temp.potential_member (wire_uuid, potential_id, is_unknown, derived_type) "
 								 "VALUES (:wire, :potential, :unknown, :derived)"));
 	for (auto it = groups.group_of.constBegin() ; it != groups.group_of.constEnd() ; ++it) {
+		if (other_media.contains(it.key())) continue;
 		query.bindValue(QStringLiteral(":wire"), it.key().toString());
 		query.bindValue(QStringLiteral(":potential"), it.value());
 		query.bindValue(QStringLiteral(":unknown"), groups.unknown.contains(it.value()) ? 1 : 0);
