@@ -47,11 +47,20 @@ PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 	m_run_widget->layout()->setContentsMargins(0, 0, 0, 0);
 	grid->addWidget(m_run_widget, 2, 1);
 
-	connect(m_family_cb, QOverload<int>::of(&QComboBox::activated), this, [this]() {
-		if (!m_locked) {
-			emit edited();
-		}
-	});
+	grid->addWidget(new QLabel(tr("Role:"), this), 3, 0);
+	m_role_cb = new QComboBox(this);
+	m_role_cb->setToolTip(tr("\"Reducer\": the size of the line changes at this symbol. Each of "
+							 "its nozzles takes the size of its pipe or a size of its own, and a "
+							 "change of size stops there. Tick no nozzle of the run of the line."));
+	grid->addWidget(m_role_cb, 3, 1);
+
+	for (QComboBox *list : {m_family_cb, m_role_cb}) {
+		connect(list, QOverload<int>::of(&QComboBox::activated), this, [this]() {
+			if (!m_locked) {
+				emit edited();
+			}
+		});
+	}
 		//In-line with no nozzle of the run ticked: all of them
 	connect(m_inline_cb, &QCheckBox::toggled, this, [this](bool on) {
 		if (m_locked) {
@@ -89,6 +98,15 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 	}
 	m_family_cb->setCurrentIndex(m_family_cb->findData(data.m_pid_family));
 
+	m_role_cb->clear();
+	m_role_cb->addItem(tr("None"), QString());
+	m_role_cb->addItem(tr("Reducer"), QStringLiteral("reducer"));
+		//A role the list does not know is kept as it is
+	if (!data.m_pid_role.isEmpty() && m_role_cb->findData(data.m_pid_role) < 0) {
+		m_role_cb->addItem(data.m_pid_role, data.m_pid_role);
+	}
+	m_role_cb->setCurrentIndex(m_role_cb->findData(data.m_pid_role));
+
 	m_inline_cb->setChecked(data.m_pipe_inline);
 
 	qDeleteAll(m_run_cbs);
@@ -110,7 +128,7 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 	}
 
 	setVisible(!nozzles.isEmpty() || !data.m_pid_family.isEmpty()
-			   || data.m_pipe_inline || !data.m_pipe_run.isEmpty());
+			   || data.m_pipe_inline || !data.m_pipe_run.isEmpty() || !data.m_pid_role.isEmpty());
 	m_locked = false;
 }
 
@@ -134,5 +152,6 @@ ElementData PipingBlockWidget::applyTo(ElementData data) const
 	}
 	data.m_pipe_inline = m_inline_cb->isChecked();
 	data.m_pid_family = m_family_cb->currentData().toString();
+	data.m_pid_role = m_role_cb->currentData().toString();
 	return data;
 }

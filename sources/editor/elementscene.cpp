@@ -551,6 +551,9 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 	if (!m_element_data.m_pipe_run.isEmpty()) {
 		root.setAttribute(QStringLiteral("pipe_run"), m_element_data.m_pipe_run.join(QLatin1Char(' ')));
 	}
+	if (!m_element_data.m_pid_role.isEmpty()) {
+		root.setAttribute(QStringLiteral("pid_role"), m_element_data.m_pid_role);
+	}
 	if (!m_element_data.m_prefix.isEmpty()) {
 		root.setAttribute(QStringLiteral("prefix"), m_element_data.m_prefix);
 	}

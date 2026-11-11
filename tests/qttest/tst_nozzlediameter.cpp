@@ -1539,6 +1539,120 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(other.m_pid_family, QString());
 		}
 
+			// pid_role="reducer" is read, written back by the editor, given by
+			// the list "Role" of the block; nothing is written without it
+		void theEditorKeepsTheRoleOfAReducer()
+		{
+			QDomDocument doc;
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666669}"), 0,
+								  QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			ElementData data;
+			data.fromXml(doc.documentElement());
+			QCOMPARE(data.m_pid_role, QStringLiteral("reducer"));
+			ElementScene scene(nullptr);
+			scene.fromXml(doc, QPointF(), true);
+			QCOMPARE(scene.toXml().documentElement().attribute(QStringLiteral("pid_role")),
+					 QStringLiteral("reducer"));
+
+			PipingBlockWidget block;
+			block.setData(scene.elementData(), scene.pipeNozzleNames());
+			QVERIFY(block.applyTo(scene.elementData()) == scene.elementData());
+			QComboBox *role = nullptr;
+			for (QComboBox *list : block.findChildren<QComboBox *>()) {
+				if (list->findData(QStringLiteral("reducer")) >= 0) {
+					role = list;
+				}
+			}
+			QVERIFY(role);
+			QCOMPARE(role->currentData().toString(), QStringLiteral("reducer"));
+			role->setCurrentIndex(role->findData(QString()));
+			const ElementData none = block.applyTo(scene.elementData());
+			QVERIFY(none.m_pid_role.isEmpty());
+			QVERIFY(none != scene.elementData());
+			scene.setElementData(none);
+			QVERIFY(!scene.toXml().documentElement().hasAttribute(QStringLiteral("pid_role")));
+
+				// another symbol has none
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666670}"), 0));
+			ElementData other;
+			other.fromXml(doc.documentElement());
+			QVERIFY(other.m_pid_role.isEmpty());
+		}
+
+			// A reducer stops a change of DN, whatever its sizes; one whose two
+			// sides have the same size, theirs or their lines', is marked, and
+			// the side whose line changes is drawn again
+		void aReducerWhichKeepsTheSizeIsMarked()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			const ElementsLocation reducer_symbol = addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" "));
+			Element *reducer = place(folio, reducer_symbol);
+			Element *a = place(folio, tank);
+			Element *b = place(folio, tank);
+			QVERIFY(reducer && a && b);
+			QVERIFY(reducer->isReducer());
+			QVERIFY(!a->isReducer());
+			a->setPos(0, 200);
+			b->setPos(400, 200);
+			Conductor *big = connect(folio, a, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *small = connect(folio, reducer, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			QVERIFY(big && small);
+			Terminal *n1 = terminal(reducer, QStringLiteral("N1"));
+			Terminal *n2 = terminal(reducer, QStringLiteral("N2"));
+			QCOMPARE(n1->reducerOtherSide(), n2);
+			QCOMPARE(n2->reducerOtherSide(), n1);
+				// its nozzles follow their pipes, each its own
+			QVERIFY(!n1->followsPipe());
+			setDn(big, 100);
+			setDn(small, 80);
+			QCOMPARE(n1->diameter(), PipeDiameter::nominal(100));
+			QCOMPARE(n2->diameter(), PipeDiameter::nominal(80));
+			QVERIFY(!n1->reducesNothing() && !n1->hasDiameterGap() && !n2->hasDiameterGap());
+				// a change of DN stops there
+			QCOMPARE(big->inlineRun(), QList<Conductor *>{big});
+
+				// the small line given the size of the big one: both sides marked,
+				// and said, on the side which did not change too
+			setDn(small, 100);
+			QVERIFY(n1->reducesNothing() && n2->reducesNothing());
+			QVERIFY(n1->hasDiameterGap() && n2->hasDiameterGap());
+			QVERIFY(n1->toolTip().contains(QStringLiteral("Reducer without a change of size")));
+			setDn(small, 80);
+			QVERIFY(!n1->hasDiameterGap());
+			QVERIFY(!n1->toolTip().contains(QStringLiteral("Reducer without a change of size")));
+
+				// sizes of its own, the same on both sides: marked too
+			reducer->setNozzleDiameters(dns({{QStringLiteral("N1"), 80}, {QStringLiteral("N2"), 80}}));
+			QVERIFY(n2->reducesNothing() && n2->hasDiameterGap());
+			reducer->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 80}}));
+			QVERIFY(!n1->hasDiameterGap() && !n2->hasDiameterGap());
+
+				// the same symbol without the role: no mark for equal sizes
+			const ElementsLocation plain_symbol = addSymbol(
+						project, QStringLiteral("plain_piece.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555557}"), 0,
+						QStringLiteral("pid_family=\"pipe\" "));
+			Element *plain = place(folio, plain_symbol);
+			Element *c = place(folio, tank);
+			Element *d = place(folio, tank);
+			QVERIFY(plain && c && d);
+			plain->setPos(200, 600);
+			c->setPos(0, 600);
+			d->setPos(400, 600);
+			Conductor *left = connect(folio, c, QStringLiteral("N2"), plain, QStringLiteral("N1"));
+			Conductor *right = connect(folio, plain, QStringLiteral("N2"), d, QStringLiteral("N1"));
+			QVERIFY(left && right);
+			setDn(left, 100);
+			setDn(right, 100);
+			QVERIFY(!terminal(plain, QStringLiteral("N1"))->reducerOtherSide());
+			QVERIFY(!terminal(plain, QStringLiteral("N1"))->hasDiameterGap());
+		}
+
 		void aDifferenceIsMarkedNotCorrected()
 		{
 			QETProject project;

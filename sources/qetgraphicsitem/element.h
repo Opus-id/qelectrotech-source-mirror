@@ -268,6 +268,12 @@ class Element : public QetGraphicsItem
 		static NozzleMarks nozzleMarksFromXml(const QDomElement &element);
 		bool isPipeInline() const;
 		QStringList pipeRun() const;
+			/// True for a reducer (pid_role="reducer"): the size of the line
+			/// changes there, whatever the sizes of its nozzles, and a change
+			/// of DN stops there
+		bool isReducer() const {
+			return m_data.m_pid_role == QLatin1String("reducer");
+		}
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// The colour of the label of this symbol when the project draws

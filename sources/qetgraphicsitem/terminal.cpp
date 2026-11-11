@@ -1752,7 +1752,22 @@ const Terminal *Terminal::runSiblingOtherThan(const PipeDiameter &pipe) const
 
 void Terminal::refreshSizes()
 {
-	for (Terminal *nozzle : contactGroup()) {
+	const QList<Terminal *> group = contactGroup();
+	QList<Terminal *> others;
+	for (Terminal *nozzle : group) {
+		nozzle->updateDiameterToolTip();
+		nozzle->update();
+			//The other side of a reducer says whether both have one size
+		Terminal *other = nozzle->reducerOtherSide();
+		if (other && !group.contains(other)) {
+			for (Terminal *beyond : other->contactGroup()) {
+				if (!group.contains(beyond) && !others.contains(beyond)) {
+					others << beyond;
+				}
+			}
+		}
+	}
+	for (Terminal *nozzle : std::as_const(others)) {
 		nozzle->updateDiameterToolTip();
 		nozzle->update();
 	}
@@ -1815,7 +1830,43 @@ bool Terminal::hasDiameterGap() const
 	if (runSiblingOtherThan(pipe)) {
 		return true;
 	}
+		//A reducer which keeps the size
+	if (reducesNothing()) {
+		return true;
+	}
 	return compareDiameters(ownDiameter(), comparedDiameter()) != PidCodification::DiameterMatch::Same;
+}
+
+Terminal *Terminal::reducerOtherSide() const
+{
+	if (d->m_medium != TerminalData::Pipe || !parent_element_ || !parent_element_->isReducer()) {
+		return nullptr;
+	}
+	Terminal *other = nullptr;
+	for (Terminal *terminal : parent_element_->terminals())
+	{
+		if (terminal == this || terminal->medium() != TerminalData::Pipe) {
+			continue;
+		}
+			//More than two sides: none is the other one
+		if (other) {
+			return nullptr;
+		}
+		other = terminal;
+	}
+	return other;
+}
+
+bool Terminal::reducesNothing() const
+{
+	const Terminal *other = reducerOtherSide();
+	if (!other) {
+		return false;
+	}
+	const PipeDiameter mine = diameter();
+	const PipeDiameter theirs = other->diameter();
+	return mine.isSet() && theirs.isSet()
+			&& compareDiameters(mine, theirs) == PidCodification::DiameterMatch::Same;
 }
 
 /**
@@ -1851,6 +1902,11 @@ void Terminal::updateDiameterToolTip()
 		if (match == PidCodification::DiameterMatch::Unknown) {
 			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : other).text(locale));
 		}
+	} else if (compareDiameters(own, comparedDiameter()) == PidCodification::DiameterMatch::Same
+			   && reducesNothing()) {
+			//The size of this side on both
+		tip += QLatin1Char('\n') + tr("Reducer without a change of size: %1 on both sides")
+								   .arg(diameterText());
 	} else {
 			//An outside diameter against that of the pipe, when it has one
 		const PipeDiameter compared = comparedDiameter();

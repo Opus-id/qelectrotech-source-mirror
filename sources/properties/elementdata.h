@@ -355,6 +355,11 @@ class ElementData : public PropertiesInterface
 			/// branch for an equal tee; none read as the two nozzles of a
 			/// symbol a line runs through (Element::pipeRun())
 		QStringList m_pipe_run;
+			/// What this P&ID symbol is to the lines (attribute pid_role):
+			/// "reducer", where the size of the line changes and a change
+			/// of DN stops (Element::isReducer()); none for any other
+			/// symbol. A role this version does not know is kept as it is.
+		QString m_pid_role;
 			/// The identifier this symbol gives the label of a placed
 			/// element (Element::getPrefix()), such as "PC" for a pump:
 			/// when it has one, it is taken before the one of its folder

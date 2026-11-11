@@ -27489,6 +27489,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <source>Inline item between %1 and %2, without a reducer</source>
         <translation>Appareil en ligne entre %1 et %2, sans réduction</translation>
     </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1900"/>
+        <source>Reducer without a change of size: %1 on both sides</source>
+        <translation>Réduction sans changement de taille : %1 des deux côtés</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="693"/>
         <source>This terminal already has %n conductors, the project&apos;s limit. Add a terminal to connect one more conductor.</source>
@@ -27547,6 +27552,21 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="31"/>
         <source>Piping</source>
         <translation>Tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="50"/>
+        <source>Role:</source>
+        <translation>Rôle :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="52"/>
+        <source>&quot;Reducer&quot;: the size of the line changes at this symbol. Each of its nozzles takes the size of its pipe or a size of its own, and a change of size stops there. Tick no nozzle of the run of the line.</source>
+        <translation>« Réduction » : la taille de la ligne change sur ce symbole. Chaque piquage prend la taille de sa tuyauterie ou une taille propre, et un changement de taille s&apos;y arrête. Ne cocher aucun piquage du groupe de la ligne.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="100"/>
+        <source>Reducer</source>
+        <translation>Réduction</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="35"/>

@@ -30,7 +30,8 @@ class QComboBox;
 	The block "Piping" of the element editor: the family of the symbol, the
 	case "in-line symbol" and one case per nozzle for the run of the line (the
 	nozzles whose size follows the pipe, and through which a change of size
-	goes). Shown in the panel Informations, when no part is selected.
+	goes), and the role of the symbol for the lines (pid_role: a reducer).
+	Shown in the panel Informations, when no part is selected.
 */
 class PipingBlockWidget : public QGroupBox
 {
@@ -54,6 +55,7 @@ class PipingBlockWidget : public QGroupBox
 
 	private:
 		QComboBox *m_family_cb = nullptr;
+		QComboBox *m_role_cb = nullptr;
 		QCheckBox *m_inline_cb = nullptr;
 		QWidget *m_run_widget = nullptr;
 		QList<QCheckBox *> m_run_cbs;

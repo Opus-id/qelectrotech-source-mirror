@@ -152,6 +152,13 @@ class Terminal : public QGraphicsObject
 			/// table of the project (PidCodification::compare()): one it does
 			/// not know is a gap too.
 		bool hasDiameterGap() const;
+			/// The other nozzle of the reducer of this nozzle
+			/// (Element::isReducer()), which has two; nullptr otherwise
+		Terminal *reducerOtherSide() const;
+			/// This nozzle is one of a reducer whose two sides have the same
+			/// size, their own or that of their line: a reducer which
+			/// reduces nothing, said as a gap (hasDiameterGap())
+		bool reducesNothing() const;
 		void updateDiameterToolTip();
 			/// The one its symbol gives this nozzle
 		PipeDiameter symbolDiameter() const { return d->m_diameter; }
