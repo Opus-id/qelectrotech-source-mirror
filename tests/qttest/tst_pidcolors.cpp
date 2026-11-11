@@ -24,6 +24,7 @@
 #include <QDomDocument>
 #include <QHeaderView>
 #include <QImage>
+#include <QListWidget>
 #include <QPainter>
 #include <QPushButton>
 #include <QTableWidget>
@@ -761,6 +762,45 @@ class tst_pidcolors : public QObject
 			QVERIFY(m_project.pidCodification() == once);
 			QVERIFY(dialog.isVisible());
 			m_project.setPidCodification(PidCodification());
+		}
+
+			// The icons of the pages of a dialog are one above the other, in
+			// the middle of their list, whatever the width of their titles
+		void thePagesOfADialogAreCenteredInItsList()
+		{
+			class TitledPage : public ConfigPage
+			{
+				public:
+					explicit TitledPage(const QString &title) : ConfigPage(nullptr), m_title(title) {}
+					void applyConf() override {}
+					QString title() const override { return m_title; }
+					QIcon icon() const override {
+						QPixmap pixmap(64, 64);
+						pixmap.fill(Qt::darkGray);
+						return QIcon(pixmap);
+					}
+				private:
+					QString m_title;
+			};
+			ConfigDialog dialog;
+			dialog.addPage(new TitledPage(QStringLiteral("P&ID")));
+			dialog.addPage(new TitledPage(QStringLiteral("Automatic numbering")));
+			dialog.addPage(new TitledPage(QStringLiteral("General")));
+			dialog.show();
+			QCoreApplication::processEvents();
+			auto *list = dialog.findChild<QListWidget *>();
+			QVERIFY(list);
+			QCOMPARE(list->count(), 3);
+			const int middle = list->viewport()->rect().center().x();
+			for (int row = 0 ; row < list->count() ; ++row) {
+				const QRect rect = list->visualItemRect(list->item(row));
+				QCOMPARE(rect.width(), list->visualItemRect(list->item(0)).width());
+				QVERIFY2(qAbs(rect.center().x() - middle) <= 3, qPrintable(list->item(row)->text()));
+					// one under the other, as before
+				if (row > 0) {
+					QVERIFY(rect.top() > list->visualItemRect(list->item(row - 1)).bottom());
+				}
+			}
 		}
 
 		void theConfigPageSetsTheColorsOfTheProject()

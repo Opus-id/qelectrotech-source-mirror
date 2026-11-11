@@ -123,6 +123,18 @@ void ConfigDialog::addPageToList(ConfigPage *page) {
 	new_button -> setText(page -> title());
 	new_button -> setTextAlignment(Qt::AlignHCenter);
 	new_button -> setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+	// An item is as wide as its title, and the items are put on the left of
+	// the list: the icons were not one above the other. Every item is given
+	// the width of the list instead, where its icon and its title are
+	// centred. A title wider than the list keeps its own width, as before.
+	const QSize natural = pages_list -> sizeHintForIndex(
+				pages_list -> model() -> index(pages_list -> row(new_button), 0));
+	const int width = pages_list -> maximumWidth() - 2 * pages_list -> frameWidth()
+					  - 2 * pages_list -> spacing();
+	if (natural.isValid() && natural.width() < width) {
+		new_button -> setSizeHint(QSize(width, natural.height()));
+	}
 }
 
 /**
