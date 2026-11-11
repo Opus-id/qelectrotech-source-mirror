@@ -2713,6 +2713,11 @@ Voulez-vous les renuméroter aussi ?</numerusform>
 <context>
     <name>Conductor</name>
     <message>
+        <location filename="../sources/qetgraphicsitem/conductor.cpp" line="1129"/>
+        <source>%1 is not a size of the material %2.</source>
+        <translation>%1 n&apos;est pas une taille du matériau %2.</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/conductor.cpp" line="2224"/>
         <source>Edit conductor properties</source>
         <comment>undo caption</comment>

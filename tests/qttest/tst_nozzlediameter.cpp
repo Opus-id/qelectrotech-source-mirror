@@ -588,6 +588,10 @@ class tst_nozzlediameter : public QObject
 			}
 			folio->undoStack().redo();
 			QCOMPARE(od(last_pipe), PipeDiameter::outside(125));
+				// all of their material: nothing marked
+			for (Conductor *pipe : std::as_const(line)) {
+				QVERIFY(pipe->offSeriesNote().isEmpty());
+			}
 
 				// DN 65: DN 60 on the cast iron, which has that one, and said;
 				// the plastics have no DN 65: kept all the same, without an
@@ -600,6 +604,13 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(questions.size(), 1);
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("M04")));
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("M01")));
+				// and marked on the folio: the plastics, not the steel nor
+				// the cast iron, whose DN 60 is said equal
+			QVERIFY(plastic_pipe->offSeriesNote().contains(QStringLiteral("M01")));
+			QVERIFY(last_pipe->offSeriesNote().contains(QStringLiteral("M01")));
+			QVERIFY(other_pipe->offSeriesNote().contains(QStringLiteral("M03")));
+			QVERIFY(steel_pipe->offSeriesNote().isEmpty());
+			QVERIFY(iron_pipe->offSeriesNote().isEmpty());
 
 				// from a plastic pipe: the other pipe of its material takes
 				// the outside diameter typed; the other plastic keeps the one
@@ -627,7 +638,80 @@ class tst_nozzlediameter : public QObject
 			type(QString());
 			for (Conductor *pipe : std::as_const(line)) {
 				QVERIFY(!pipe->properties().m_pipe.hasSize());
+				QVERIFY(pipe->offSeriesNote().isEmpty());
 			}
+
+				// sizes given another way than through the panel: DN 65,
+				// said equal to the DN 60 of the cast iron, is of its sizes,
+				// DN 50 is not; an outside diameter the plastic has not
+			auto give = [](Conductor *pipe, const PipeDiameter &nominal,
+						   const PipeDiameter &outside) {
+				ConductorProperties properties = pipe->properties();
+				properties.m_pipe.nominal = nominal;
+				properties.m_pipe.outside = outside;
+				pipe->setProperties(properties);
+			};
+			give(iron_pipe, PipeDiameter::nominal(65), PipeDiameter());
+			QVERIFY(iron_pipe->offSeriesNote().isEmpty());
+			give(iron_pipe, PipeDiameter::nominal(50), PipeDiameter());
+			QVERIFY(iron_pipe->offSeriesNote().contains(QStringLiteral("M04")));
+			give(plastic_pipe, PipeDiameter::nominal(100), PipeDiameter::outside(112));
+			QVERIFY(plastic_pipe->offSeriesNote().contains(QStringLiteral("112")));
+				// none when the material leaves the project
+			ConductorProperties properties = iron_pipe->properties();
+			properties.m_pipe.material = QStringLiteral("M09");
+			iron_pipe->setProperties(properties);
+			QVERIFY(iron_pipe->offSeriesNote().isEmpty());
+		}
+
+			// there is no flange of DN 60: a flanged nozzle without a DN of
+			// its own, on a cast iron line DN 60, is written DN 65
+		void aFlangeIsWrittenWithTheUsualDn()
+		{
+			QETProject project;
+			PidCodification codification;
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.addSize(0, 65);
+			steel.addSize(0, 80);
+			PidCodification::Entry iron;
+			iron.code = QStringLiteral("M04");
+			iron.addSize(0, 60);
+			iron.addSize(0, 80);
+			codification.materials = {steel, iron};
+			codification.addEqualNominals(60, 65);
+			project.setPidCodification(codification);
+
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			Diagram *folio = project.addNewDiagram();
+			Element *pump = place(folio, plain);
+			Element *other = place(folio, plain);
+			QVERIFY(pump && other);
+			other->setPos(400, 200);
+			Conductor *pipe = connect(folio, pump, QStringLiteral("N2"), other, QStringLiteral("N1"));
+			QVERIFY(pipe);
+			ConductorProperties properties = pipe->properties();
+			properties.m_pipe.material = QStringLiteral("M04");
+			properties.m_pipe.nominal = PipeDiameter::nominal(60);
+			pipe->setProperties(properties);
+			Terminal *outlet = terminal(pump, QStringLiteral("N2"));
+			Terminal *inlet = terminal(other, QStringLiteral("N1"));
+
+				// plain ends: as the cast iron has it
+			QCOMPARE(outlet->diameterText(), QStringLiteral("DN 60"));
+				// a flange: the usual one, and the other end stays
+			pump->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::Flange}});
+			QCOMPARE(outlet->diameterText(), QStringLiteral("DN 65"));
+			QCOMPARE(inlet->diameterText(), QStringLiteral("DN 60"));
+				// nothing differs, nothing marked
+			QVERIFY(!outlet->hasDiameterGap());
+			QVERIFY(pipe->offSeriesNote().isEmpty());
+				// a DN said equal to no other: as it is
+			properties.m_pipe.nominal = PipeDiameter::nominal(80);
+			pipe->setProperties(properties);
+			QCOMPARE(outlet->diameterText(), QStringLiteral("DN 80"));
 		}
 
 			// the same pipe from any side

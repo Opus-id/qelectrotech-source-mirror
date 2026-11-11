@@ -194,7 +194,10 @@ class Terminal : public QGraphicsObject
 			/// The diameter of this nozzle (diameter()) as it is written:
 			/// its own; else that of its pipe, as the project writes the
 			/// size of this pipe ("DN 60/65" without material,
-			/// PidCodification::text()). Nothing for none.
+			/// PidCodification::text()), but for a flange, which is written
+			/// with the usual DN of those the project says equal
+			/// (PidCodification::usualNominal(): DN 65 on a cast iron DN 60).
+			/// Nothing for none.
 		QString diameterText() const;
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;

@@ -121,6 +121,14 @@ namespace QET {
 			to the light blue of the dashed conductors.
 		*/
 		QColor highlightColor(const SheetInk &ink);
+		/**
+			The color of what a P&ID points out on the screen, to be looked
+			at: a nozzle whose size differs from its pipe, a pipe whose
+			size is not one of its material. Orange, the same for all of
+			them, and never printed nor exported. Given in one place, to
+			become a setting of the application.
+		*/
+		QColor signalColor();
 
 		/**
 			The color of the grid dots on a sheet of color \a sheet: black,

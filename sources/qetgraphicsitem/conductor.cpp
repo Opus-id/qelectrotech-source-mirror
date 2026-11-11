@@ -858,6 +858,9 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	}
 		//Draw the conductor, with a hop at each crossing if the project asks for them
 	const QPainterPath painted_path = paintedPath();
+	if (m_properties.m_medium == TerminalData::Pipe) {
+		drawOffSeries(painter, painted_path, line_width, detail);
+	}
 	painter -> drawPath(painted_path);
 		//Draw the second color
 	if(m_properties.m_bicolor && !typed)
@@ -1082,7 +1085,7 @@ void Conductor::drawDiameterGaps(QPainter *painter) const
 	if (!folio || !folio->drawTerminals()) {
 		return;
 	}
-	const QColor orange(255, 140, 0);
+	const QColor orange = QET::Palette::signalColor();
 	QPen pen(orange);
 	pen.setCosmetic(true);
 	painter->setPen(pen);
@@ -1096,6 +1099,81 @@ void Conductor::drawDiameterGaps(QPainter *painter) const
 											c + QPointF(0, 6), c + QPointF(-6, 0)}));
 		}
 	}
+}
+
+/**
+	@brief Conductor::offSeriesNote
+	See the declaration
+*/
+QString Conductor::offSeriesNote() const
+{
+	if (m_properties.m_medium != TerminalData::Pipe) {
+		return QString();
+	}
+	const Diagram *folio = diagram();
+	if (!folio || !folio->project()) {
+		return QString();
+	}
+	const PidCodification &codes = folio->project()->pidCodification();
+	const PipeProperties &pipe = m_properties.m_pipe;
+	const PidCodification::Entry *material = codes.material(pipe.material);
+	if (!material || codes.pipeSizes(pipe.material) != PidCodification::SizeRule::Series) {
+		return QString();
+	}
+	const QLocale locale = codes.locale();
+	if (pipe.nominal.isSet())
+	{
+			//DN 65 on a material which has DN 60, said equal, is of its sizes
+		const QList<PipeDiameter> line = codes.lineSizes(pipe.material);
+		if (!line.contains(pipe.nominal)
+			&& !line.contains(codes.nominalIn(pipe.nominal, pipe.material))) {
+			return tr("%1 is not a size of the material %2.")
+					.arg(pipe.nominal.text(locale), pipe.material);
+		}
+	}
+	if (material->outside_diameter && pipe.outside.isSet()
+		&& !codes.acceptsForPipe(pipe.outside, pipe.material)) {
+		return tr("%1 is not a size of the material %2.")
+				.arg(pipe.outside.text(locale), pipe.material);
+	}
+	return QString();
+}
+
+/**
+	@brief Conductor::drawOffSeries
+	Mark along its @p path, under the line, a pipe whose size is not one of
+	its material (offSeriesNote()): a band of orange, wide enough to be seen
+	on a whole folio. It says so and blocks nothing. Like the diamonds of
+	drawDiameterGaps(), on the screen only, never printed nor exported.
+	@param painter
+	@param path : the path the pipe is drawn along
+	@param line_width : the width of the line of the pipe
+	@param detail : the level of detail of the painter
+*/
+void Conductor::drawOffSeries(QPainter *painter, const QPainterPath &path,
+							  qreal line_width, qreal detail) const
+{
+	const Diagram *folio = diagram();
+	if (!folio || !folio->drawTerminals() || offSeriesNote().isEmpty()) {
+		return;
+	}
+	painter->save();
+	QColor band = QET::Palette::signalColor();
+	band.setAlpha(110);
+	QPen pen(band);
+	pen.setWidthF(line_width + 8.0);
+		//Never thinner than a few pixels, when the folio is zoomed out
+	if (pen.widthF() * detail < 6.0) {
+		pen.setCosmetic(true);
+		pen.setWidthF(6.0);
+	}
+	pen.setCapStyle(Qt::FlatCap);
+	pen.setJoinStyle(Qt::RoundJoin);
+	painter->setPen(pen);
+	painter->setBrush(Qt::NoBrush);
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	painter->drawPath(path);
+	painter->restore();
 }
 
 /// @return le Diagram auquel ce conducteur appartient, ou 0 si ce conducteur est independant
@@ -1191,6 +1269,10 @@ void Conductor::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 void Conductor::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
 	Q_UNUSED(event);
 	m_mouse_over = true;
+		//What its orange band says (drawOffSeries()); a wire has no tip
+	if (m_properties.m_medium == TerminalData::Pipe) {
+		setToolTip(offSeriesNote());
+	}
 	update();
 }
 

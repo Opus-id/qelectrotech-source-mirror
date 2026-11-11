@@ -198,6 +198,11 @@ QColor QET::Palette::highlightColor(const SheetInk &ink)
 	return coloredWires(ink) ? QColor(0, 210, 0) : QColor(69, 137, 255);
 }
 
+QColor QET::Palette::signalColor()
+{
+	return QColor(255, 140, 0);
+}
+
 QColor QET::Palette::gridDotColor(const QColor &sheet, bool inverted)
 {
 	if (sheet == QColor(Qt::black))

@@ -213,6 +213,15 @@ class Conductor : public QGraphicsObject
 		void takeNozzleDiameter();
 		QList<Conductor *> inlineRun();
 		void drawDiameterGaps(QPainter *painter) const;
+			/// What is wrong with the size of this pipe: a DN, or an outside
+			/// diameter, which is not one of the sizes of its material (a DN
+			/// passed on through valves, a material changed, sizes taken out
+			/// of the codification). Nothing for a pipe without material, of a
+			/// material without sizes, or of another medium. Said on hovering
+			/// it and marked by drawOffSeries()
+		QString offSeriesNote() const;
+		void drawOffSeries(QPainter *painter, const QPainterPath &path,
+						   qreal line_width, qreal detail) const;
 		void drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const;
 		QPainterPath trimmedEnds(qreal half_width) const;
 		bool potentialTypeFormat(PotentialType *type) const;

@@ -18,6 +18,7 @@
 #include <qetgraphicsitem/terminal.h>
 #include <ElementsCollection/terminaluuids.h>
 #include <qet.h>
+#include <qetpalette.h>
 #include <qetproject.h>
 #include <dataBase/projectdatabase.h>
 #include <conductorautonumerotation.h>
@@ -351,7 +352,7 @@ void Terminal::paint(
 		//Two sizes where this nozzle is placed against another one: the
 		//orange diamond a pipe draws at its ends, on the screen only
 	if (diagram() && diagram()->drawTerminals() && marksContactGap()) {
-		const QColor orange(255, 140, 0);
+		const QColor orange = QET::Palette::signalColor();
 		QPen pen(orange);
 		pen.setCosmetic(true);
 		painter->setPen(pen);
@@ -1894,8 +1895,22 @@ QString Terminal::diameterText() const
 		//writes the size of this pipe
 	const Conductor *pipe = nullptr;
 	PipeDiameter size = ownDiameter();
-	if (!size.isSet()) {
+	if (!size.isSet())
+	{
 		size = pipeDiameter(&pipe);
+			//There is no flange of DN 60: a flanged nozzle on a line of cast
+			//iron DN 60 is written with the usual DN of those the project
+			//says equal, DN 65. Its plain end stays as the cast iron has it.
+		if (size.isNominal() && connection() == PipeConnection::Flange)
+		{
+			const Diagram *folio = diagram();
+			const int dn = size.tenths() / 10;
+			const int usual = folio && folio->project()
+					? folio->project()->pidCodification().usualNominal(dn) : dn;
+			if (usual != dn) {
+				return sizeText(PipeDiameter::nominal(usual), nullptr);
+			}
+		}
 	}
 	return size.isSet() ? sizeText(size, pipe) : QString();
 }
