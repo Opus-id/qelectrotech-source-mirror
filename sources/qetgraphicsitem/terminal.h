@@ -122,7 +122,9 @@ class Terminal : public QGraphicsObject
 			/// (contactNozzle()): the size of the line beyond it, or its
 			/// own size, which gives way to the size of the line of this
 			/// nozzle (the size lives on the line). None for none.
-		PipeDiameter facingDiameter() const;
+			/// @p pipe, if given, is the pipe this size is of, when it is
+			/// the size of a pipe.
+		PipeDiameter facingDiameter(const Conductor **pipe = nullptr) const;
 			/// To call when this nozzle may have come against another one
 			/// or left it (its symbol moved, a pipe came or went): the
 			/// sizes shown on both sides are drawn again
@@ -138,8 +140,9 @@ class Terminal : public QGraphicsObject
 		PipeDiameter ownDiameter() const;
 			/// The diameter of the line of this nozzle: the one brought to
 			/// it (facingDiameter()); else, in a run, the one brought to
-			/// another nozzle of the run. None for none.
-		PipeDiameter pipeDiameter() const;
+			/// another nozzle of the run. None for none. @p pipe as for
+			/// facingDiameter().
+		PipeDiameter pipeDiameter(const Conductor **pipe = nullptr) const;
 			/// The diameter of this nozzle: its own, else that of its pipe
 		PipeDiameter diameter() const;
 			/// The nozzle has a diameter of its own, its pipe another one; or
@@ -268,8 +271,13 @@ class Terminal : public QGraphicsObject
 
 	private:
 			/// The size of the pipe connected to this nozzle alone: its DN
-			/// (PipeProperties::lineSize())
-		PipeDiameter connectedDiameter() const;
+			/// (PipeProperties::lineSize()); @p pipe, if given, is this pipe
+			/// when it has a size
+		PipeDiameter connectedDiameter(const Conductor **pipe = nullptr) const;
+			/// How the size @p size is written: as the project writes it
+			/// for the material of @p pipe when it is the size of a pipe
+			/// (PidCodification::text(): "DN 60/65" without material)
+		QString sizeText(const PipeDiameter &size, const Conductor *pipe) const;
 			/// What the own size of this nozzle is compared with: the size
 			/// brought to it (facingDiameter()), a DN; but for a nozzle
 			/// given as an outside diameter, the outside diameter of its
@@ -280,10 +288,11 @@ class Terminal : public QGraphicsObject
 			/// that of its pipe, else the own size of the nozzle placed
 			/// against it, else further through the runs and the contacts;
 			/// never back through @p seen. With @p pipes_only, the size of
-			/// a pipe only.
+			/// a pipe only. @p pipe as for connectedDiameter().
 		static PipeDiameter lineDiameter(QList<const Terminal *> todo,
 										 QList<const Terminal *> seen,
-										 bool pipes_only = false);
+										 bool pipes_only = false,
+										 const Conductor **pipe = nullptr);
 			/// The mark of two sizes is drawn here: at a contact there is
 			/// no pipe to draw it (Conductor::drawDiameterGaps())
 		bool marksContactGap() const;

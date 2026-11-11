@@ -616,6 +616,14 @@ QRectF Terminal::ownRect() const {
 
 	QFontMetrics fm(labelFont());
 	QSizeF text_size = TerminalData::labelSize(fm, display_name);
+	if (d->m_medium == TerminalData::Pipe)
+	{
+			//Or for several DN a project says equal, "DN 60/65"
+		const QString several = QStringLiteral("DN 00/000");
+		const qreal width = TerminalData::labelSize(
+					fm, name().isEmpty() ? several : name() + QLatin1Char('\n') + several).width();
+		text_size.setWidth(qMax(text_size.width(), width));
+	}
 	QPointF label_pos = d->m_pos + d->m_label_pos;
 
 	qreal dx = 0, dy = 0;
@@ -1552,17 +1560,31 @@ void Terminal::drawConnectionMark(QPainter *painter, qreal detail) const
 	painter->restore();
 }
 
-PipeDiameter Terminal::connectedDiameter() const
+PipeDiameter Terminal::connectedDiameter(const Conductor **pipe) const
 {
 	if (d->m_medium != TerminalData::Pipe) {
 		return PipeDiameter();
 	}
 	for (const Conductor *conductor : m_conductors_list) {
 		if (conductor->medium() == TerminalData::Pipe) {
-			return conductor->properties().m_pipe.lineSize();
+			const PipeDiameter size = conductor->properties().m_pipe.lineSize();
+			if (pipe && size.isSet()) {
+				*pipe = conductor;
+			}
+			return size;
 		}
 	}
 	return PipeDiameter();
+}
+
+QString Terminal::sizeText(const PipeDiameter &size, const Conductor *pipe) const
+{
+	static const PidCodification none;
+	const Diagram *folio = diagram();
+	const PidCodification &codification = folio && folio->project()
+			? folio->project()->pidCodification() : none;
+	return pipe ? codification.text(size, pipe->properties().m_pipe.material)
+				: size.text(codification.locale());
 }
 
 PipeDiameter Terminal::comparedDiameter() const
@@ -1635,7 +1657,7 @@ QList<Terminal *> Terminal::contactGroup() const
 }
 
 PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Terminal *> seen,
-									bool pipes_only)
+									bool pipes_only, const Conductor **pipe_found)
 {
 	seen << todo;
 	auto add = [&todo, &seen](const QList<Terminal *> &nozzles) {
@@ -1649,7 +1671,7 @@ PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Te
 	for (int i = 0 ; i < todo.size() ; ++i)
 	{
 		const Terminal *nozzle = todo.at(i);
-		const PipeDiameter pipe = nozzle->connectedDiameter();
+		const PipeDiameter pipe = nozzle->connectedDiameter(pipe_found);
 		if (pipe.isSet()) {
 			return pipe;
 		}
@@ -1668,9 +1690,9 @@ PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Te
 	return PipeDiameter();
 }
 
-PipeDiameter Terminal::facingDiameter() const
+PipeDiameter Terminal::facingDiameter(const Conductor **pipe) const
 {
-	const PipeDiameter connected = connectedDiameter();
+	const PipeDiameter connected = connectedDiameter(pipe);
 	if (connected.isSet()) {
 		return connected;
 	}
@@ -1692,16 +1714,16 @@ PipeDiameter Terminal::facingDiameter() const
 			//The size lives on the line: a nozzle which follows a line
 			//with a size keeps it, and the nozzle against it marks the
 			//difference; without one, it has the size of that nozzle
-		const PipeDiameter mine = lineDiameter(constList(runSiblings()), {this, against}, true);
+		const PipeDiameter mine = lineDiameter(constList(runSiblings()), {this, against}, true, pipe);
 		return mine.isSet() ? mine : own;
 	}
 		//The line beyond the symbol placed against this nozzle
-	return lineDiameter(constList(against->runSiblings()), {this, against});
+	return lineDiameter(constList(against->runSiblings()), {this, against}, false, pipe);
 }
 
-PipeDiameter Terminal::pipeDiameter() const
+PipeDiameter Terminal::pipeDiameter(const Conductor **pipe) const
 {
-	const PipeDiameter facing = facingDiameter();
+	const PipeDiameter facing = facingDiameter(pipe);
 	if (facing.isSet()) {
 		return facing;
 	}
@@ -1714,7 +1736,7 @@ PipeDiameter Terminal::pipeDiameter() const
 	if (const Terminal *against = contactNozzle()) {
 		seen << against;
 	}
-	return lineDiameter(siblings, seen);
+	return lineDiameter(siblings, seen, false, pipe);
 }
 
 const Terminal *Terminal::runSiblingOtherThan(const PipeDiameter &pipe) const
@@ -1805,9 +1827,16 @@ void Terminal::updateDiameterToolTip()
 	if (d->m_medium != TerminalData::Pipe) {
 		return;
 	}
-	const PipeDiameter pipe = facingDiameter();
+		//The pipes these sizes are of, when they are those of pipes: a
+		//pipe without material is written with the DN said equal to its own
+	const Conductor *line = nullptr;
+	const Conductor *other_line = nullptr;
+	const PipeDiameter pipe = facingDiameter(&line);
 	const Terminal *sibling = runSiblingOtherThan(pipe);
-	const PipeDiameter other = sibling ? sibling->facingDiameter() : pipe;
+	const PipeDiameter other = sibling ? sibling->facingDiameter(&other_line) : pipe;
+	if (!sibling) {
+		other_line = line;
+	}
 	const PipeDiameter own = ownDiameter();
 	const QLocale locale = sizeLocale();
 	const auto unknown = tr("The materials of the project give %1 no DN, or not the same.");
@@ -1817,7 +1846,7 @@ void Terminal::updateDiameterToolTip()
 			//The connection alone
 	} else if (match != PidCodification::DiameterMatch::Same) {
 		tip += QLatin1Char('\n') + tr("Inline item between %1 and %2, without a reducer")
-								   .arg(pipe.text(locale), other.text(locale));
+								   .arg(sizeText(pipe, line), sizeText(other, other_line));
 		if (match == PidCodification::DiameterMatch::Unknown) {
 			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : other).text(locale));
 		}
@@ -1826,7 +1855,8 @@ void Terminal::updateDiameterToolTip()
 		const PipeDiameter compared = comparedDiameter();
 		tip += QLatin1Char('\n') + (contactNozzle()
 				? tr("Nozzle %1 against %2, without a pipe")
-				: tr("Nozzle %1, pipe %2")).arg(own.text(locale), compared.text(locale));
+				: tr("Nozzle %1, pipe %2")).arg(own.text(locale),
+												sizeText(compared, compared == pipe ? line : nullptr));
 		if (compareDiameters(own, compared) == PidCodification::DiameterMatch::Unknown) {
 			tip += QLatin1Char('\n') + unknown.arg((compared.isOutside() ? compared : own).text(locale));
 		}
@@ -1848,14 +1878,21 @@ void Terminal::setSymbolDiameter(const PipeDiameter &diameter)
 QString Terminal::labelText() const
 {
 	const Diagram *folio = diagram();
-	if (folio && folio->project()) {
-		const PidCodification &codification = folio->project()->pidCodification();
-		if (!codification.show_nozzle_sizes) {
-			return name();
-		}
-		return TerminalData::labelText(name(), diameter(), codification.locale());
+	if (folio && folio->project() && !folio->project()->pidCodification().show_nozzle_sizes) {
+		return name();
 	}
-	return TerminalData::labelText(name(), diameter(), PidCodification().locale());
+		//Its own size, else that of its line, written as the project
+		//writes the size of this pipe
+	const Conductor *pipe = nullptr;
+	PipeDiameter size = ownDiameter();
+	if (!size.isSet()) {
+		size = pipeDiameter(&pipe);
+	}
+	if (!size.isSet()) {
+		return name();
+	}
+	const QString shown = sizeText(size, pipe);
+	return name().isEmpty() ? shown : name() + QLatin1Char('\n') + shown;
 }
 
 QLocale Terminal::sizeLocale() const

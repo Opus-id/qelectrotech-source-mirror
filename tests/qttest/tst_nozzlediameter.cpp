@@ -1502,6 +1502,58 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!pipe->properties().m_pipe.outside.isSet());
 		}
 
+			// DN 60 and DN 65, which the project says the same size of line,
+			// are written together on a nozzle which follows a pipe without
+			// material; the material of the pipe chooses
+		void equalDnAreWrittenTogetherWithoutMaterial()
+		{
+			QETProject project;
+			const ElementsLocation location = addTank(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			QVERIFY(a && b);
+			b->setPos(400, 200);
+				// N2 has no size of its own: that of its pipe
+			Conductor *pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N2"));
+			QVERIFY(pipe);
+			setSizes(pipe, PipeDiameter::nominal(60), PipeDiameter());
+			Terminal *n2 = terminal(b, QStringLiteral("N2"));
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 60"));
+
+			PidCodification codification;
+			PidCodification::Entry iron;
+			iron.code = QStringLiteral("M06");
+			iron.addSize(0, 60);
+			iron.addSize(0, 80);
+			codification.materials = {iron};
+			codification.addEqualNominals(60, 65);
+			project.setPidCodification(codification);
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 60/65"));
+			QCOMPARE(terminal(a, QStringLiteral("N2"))->labelText(), QStringLiteral("N2\nDN 60/65"));
+				// a size said equal to no other is written alone
+			setSizes(pipe, PipeDiameter::nominal(80), PipeDiameter());
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 80"));
+			setSizes(pipe, PipeDiameter::nominal(60), PipeDiameter());
+
+				// the material of the pipe chooses
+			ConductorProperties properties = pipe->properties();
+			properties.m_pipe.material = QStringLiteral("M06");
+			pipe->setProperties(properties);
+			QCOMPARE(n2->labelText(), QStringLiteral("N2\nDN 60"));
+				// a nozzle with a size of its own is written with it alone
+			a->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::nominal(60)}});
+			QCOMPARE(terminal(a, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\nDN 60"));
+				// the size of a pipe without material, which differs from it
+			Conductor *other = connect(folio, a, QStringLiteral("N1"), b, QStringLiteral("N1"));
+			QVERIFY(other);
+			setSizes(other, PipeDiameter::nominal(80), PipeDiameter());
+			setSizes(other, PipeDiameter::nominal(60), PipeDiameter());
+			QVERIFY(!terminal(a, QStringLiteral("N1"))->hasDiameterGap());
+			QVERIFY(terminal(b, QStringLiteral("N1"))->hasDiameterGap());
+			QVERIFY(terminal(b, QStringLiteral("N1"))->toolTip().contains(QStringLiteral("DN 60/65")));
+		}
+
 			// The material of the pipe, when it has one already (a symbol
 			// dropped on a pipe without a size): with a DN goes the outside
 			// diameter of a plastic, if it has one only for this DN;

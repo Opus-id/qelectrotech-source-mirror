@@ -21,6 +21,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QUndoStack>
+#include <QValidator>
 
 // The page of a pipe in the properties panel. It is offered for pipes only,
 // whatever the option of the panel of the wires says; a change is one undo
@@ -744,6 +745,74 @@ class tst_pipepanel : public QObject
 			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(60));
 			QVERIFY(page.diameterMessage().contains(QStringLiteral("DN 65")));
 			QCOMPARE(asked, 0);
+			m_project.setPidCodification(PidCodification());
+		}
+
+			// DN 60 and DN 65, which the project says the same size of line,
+			// are one choice for a pipe without material, written "DN 60/65":
+			// its material chooses later
+		void equalDnAreOneChoiceWithoutMaterial()
+		{
+			PidCodification codification;
+			PidCodification::Entry galvanised;
+			galvanised.code = QStringLiteral("M03");
+			galvanised.addSize(0, 50);
+			galvanised.addSize(0, 65);
+			PidCodification::Entry iron;
+			iron.code = QStringLiteral("M04");
+			iron.addSize(0, 60);
+			iron.addSize(0, 80);
+			codification.materials = {galvanised, iron};
+			codification.addEqualNominals(60, 65);
+			m_project.setPidCodification(codification);
+
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(pipe);
+			ConductorProperties p = pipe->properties();
+			p.m_pipe = PipeProperties();
+			pipe->setProperties(p);
+			auto dn = [pipe]() { return pipe->properties().m_pipe.nominal; };
+			PipePropertiesWidget page({pipe});
+			auto *list = page.findChild<QComboBox *>(QStringLiteral("diameter_list"));
+			auto *material = page.findChild<QComboBox *>(QStringLiteral("material"));
+			QVERIFY(list && material);
+			QLineEdit *edit = list->lineEdit();
+
+				// nothing, DN 50, DN 60/65, DN 80
+			QCOMPARE(list->count(), 4);
+			QCOMPARE(list->itemText(2), QStringLiteral("DN 60/65"));
+				// either typed, or both, is the same, and nothing is said
+			for (const QString &typed : {QStringLiteral("65"), QStringLiteral("DN 60"),
+										 QStringLiteral("DN 60/65"), QStringLiteral("65/60")})
+			{
+				type(edit, QStringLiteral("80"));
+				type(edit, typed);
+				QCOMPARE(dn(), PipeDiameter::nominal(60));
+				QCOMPARE(edit->text(), QStringLiteral("DN 60/65"));
+				QVERIFY2(page.diameterMessage().isEmpty(), qPrintable(typed));
+			}
+				// the field takes it as the list writes it
+			int position = 0;
+			QString written = QStringLiteral("DN 60/65");
+			QCOMPARE(list->validator()->validate(written, position), QValidator::Acceptable);
+				// DN which are not said equal are no size
+			type(edit, QStringLiteral("60/80"));
+			QCOMPARE(dn(), PipeDiameter::nominal(60));
+			QVERIFY(!page.diameterMessage().isEmpty());
+
+				// its material chooses: the one it has
+			type(material->lineEdit(), QStringLiteral("M03"));
+			QCOMPARE(dn(), PipeDiameter::nominal(65));
+			QCOMPARE(edit->text(), QStringLiteral("DN 65"));
+			type(material->lineEdit(), QStringLiteral("M04"));
+			QCOMPARE(dn(), PipeDiameter::nominal(60));
+			QCOMPARE(edit->text(), QStringLiteral("DN 60"));
+				// and both again without it, whichever it had
+			type(material->lineEdit(), QStringLiteral("M03"));
+			type(material->lineEdit(), QString());
+			QCOMPARE(dn(), PipeDiameter::nominal(60));
+			QCOMPARE(edit->text(), QStringLiteral("DN 60/65"));
+			QVERIFY(page.diameterMessage().isEmpty());
 			m_project.setPidCodification(PidCodification());
 		}
 

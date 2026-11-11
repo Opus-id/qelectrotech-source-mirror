@@ -133,15 +133,30 @@ class PidCodification
 			/// Say that the DN @p a and @p b are the same size of line;
 			/// false when they are not two DN, or are said so already
 		bool addEqualNominals(int a, int b);
+			/// The DN which are the same size of line as @p dn, itself among
+			/// them, in order: those equal_nominals joins to it, one after
+			/// the other
+		QList<int> equalNominals(int dn) const;
 			/// The DN @p a and @p b are the same size of line: the same, or
-			/// a pair of equal_nominals
+			/// joined by equal_nominals
 		bool sameNominal(int a, int b) const;
 			/// The DN a pipe of the material of code @p material_code takes
 			/// for the size of line @p nominal: itself when the material has
 			/// it, else the first DN of the material equal_nominals says the
-			/// same; itself when there is none, for a material the project
-			/// has not or which has no size
+			/// same, else itself. Without material, or with one the project
+			/// has not, the first of equalNominals(): no DN is chosen yet,
+			/// and the pipe is written "DN 60/65" (text()).
 		PipeDiameter nominalIn(const PipeDiameter &nominal, const QString &material_code) const;
+			/// How the size @p size of a pipe of the material of code
+			/// @p material_code is written, with the separator of the
+			/// project: "DN 100", "Ø 110"; a DN which has equal ones, on a
+			/// pipe without material or with one the project has not, is
+			/// written with them, "DN 60/65", its material choosing later
+		QString text(const PipeDiameter &size, const QString &material_code) const;
+			/// The DN written in @p text as text() writes several, "DN 60/65"
+			/// or "60/65": the first of them; none when @p text is anything
+			/// else, or when they are not said equal
+		PipeDiameter nominalOfEqualText(const QString &text) const;
 
 			/// The sizes the pipes of the material @p entry are named by, of
 			/// its kind, in order, each once
@@ -186,8 +201,8 @@ class PidCodification
 							   const QString &material_code = QString()) const;
 			/// The DN a pipe without material may have, the DN being the
 			/// size of a line whatever its material: those of the sizes of
-			/// all the materials, in order, each once; those of ISO 6708
-			/// when the project has none
+			/// all the materials, in order, each once, equal ones as one
+			/// (nominalIn()); those of ISO 6708 when the project has none
 		QList<PipeDiameter> nominalSizes() const;
 			/// The DN a pipe of the material of code @p material_code may
 			/// have: those of its sizes, in order, each once;

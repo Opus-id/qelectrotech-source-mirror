@@ -44,22 +44,34 @@ inline QList<PipeDiameter> isoSizes()
 }
 
 /**
+	@brief fillTexts
+	Offer in @p list "nothing", then the sizes written as @p texts, keeping
+	the text shown
+*/
+inline void fillTexts(QComboBox *list, const QStringList &texts)
+{
+	const QSignalBlocker blocker(list);
+	const QString text = list->lineEdit() ? list->lineEdit()->text() : QString();
+	list->clear();
+	list->addItem(QString());
+	list->addItems(texts);
+	if (list->lineEdit()) {
+		list->lineEdit()->setText(text);
+	}
+}
+
+/**
 	@brief fill
 	Offer in @p list "nothing", then @p diameters, keeping the text shown
 */
 inline void fill(QComboBox *list, const QList<PipeDiameter> &diameters,
 				 const QLocale &locale = QLocale::c())
 {
-	const QSignalBlocker blocker(list);
-	const QString text = list->lineEdit() ? list->lineEdit()->text() : QString();
-	list->clear();
-	list->addItem(QString());
+	QStringList texts;
 	for (const PipeDiameter &diameter : diameters) {
-		list->addItem(diameter.text(locale));
+		texts << diameter.text(locale);
 	}
-	if (list->lineEdit()) {
-		list->lineEdit()->setText(text);
-	}
+	fillTexts(list, texts);
 }
 
 /**
@@ -80,10 +92,12 @@ inline void setUp(QComboBox *list, const QList<PipeDiameter> &diameters = isoSiz
 		//Otherwise 12 typed becomes 125 when the field is left
 	list->setCompleter(nullptr);
 	fill(list, diameters, locale);
-		//A DN or an outside diameter; or a thread, inches with a fraction
+		//A DN or an outside diameter, or several DN a project says equal
+		//("DN 60/65"); or a thread, inches with a fraction
 	list->setValidator(new QRegularExpressionValidator(
 						   QRegularExpression(QStringLiteral("\\s*(?:(?:(?:[Dd][Nn]|[\\x{00D8}\\x{00F8}Dd])\\s*)?"
-															 "(?:[1-9][0-9]{0,4}(?:[.,][0-9])?)?"
+															 "(?:[1-9][0-9]{0,4}(?:[.,][0-9])?"
+															 "(?:/[1-9][0-9]{0,4})*)?"
 															 "|(?:[Gg]\\s*)?[1-9][0-9 /\"\\-]{0,9})\\s*")),
 						   list));
 }

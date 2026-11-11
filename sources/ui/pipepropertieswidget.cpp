@@ -426,19 +426,26 @@ void PipePropertiesWidget::diameterEdited()
 	};
 	const QString out_of_series = tr("%1 is not a size of the material (P&ID properties of "
 									 "the project, Codification): nothing changed.").arg(text);
-		//DN 65 typed for a material which has DN 60, said equal
+		//DN 65 typed for a material which has DN 60, said equal; without
+		//material both are one, written "DN 60/65", and nothing is said
 	auto as_the_material_has_it = [&](const PipeDiameter &dn, QStringList &said) {
 		const PipeDiameter own = codes.nominalIn(dn, material);
-		if (own != dn) {
+		if (own != dn && known) {
 			said << tr("%1 → %2: the same size of line, as the material %3 has it.")
 					.arg(dn.text(locale), own.text(locale), material);
 		}
 		return own;
 	};
 
+		//Several DN the project says equal, as the list writes them
 	bool ok = false;
-	const PipeDiameter typed = PipeDiameter::fromText(
-				text, by_outside ? PipeDiameter::Outside : PipeDiameter::Nominal, &ok);
+	PipeDiameter typed = codes.nominalOfEqualText(text);
+	if (typed.isSet()) {
+		ok = true;
+	} else {
+		typed = PipeDiameter::fromText(
+					text, by_outside ? PipeDiameter::Outside : PipeDiameter::Nominal, &ok);
+	}
 	PipeDiameter nominal, outside;
 	QStringList notes;
 	QString refusal;
@@ -603,7 +610,7 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 		if (!before.nominal.isSet() && after.nominal.isSet()) {
 			note = tr("%1 → %2: its DN in the sizes of the materials.")
 				   .arg(before.outside.text(locale), after.nominal.text(locale));
-		} else if (before.nominal.isSet() && after.nominal != before.nominal) {
+		} else if (before.nominal.isSet() && after.nominal != before.nominal && codes.material(code)) {
 			note = tr("%1 → %2: the same size of line, as the material %3 has it.")
 				   .arg(before.nominal.text(locale), after.nominal.text(locale), code);
 		} else if (before.outside.isSet() && after.outside.isSet() && before.outside != after.outside) {
@@ -894,12 +901,18 @@ void PipePropertiesWidget::updateUi()
 	QList<PipeDiameter> sizes;
 	bool several = false;
 	const PidCodification::SizeRule rule = sizeRule(&sizes, &several);
-	const QLocale locale = codification().locale();
-	DiameterList::fill(m_diameter, sizes, locale);
-	m_diameter->setEnabled(!sizes.isEmpty());
+		//Written as the project writes them for this material: without
+		//material, the DN it says equal as one, "DN 60/65"
 	const PidCodification codes = codification();
-	showText(m_diameter->lineEdit(), [locale, codes](const PipeProperties &p) {
-		return writtenSize(p, codes).text(locale);
+	const QString material = list.first()->properties().m_pipe.material;
+	QStringList size_texts;
+	for (const PipeDiameter &size : std::as_const(sizes)) {
+		size_texts << codes.text(size, material);
+	}
+	DiameterList::fillTexts(m_diameter, size_texts);
+	m_diameter->setEnabled(!sizes.isEmpty());
+	showText(m_diameter->lineEdit(), [codes](const PipeProperties &p) {
+		return codes.text(writtenSize(p, codes), p.material);
 	});
 		//What was just done or refused, then what is wrong now
 	QStringList lines;
