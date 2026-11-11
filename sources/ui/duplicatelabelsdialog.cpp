@@ -43,6 +43,8 @@ DuplicateLabelsDialog::DuplicateLabelsDialog(
 	m_project(project),
 	m_tree(new QTreeWidget(this)),
 	m_case_sensitive(new QCheckBox(this)),
+	m_by_designation(new QCheckBox(this)),
+	m_signals_by_plant(new QCheckBox(this)),
 	m_summary(new QLabel(this))
 {
 	setWindowTitle(tr("Duplicate signals and components"));
@@ -73,6 +75,44 @@ DuplicateLabelsDialog::DuplicateLabelsDialog(
 			refresh();
 		});
 	layout->addWidget(m_case_sensitive);
+	m_by_designation->setObjectName(QStringLiteral("duplicateByDesignation"));
+	m_by_designation->setText(
+		tr("One designation is one device; report different part numbers"));
+	m_by_designation->setToolTip(
+		tr("When checked, symbols with the same label in the same place, "
+		   "such as a socket drawn on two sheets, are one device and are "
+		   "reported only when their part numbers differ. When unchecked, "
+		   "only linked symbols (a coil and its contacts) are one device."));
+	m_by_designation->setChecked(QetSettings::duplicateLabelsByDesignation());
+	connect(
+		m_by_designation,
+		&QCheckBox::toggled,
+		this,
+		[this](bool checked)
+		{
+			QetSettings::setDuplicateLabelsByDesignation(checked);
+			refresh();
+		});
+	layout->addWidget(m_by_designation);
+	m_signals_by_plant->setObjectName(QStringLiteral("duplicateSignalsByPlant"));
+	m_signals_by_plant->setText(
+		tr("A wire number is unique within its plant (=)"));
+	m_signals_by_plant->setToolTip(
+		tr("When checked, the same wire number in two plants, such as 101 on "
+		   "a =FACTORY sheet and 101 on a =SILO sheet, is not a duplicate: a "
+		   "wire takes the plant of its sheet. When unchecked, a wire number "
+		   "names one potential in the whole project."));
+	m_signals_by_plant->setChecked(QetSettings::duplicateLabelsSignalsByPlant());
+	connect(
+		m_signals_by_plant,
+		&QCheckBox::toggled,
+		this,
+		[this](bool checked)
+		{
+			QetSettings::setDuplicateLabelsSignalsByPlant(checked);
+			refresh();
+		});
+	layout->addWidget(m_signals_by_plant);
 	m_tree->setObjectName(QStringLiteral("duplicateOccurrences"));
 	m_tree->setHeaderLabels(
 		{tr("Error / occurrence"), tr("Sheet"), tr("Position")});
@@ -155,13 +195,24 @@ void DuplicateLabelsDialog::refresh()
 	const auto groups = DuplicateLabels::find(
 		m_project,
 		m_case_sensitive->isChecked() ? Qt::CaseSensitive :
-										Qt::CaseInsensitive);
+										Qt::CaseInsensitive,
+		m_by_designation->isChecked()
+			? DuplicateLabels::ComponentRule::SameDesignation
+			: DuplicateLabels::ComponentRule::LinkedOnly,
+		m_signals_by_plant->isChecked()
+			? DuplicateLabels::SignalScope::Plant
+			: DuplicateLabels::SignalScope::Project);
 	for (const auto& group : groups)
 	{
 		auto* root = new QTreeWidgetItem(m_tree);
 		root->setIcon(0, style()->standardIcon(QStyle::SP_MessageBoxCritical));
-		if (group.kind == DuplicateLabels::Kind::Signal)
+		if (group.kind == DuplicateLabels::Kind::Signal && group.place.isEmpty())
 			root->setText(0, tr("Duplicate signal: %1").arg(group.label));
+		else if (group.kind == DuplicateLabels::Kind::Signal)
+			root->setText(
+				0,
+				//: %2 is the plant, such as "=SILO".
+				tr("Duplicate signal: %1 in %2").arg(group.label, group.place));
 		else if (group.place.isEmpty())
 			root->setText(0, tr("Duplicate component: %1").arg(group.label));
 		else
@@ -170,6 +221,12 @@ void DuplicateLabelsDialog::refresh()
 				//: %2 is the plant and location, such as "=P1+UV1".
 				tr("Duplicate component: %1 in %2")
 					.arg(group.label, group.place));
+		if (! group.parts.isEmpty())
+			root->setText(
+				0,
+				//: %1 is the error above, %2 the part numbers, "A9, B1".
+				tr("%1 — different part numbers: %2")
+					.arg(root->text(0), group.parts.join(QStringLiteral(", "))));
 		// One collapsed row per signal or linked device: a group holding a
 		// single occurrence, the usual mistake, stands out from the others.
 		QHash<int, QTreeWidgetItem*> entities;

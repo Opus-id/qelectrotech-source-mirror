@@ -364,6 +364,13 @@ class QETProject : public QObject
 			/// edit, a new list or mode, or opening. Nothing in other modes.
 		void scheduleDerivedPotentialTypes();
 		QStringList translatableTexts();
+			/// The values the "number format 1 - Plant" parts of the
+			/// conductor numbering @p scheme last gave in @p plant, one
+			/// per such part; empty when none was given there yet
+		QStringList conductorPlantCounter(const QString &scheme, const QString &plant) const;
+		void setConductorPlantCounter(const QString &scheme, const QString &plant,
+									  const QStringList &values);
+		void renameConductorPlantCounters(const QString &from, const QString &to);
 		bool chainedReports() const;
 		void setChainedReports(bool enable);
 		bool hasChainedReportsAttribute() const;
@@ -535,6 +542,7 @@ class QETProject : public QObject
 		void readLanguagesXml(QDomDocument &xml_project);
 		void readPotentialTypesXml(QDomDocument &xml_project);
 		void readChainedReportsXml(QDomDocument &xml_project);
+		void readConductorPlantCountersXml(QDomDocument &xml_project);
 		void readTerminalLabelSplitXml(QDomDocument &xml_project);
 		void readWiringRulesXml(QDomDocument &xml_project);
 		void readPidCodificationXml(QDomDocument &xml_project);
@@ -554,6 +562,7 @@ class QETProject : public QObject
 		void writeLanguagesXml(QDomElement &);
 		void writePotentialTypesXml(QDomElement &);
 		void writeChainedReportsXml(QDomElement &);
+		void writeConductorPlantCountersXml(QDomElement &);
 		void writeTerminalLabelSplitXml(QDomElement &);
 		void writeWiringRulesXml(QDomElement &);
 		void addDiagram(Diagram *diagram, int pos = -1);
@@ -687,6 +696,9 @@ class QETProject : public QObject
 		void refreshDerivedPotentialTypes();
 		bool m_chained_reports = false;
 		bool m_has_chained_reports_attribute = false;
+			/// Conductor numbering scheme -> plant -> the values its plant
+			/// counters last gave there (conductorPlantCounter())
+		QHash<QString, QHash<QString, QStringList>> m_conductor_plant_counters;
 		bool m_pending_auto_link = false;
 			/// Terminals draw their label split: the label ("X1") and the
 			/// terminal number ("1") each in their own text field (off for

@@ -33,6 +33,8 @@ QStringList QETInformation::titleblockInfoKeys()
 							  DIA_FILENAME,
 							  DIA_PLANT,
 							  DIA_LOCMACH,
+							  DIA_FOLIO_GROUP,
+							  DIA_FOLIO_SUBGROUP,
 							  DIA_INDEX_REV,
 							  QET_VERSION,
 							  DIA_FOLIO,
@@ -360,6 +362,8 @@ QString QETInformation::translatedInfoKey(const QString &info)
 	else if (info == DIA_FILENAME)                     return QObject::tr("File");
 	else if (info == DIA_PLANT)                        return QObject::tr("Plant (=)");
 	else if (info == DIA_LOCMACH)                      return QObject::tr("Location (+)");
+	else if (info == DIA_FOLIO_GROUP)                  return QObject::tr("Folio group");
+	else if (info == DIA_FOLIO_SUBGROUP)               return QObject::tr("Folio sub-group");
 	else if (info == DIA_INDEX_REV)                    return QObject::tr("Revision index");
 	else if (info == DIA_POS)                          return QObject::tr("Position");
 	else if (info == QET_VERSION)                      return QObject::tr("Version of QElectroTech");
@@ -453,6 +457,54 @@ QString QETInformation::translatedInfoKey(const QString &info)
 				.arg(translatedInfoKey(property)).arg(connection);
 	}
 	return QString();
+}
+
+/**
+ * @brief QETInformation::elementCustomInfoKeys
+ * @param keys the keys of an element's information
+ * @return, sorted, the keys of @p keys that are user-defined custom
+ * properties (added with "Add a custom property"): every key that is
+ * neither in elementInfoKeys() nor one the program stores for itself.
+ */
+QStringList QETInformation::elementCustomInfoKeys(const QStringList &keys)
+{
+	const QStringList known = elementInfoKeys()
+			<< ELMT_FORMULA_ID
+			<< QStringLiteral("auto_num_locked")
+			<< QStringLiteral("potential_isolating")
+			<< QStringLiteral("label_shown");
+
+	QStringList custom;
+	for (const QString &key : keys) {
+		if (!known.contains(key)) {
+			custom << key;
+		}
+	}
+	custom.sort();
+	return custom;
+}
+
+/**
+ * @brief QETInformation::toInfoKey
+ * @param name a property name as the user types it, "Address A"
+ * @return @p name as an information key, "address_a": lower case,
+ * accents dropped, a space becomes "_", and anything else a key cannot
+ * hold (DiagramContext::isKeyAcceptable()) is left out. Every released
+ * QElectroTech drops a key that does not match when it opens a project.
+ */
+QString QETInformation::toInfoKey(const QString &name)
+{
+	QString key;
+	for (const QChar c : name.normalized(QString::NormalizationForm_KD).toLower())
+	{
+		if ((c >= QLatin1Char('a') && c <= QLatin1Char('z'))
+			|| (c >= QLatin1Char('0') && c <= QLatin1Char('9'))
+			|| c == QLatin1Char('-') || c == QLatin1Char('_'))
+			key += c;
+		else if (c.isSpace())
+			key += QLatin1Char('_');
+	}
+	return key;
 }
 
 QStringList QETInformation::elementEditorElementInfoKeys()

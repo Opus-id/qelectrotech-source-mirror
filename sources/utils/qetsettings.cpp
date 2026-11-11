@@ -294,6 +294,27 @@ namespace QetSettings
 	}
 
 	/**
+	* @brief duplicateLabelsByDesignation
+	* @return whether symbols with one label in one place are one device
+	* when looking for duplicates, clashing only on different part numbers
+	* (DuplicateLabels::ComponentRule::SameDesignation). Off by default,
+	* so existing users see the same results until they tick the box.
+	* @sa setDuplicateLabelsByDesignation
+	*/
+	bool duplicateLabelsByDesignation()
+	{
+		QSettings settings;
+		return settings.value("duplicate_labels/by_designation", false)
+			.toBool();
+	}
+
+	void setDuplicateLabelsByDesignation(bool by_designation)
+	{
+		QSettings settings;
+		settings.setValue("duplicate_labels/by_designation", by_designation);
+	}
+
+	/**
 	* @brief duplicateLabelsCaseSensitive
 	* @return whether K1 and k1 are different labels when looking for
 	* duplicates. Off by default: schemes rarely tell two devices apart by
@@ -310,6 +331,106 @@ namespace QetSettings
 	{
 		QSettings settings;
 		settings.setValue("duplicate_labels/case_sensitive", sensitive);
+	}
+
+	bool askLabelsPlacingMacro()
+	{
+		QSettings settings;
+		return settings.value("diagrameditor/ask_labels_placing_macro", false).toBool();
+	}
+
+	void setAskLabelsPlacingMacro(bool ask)
+	{
+		QSettings settings;
+		settings.setValue("diagrameditor/ask_labels_placing_macro", ask);
+	}
+
+	/**
+	* @brief stripWiresShown
+	* @return whether a terminal strip draws the wires which end at it
+	* (@sa setStripWiresShown), off unless the user turned it on
+	*/
+	bool stripWiresShown()
+	{
+		QSettings settings;
+		return settings.value("terminalstrip/wires_shown", false).toBool();
+	}
+
+	/**
+	* @brief setStripWiresShown
+	* Store whether a terminal strip draws the wires which end at it.
+	* @sa stripWiresShown
+	* @param shown
+	*/
+	void setStripWiresShown(bool shown)
+	{
+		QSettings settings;
+		settings.setValue("terminalstrip/wires_shown", shown);
+	}
+
+	/**
+	* @brief stripSortedByLabel
+	* @return whether a terminal strip is sorted by the label of its
+	* terminals rather than by the plan order (@sa setStripSortedByLabel),
+	* off unless the user turned it on
+	*/
+	bool stripSortedByLabel()
+	{
+		QSettings settings;
+		return settings.value("terminalstrip/sort_by_label", false).toBool();
+	}
+
+	/**
+	* @brief setStripSortedByLabel
+	* Store whether a terminal strip is sorted by the label of its
+	* terminals rather than by the plan order.
+	* @sa stripSortedByLabel
+	* @param by_label
+	*/
+	void setStripSortedByLabel(bool by_label)
+	{
+		QSettings settings;
+		settings.setValue("terminalstrip/sort_by_label", by_label);
+	}
+
+	/**
+	* @brief duplicateLabelsSignalsByPlant
+	* @return whether the duplicate check takes a wire number to be unique
+	* per plant (=) of the wire's folio rather than in the whole project
+	* (DuplicateLabels::SignalScope::Plant), as in projects numbered per
+	* installation. Off by default: one number, one potential, project-wide.
+	* @sa setDuplicateLabelsSignalsByPlant
+	*/
+	bool duplicateLabelsSignalsByPlant()
+	{
+		QSettings settings;
+		return settings.value("duplicate_labels/signals_by_plant", false).toBool();
+	}
+
+	void setDuplicateLabelsSignalsByPlant(bool by_plant)
+	{
+		QSettings settings;
+		settings.setValue("duplicate_labels/signals_by_plant", by_plant);
+	}
+
+	/**
+	* @brief newFolioTakesPreviousGroup
+	* @return whether a new folio starts with the group and sub-group of the
+	* folio it comes after (QETProject::addNewDiagram()), so a run of folios
+	* of one group is drawn without typing the group on each. Off by
+	* default: a new folio then has none, as before.
+	* @sa setNewFolioTakesPreviousGroup
+	*/
+	bool newFolioTakesPreviousGroup()
+	{
+		QSettings settings;
+		return settings.value("diagrameditor/new_folio_takes_previous_group", false).toBool();
+	}
+
+	void setNewFolioTakesPreviousGroup(bool takes)
+	{
+		QSettings settings;
+		settings.setValue("diagrameditor/new_folio_takes_previous_group", takes);
 	}
 
 	/**

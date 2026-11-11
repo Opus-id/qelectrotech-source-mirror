@@ -47,6 +47,8 @@ class DuplicateLabelsDialog : public QDialog
 	QPointer<QETProject>							   m_project;
 	QTreeWidget*									   m_tree;
 	QCheckBox*										   m_case_sensitive;
+	QCheckBox*										   m_by_designation;
+	QCheckBox*										   m_signals_by_plant;
 	QLabel*											   m_summary;
 	QHash<QTreeWidgetItem*, QPointer<QGraphicsObject>> m_targets;
 };

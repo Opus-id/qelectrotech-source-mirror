@@ -361,6 +361,16 @@ if(QET_HAS_SCRIPTING)
     "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 
   add_executable(
+    tst_titleblocklanguage
+    tst_titleblocklanguage.cpp)
+  add_test(NAME tst_titleblocklanguage COMMAND tst_titleblocklanguage)
+  add_dependencies(tst_titleblocklanguage qelectrotech)
+  target_include_directories(tst_titleblocklanguage PRIVATE ${QET_DIR}/sources)
+  target_link_libraries(tst_titleblocklanguage PRIVATE qelectrotech_objects Qt::Test)
+  target_compile_definitions(tst_titleblocklanguage PRIVATE
+    "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+
+  add_executable(
     tst_textclearance
     tst_textclearance.cpp)
   add_test(NAME tst_textclearance COMMAND tst_textclearance)
@@ -485,6 +495,27 @@ add_dependencies(tst_duplicatelabels qelectrotech_lrelease)
 # the copy is numbered from its own folio, starting at 1 like the page it was
 # made from, and that folio's counter reads the numbers it has handed out.
 qet_add_app_test(tst_folioautonumcopy tst_folioautonumcopy.cpp)
+# A folio's group and sub-group: named, or its plant and location; title
+# block variables, kept by .qet and .qetdb, absent from older files.
+qet_add_app_test(tst_foliogroup tst_foliogroup.cpp)
+# "number format 1 - Plant": a conductor numbering part counting each plant
+# (=) on its own; counts kept by .qet and .qetdb.
+qet_add_app_test(tst_plantcounter tst_plantcounter.cpp)
+# Renumber conductors: one number per potential, folio then top-left order,
+# frozen and unchosen kept, plant counters, one undo step.
+qet_add_app_test(tst_renumberwires tst_renumberwires.cpp)
+# Placing a macro: its labels and question-mark texts.
+qet_add_app_test(tst_macrolabels tst_macrolabels.cpp)
+# A read-only project builds its lazy folios whole: shown, exported, written out.
+qet_add_app_test(tst_readonlyfolios tst_readonlyfolios.cpp)
+target_compile_definitions(tst_readonlyfolios PRIVATE
+  QET_EXAMPLES_DIR="${QET_DIR}/examples")
+# IEC 81346 plant/location: an element takes its folio's, %{structure_id} composes them.
+qet_add_app_test(tst_structureid tst_structureid.cpp)
+# qet_device_list: one row per reference designation, a contact with its coil.
+qet_add_app_test(tst_devicelist tst_devicelist.cpp)
+# qet_terminals: one row per terminal of a strip, in the strip's order.
+qet_add_app_test(tst_terminallist tst_terminallist.cpp)
 # The labels file behind a symbol's prefix is read once, and again only when it changes.
 qet_add_app_test(tst_labelsfilecache tst_labelsfilecache.cpp)
 # The medium of a terminal (electrical, pipe, signal, drive): read, written
@@ -547,6 +578,9 @@ target_compile_definitions(tst_conductordefinitionmark PRIVATE
 # Two different symbols carrying the same uuid (one copied from the other and
 # redrawn) each keep their own drawing (#1789).
 qet_add_app_test(tst_symbolpicturecache tst_symbolpicturecache.cpp)
+# What a terminal strip says about the wires which end at it, and how
+# long the stub it draws above itself has to be for it.
+qet_add_app_test(tst_stripwires tst_stripwires.cpp)
 # A copy of a conductor definition keeps the point its right-aligned texts
 # stand on, as a copy of a folio report does.
 qet_add_app_test(tst_conductordefcopy tst_conductordefcopy.cpp)
@@ -611,6 +645,16 @@ qet_add_app_test(tst_terminalcableauto tst_terminalcableauto.cpp)
 qet_add_app_test(tst_terminallabeldisplay tst_terminallabeldisplay.cpp)
 qet_add_app_test(tst_terminalconductortext tst_terminalconductortext.cpp)
 
+# A symbol's user-defined custom property (#642) can be shown on the
+# drawing (discussion #561): picked as the information of a text, or
+# typed as %{key} in a composite text, and both follow its value.
+qet_add_app_test(tst_custominfotext tst_custominfotext.cpp)
+
+# A symbol can define its own custom properties (discussion #561): every
+# placed copy has them, filled in or not, an empty one adds nothing to
+# the saved project, and a typed name becomes a key every version opens.
+qet_add_app_test(tst_symbolcustominfo tst_symbolcustominfo.cpp)
+
 # A PLC contact draws its master's BMK: the master's label comes from its
 # numbering formula, which holds the page number, so a folio moved to
 # another place changes it -- the contact shows the new label at once, the
@@ -638,6 +682,9 @@ qet_add_app_test(tst_touchingconductor tst_touchingconductor.cpp)
 # bounding rect covers the drawing, not only the frame.
 qet_add_app_test(tst_symboloutsideframe tst_symboloutsideframe.cpp)
 qet_add_app_test(tst_updateelements tst_updateelements.cpp)
+# Editing a placed element: redrawn on save; optionally found and edited
+# in the collection it was taken from, which updates the open projects.
+qet_add_app_test(tst_editcollectionsource tst_editcollectionsource.cpp)
 qet_add_app_test(tst_selectionrectangle tst_selectionrectangle.cpp)
 # The selection filter (status bar): what a click, a selection rectangle
 # and Select All pick; a click goes through what is left out.
@@ -2343,6 +2390,9 @@ qet_add_app_test(tst_dragtextswithoutshift tst_dragtextswithoutshift.cpp)
 # Potential types (#1539): a project that asks for it draws a conductor in the
 # colour, line style and width of its potential type.
 qet_add_app_test(tst_potentialtypes tst_potentialtypes.cpp)
+# potential_view: one row per potential (wires, terminals, folios, wire
+# numbers, more than one number), as QElectroTech groups the wires.
+qet_add_app_test(tst_potentialview tst_potentialview.cpp)
 
 # A core of a cable: section, colour and type are locked in the dialog and
 # show a small sign saying why, so an edit cannot write over the cable

@@ -27,6 +27,7 @@
 
 #include "ElementsCollection/elementcollectionhandler.h"
 #include "TerminalStrip/GraphicsItem/terminalstripitem.h"
+#include "utils/qetsettings.h"
 #include "cable/cablecopy.h"
 #include "cable/cablepart.h"
 #include "xml/terminalstripitemxml.h"
@@ -229,6 +230,8 @@ Diagram::Diagram(QETProject *project) :
 			conductor->refreshText();
 		}
 	});
+
+	border_and_titleblock.setLanguages(&m_project->languages());
 
 	connect(&border_and_titleblock,
 		&BorderTitleBlock::needTitleBlockTemplate,
@@ -3037,9 +3040,32 @@ void Diagram::refreshContents()
 	Do some specific operation if item need it (for example an element)
 	@param item
 */
+void Diagram::refreshTerminalStrips()
+{
+		//With the setting off nothing is drawn above a strip, so there
+		//is nothing to report again -- and this runs for every wire
+		//which comes or goes on the folio
+	if (!QetSettings::stripWiresShown()) {
+		return;
+	}
+	for (QGraphicsItem *item : items())
+	{
+		if (item && item->type() == TerminalStripItem::Type) {
+			static_cast<TerminalStripItem *>(item)->refreshGeometry();
+		}
+	}
+}
+
 void Diagram::addItem(QGraphicsItem *item)
 {
-	if (!item || isReadOnly() || item->scene() == this) return;
+	if (!item || item->scene() == this) return;
+		//A read-only project still builds its folios when they are first
+		//needed (lazy folios: shown, exported, saved elsewhere): what they
+		//hold is read in, not an edit. Refused, a folio not built when the
+		//project was opened came out empty, and so did every copy of it.
+	const projectDataBase *db = m_project ? m_project->dataBase() : nullptr;
+	const bool reading = m_loading_deferred || (db && db->isBuildingFolio());
+	if (isReadOnly() && !reading) return;
 	QGraphicsScene::addItem(item);
 
 	switch (item->type())
@@ -3058,6 +3084,9 @@ void Diagram::addItem(QGraphicsItem *item)
 			Conductor *conductor = static_cast<Conductor *>(item);
 			conductor->terminal1->addConductor(conductor);
 			conductor->terminal2->addConductor(conductor);
+				//The wires which end at a terminal strip are drawn by
+				//the strip itself, and only now is this one among them
+			refreshTerminalStrips();
 			conductor->calculateTextItemPosition();
 			conductor->updateFittings();
 			m_project->dataBase()->addConductor(conductor);
@@ -3104,6 +3133,8 @@ void Diagram::removeItem(QGraphicsItem *item)
 			conductor->terminal1->removeConductor(conductor);
 			conductor->terminal2->removeConductor(conductor);
 			conductor->updateFittings();
+				//One wire the strips above them drew may be gone
+			refreshTerminalStrips();
 			m_project->dataBase()->removeConductor(conductor);
 			break;
 		}
