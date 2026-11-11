@@ -13137,8 +13137,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="324"/>
-        <source>Several materials: give the pipes one material to give them a size.</source>
-        <translation>Plusieurs matériaux : donnez un même matériau aux tuyauteries pour leur donner une taille.</translation>
+        <source>%1 → %2: the outside diameter of the material %3.</source>
+        <translation>%1 → %2 : le diamètre extérieur du matériau %3.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="328"/>

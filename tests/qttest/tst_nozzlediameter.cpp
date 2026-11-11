@@ -482,6 +482,154 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(dn(c), 150);
 		}
 
+			// The DN goes through the valves whatever the material: each pipe
+			// reached takes it as its material has it, with the outside
+			// diameter of its material, asked once for a material and a DN;
+			// a pipe of the material of the one edited takes its sizes as
+			// they are (step 5l-1j, j5c)
+		void aChangeOfDiameterGoesThroughAnyMaterial()
+		{
+			QETProject project;
+			PidCodification codification;
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.addSize(0, 65);
+			steel.addSize(0, 80);
+			steel.addSize(0, 100);
+				// DN 100 is a Ø 110 or a Ø 125, none by default
+			const PidCodification::Entry plastic = plasticOf(
+						QStringLiteral("M01"), {{900, 80}, {1100, 100}, {1250, 100}});
+				// the same, Ø 125 by default
+			PidCodification::Entry other = plasticOf(
+						QStringLiteral("M03"), {{900, 80}, {1100, 100}});
+			other.addSize(1250, 100, true);
+				// DN 60 where the others have DN 65
+			PidCodification::Entry iron;
+			iron.code = QStringLiteral("M04");
+			iron.addSize(0, 60);
+			iron.addSize(0, 80);
+			iron.addSize(0, 100);
+			codification.materials = {steel, plastic, other, iron};
+			codification.addEqualNominals(60, 65);
+			project.setPidCodification(codification);
+
+				// steel, plastic, other plastic, cast iron, plastic, through
+				// four valves
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			const ElementsLocation valve_symbol = addValve(project);
+			Diagram *folio = project.addNewDiagram();
+			QList<Element *> symbols{place(folio, plain)};
+			for (int i = 0 ; i < 4 ; ++i) {
+				symbols << place(folio, valve_symbol);
+			}
+			symbols << place(folio, plain);
+			QList<Conductor *> line;
+			const QStringList materials{QStringLiteral("M02"), QStringLiteral("M01"),
+										QStringLiteral("M03"), QStringLiteral("M04"),
+										QStringLiteral("M01")};
+			for (int i = 0 ; i < symbols.size() ; ++i) {
+				QVERIFY(symbols.at(i));
+				symbols.at(i)->setPos(200 + 200 * i, 200);
+				if (i) {
+					Conductor *pipe = connect(folio, symbols.at(i - 1), QStringLiteral("N2"),
+											  symbols.at(i), QStringLiteral("N1"));
+					QVERIFY(pipe);
+					ConductorProperties properties = pipe->properties();
+					properties.m_pipe.material = materials.at(i - 1);
+					pipe->setProperties(properties);
+					line << pipe;
+				}
+			}
+			Conductor *steel_pipe = line.at(0);
+			Conductor *plastic_pipe = line.at(1);
+			Conductor *other_pipe = line.at(2);
+			Conductor *iron_pipe = line.at(3);
+			Conductor *last_pipe = line.at(4);
+			QCOMPARE(steel_pipe->inlineRun().size(), 5);
+			auto od = [](const Conductor *pipe) { return pipe->properties().m_pipe.outside; };
+
+			PipePropertiesWidget page({steel_pipe});
+			QLineEdit *field = page.findChild<QLineEdit *>(QStringLiteral("diameter"));
+			QVERIFY(field);
+			QStringList questions;
+			page.setChooser([&questions](const QString &question, const QStringList &) {
+				questions << question;
+				return 1;
+			});
+			auto type = [field](const QString &text) {
+				field->setText(text);
+				field->setModified(true);
+				emit field->editingFinished();
+			};
+
+				// DN 100 on the steel pipe
+			const int steps = folio->undoStack().count();
+			type(QStringLiteral("100"));
+			for (Conductor *pipe : std::as_const(line)) {
+				QCOMPARE(dn(pipe), 100);
+			}
+			QVERIFY(!od(steel_pipe).isSet());
+			QVERIFY(!od(iron_pipe).isSet());
+				// one question for the two pipes of the first plastic
+			QCOMPARE(questions.size(), 1);
+			QVERIFY(questions.first().contains(QStringLiteral("M01")));
+			QCOMPARE(od(plastic_pipe), PipeDiameter::outside(125));
+			QCOMPARE(od(last_pipe), PipeDiameter::outside(125));
+				// the default one of the other, without a question, and said
+			QCOMPARE(od(other_pipe), PipeDiameter::outside(125));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("M03")));
+				// in one step
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			for (Conductor *pipe : std::as_const(line)) {
+				QVERIFY(!pipe->properties().m_pipe.hasSize());
+			}
+			folio->undoStack().redo();
+			QCOMPARE(od(last_pipe), PipeDiameter::outside(125));
+
+				// DN 65: DN 60 on the cast iron, which has that one, and said;
+				// the plastics have no DN 65: kept all the same, without an
+				// outside diameter, and said
+			type(QStringLiteral("65"));
+			QCOMPARE(dn(steel_pipe), 65);
+			QCOMPARE(dn(iron_pipe), 60);
+			QCOMPARE(dn(plastic_pipe), 65);
+			QVERIFY(!od(plastic_pipe).isSet());
+			QCOMPARE(questions.size(), 1);
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("M04")));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("M01")));
+
+				// from a plastic pipe: the other pipe of its material takes
+				// the outside diameter typed; the other plastic keeps the one
+				// it has of this DN
+			type(QStringLiteral("100"));
+			QCOMPARE(questions.size(), 2);
+			QCOMPARE(od(other_pipe), PipeDiameter::outside(125));
+			PipePropertiesWidget plastic_page({plastic_pipe});
+			plastic_page.setChooser([&questions](const QString &question, const QStringList &) {
+				questions << question;
+				return 1;
+			});
+			QLineEdit *plastic_field = plastic_page.findChild<QLineEdit *>(QStringLiteral("diameter"));
+			plastic_field->setText(QStringLiteral("110"));
+			plastic_field->setModified(true);
+			emit plastic_field->editingFinished();
+			QCOMPARE(od(plastic_pipe), PipeDiameter::outside(110));
+			QCOMPARE(od(last_pipe), PipeDiameter::outside(110));
+			QCOMPARE(od(other_pipe), PipeDiameter::outside(125));
+			QCOMPARE(dn(steel_pipe), 100);
+			QCOMPARE(dn(iron_pipe), 100);
+			QCOMPARE(questions.size(), 2);
+
+				// emptied: the whole line has no size
+			type(QString());
+			for (Conductor *pipe : std::as_const(line)) {
+				QVERIFY(!pipe->properties().m_pipe.hasSize());
+			}
+		}
+
 			// the same pipe from any side
 		void aChangeGoesBothWays()
 		{

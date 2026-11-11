@@ -43,7 +43,9 @@ class QPushButton;
 	Each change is applied at once, with undo, to every pipe selected and to
 	that field only: a field whose value differs from one pipe to another
 	shows none and changes nothing until it is edited. Nothing is passed on
-	to the pipes connected to them.
+	to the pipes connected to them, but the size: the DN goes on through the
+	valves, whatever the material, each pipe reached getting the outside
+	diameter of its own material (resizeLine()).
 */
 class PipePropertiesWidget : public PropertiesEditorWidget
 {
@@ -78,6 +80,21 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 								const std::function<void(const QString &)> &apply_code = nullptr);
 		void applyChange(const std::function<void(PipeProperties &)> &change,
 						 bool through_valves = false);
+			/// The pipes edited, and with @p through_valves those they
+			/// continue through valves, see Conductor::inlineRun()
+		QList<Conductor *> changedPipes(bool through_valves) const;
+			/// Give the line of the pipes edited the DN @p nominal, in one
+			/// step: the pipes of the material @p material, when
+			/// @p one_material says the pipes edited have this one, take
+			/// @p nominal and @p outside as they are; the others the DN as
+			/// their material has it and the outside diameter of their
+			/// material (kept, the only one, the default one, or the one
+			/// the user chooses, once for a material and a DN). No size
+			/// empties them all; an outside diameter without DN is not
+			/// passed on to another material. What is worth saying is added
+			/// to @p notes.
+		void resizeLine(const PipeDiameter &nominal, const PipeDiameter &outside,
+						const QString &material, bool one_material, QStringList &notes);
 		void showText(QLineEdit *edit, const std::function<QString(const PipeProperties &)> &get);
 		void fillLists();
 		static QString codeOf(const QComboBox *list, const QString &text);
@@ -87,7 +104,8 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// the sizes of their material; the DN of the project
 			/// (PidCodification::nominalSizes()) without material, or with
 			/// one the project has not; @p several says they have several
-			/// materials, and then none
+			/// materials, and then the DN of the project, a DN for all of
+			/// them; none, and NoSeries, when one of them has no sizes
 		PidCodification::SizeRule sizeRule(QList<PipeDiameter> *sizes, bool *several = nullptr) const;
 			/// The size typed or picked, a DN or an outside diameter, given
 			/// to the pipes: a pipe has a DN, the size of the line, and for

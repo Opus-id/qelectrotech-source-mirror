@@ -443,14 +443,20 @@ class tst_pipepanel : public QObject
 				QVERIFY(!page.diameterMessage().isEmpty());
 			}
 
-				// several materials: nothing to choose
+				// several materials: a DN for all of them
+				// (severalMaterialsTakeOneDn()), unless one has no sizes
 			setMaterial(QStringLiteral("M01"));
 			Conductor *other = draw(m_nozzles);
 			ConductorProperties p = other->properties();
 			p.m_pipe.material = QStringLiteral("M02");
 			other->setProperties(p);
 			PipePropertiesWidget both({pipe, other});
+			QVERIFY(both.findChild<QComboBox *>(QStringLiteral("diameter_list"))->isEnabled());
+			p.m_pipe.material = QStringLiteral("M03");
+			other->setProperties(p);
+			both.updateUi();
 			QVERIFY(!both.findChild<QComboBox *>(QStringLiteral("diameter_list"))->isEnabled());
+			QVERIFY(both.diameterMessage().contains(QStringLiteral("M03")));
 
 				// a project which lists no material offers the DN of ISO 6708
 			m_project.setPidCodification(PidCodification());
@@ -460,6 +466,79 @@ class tst_pipepanel : public QObject
 			QCOMPARE(diameter(), PipeDiameter::nominal(100));
 			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(100));
 			QVERIFY(!pipe->properties().m_pipe.outside.isSet());
+		}
+
+			// Pipes of several materials selected: the DN of the project
+			// offered, one given to all of them, each with the outside
+			// diameter of its material, asked once for a material and a DN
+		void severalMaterialsTakeOneDn()
+		{
+			PidCodification codification;
+			PidCodification::Entry plastic;
+			plastic.code = QStringLiteral("M01");
+			plastic.outside_diameter = true;
+			plastic.addSize(900, 80);
+			plastic.addSize(1100, 100);
+			plastic.addSize(1250, 100);
+			plastic.addSize(1600, 150);
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.addSize(0, 80);
+			steel.addSize(0, 100);
+			steel.addSize(0, 150);
+			codification.materials = {plastic, steel};
+			m_project.setPidCodification(codification);
+
+			QList<Conductor *> pipes;
+			for (const QString &code : {QStringLiteral("M01"), QStringLiteral("M02"),
+										QStringLiteral("M01")}) {
+				Conductor *pipe = draw(m_nozzles);
+				QVERIFY(pipe);
+				ConductorProperties p = pipe->properties();
+				p.m_pipe.material = code;
+				pipe->setProperties(p);
+				pipes << pipe;
+			}
+			auto sizes = [&pipes](int i) { return pipes.at(i)->properties().m_pipe; };
+			PipePropertiesWidget page(pipes);
+			auto *list = page.findChild<QComboBox *>(QStringLiteral("diameter_list"));
+			QVERIFY(list && list->isEnabled());
+			QCOMPARE(list->count(), 4);
+			QCOMPARE(list->itemText(1), QStringLiteral("DN 80"));
+			int asked = 0;
+			page.setChooser([&asked](const QString &, const QStringList &) {
+				++asked;
+				return 1;
+			});
+
+				// a number alone is a DN; one question for the two plastic pipes
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.count();
+			type(list->lineEdit(), QStringLiteral("100"));
+			QCOMPARE(asked, 1);
+			for (int i = 0 ; i < 3 ; ++i) {
+				QCOMPARE(sizes(i).nominal, PipeDiameter::nominal(100));
+			}
+			QCOMPARE(sizes(0).outside, PipeDiameter::outside(125));
+			QCOMPARE(sizes(2).outside, PipeDiameter::outside(125));
+			QVERIFY(!sizes(1).outside.isSet());
+			QCOMPARE(stack.count(), steps + 1);
+				// the DN they share is shown
+			QCOMPARE(list->lineEdit()->text(), QStringLiteral("DN 100"));
+
+				// an outside diameter typed gives the DN the materials have
+				// for it, and each its own outside diameter
+			type(list->lineEdit(), QStringLiteral("Ø 160"));
+			QCOMPARE(asked, 1);
+			QCOMPARE(sizes(1).nominal, PipeDiameter::nominal(150));
+			QCOMPARE(sizes(0).outside, PipeDiameter::outside(160));
+			QVERIFY(!sizes(1).outside.isSet());
+			stack.undo();
+			QCOMPARE(sizes(1).nominal, PipeDiameter::nominal(100));
+			QCOMPARE(sizes(2).outside, PipeDiameter::outside(125));
+				// redone: the stack, shared with the next tests, keeps counting
+			stack.redo();
+			m_project.setPidCodification(PidCodification());
 		}
 
 			// A change of material keeps the DN, the size of the line, in the
