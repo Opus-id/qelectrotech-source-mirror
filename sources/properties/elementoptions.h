@@ -44,9 +44,9 @@
 	    </option>
 	</options>
 	@endcode
-	and a part of the drawing may carry show-if="motor=fixed,variable": it is
+	and a part of the drawing may carry show_if="motor=fixed,variable": it is
 	drawn only when the motor is fixed or variable. Several conditions,
-	separated by ";", must all hold. A part without show-if is always drawn.
+	separated by ";", must all hold. A part without show_if is always drawn.
 
 	A placed element writes the values it was given in its own <options>
 	block (choicesToXml()); a value not given is the default.
@@ -98,14 +98,14 @@ class ElementOptions
 			/// out.
 		Choices resolved(const Choices &chosen) const;
 
-			/// Whether a part whose show-if attribute is @p show_if is drawn
+			/// Whether a part whose show_if attribute is @p show_if is drawn
 			/// with the values @p resolved. A condition on an option @p
 			/// resolved does not hold, or one that cannot be read, is left
 			/// aside: the part is drawn, as a version of QElectroTech that
 			/// knows nothing of options draws it.
 		static bool isShown(const QString &show_if, const Choices &resolved);
 			/// Whether @p name may name an option or a value: letters,
-			/// digits, "_" and "-", so that show-if can be read back
+			/// digits, "_" and "-", so that show_if can be read back
 		static bool isValidName(const QString &name);
 			/// A text that tells @p choices apart, the same for the same ones
 		static QString key(const Choices &choices);

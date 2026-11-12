@@ -728,7 +728,7 @@ qet_add_app_test(tst_folioimageload tst_folioimageload.cpp)
 qet_add_app_test(tst_selectionpanelheight tst_selectionpanelheight.cpp)
 
 # The options of a symbol (a pump's motor): each placed element chooses a
-# value, the parts whose show-if it does not meet are not drawn, the choice
+# value, the parts whose show_if it does not meet are not drawn, the choice
 # is saved with the project and the element editor keeps both.
 qet_add_app_test(tst_elementoptions tst_elementoptions.cpp)
 

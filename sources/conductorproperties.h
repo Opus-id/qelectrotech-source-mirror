@@ -95,7 +95,7 @@ class ConductorProperties
 			/// turn a wire into a pipe or back.
 		TerminalData::Medium m_medium = TerminalData::Electrical;
 			/// The data of a pipe (DN, fluid, material...): written, as
-			/// "pipe_" attributes, only for a conductor of the pipe medium;
+			/// "pid_" attributes, only for a conductor of the pipe medium;
 			/// Conductor::setProperties() clears it for any other.
 		PipeProperties m_pipe;
 

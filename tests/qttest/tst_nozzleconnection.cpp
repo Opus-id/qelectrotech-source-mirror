@@ -41,7 +41,7 @@
 /**
 	How a pipe is joined to a nozzle: a flange by default, a plain end, a
 	socket, a thread... Given by the symbol (attribute connection of the
-	terminal), changed by a placed element (<nozzles> block). The connection
+	terminal), changed by a placed element (<pid_nozzles> block). The connection
 	decides the kind of size of the nozzle: a flange a DN, a socket a DN or an
 	outside diameter.
 */
@@ -62,9 +62,9 @@ class tst_nozzleconnection : public QObject
 			"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
 			"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
 			"<terminal uuid=\"{7c000000-0000-0000-0000-000000000001}\" name=\"N1\" x=\"-20\" y=\"0\" "
-			"orientation=\"w\" type=\"Generic\" medium=\"pipe\" dn=\"100\" show_name=\"true\"/>"
+			"orientation=\"w\" type=\"Generic\" medium=\"pipe\" pid_dn=\"100\" show_name=\"true\"/>"
 			"<terminal uuid=\"{7c000000-0000-0000-0000-000000000002}\" name=\"N2\" x=\"20\" y=\"0\" "
-			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" connection=\"plain_end\" "
+			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" pid_connection=\"plain_end\" "
 			"show_name=\"true\"/>"
 			"</description></definition>");
 	}
@@ -183,30 +183,30 @@ class tst_nozzleconnection : public QObject
 			QDomDocument doc;
 			doc.setContent(QStringLiteral(
 				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
-				"medium=\"pipe\" connection=\"solvent_socket\" od=\"110\"/>"));
+				"medium=\"pipe\" pid_connection=\"solvent_socket\" pid_od=\"110\"/>"));
 			PartTerminal part(nullptr);
 			part.fromXml(doc.documentElement());
 				// a socket of the first trials, written as the socket it became
 			QCOMPARE(part.connection(), PipeConnection::Socket);
 			QDomDocument out;
-			QCOMPARE(part.toXml(out).attribute(QStringLiteral("connection")),
+			QCOMPARE(part.toXml(out).attribute(QStringLiteral("pid_connection")),
 					 QStringLiteral("socket"));
 
 				// a flange, the default, is not written
 			part.setConnectionWord(QStringLiteral("flange"));
 			QCOMPARE(part.connection(), PipeConnection::Flange);
 			QDomDocument out2;
-			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("connection")));
+			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("pid_connection")));
 
 				// a terminal of another medium has none
 			doc.setContent(QStringLiteral(
 				"<terminal x=\"0\" y=\"0\" name=\"T1\" orientation=\"e\" type=\"Generic\" "
-				"connection=\"thread\"/>"));
+				"pid_connection=\"thread\"/>"));
 			PartTerminal electrical(nullptr);
 			electrical.fromXml(doc.documentElement());
 			QCOMPARE(electrical.connection(), PipeConnection::Flange);
 			QDomDocument out3;
-			QVERIFY(!electrical.toXml(out3).hasAttribute(QStringLiteral("connection")));
+			QVERIFY(!electrical.toXml(out3).hasAttribute(QStringLiteral("pid_connection")));
 		}
 
 			// ---- a placed element ----
@@ -235,11 +235,11 @@ class tst_nozzleconnection : public QObject
 				// a folio with such a choice is no .qetdb
 			QVERIFY(folio->hasSymbolChoices());
 
-				// written in the <nozzles> block, and read back
+				// written in the <pid_nozzles> block, and read back
 			QDomDocument doc;
 			QHash<Terminal *, int> table;
 			const QDomElement written = tank->toXml(doc, table);
-			const QDomElement nozzle = written.firstChildElement(QStringLiteral("nozzles"))
+			const QDomElement nozzle = written.firstChildElement(QStringLiteral("pid_nozzles"))
 									   .firstChildElement(QStringLiteral("nozzle"));
 			QCOMPARE(nozzle.attribute(QStringLiteral("name")), QStringLiteral("N1"));
 			QCOMPARE(nozzle.attribute(QStringLiteral("connection")), QStringLiteral("socket"));
@@ -251,7 +251,7 @@ class tst_nozzleconnection : public QObject
 			tank->setNozzleDiameters({});
 			tank->setNozzleConnections({{QStringLiteral("N2"), PipeConnection::Thread}});
 			QDomDocument doc2;
-			const QDomElement nozzles = tank->toXml(doc2, table).firstChildElement(QStringLiteral("nozzles"));
+			const QDomElement nozzles = tank->toXml(doc2, table).firstChildElement(QStringLiteral("pid_nozzles"));
 			QCOMPARE(nozzles.elementsByTagName(QStringLiteral("nozzle")).count(), 1);
 			const QDomElement n2_written = nozzles.firstChildElement(QStringLiteral("nozzle"));
 			QCOMPARE(n2_written.attribute(QStringLiteral("connection")), QStringLiteral("thread"));
@@ -261,7 +261,7 @@ class tst_nozzleconnection : public QObject
 				// back to those of the symbol: nothing written
 			tank->setNozzleConnections({});
 			QDomDocument doc3;
-			QVERIFY(tank->toXml(doc3, table).firstChildElement(QStringLiteral("nozzles")).isNull());
+			QVERIFY(tank->toXml(doc3, table).firstChildElement(QStringLiteral("pid_nozzles")).isNull());
 			QCOMPARE(n1->labelText(), QStringLiteral("N1\nDN 100"));
 		}
 
@@ -422,13 +422,13 @@ class tst_nozzleconnection : public QObject
 						QStringLiteral("import"), QStringLiteral("nozzles"), NamesList());
 			QDomDocument doc;
 			doc.setContent(QStringLiteral(
-				"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pipe_inline=\"true\" "
+				"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pid_inline=\"true\" "
 				"width=\"60\" height=\"40\" hotspot_x=\"30\" hotspot_y=\"20\">"
 				"<uuid uuid=\"{7c222222-2222-2222-2222-222222222222}\"/>"
 				"<names><name lang=\"en\">Valve</name></names>"
 				"<description>"
 				"<terminal uuid=\"{7c000000-0000-0000-0000-000000000011}\" name=\"N1\" x=\"-20\" y=\"0\" "
-				"orientation=\"w\" type=\"Generic\" medium=\"pipe\" dn=\"100\"/>"
+				"orientation=\"w\" type=\"Generic\" medium=\"pipe\" pid_dn=\"100\"/>"
 				"<terminal uuid=\"{7c000000-0000-0000-0000-000000000012}\" name=\"N2\" x=\"20\" y=\"0\" "
 				"orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>"
 				"</description></definition>"));
@@ -540,7 +540,7 @@ class tst_nozzleconnection : public QObject
 				// a pipe never writes one: no name given, nothing written
 			QDomDocument doc;
 			QDomElement pipe = doc.createElement(QStringLiteral("conductor"));
-			PipeDiameter::thread(12).toXml(pipe, QStringLiteral("pipe_dn"), QStringLiteral("pipe_od"));
+			PipeDiameter::thread(12).toXml(pipe, QStringLiteral("pid_dn"), QStringLiteral("pid_od"));
 			QVERIFY(pipe.attributes().isEmpty());
 		}
 
@@ -593,16 +593,16 @@ class tst_nozzleconnection : public QObject
 			QDomDocument doc;
 			doc.setContent(QStringLiteral(
 				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
-				"medium=\"pipe\" connection=\"thread\" thread=\"1 1/2\"/>"));
+				"medium=\"pipe\" pid_connection=\"thread\" pid_thread=\"1 1/2\"/>"));
 			PartTerminal part(nullptr);
 			part.fromXml(doc.documentElement());
 			QCOMPARE(part.diameter(), PipeDiameter::thread(12));
 			QCOMPARE(part.diameterText(), QStringLiteral("G 1\"1/2"));
 			QDomDocument out;
 			const QDomElement written = part.toXml(out);
-			QCOMPARE(written.attribute(QStringLiteral("thread")), QStringLiteral("1 1/2"));
-			QVERIFY(!written.hasAttribute(QStringLiteral("dn")));
-			QVERIFY(!written.hasAttribute(QStringLiteral("od")));
+			QCOMPARE(written.attribute(QStringLiteral("pid_thread")), QStringLiteral("1 1/2"));
+			QVERIFY(!written.hasAttribute(QStringLiteral("pid_dn")));
+			QVERIFY(!written.hasAttribute(QStringLiteral("pid_od")));
 
 				// the property the editor's undo uses
 			part.setDiameterText(QStringLiteral("G 3/4\""));
@@ -611,16 +611,16 @@ class tst_nozzleconnection : public QObject
 				// a DN given to a thread before the threads existed: in inches
 			doc.setContent(QStringLiteral(
 				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
-				"medium=\"pipe\" connection=\"thread\" dn=\"40\"/>"));
+				"medium=\"pipe\" pid_connection=\"thread\" pid_dn=\"40\"/>"));
 			PartTerminal old(nullptr);
 			old.fromXml(doc.documentElement());
 			QCOMPARE(old.diameter(), PipeDiameter::thread(12));
 			QDomDocument out2;
-			QCOMPARE(old.toXml(out2).attribute(QStringLiteral("thread")), QStringLiteral("1 1/2"));
+			QCOMPARE(old.toXml(out2).attribute(QStringLiteral("pid_thread")), QStringLiteral("1 1/2"));
 				// one the table has not is kept as written
 			doc.setContent(QStringLiteral(
 				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
-				"medium=\"pipe\" connection=\"thread\" dn=\"300\"/>"));
+				"medium=\"pipe\" pid_connection=\"thread\" pid_dn=\"300\"/>"));
 			PartTerminal kept(nullptr);
 			kept.fromXml(doc.documentElement());
 			QCOMPARE(kept.diameter(), PipeDiameter::nominal(300));
@@ -648,11 +648,11 @@ class tst_nozzleconnection : public QObject
 			tank->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::thread(12)}});
 			QCOMPARE(n2->labelText(), QStringLiteral("N2\nG 1\"1/2"));
 
-				// written in the <nozzles> block, and read back
+				// written in the <pid_nozzles> block, and read back
 			QDomDocument doc;
 			QHash<Terminal *, int> table;
 			const QDomElement written = tank->toXml(doc, table);
-			QDomElement nozzle = written.firstChildElement(QStringLiteral("nozzles"))
+			QDomElement nozzle = written.firstChildElement(QStringLiteral("pid_nozzles"))
 								 .firstChildElement(QStringLiteral("nozzle"));
 			while (!nozzle.isNull() && nozzle.attribute(QStringLiteral("name")) != QLatin1String("N2")) {
 				nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle"));
@@ -677,7 +677,7 @@ class tst_nozzleconnection : public QObject
 				// and the pipe is written as a DN
 			bool has_dn = false;
 			for (const auto &attribute : pipe->properties().m_pipe.attributes()) {
-				if (attribute.first == QLatin1String("pipe_dn")) {
+				if (attribute.first == QLatin1String("pid_dn")) {
 					has_dn = attribute.second == QLatin1String("40");
 				}
 			}

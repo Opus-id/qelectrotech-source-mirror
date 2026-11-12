@@ -546,10 +546,10 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 		root.setAttribute(QStringLiteral("pid_family"), m_element_data.m_pid_family);
 	}
 	if (m_element_data.m_pipe_inline) {
-		root.setAttribute(QStringLiteral("pipe_inline"), QStringLiteral("true"));
+		root.setAttribute(QStringLiteral("pid_inline"), QStringLiteral("true"));
 	}
 	if (!m_element_data.m_pipe_run.isEmpty()) {
-		root.setAttribute(QStringLiteral("pipe_run"), m_element_data.m_pipe_run.join(QLatin1Char(' ')));
+		root.setAttribute(QStringLiteral("pid_run"), m_element_data.m_pipe_run.join(QLatin1Char(' ')));
 	}
 	if (!m_element_data.m_pid_role.isEmpty()) {
 		root.setAttribute(QStringLiteral("pid_role"), m_element_data.m_pid_role);
@@ -607,7 +607,7 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 		informations_element.appendChild(xml_document.createTextNode(m_element_data.m_drawing_information.trimmed()));
 	}
 
-		//the options of the symbol, which the show-if of its parts refer to
+		//the options of the symbol, which the show_if of its parts refer to
 		//(ElementOptions): kept as read, the editor does not change them yet
 	if (!m_element_data.m_options.isEmpty()) {
 		root.appendChild(m_element_data.m_options.toXml(xml_document));

@@ -60,7 +60,7 @@ class tst_connectionmark : public QObject
 			"width=\"60\" height=\"40\" hotspot_x=\"30\" hotspot_y=\"20\">"
 			"<uuid uuid=\"{7d11111%2-1111-1111-1111-111111111111}\"/>"
 			"<names><name lang=\"en\">Valve</name></names>")
-				.arg(in_line ? QStringLiteral("pipe_inline=\"true\" ") : QString(),
+				.arg(in_line ? QStringLiteral("pid_inline=\"true\" ") : QString(),
 					 in_line ? QStringLiteral("2") : QStringLiteral("1"))
 			+ QStringLiteral(
 			"<description>"
@@ -68,9 +68,9 @@ class tst_connectionmark : public QObject
 			"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
 			"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
 			"<terminal uuid=\"{7d000000-0000-0000-0000-000000000001}\" name=\"N1\" x=\"-20\" y=\"0\" "
-			"orientation=\"w\" type=\"Generic\" medium=\"pipe\" dn=\"100\"/>"
+			"orientation=\"w\" type=\"Generic\" medium=\"pipe\" pid_dn=\"100\"/>"
 			"<terminal uuid=\"{7d000000-0000-0000-0000-000000000002}\" name=\"N2\" x=\"20\" y=\"0\" "
-			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" connection=\"plain_end\"/>"
+			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" pid_connection=\"plain_end\"/>"
 			"<terminal uuid=\"{7d000000-0000-0000-0000-000000000003}\" name=\"E1\" x=\"0\" y=\"-20\" "
 			"orientation=\"n\" type=\"Generic\"/>"
 			"</description></definition>");
@@ -379,7 +379,7 @@ class tst_connectionmark : public QObject
 			QDomDocument doc;
 			QHash<Terminal *, int> table;
 			const QDomElement written = valve->toXml(doc, table);
-			const QDomElement nozzle = written.firstChildElement(QStringLiteral("nozzles"))
+			const QDomElement nozzle = written.firstChildElement(QStringLiteral("pid_nozzles"))
 									   .firstChildElement(QStringLiteral("nozzle"));
 			QCOMPARE(nozzle.attribute(QStringLiteral("name")), QStringLiteral("N1"));
 			QCOMPARE(nozzle.attribute(QStringLiteral("mark")), QStringLiteral("never"));
@@ -389,7 +389,7 @@ class tst_connectionmark : public QObject
 				// as the project: nothing written
 			valve->setNozzleMarks({});
 			QDomDocument doc2;
-			QVERIFY(valve->toXml(doc2, table).firstChildElement(QStringLiteral("nozzles")).isNull());
+			QVERIFY(valve->toXml(doc2, table).firstChildElement(QStringLiteral("pid_nozzles")).isNull());
 		}
 
 		void theNozzlesTabGivesTheChoiceWithUndo()

@@ -24,6 +24,7 @@
 #include "../pipediameter.h"
 
 #include <QColor>
+#include <QDebug>
 #include <QFont>
 #include <QFontMetrics>
 #include <QPointF>
@@ -101,27 +102,41 @@ class TerminalData : public PropertiesInterface
 			/// The medium @p string names. Anything else, the absence of the
 			/// attribute included, is electrical: what QET always made of a
 			/// terminal or a wire, and what it keeps making of a word written
-			/// by a later version that it does not know.
+			/// by a later version that it does not know. Such a word, which
+			/// would otherwise go unnoticed, is said in the log.
 		static TerminalData::Medium mediumFromString(const QString &string)
 		{
 			if (string == QLatin1String("pipe"))   return Pipe;
 			if (string == QLatin1String("signal")) return Signal;
 			if (string == QLatin1String("drive"))  return Drive;
+			if (!string.isEmpty() && string != QLatin1String("electrical")) {
+				qWarning().noquote() << QStringLiteral("Unknown medium \"%1\", read as electrical")
+										.arg(string);
+			}
 			return Electrical;
 		}
-			/// The diameter of the nozzle written as @a e: its attribute "dn",
-			/// else "od" (an outside diameter), else "thread" (inches, "1 1/2");
-			/// none when none is there
+			/// The diameter of the <nozzle> @a e of the <pid_nozzles> block of
+			/// a placed element: its attribute "dn", else "od" (an outside
+			/// diameter), else "thread" (inches, "1 1/2"); none when none is there
 		static PipeDiameter diameterFromXml(const QDomElement &e)
 		{
 			return PipeDiameter::fromXml(e, QStringLiteral("dn"), QStringLiteral("od"),
 										 QStringLiteral("thread"));
 		}
-			/// The connection of the nozzle written as @a e, a flange when it
+			/// The diameter of the nozzle of a symbol written as the <terminal>
+			/// @a e: the same attributes, prefixed "pid_" as every P&ID
+			/// attribute outside a P&ID block
+		static PipeDiameter symbolDiameterFromXml(const QDomElement &e)
+		{
+			return PipeDiameter::fromXml(e, QStringLiteral("pid_dn"), QStringLiteral("pid_od"),
+										 QStringLiteral("pid_thread"));
+		}
+			/// The connection of the nozzle of a symbol written as the
+			/// <terminal> @a e (attribute "pid_connection"), a flange when it
 			/// says nothing
 		static PipeConnection::Type connectionFromXml(const QDomElement &e)
 		{
-			return PipeConnection::fromString(e.attribute(QStringLiteral("connection")));
+			return PipeConnection::fromString(e.attribute(QStringLiteral("pid_connection")));
 		}
 			/// The text shown at a terminal: its @a name, and under it the
 			/// diameter of a nozzle, if it has one ("DN 100", "Ø 110")

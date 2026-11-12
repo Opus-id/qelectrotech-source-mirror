@@ -251,20 +251,20 @@ class Element : public QetGraphicsItem
 			/// nozzle; any other has the one of its symbol
 		NozzleDiameters nozzleDiameters() const { return m_nozzle_diameters; }
 		void setNozzleDiameters(const NozzleDiameters &diameters);
-			/// Those of the <nozzles> block of @p element
+			/// Those of the <pid_nozzles> block of @p element
 		static NozzleDiameters nozzleDiametersFromXml(const QDomElement &element);
 			/// The connections this element gives its nozzles, by name of
 			/// nozzle; any other has the one of its symbol
 		NozzleConnections nozzleConnections() const { return m_nozzle_connections; }
 		void setNozzleConnections(const NozzleConnections &connections);
-			/// Those of the <nozzles> block of @p element
+			/// Those of the <pid_nozzles> block of @p element
 		static NozzleConnections nozzleConnectionsFromXml(const QDomElement &element);
 			/// Whether the nozzles of this element draw the mark of their
 			/// connection, by name of nozzle; any other does as its project
 			/// says (Terminal::drawsConnectionMark())
 		NozzleMarks nozzleMarks() const { return m_nozzle_marks; }
 		void setNozzleMarks(const NozzleMarks &marks);
-			/// Those of the <nozzles> block of @p element
+			/// Those of the <pid_nozzles> block of @p element
 		static NozzleMarks nozzleMarksFromXml(const QDomElement &element);
 			/// Its P&ID family (ElementData::m_pid_family), without copying
 			/// all its data: none for any other symbol

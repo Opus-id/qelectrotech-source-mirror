@@ -650,7 +650,7 @@ bool Element::isPipeInline() const
 /**
 	@brief Element::pipeRun
 	@return the names of the nozzles a line runs through, which have its size
-	and which a change of DN goes through: those the symbol names (pipe_run,
+	and which a change of DN goes through: those the symbol names (pid_run,
 	the three of a tee), else the two of a symbol a line runs through
 	(isPipeInline()); none when fewer than two are found
 */
@@ -673,13 +673,13 @@ QStringList Element::pipeRun() const
 /**
 	@brief Element::nozzleDiametersFromXml
 	@param element : an <element> of a project
-	@return the diameters of its <nozzles> block; a nozzle without a name or
+	@return the diameters of its <pid_nozzles> block; a nozzle without a name or
 	a diameter is left out
 */
 NozzleDiameters Element::nozzleDiametersFromXml(const QDomElement &element)
 {
 	NozzleDiameters diameters;
-	const QDomElement nozzles = element.firstChildElement(QStringLiteral("nozzles"));
+	const QDomElement nozzles = element.firstChildElement(QStringLiteral("pid_nozzles"));
 	for (QDomElement nozzle = nozzles.firstChildElement(QStringLiteral("nozzle")) ;
 		 !nozzle.isNull() ; nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle")))
 	{
@@ -695,13 +695,13 @@ NozzleDiameters Element::nozzleDiametersFromXml(const QDomElement &element)
 /**
 	@brief Element::nozzleConnectionsFromXml
 	@param element : an <element> of a project
-	@return the connections of its <nozzles> block; a nozzle without a name
+	@return the connections of its <pid_nozzles> block; a nozzle without a name
 	or a connection of the list is left out
 */
 NozzleConnections Element::nozzleConnectionsFromXml(const QDomElement &element)
 {
 	NozzleConnections connections;
-	const QDomElement nozzles = element.firstChildElement(QStringLiteral("nozzles"));
+	const QDomElement nozzles = element.firstChildElement(QStringLiteral("pid_nozzles"));
 	for (QDomElement nozzle = nozzles.firstChildElement(QStringLiteral("nozzle")) ;
 		 !nozzle.isNull() ; nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle")))
 	{
@@ -719,13 +719,13 @@ NozzleConnections Element::nozzleConnectionsFromXml(const QDomElement &element)
 /**
 	@brief Element::nozzleMarksFromXml
 	@param element : an <element> of a project
-	@return the choices of the marks of its <nozzles> block; a nozzle without
+	@return the choices of the marks of its <pid_nozzles> block; a nozzle without
 	a name, or doing as its project says, is left out
 */
 NozzleMarks Element::nozzleMarksFromXml(const QDomElement &element)
 {
 	NozzleMarks marks;
-	const QDomElement nozzles = element.firstChildElement(QStringLiteral("nozzles"));
+	const QDomElement nozzles = element.firstChildElement(QStringLiteral("pid_nozzles"));
 	for (QDomElement nozzle = nozzles.firstChildElement(QStringLiteral("nozzle")) ;
 		 !nozzle.isNull() ; nozzle = nozzle.nextSiblingElement(QStringLiteral("nozzle")))
 	{
@@ -2312,7 +2312,7 @@ QDomElement Element::toXml(
 							+ m_nozzle_marks.keys();
 		names.sort();
 		names.removeDuplicates();
-		QDomElement nozzles = document.createElement(QStringLiteral("nozzles"));
+		QDomElement nozzles = document.createElement(QStringLiteral("pid_nozzles"));
 		for (const QString &name : std::as_const(names))
 		{
 			QDomElement nozzle = document.createElement(QStringLiteral("nozzle"));
@@ -4167,8 +4167,8 @@ Element::ReloadPictureResult Element::reloadPicture(bool adopt_frame)
 
 	m_data.m_options = options;
 	m_data.m_pid_family = definition.attribute(QStringLiteral("pid_family"));
-	m_data.m_pipe_inline = definition.attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
-	m_data.m_pipe_run = definition.attribute(QStringLiteral("pipe_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+	m_data.m_pipe_inline = definition.attribute(QStringLiteral("pid_inline")) == QLatin1String("true");
+	m_data.m_pipe_run = definition.attribute(QStringLiteral("pid_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	m_data.m_pid_role = definition.attribute(QStringLiteral("pid_role")).trimmed();
 	if (adopt_frame) {
 		setSize(definition.attribute(QStringLiteral("width")).toInt(),
@@ -4296,8 +4296,8 @@ bool Element::changeLocation(const ElementsLocation &location)
 	m_data.m_names_list = names;
 	m_data.m_options = options;
 	m_data.m_pid_family = family;
-	m_data.m_pipe_inline = location.xml().attribute(QStringLiteral("pipe_inline")) == QLatin1String("true");
-	m_data.m_pipe_run = location.xml().attribute(QStringLiteral("pipe_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+	m_data.m_pipe_inline = location.xml().attribute(QStringLiteral("pid_inline")) == QLatin1String("true");
+	m_data.m_pipe_run = location.xml().attribute(QStringLiteral("pid_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	m_data.m_pid_role = location.xml().attribute(QStringLiteral("pid_role")).trimmed();
 
 		//A saved conductor names the uuid of the terminal it ends on, and the
@@ -4324,7 +4324,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 				const QPointF pos = mapFromScene(terminal->dockConductor());
 				if (qAbs(pos.x() - x) < 0.01 && qAbs(pos.y() - y) < 0.01) {
 					terminal->setUuid(uuid);
-					terminal->setSymbolDiameter(TerminalData::diameterFromXml(part));
+					terminal->setSymbolDiameter(TerminalData::symbolDiameterFromXml(part));
 					terminal->setSymbolConnection(TerminalData::connectionFromXml(part));
 				}
 			}

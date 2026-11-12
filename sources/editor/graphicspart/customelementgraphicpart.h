@@ -339,7 +339,7 @@ class CustomElementGraphicPart : public QGraphicsObject, public CustomElementPar
 		void setNewUuid() {m_uuid = QUuid::createUuid();}
 
 			//The options of the symbol this part is drawn for, as its
-			//show-if attribute says them (ElementOptions); empty: always.
+			//show_if attribute says them (ElementOptions); empty: always.
 			//Saved with the styles, see stylesToXml().
 		QString showIf() const {return m_show_if;}
 		void setShowIf(const QString &show_if) {m_show_if = show_if;}

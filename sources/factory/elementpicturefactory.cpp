@@ -306,7 +306,7 @@ QPicture ElementPictureFactory::pictureFromDefinition(const QDomElement &definit
 	const QDomElement description = definition.firstChildElement(QStringLiteral("description"));
 	for (QDomElement part = description.firstChildElement() ; !part.isNull() ;
 	     part = part.nextSiblingElement()) {
-		if (ElementOptions::isShown(part.attribute(QStringLiteral("show-if")), resolved)) {
+		if (ElementOptions::isShown(part.attribute(QStringLiteral("show_if")), resolved)) {
 			parseElement(part, painter, primitives_);
 		}
 	}
@@ -444,7 +444,7 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 					// Rendering into the cached QPicture here causes
 					// intermittent crashes when drawPicture() replays
 					// complex font/text operations.
-				} else if (!ElementOptions::isShown(qde.attribute(QStringLiteral("show-if")), resolved)) {
+				} else if (!ElementOptions::isShown(qde.attribute(QStringLiteral("show_if")), resolved)) {
 					// Hidden by the options chosen, see ElementOptions
 				} else {
 					parseElement(qde, painter, primitives_);

@@ -19,6 +19,7 @@
 #include <QFile>
 #include <QProcess>
 #include <QProcessEnvironment>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 
 // The medium a conductor carries: electrical, as every conductor was, or a
@@ -163,8 +164,17 @@ class tst_conductormedium : public QObject
 			ConductorProperties in;
 			in.fromXml(p);
 			QCOMPARE(in.m_medium, TerminalData::Pipe);
-				// a word this version does not know: electrical
+				// a word this version does not know: electrical, said in the log
 			p.setAttribute(QStringLiteral("medium"), QStringLiteral("steam"));
+			QTest::ignoreMessage(QtWarningMsg, "Unknown medium \"steam\", read as electrical");
+			in.fromXml(p);
+			QCOMPARE(in.m_medium, TerminalData::Electrical);
+				// the word electrical, and no word at all, are read silently
+			QTest::failOnWarning(QRegularExpression(QStringLiteral("Unknown medium")));
+			p.setAttribute(QStringLiteral("medium"), QStringLiteral("electrical"));
+			in.fromXml(p);
+			QCOMPARE(in.m_medium, TerminalData::Electrical);
+			p.removeAttribute(QStringLiteral("medium"));
 			in.fromXml(p);
 			QCOMPARE(in.m_medium, TerminalData::Electrical);
 				// the medium makes two sets of properties differ
@@ -591,7 +601,7 @@ class tst_conductormedium : public QObject
 			return p;
 		}
 
-			// Only what is set is written, each attribute prefixed "pipe_";
+			// Only what is set is written, each attribute prefixed "pid_";
 			// the words of the format are part of the files
 		void theDataOfAPipeAreItsPipeAttributes()
 		{
@@ -599,16 +609,16 @@ class tst_conductormedium : public QObject
 			QHash<QString, QString> a;
 			for (const auto &pair : someData().attributes()) a.insert(pair.first, pair.second);
 			QCOMPARE(a.size(), 10);
-			QCOMPARE(a.value("pipe_dn"), QStringLiteral("150"));
-			QCOMPARE(a.value("pipe_fluid"), QStringLiteral("W01"));
-			QCOMPARE(a.value("pipe_material"), QStringLiteral("M01"));
-			QCOMPARE(a.value("pipe_flow"), QStringLiteral("120 m3/h"));
-			QCOMPARE(a.value("pipe_line_number"), QStringLiteral("0110"));
-			QCOMPARE(a.value("pipe_piping_class"), QStringLiteral("75HB13"));
-			QCOMPARE(a.value("pipe_nominal_pressure"), QStringLiteral("PN16"));
-			QCOMPARE(a.value("pipe_line_kind"), QStringLiteral("secondary"));
-			QCOMPARE(a.value("pipe_spool"), QStringLiteral("1"));
-			QCOMPARE(a.value("pipe_external_finish"), QStringLiteral("EA"));
+			QCOMPARE(a.value("pid_dn"), QStringLiteral("150"));
+			QCOMPARE(a.value("pid_fluid"), QStringLiteral("W01"));
+			QCOMPARE(a.value("pid_material"), QStringLiteral("M01"));
+			QCOMPARE(a.value("pid_flow"), QStringLiteral("120 m3/h"));
+			QCOMPARE(a.value("pid_line_number"), QStringLiteral("0110"));
+			QCOMPARE(a.value("pid_piping_class"), QStringLiteral("75HB13"));
+			QCOMPARE(a.value("pid_nominal_pressure"), QStringLiteral("PN16"));
+			QCOMPARE(a.value("pid_line_kind"), QStringLiteral("secondary"));
+			QCOMPARE(a.value("pid_spool"), QStringLiteral("1"));
+			QCOMPARE(a.value("pid_external_finish"), QStringLiteral("EA"));
 			QCOMPARE(PipeProperties::lineKindToString(PipeProperties::Main), QStringLiteral("main"));
 			QCOMPARE(PipeProperties::lineKindToString(PipeProperties::Auxiliary), QStringLiteral("auxiliary"));
 
@@ -624,21 +634,21 @@ class tst_conductormedium : public QObject
 			PipeProperties in;
 			in.fromXml(e);
 			QVERIFY(in == someData());
-			e.setAttribute(QStringLiteral("pipe_dn"), QStringLiteral("abc"));
-			e.setAttribute(QStringLiteral("pipe_line_kind"), QStringLiteral("steam"));
+			e.setAttribute(QStringLiteral("pid_dn"), QStringLiteral("abc"));
+			e.setAttribute(QStringLiteral("pid_line_kind"), QStringLiteral("steam"));
 			in.fromXml(e);
 			QVERIFY(!in.hasSize());
 			QCOMPARE(in.line_kind, PipeProperties::Main);
 
-				// the DN is the size of the line, pipe_dn; a plastic pipe has
-				// its outside diameter too, pipe_od: each one written only
+				// the DN is the size of the line, pid_dn; a plastic pipe has
+				// its outside diameter too, pid_od: each one written only
 				// when it is set
 			PipeProperties plastic;
 			plastic.nominal = PipeDiameter::nominal(100);
 			plastic.outside = PipeDiameter::outside(110);
 			QCOMPARE(plastic.attributes().size(), 2);
-			QCOMPARE(plastic.attributes().at(0), qMakePair(QStringLiteral("pipe_dn"), QStringLiteral("100")));
-			QCOMPARE(plastic.attributes().at(1), qMakePair(QStringLiteral("pipe_od"), QStringLiteral("110")));
+			QCOMPARE(plastic.attributes().at(0), qMakePair(QStringLiteral("pid_dn"), QStringLiteral("100")));
+			QCOMPARE(plastic.attributes().at(1), qMakePair(QStringLiteral("pid_od"), QStringLiteral("110")));
 			QCOMPARE(plastic.lineSize(), PipeDiameter::nominal(100));
 				// the material chooses what is written
 			QCOMPARE(plastic.writtenSize(true), PipeDiameter::outside(110));
@@ -654,14 +664,14 @@ class tst_conductormedium : public QObject
 				// were kept: read as it is, without a DN, and written back
 				// the same
 			QDomElement od = doc.createElement(QStringLiteral("conductor"));
-			od.setAttribute(QStringLiteral("pipe_od"), QStringLiteral("88.9"));
+			od.setAttribute(QStringLiteral("pid_od"), QStringLiteral("88.9"));
 			in.fromXml(od);
 			QVERIFY(!in.nominal.isSet());
 			QCOMPARE(in.outside, PipeDiameter::outside(88.9));
 			QCOMPARE(in.lineSize(), PipeDiameter::outside(88.9));
 			QCOMPARE(in.writtenSize(false), PipeDiameter::outside(88.9));
 			QCOMPARE(in.attributes().size(), 1);
-			QCOMPARE(in.attributes().first(), qMakePair(QStringLiteral("pipe_od"), QStringLiteral("88.9")));
+			QCOMPARE(in.attributes().first(), qMakePair(QStringLiteral("pid_od"), QStringLiteral("88.9")));
 				// a DN alone on a plastic: written until its outside diameter
 				// is chosen
 			PipeProperties waiting;
@@ -687,8 +697,8 @@ class tst_conductormedium : public QObject
 			QHash<Terminal *, int> ids;
 			QDomDocument doc;
 			QDomElement saved = pipe->toXml(doc, ids, {});
-			QCOMPARE(saved.attribute(QStringLiteral("pipe_dn")), QStringLiteral("150"));
-			QCOMPARE(saved.attribute(QStringLiteral("pipe_fluid")), QStringLiteral("W01"));
+			QCOMPARE(saved.attribute(QStringLiteral("pid_dn")), QStringLiteral("150"));
+			QCOMPARE(saved.attribute(QStringLiteral("pid_fluid")), QStringLiteral("W01"));
 			m_folio->removeItem(pipe);
 			delete pipe;
 			auto *again = new Conductor(nozzles.first, nozzles.second);
@@ -704,7 +714,7 @@ class tst_conductormedium : public QObject
 			QVERIFY(wire->properties().m_pipe.isDefault());
 			QHash<Terminal *, int> ids2;
 			QDomDocument doc2;
-			QVERIFY(!wire->toXml(doc2, ids2, {}).hasAttribute(QStringLiteral("pipe_dn")));
+			QVERIFY(!wire->toXml(doc2, ids2, {}).hasAttribute(QStringLiteral("pid_dn")));
 		}
 
 			// The data of a pipe go through a .qetdb file and back, with the

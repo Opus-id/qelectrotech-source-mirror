@@ -165,7 +165,7 @@ ElementOptions::Choices ElementOptions::resolved(const Choices &chosen) const
 
 /**
 	@brief ElementOptions::isShown
-	@param show_if : the show-if attribute of a part, "option=value,value"
+	@param show_if : the show_if attribute of a part, "option=value,value"
 	conditions separated by ";"
 	@param resolved : the value of every option of the symbol, see resolved()
 	@return true if the part is drawn: every condition that can be read and

@@ -346,12 +346,12 @@ class tst_pidcolors : public QObject
 			QDomDocument doc;
 			QDomElement e = doc.createElement(QStringLiteral("conductor"));
 			p.toXml(e);
-			QVERIFY(!e.hasAttribute(QStringLiteral("pipe_color")));
+			QVERIFY(!e.hasAttribute(QStringLiteral("pid_color")));
 
 			p.m_pipe.color = QColor(0x12, 0x34, 0x56);
 			QDomElement f = doc.createElement(QStringLiteral("conductor"));
 			p.toXml(f);
-			QCOMPARE(f.attribute(QStringLiteral("pipe_color")), QStringLiteral("#123456"));
+			QCOMPARE(f.attribute(QStringLiteral("pid_color")), QStringLiteral("#123456"));
 			ConductorProperties back;
 			back.fromXml(f);
 			QCOMPARE(back.m_pipe.color, QColor(0x12, 0x34, 0x56));
@@ -712,7 +712,7 @@ class tst_pidcolors : public QObject
 			QDomDocument doc;
 			QDomElement e = doc.createElement(QStringLiteral("conductor"));
 			pipe->properties().toXml(e);
-			QCOMPARE(e.attribute(QStringLiteral("pipe_status")), QStringLiteral("existing"));
+			QCOMPARE(e.attribute(QStringLiteral("pid_status")), QStringLiteral("existing"));
 
 				// a symbol of a family offers it, an electrical symbol does not
 			QVERIFY(ElementOptionsWidget::hasOptions(valve));

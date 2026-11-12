@@ -52,7 +52,8 @@ PipeProperties::LineKind PipeProperties::lineKindFromString(const QString &strin
 	@brief PipeProperties::attributes
 	@return the attributes of the conductor these properties are written
 	as, in a fixed order: only those that are set, each prefixed with
-	"pipe_" so that no attribute of a conductor is ever reused. The project
+	"pid_", as every P&ID attribute outside a P&ID block, so that no
+	attribute of a conductor is ever reused. The project
 	database stores a pipe's data as these, with the other attributes of
 	the conductor.
 */
@@ -67,22 +68,22 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 		//material named by it: each one only when set; a pipe never has a
 		//thread, which only names a nozzle
 	if (nominal.isNominal())
-		a << qMakePair(QStringLiteral("pipe_dn"), PipeDiameter::fileNumber(nominal.tenths()));
+		a << qMakePair(QStringLiteral("pid_dn"), PipeDiameter::fileNumber(nominal.tenths()));
 	if (outside.isOutside())
-		a << qMakePair(QStringLiteral("pipe_od"), PipeDiameter::fileNumber(outside.tenths()));
-	add("pipe_fluid", fluid);
-	add("pipe_material", material);
-	add("pipe_flow", flow);
-	add("pipe_line_number", line_number);
-	add("pipe_piping_class", piping_class);
-	add("pipe_nominal_pressure", nominal_pressure);
+		a << qMakePair(QStringLiteral("pid_od"), PipeDiameter::fileNumber(outside.tenths()));
+	add("pid_fluid", fluid);
+	add("pid_material", material);
+	add("pid_flow", flow);
+	add("pid_line_number", line_number);
+	add("pid_piping_class", piping_class);
+	add("pid_nominal_pressure", nominal_pressure);
 	if (line_kind != Main)
-		add("pipe_line_kind", lineKindToString(line_kind));
-	add("pipe_spool", spool);
-	add("pipe_external_finish", external_finish);
+		add("pid_line_kind", lineKindToString(line_kind));
+	add("pid_spool", spool);
+	add("pid_external_finish", external_finish);
 	if (color.isValid())
-		add("pipe_color", color.name());
-	add("pipe_status", status);
+		add("pid_color", color.name());
+	add("pid_status", status);
 	return a;
 }
 
@@ -97,21 +98,21 @@ void PipeProperties::fromXml(const QDomElement &e)
 		//Each as it is written: a pipe saved with its outside diameter
 		//alone, before both were kept, has no DN, and is given none
 	nominal = PipeDiameter::fromTenths(
-				PipeDiameter::Nominal, PipeDiameter::tenthsOf(e.attribute(QStringLiteral("pipe_dn"))));
+				PipeDiameter::Nominal, PipeDiameter::tenthsOf(e.attribute(QStringLiteral("pid_dn"))));
 	outside = PipeDiameter::fromTenths(
-				PipeDiameter::Outside, PipeDiameter::tenthsOf(e.attribute(QStringLiteral("pipe_od"))));
+				PipeDiameter::Outside, PipeDiameter::tenthsOf(e.attribute(QStringLiteral("pid_od"))));
 
-	fluid            = e.attribute(QStringLiteral("pipe_fluid"));
-	material         = e.attribute(QStringLiteral("pipe_material"));
-	flow             = e.attribute(QStringLiteral("pipe_flow"));
-	line_number      = e.attribute(QStringLiteral("pipe_line_number"));
-	piping_class     = e.attribute(QStringLiteral("pipe_piping_class"));
-	nominal_pressure = e.attribute(QStringLiteral("pipe_nominal_pressure"));
-	line_kind        = lineKindFromString(e.attribute(QStringLiteral("pipe_line_kind")));
-	spool            = e.attribute(QStringLiteral("pipe_spool"));
-	external_finish  = e.attribute(QStringLiteral("pipe_external_finish"));
-	color            = QColor(e.attribute(QStringLiteral("pipe_color")));
-	status           = e.attribute(QStringLiteral("pipe_status"));
+	fluid            = e.attribute(QStringLiteral("pid_fluid"));
+	material         = e.attribute(QStringLiteral("pid_material"));
+	flow             = e.attribute(QStringLiteral("pid_flow"));
+	line_number      = e.attribute(QStringLiteral("pid_line_number"));
+	piping_class     = e.attribute(QStringLiteral("pid_piping_class"));
+	nominal_pressure = e.attribute(QStringLiteral("pid_nominal_pressure"));
+	line_kind        = lineKindFromString(e.attribute(QStringLiteral("pid_line_kind")));
+	spool            = e.attribute(QStringLiteral("pid_spool"));
+	external_finish  = e.attribute(QStringLiteral("pid_external_finish"));
+	color            = QColor(e.attribute(QStringLiteral("pid_color")));
+	status           = e.attribute(QStringLiteral("pid_status"));
 }
 
 /**

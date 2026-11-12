@@ -1042,7 +1042,7 @@ QDomElement Diagram::deferredXmlWithHeader(QDomDocument &document)
 	@brief Diagram::hasSymbolChoices
 	@return true if a symbol of this folio was given a value of one of its
 	options or a nominal diameter of one of its nozzles: among its elements,
-	or in the <options> and <nozzles> blocks of an element of its XML while it
+	or in the <options> and <pid_nozzles> blocks of an element of its XML while it
 	is not built (lazy folios)
 */
 bool Diagram::hasSymbolChoices() const

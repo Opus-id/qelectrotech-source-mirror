@@ -227,7 +227,7 @@ class tst_elementchangetype : public QObject
 				"</option></options>"
 				"<description>"
 				"<ellipse x=\"-5\" y=\"-5\" width=\"10\" height=\"10\" %1/>"
-				"<ellipse x=\"40\" y=\"-5\" width=\"20\" height=\"10\" show-if=\"reach=long\" %1/>"
+				"<ellipse x=\"40\" y=\"-5\" width=\"20\" height=\"10\" show_if=\"reach=long\" %1/>"
 				"</description></definition>").arg(style));
 			const ElementsLocation location = add("g.elmt", doc.documentElement());
 

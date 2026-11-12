@@ -40,7 +40,7 @@
 
 /**
 	The options of a symbol (ElementOptions): a placed element chooses a
-	value of each option, and the parts of the drawing whose show-if the
+	value of each option, and the parts of the drawing whose show_if the
 	choice does not meet are not drawn. Checked on the data, on the drawing,
 	on a placed element saved and read back with its project, and on what
 	the element editor keeps.
@@ -65,7 +65,7 @@ class tst_elementoptions : public QObject
 				"length1=\"1.5\" length2=\"1.5\" style=\"%2\" antialias=\"false\"%3/>")
 				.arg(y).arg(style,
 					 show_if.isEmpty() ? QString()
-									   : QStringLiteral(" show-if=\"%1\"").arg(show_if));
+									   : QStringLiteral(" show_if=\"%1\"").arg(show_if));
 		};
 		return QStringLiteral(
 			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
@@ -183,7 +183,7 @@ class tst_elementoptions : public QObject
 				"<option name=\"motor\" default=\"diesel\">"
 				"<value name=\"none\"/><value name=\"fixed\"/><value name=\"fixed\"/>"
 				"<value name=\"bad name\"/></option>"
-					// named twice, no name, a name show-if could not read
+					// named twice, no name, a name show_if could not read
 				"<option name=\"motor\"><value name=\"other\"/></option>"
 				"<option><value name=\"a\"/></option>"
 				"<option name=\"a=b\"><value name=\"a\"/></option>"
@@ -506,16 +506,16 @@ class tst_elementoptions : public QObject
 			QVERIFY(doc.setContent(QStringLiteral(
 				"<line x1=\"0\" y1=\"0\" x2=\"10\" y2=\"0\" end1=\"none\" end2=\"none\" "
 				"length1=\"1.5\" length2=\"1.5\" style=\"line-weight:normal\" antialias=\"true\" "
-				"show-if=\"motor=fixed,variable\"/>")));
+				"show_if=\"motor=fixed,variable\"/>")));
 			PartLine line(nullptr);
 			line.fromXml(doc.documentElement());
 			QCOMPARE(line.showIf(), QStringLiteral("motor=fixed,variable"));
 			QDomDocument out;
-			QCOMPARE(line.toXml(out).attribute(QStringLiteral("show-if")),
+			QCOMPARE(line.toXml(out).attribute(QStringLiteral("show_if")),
 					 QStringLiteral("motor=fixed,variable"));
 				// none written for a part drawn always
 			line.setShowIf(QString());
-			QVERIFY(!line.toXml(out).hasAttribute(QStringLiteral("show-if")));
+			QVERIFY(!line.toXml(out).hasAttribute(QStringLiteral("show_if")));
 		}
 
 		void theEditorKeepsTheConditionOfAText()
@@ -523,12 +523,12 @@ class tst_elementoptions : public QObject
 			QDomDocument doc;
 			QVERIFY(doc.setContent(QStringLiteral(
 				"<text x=\"0\" y=\"0\" text=\"M\" font=\"Sans Serif,9,-1,5,50,0,0,0,0,0\" "
-				"rotation=\"0\" color=\"#000000\" show-if=\"motor=fixed,variable\"/>")));
+				"rotation=\"0\" color=\"#000000\" show_if=\"motor=fixed,variable\"/>")));
 			PartText text(nullptr);
 			text.fromXml(doc.documentElement());
 			QCOMPARE(text.showIf(), QStringLiteral("motor=fixed,variable"));
 			QDomDocument out;
-			QCOMPARE(text.toXml(out).attribute(QStringLiteral("show-if")),
+			QCOMPARE(text.toXml(out).attribute(QStringLiteral("show_if")),
 					 QStringLiteral("motor=fixed,variable"));
 		}
 
@@ -549,8 +549,8 @@ class tst_elementoptions : public QObject
 			const QDomElement description = root.firstChildElement(QStringLiteral("description"));
 			for (QDomElement part = description.firstChildElement() ; !part.isNull() ;
 				 part = part.nextSiblingElement()) {
-				if (part.hasAttribute(QStringLiteral("show-if")))
-					conditions << part.attribute(QStringLiteral("show-if"));
+				if (part.hasAttribute(QStringLiteral("show_if")))
+					conditions << part.attribute(QStringLiteral("show_if"));
 			}
 			conditions.sort();
 			QCOMPARE(conditions, QStringList({QStringLiteral("motor=fixed,variable"),
@@ -572,7 +572,7 @@ class tst_elementoptions : public QObject
 			scene.fromXml(doc, QPointF(), true);
 			const QString saved = scene.toXml().toString();
 			QVERIFY(!saved.contains(QStringLiteral("<options")));
-			QVERIFY(!saved.contains(QStringLiteral("show-if")));
+			QVERIFY(!saved.contains(QStringLiteral("show_if")));
 		}
 };
 

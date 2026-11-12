@@ -129,7 +129,7 @@ void PartText::fromXml(const QDomElement &xml_element) {
 	if (!uuid.isNull()) {
 		m_uuid = uuid;
 	}
-	m_show_if = xml_element.attribute(QStringLiteral("show-if"));
+	m_show_if = xml_element.attribute(QStringLiteral("show_if"));
 
 	if (xml_element.hasAttribute("size")) {
 		int font_size = xml_element.attribute("size").toInt(&ok);
@@ -207,7 +207,7 @@ const QDomElement PartText::toXml(QDomDocument &xml_document) const
 	if (m_anchor_to_alignment)
 		xml_element.setAttribute("anchor", "alignment");
 	if (!m_show_if.isEmpty())
-		xml_element.setAttribute("show-if", m_show_if);
+		xml_element.setAttribute(QStringLiteral("show_if"), m_show_if);
 
 	return(xml_element);
 }

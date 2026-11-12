@@ -64,9 +64,9 @@ const QDomElement PartTerminal::toXml(QDomDocument &xml_document) const
 	QDomElement xml_element = d -> toXml(xml_document);
 		//A nozzle that follows its pipe has no size of its own: none written
 	if (followsPipe()) {
-		xml_element.removeAttribute(QStringLiteral("dn"));
-		xml_element.removeAttribute(QStringLiteral("od"));
-		xml_element.removeAttribute(QStringLiteral("thread"));
+		xml_element.removeAttribute(QStringLiteral("pid_dn"));
+		xml_element.removeAttribute(QStringLiteral("pid_od"));
+		xml_element.removeAttribute(QStringLiteral("pid_thread"));
 	}
 	return xml_element;
 }
@@ -464,7 +464,7 @@ QString PartTerminal::labelText() const
 	@brief PartTerminal::followsPipe
 	Same criterion as Terminal::followsPipe() of a placed symbol, read from
 	the data of the symbol being edited: the nozzle belongs to the run of the
-	symbol (pipe_run, or every nozzle of a pipe_inline), or it is the only
+	symbol (pid_run, or every nozzle of a pid_inline), or it is the only
 	nozzle of a symbol of the family pipe.
 */
 bool PartTerminal::followsPipe() const

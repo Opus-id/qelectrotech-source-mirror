@@ -36,7 +36,7 @@
 	and external finish.
 	They belong to one pipe only: they are never passed on to the pipes it
 	is connected to (a pipe has no potential).
-	They are saved as attributes of the conductor, prefixed with "pipe_",
+	They are saved as attributes of the conductor, prefixed with "pid_",
 	and only those that are set: see attributes().
 */
 class PipeProperties
@@ -48,12 +48,12 @@ class PipeProperties
 			/// primary and a secondary segment only.
 		enum LineKind { Main, Secondary, Auxiliary };
 
-			/// The size of the line: its DN (attribute pipe_dn), whatever
+			/// The size of the line: its DN (attribute pid_dn), whatever
 			/// the material. It is what is passed on along the line,
 			/// compared with the nozzles and shown by the nozzles which
 			/// follow the pipe; none when not set
 		PipeDiameter nominal;
-			/// A second value (attribute pipe_od), for a material whose
+			/// A second value (attribute pid_od), for a material whose
 			/// pipes are named by their outside diameter: a plastic pipe of
 			/// DN 100 is a Ø 110 or a Ø 125; none when not set
 		PipeDiameter outside;

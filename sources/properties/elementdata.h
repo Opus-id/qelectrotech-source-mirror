@@ -353,10 +353,11 @@ class ElementData : public PropertiesInterface
 			/// (PidCodification::objectFamilies()); none for any other symbol
 		QString m_pid_family;
 			/// A line runs through this symbol, as through a valve: it has one
-			/// DN, and a change of DN goes through it (Element::isPipeInline())
+			/// DN, and a change of DN goes through it (attribute
+			/// pid_inline="true", Element::isPipeInline())
 		bool m_pipe_inline = false;
 			/// The nozzles of one size a change of DN goes through, by name
-			/// (attribute pipe_run="N1 N2 N3"): the run of a tee, and its
+			/// (attribute pid_run="N1 N2 N3"): the run of a tee, and its
 			/// branch for an equal tee; none read as the two nozzles of a
 			/// symbol a line runs through (Element::pipeRun())
 		QStringList m_pipe_run;

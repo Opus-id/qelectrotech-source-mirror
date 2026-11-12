@@ -53,7 +53,7 @@
 /**
 	The nominal diameter of a nozzle: a default in the symbol (attribute dn of
 	the terminal), shown under the name of the nozzle, that a placed element
-	can change (<nozzles> block of the element). Nothing goes from a nozzle to
+	can change (<pid_nozzles> block of the element). Nothing goes from a nozzle to
 	the pipe connected there, nor back.
 	The nozzles a line runs through (a valve, a tee) and a free end have no
 	size of their own: they have the one of their line (step 5l-1j).
@@ -91,17 +91,17 @@ class tst_nozzlediameter : public QObject
 			"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
 			"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
 			"<terminal uuid=\"{7b000000-0000-0000-0000-000000000001}\" name=\"N1\" x=\"-20\" y=\"0\" "
-			"orientation=\"w\" type=\"Generic\" medium=\"pipe\" connection=\"plain_end\" dn=\"%2\" "
+			"orientation=\"w\" type=\"Generic\" medium=\"pipe\" pid_connection=\"plain_end\" pid_dn=\"%2\" "
 			"show_name=\"true\"/>"
 			"<terminal uuid=\"{7b000000-0000-0000-0000-000000000002}\" name=\"N2\" x=\"20\" y=\"0\" "
-			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" connection=\"plain_end\" show_name=\"true\"/>"
+			"orientation=\"e\" type=\"Generic\" medium=\"pipe\" pid_connection=\"plain_end\" show_name=\"true\"/>"
 			"<terminal uuid=\"{7b000000-0000-0000-0000-000000000003}\" name=\"E1\" x=\"0\" y=\"-10\" "
-			"orientation=\"n\" type=\"Generic\" dn=\"50\" show_name=\"true\"/>"
+			"orientation=\"n\" type=\"Generic\" pid_dn=\"50\" show_name=\"true\"/>"
 			"%4</description></definition>").arg(uuid).arg(n1_dn).arg(extra)
 			.arg(extra.contains(QStringLiteral("three"))
 				 ? QStringLiteral("<terminal uuid=\"{7b000000-0000-0000-0000-000000000004}\" "
 								  "name=\"N3\" x=\"0\" y=\"10\" orientation=\"s\" "
-								  "type=\"Generic\" medium=\"pipe\" connection=\"plain_end\"/>")
+								  "type=\"Generic\" medium=\"pipe\" pid_connection=\"plain_end\"/>")
 				 : QString());
 	}
 
@@ -129,7 +129,7 @@ class tst_nozzlediameter : public QObject
 	{
 		return addSymbol(project, QStringLiteral("valve.elmt"),
 						 QStringLiteral("{7b333333-3333-3333-3333-333333333333}"), 0,
-						 QStringLiteral("pipe_inline=\"true\" "));
+						 QStringLiteral("pid_inline=\"true\" "));
 	}
 
 	static Element *place(Diagram *folio, const ElementsLocation &location)
@@ -205,24 +205,24 @@ class tst_nozzlediameter : public QObject
 			QDomDocument doc;
 			doc.setContent(QStringLiteral(
 				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
-				"medium=\"pipe\" dn=\"100\"/>"));
+				"medium=\"pipe\" pid_dn=\"100\"/>"));
 			PartTerminal part(nullptr);
 			part.fromXml(doc.documentElement());
 			QCOMPARE(part.diameter(), PipeDiameter::nominal(100));
 
 			QDomDocument out;
-			QCOMPARE(part.toXml(out).attribute(QStringLiteral("dn")), QStringLiteral("100"));
+			QCOMPARE(part.toXml(out).attribute(QStringLiteral("pid_dn")), QStringLiteral("100"));
 			part.setDiameter(PipeDiameter());
 			QDomDocument out2;
-			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("dn")));
+			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("pid_dn")));
 
 				// an outside diameter, for a socket: od, never dn
 			part.setDiameterText(QStringLiteral("Ø 110"));
 			QCOMPARE(part.diameter(), PipeDiameter::outside(110));
 			QDomDocument out3;
 			const QDomElement written = part.toXml(out3);
-			QCOMPARE(written.attribute(QStringLiteral("od")), QStringLiteral("110"));
-			QVERIFY(!written.hasAttribute(QStringLiteral("dn")));
+			QCOMPARE(written.attribute(QStringLiteral("pid_od")), QStringLiteral("110"));
+			QVERIFY(!written.hasAttribute(QStringLiteral("pid_dn")));
 			PartTerminal back(nullptr);
 			back.fromXml(written);
 			QCOMPARE(back.diameter(), PipeDiameter::outside(110));
@@ -233,12 +233,12 @@ class tst_nozzlediameter : public QObject
 		{
 			QDomDocument doc;
 			doc.setContent(QStringLiteral(
-				"<terminal x=\"0\" y=\"0\" name=\"T1\" orientation=\"e\" type=\"Generic\" dn=\"100\"/>"));
+				"<terminal x=\"0\" y=\"0\" name=\"T1\" orientation=\"e\" type=\"Generic\" pid_dn=\"100\"/>"));
 			PartTerminal part(nullptr);
 			part.fromXml(doc.documentElement());
 			QVERIFY(!part.diameter().isSet());
 			QDomDocument out;
-			QVERIFY(!part.toXml(out).hasAttribute(QStringLiteral("dn")));
+			QVERIFY(!part.toXml(out).hasAttribute(QStringLiteral("pid_dn")));
 
 				// kept aside while the terminal is not a nozzle
 			part.setMedium(TerminalData::Pipe);
@@ -247,7 +247,7 @@ class tst_nozzlediameter : public QObject
 			part.setMedium(TerminalData::Electrical);
 			QCOMPARE(part.labelText(), QStringLiteral("T1"));
 			QDomDocument out2;
-			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("dn")));
+			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("pid_dn")));
 		}
 
 		void aDiameterIsAPositiveWholeNumber_data()
@@ -741,7 +741,7 @@ class tst_nozzlediameter : public QObject
 			const ElementsLocation three = addSymbol(
 						project, QStringLiteral("three.elmt"),
 						QStringLiteral("{7b555555-5555-5555-5555-555555555555}"), 0,
-						QStringLiteral("pipe_inline=\"true\" three=\"true\" "));
+						QStringLiteral("pid_inline=\"true\" three=\"true\" "));
 			Diagram *folio = project.addNewDiagram();
 			Element *left = place(folio, tank);
 			Element *valve = place(folio, three);
@@ -792,7 +792,7 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(after->inlineRun().size(), 2);
 			QDomDocument doc;
 			QHash<Terminal *, int> table;
-			QVERIFY(valve->toXml(doc, table).firstChildElement(QStringLiteral("nozzles")).isNull());
+			QVERIFY(valve->toXml(doc, table).firstChildElement(QStringLiteral("pid_nozzles")).isNull());
 
 				// it has the size of its line, on both sides
 			setDn(before, 100);
@@ -813,7 +813,7 @@ class tst_nozzlediameter : public QObject
 			const ElementsLocation sized = addSymbol(
 						project, QStringLiteral("sized.elmt"),
 						QStringLiteral("{7b888888-8888-8888-8888-888888888888}"), 100,
-						QStringLiteral("pipe_inline=\"true\" "));
+						QStringLiteral("pid_inline=\"true\" "));
 			Element *valve = place(folio, sized);
 			QVERIFY(valve);
 			QVERIFY(valve->isPipeInline());
@@ -852,7 +852,7 @@ class tst_nozzlediameter : public QObject
 				"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
 				"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
 				"<terminal uuid=\"{7b000000-0000-0000-0000-000000000091}\" name=\"N1\" x=\"0\" y=\"0\" "
-				"orientation=\"w\" type=\"Generic\" medium=\"pipe\" connection=\"plain_end\" dn=\"50\"/>"
+				"orientation=\"w\" type=\"Generic\" medium=\"pipe\" pid_connection=\"plain_end\" pid_dn=\"50\"/>"
 				"</description></definition>"));
 			project.embeddedElementCollection()->addElementDefinition(
 						QStringLiteral("import/nozzles"), QStringLiteral("end.elmt"), doc.documentElement());
@@ -972,7 +972,7 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(terminal(element, QStringLiteral("N1"))->diameter().value(), 100.0);
 		}
 
-			// the run a symbol names (pipe_run): a tee takes its branch in;
+			// the run a symbol names (pid_run): a tee takes its branch in;
 			// a symbol may leave a nozzle out (the drain of a valve)
 		void aTeeHasTheRunItsSymbolNames()
 		{
@@ -981,11 +981,11 @@ class tst_nozzlediameter : public QObject
 			const ElementsLocation equal = addSymbol(
 						project, QStringLiteral("equal.elmt"),
 						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
-						QStringLiteral("pipe_run=\"N1 N2 N3\" three=\"true\" "));
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" "));
 			const ElementsLocation reducing = addSymbol(
 						project, QStringLiteral("reducing.elmt"),
 						QStringLiteral("{7b777777-7777-7777-7777-777777777777}"), 0,
-						QStringLiteral("pipe_run=\"N1 N2\" three=\"true\" "));
+						QStringLiteral("pid_run=\"N1 N2\" three=\"true\" "));
 			for (const ElementsLocation &tee_symbol : {equal, reducing})
 			{
 				Diagram *folio = project.addNewDiagram();
@@ -1429,13 +1429,13 @@ class tst_nozzlediameter : public QObject
 		{
 			QDomDocument doc;
 			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
-								  QStringLiteral("pipe_inline=\"true\" ")));
+								  QStringLiteral("pid_inline=\"true\" ")));
 			ElementData data;
 			data.fromXml(doc.documentElement());
 			QVERIFY(data.m_pipe_inline);
 			ElementScene scene(nullptr);
 			scene.fromXml(doc, QPointF(), true);
-			QCOMPARE(scene.toXml().documentElement().attribute(QStringLiteral("pipe_inline")),
+			QCOMPARE(scene.toXml().documentElement().attribute(QStringLiteral("pid_inline")),
 					 QStringLiteral("true"));
 
 				// and writes nothing for any other symbol
@@ -1445,7 +1445,7 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!other.m_pipe_inline);
 			ElementScene other_scene(nullptr);
 			other_scene.fromXml(doc, QPointF(), true);
-			QVERIFY(!other_scene.toXml().documentElement().hasAttribute(QStringLiteral("pipe_inline")));
+			QVERIFY(!other_scene.toXml().documentElement().hasAttribute(QStringLiteral("pid_inline")));
 		}
 
 		void theEditorGreysTheSizeOfANozzleWhichFollows()
@@ -1466,19 +1466,19 @@ class tst_nozzlediameter : public QObject
 			};
 			PartTerminal *n1 = nullptr;
 				// inline symbol: N1 follows its pipe, no size shown nor written
-			ElementScene *inl = sizesWritten(QStringLiteral("pipe_inline=\"true\" "), &n1);
+			ElementScene *inl = sizesWritten(QStringLiteral("pid_inline=\"true\" "), &n1);
 			QVERIFY(n1);
 			QVERIFY(n1->followsPipe());
 			QVERIFY(!n1->labelText().contains(QStringLiteral("100")));
 			QDomDocument out;
-			QVERIFY(!n1->toXml(out).hasAttribute(QStringLiteral("dn")));
+			QVERIFY(!n1->toXml(out).hasAttribute(QStringLiteral("pid_dn")));
 			delete inl;
 				// another symbol: N1 keeps its own size
 			ElementScene *plain = sizesWritten(QString(), &n1);
 			QVERIFY(n1);
 			QVERIFY(!n1->followsPipe());
 			QDomDocument out2;
-			QCOMPARE(n1->toXml(out2).attribute(QStringLiteral("dn")), QStringLiteral("100"));
+			QCOMPARE(n1->toXml(out2).attribute(QStringLiteral("pid_dn")), QStringLiteral("100"));
 			delete plain;
 		}
 
@@ -1486,7 +1486,7 @@ class tst_nozzlediameter : public QObject
 		{
 			QDomDocument doc;
 			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666668}"), 100,
-								  QStringLiteral("pipe_inline=\"true\" ")));
+								  QStringLiteral("pid_inline=\"true\" ")));
 			ElementScene scene(nullptr);
 			scene.fromXml(doc, QPointF(), true);
 			const ElementData data = scene.elementData();
@@ -2206,12 +2206,12 @@ class tst_nozzlediameter : public QObject
 				given->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}}));
 				given_uuid = given->uuid();
 				plain_uuid = plain->uuid();
-					// an element that changed nothing writes no <nozzles>
+					// an element that changed nothing writes no <pid_nozzles>
 				QDomDocument doc;
 				QHash<Terminal *, int> table;
-				QVERIFY(plain->toXml(doc, table).firstChildElement(QStringLiteral("nozzles")).isNull());
+				QVERIFY(plain->toXml(doc, table).firstChildElement(QStringLiteral("pid_nozzles")).isNull());
 				const QDomElement nozzle = given->toXml(doc, table)
-						.firstChildElement(QStringLiteral("nozzles"))
+						.firstChildElement(QStringLiteral("pid_nozzles"))
 						.firstChildElement(QStringLiteral("nozzle"));
 				QCOMPARE(nozzle.attribute(QStringLiteral("name")), QStringLiteral("N1"));
 				QCOMPARE(nozzle.attribute(QStringLiteral("dn")), QStringLiteral("100"));
@@ -2471,7 +2471,7 @@ class tst_nozzlediameter : public QObject
 			QDomDocument doc;
 			QHash<Terminal *, int> table;
 			const QDomElement nozzle = tank->toXml(doc, table)
-					.firstChildElement(QStringLiteral("nozzles")).firstChildElement(QStringLiteral("nozzle"));
+					.firstChildElement(QStringLiteral("pid_nozzles")).firstChildElement(QStringLiteral("nozzle"));
 			QCOMPARE(nozzle.attribute(QStringLiteral("od")), QStringLiteral("88.9"));
 		}
 

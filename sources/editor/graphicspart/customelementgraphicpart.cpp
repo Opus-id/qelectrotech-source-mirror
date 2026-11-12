@@ -548,7 +548,7 @@ void CustomElementGraphicPart::stylesToXml(QDomElement &qde) const
 	qde.setAttribute("antialias", _antialiased ? "true" : "false");
 		//Only on a part drawn for some options of the symbol
 	if (!m_show_if.isEmpty())
-		qde.setAttribute("show-if", m_show_if);
+		qde.setAttribute(QStringLiteral("show_if"), m_show_if);
 }
 
 
@@ -567,7 +567,7 @@ void CustomElementGraphicPart::stylesFromXml(const QDomElement &qde)
 	if (!uuid.isNull()) {
 		m_uuid = uuid;
 	}
-	m_show_if = qde.attribute(QStringLiteral("show-if"));
+	m_show_if = qde.attribute(QStringLiteral("show_if"));
 
 		//Get the list of pair style/value
 	QStringList styles = qde.attribute("style").split(";", Qt::SkipEmptyParts);
