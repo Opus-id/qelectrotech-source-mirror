@@ -13313,8 +13313,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
-        <source>%1 fluids, %2 materials and %3 functional units read</source>
-        <translation>%1 fluides, %2 matériaux et %3 unités fonctionnelles lus</translation>
+        <source>%1 fluids, %2 materials and %3 functional units</source>
+        <translation>%1 fluides, %2 matériaux et %3 unités fonctionnelles</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="153"/>
@@ -13323,8 +13323,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="154"/>
-        <source>%1: apply this page to keep them.</source>
-        <translation>%1 : appliquez cette page pour les garder.</translation>
+        <source>Read: %1. Apply this page to keep them.</source>
+        <translation>Lu : %1. Appliquez cette page pour les garder.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="1695"/>
+        <source>the presentation (tabs Colors, Texts and Connections)</source>
+        <translation>la présentation (onglets Couleurs, Textes et Raccords)</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="157"/>
@@ -13441,10 +13446,10 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message numerus="yes">
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="158"/>
-        <source>The sizes of %n material(s) read: apply this page to keep them.</source>
+        <source>the sizes of %n material(s)</source>
         <translation>
-            <numerusform>Tailles de %n matériau lues : appliquez cette page pour les garder.</numerusform>
-            <numerusform>Tailles de %n matériaux lues : appliquez cette page pour les garder.</numerusform>
+            <numerusform>les tailles de %n matériau</numerusform>
+            <numerusform>les tailles de %n matériaux</numerusform>
         </translation>
     </message>
     <message>
@@ -13557,8 +13562,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="414"/>
-        <source>The connections checked are drawn at the end of the nozzles, in the color of the symbol: on a valve 1 mm from its body, on an equipment at the end of the nozzle. A pipe brings its own part, in the color of the pipe, and begins after it: its flange 1 mm from a flange (the side of a valve stands for the flange of the valve), its socket on a plain end (drawn with the sockets), its grooved end in the collar, its half of a quick coupling. A nozzle may say otherwise (properties of the element, Nozzles). Two symbols placed against each other draw nothing between them.</source>
-        <translation>Les raccords cochés sont dessinés au bout des piquages, dans la couleur du symbole : sur une vanne à 1 mm du corps, sur un équipement au bout du piquage. Une tuyauterie apporte sa propre pièce, dans sa couleur, et commence après elle : sa bride à 1 mm d&apos;une bride (le côté d&apos;une vanne tient lieu de bride de la vanne), son emboîture sur un bout lisse (dessinée avec les emboîtements), son bout rainuré dans le collier, sa moitié de raccord rapide. Un piquage peut en décider autrement (propriétés de l&apos;élément, Piquages). Deux symboles posés l&apos;un contre l&apos;autre ne dessinent rien entre eux.</translation>
+        <source>The connections checked are drawn at the end of the nozzles, on the symbols checked; a plain end follows &quot;Socket&quot;. The pipe draws its own part facing it. A nozzle may say otherwise (properties of the element, Nozzles).</source>
+        <translation>Les raccords cochés sont dessinés au bout des piquages, sur les symboles cochés ; le bout lisse suit « À emboîtement ». La tuyauterie dessine sa propre pièce en face. Un piquage peut en décider autrement (propriétés de l&apos;élément, Piquages).</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="557"/>
@@ -13597,13 +13602,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="112"/>
-        <source>Save as default palette</source>
-        <translation>Enregistrer comme palette par défaut</translation>
+        <source>Save as default presentation</source>
+        <translation>Enregistrer comme présentation par défaut</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="114"/>
-        <source>New projects will start with these colors and these texts. Projects that already exist do not change.</source>
-        <translation>Les nouveaux projets commenceront avec ces couleurs et ces textes. Les projets existants ne changent pas.</translation>
+        <source>Saves the tabs Colors, Texts and Connections, and the models of tags, on this computer. New projects will start with them; projects that already exist do not change.</source>
+        <translation>Enregistre sur cet ordinateur les onglets Couleurs, Textes et Raccords, ainsi que les modèles de repère. Les nouveaux projets partiront de ces réglages ; les projets existants ne changent pas.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="125"/>
@@ -13667,13 +13672,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="160"/>
-        <source>Palette saved</source>
-        <translation>Palette enregistrée</translation>
+        <source>Presentation saved</source>
+        <translation>Présentation enregistrée</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="161"/>
-        <source>Default palette removed</source>
-        <translation>Palette par défaut retirée</translation>
+        <source>Default presentation removed</source>
+        <translation>Présentation par défaut retirée</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="326"/>
@@ -13682,8 +13687,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="328"/>
-        <source>New projects will start with these codes and the sizes of these materials; the palette is saved apart. Projects that already exist do not change.</source>
-        <translation>Les nouveaux projets commenceront avec ces codes et les tailles de ces matériaux ; la palette s&apos;enregistre à part. Les projets existants ne changent pas.</translation>
+        <source>Saves the tab Codification, on this computer: the codes of the fluids, materials and functional units, the sizes of the materials and the equal DN. New projects will start with them; projects that already exist do not change.</source>
+        <translation>Enregistre sur cet ordinateur l&apos;onglet Codification : les codes des fluides, des matériaux et des unités fonctionnelles, les tailles des matériaux et les DN équivalents. Les nouveaux projets partiront de ces réglages ; les projets existants ne changent pas.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="592"/>

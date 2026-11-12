@@ -22,6 +22,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDomDocument>
+#include <QFile>
 #include <QHeaderView>
 #include <QImage>
 #include <QListWidget>
@@ -29,6 +30,7 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTemporaryDir>
+#include <QTextDocument>
 #include <QStyleOptionGraphicsItem>
 #include <QUndoStack>
 
@@ -849,14 +851,48 @@ class tst_pidcolors : public QObject
 			m_project.setPidCodification(PidCodification());
 		}
 
-		void aNewProjectStartsFromTheDefaultPalette()
+			// Step 5l-1v: a file of presentation alone says so, not "0 fluids"
+		void anImportSaysWhatItRead()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString path = dir.filePath(QStringLiteral("presentation.csv"));
+			{
+				QFile file(path);
+				QVERIFY(file.open(QIODevice::WriteOnly));
+				file.write("kind;key;value\nobject_color;valve;#808000\n"
+						   "text_option;drawn_connections;flange\n");
+			}
+			QETProject project;
+			PidConfigPage page(&project);
+			QVERIFY(page.importCsv(path));
+			QVERIFY2(page.codeMessage().contains(QStringLiteral("presentation")),
+					 qPrintable(page.codeMessage()));
+			QVERIFY(!page.codeMessage().contains(QStringLiteral("fluids")));
+			page.applyProjectConf();
+			QVERIFY(project.pidCodification().drawsConnection(PipeConnection::Flange));
+		}
+
+			// Step 5l-1v: the long tool tips of the page are cut on several lines
+		void theToolTipsOfThePageWrap()
+		{
+			QETProject project;
+			PidConfigPage page(&project);
+			for (const QString &name : {QStringLiteral("save_presentation"), QStringLiteral("save_codification")}) {
+				auto *button = page.findChild<QPushButton *>(name);
+				QVERIFY(button);
+				QVERIFY2(Qt::mightBeRichText(button->toolTip()), qPrintable(name));
+			}
+		}
+
+		void aNewProjectStartsFromTheDefaultPresentation()
 		{
 			QETDiagramEditor *editor = QetAppTest::editor();
 			QVERIFY(editor);
 			const QColor olive(0x80, 0x80, 0), grey(0x80, 0x80, 0x80), blue(0, 0, 255);
 
 				// nothing saved: as before
-			QVERIFY(QetSettings::pidPalette().isEmpty());
+			QVERIFY(QetSettings::pidPresentation().isEmpty());
 			QVERIFY(editor->newProject());
 			QVERIFY(editor->currentProject()->pidCodification().isEmpty());
 
@@ -868,8 +904,11 @@ class tst_pidcolors : public QObject
 				page.setColor(PidConfigPage::FluidFamily, QStringLiteral("E"), blue);
 				page.setColor(PidConfigPage::ObjectFamily, QStringLiteral("valve"), olive);
 				page.setColor(PidConfigPage::Status, QStringLiteral("existing"), grey);
-				auto *save = page.findChild<QPushButton *>(QStringLiteral("save_palette"));
+				auto *save = page.findChild<QPushButton *>(QStringLiteral("save_presentation"));
 				QVERIFY(save);
+					// step 5l-1v: it saves more than colours, the presentation
+				QCOMPARE(save->text(), QStringLiteral("Save as default presentation"));
+				QVERIFY(save->toolTip().contains(QStringLiteral("Connections")));
 				save->click();
 			}
 				// saving changes neither this project nor another one
@@ -884,16 +923,16 @@ class tst_pidcolors : public QObject
 			QVERIFY(!c.hasCodes());
 				// nothing to save yet, and the palette is its own copy
 			QVERIFY(!project->projectOptionsWereModified());
-			QetSettings::setPidPalette(QString());
+			QetSettings::setPidPresentation(QString());
 			QVERIFY(project->pidCodification().hasColors());
 
 				// a page without colours takes the palette away
 			{
 				PidConfigPage page(&m_project);
 				page.setColor(PidConfigPage::FluidFamily, QStringLiteral("E"), QColor());
-				page.saveAsDefaultPalette();
+				page.saveAsDefaultPresentation();
 			}
-			QVERIFY(QetSettings::pidPalette().isEmpty());
+			QVERIFY(QetSettings::pidPresentation().isEmpty());
 			m_project.setPidCodification(PidCodification());
 		}
 
@@ -927,7 +966,7 @@ class tst_pidcolors : public QObject
 				save->click();
 			}
 			QVERIFY(!QetSettings::pidDefaultCodification().isEmpty());
-			QVERIFY(QetSettings::pidPalette().isEmpty());
+			QVERIFY(QetSettings::pidPresentation().isEmpty());
 
 			QVERIFY(editor->newProject());
 			QETProject *project = editor->currentProject();
@@ -936,12 +975,12 @@ class tst_pidcolors : public QObject
 			QVERIFY(!project->projectOptionsWereModified());
 
 				// with a palette too: a project takes both
-			QetSettings::setPidPalette(QStringLiteral("fluid_color;E;#0000ff\n"));
+			QetSettings::setPidPresentation(QStringLiteral("fluid_color;E;#0000ff\n"));
 			QVERIFY(editor->newProject());
 			const PidCodification both = editor->currentProject()->pidCodification();
 			QCOMPARE(both.fluids.size(), 1);
 			QCOMPARE(both.fluidColor(QStringLiteral("W01")), QColor(0, 0, 255));
-			QetSettings::setPidPalette(QString());
+			QetSettings::setPidPresentation(QString());
 
 				// a page without codes takes the codification away
 			m_project.setPidCodification(PidCodification());

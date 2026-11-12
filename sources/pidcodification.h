@@ -421,16 +421,18 @@ class PidCodification
 			/// sizes alone, read for the materials of a page).
 		static PidCodification fromCsv(const QString &text, int *skipped = nullptr,
 									   QMap<QString, QList<Size>> *loose_sizes = nullptr);
-			/// The colours and the settings of texts, as lines fromCsv()
-			/// reads: the palette kept in the settings, for new projects. The
-			/// codes stay out, kept apart (codesToCsv())
-		QString paletteToCsv() const;
+			/// The presentation: colours, settings of texts, connections
+			/// drawn and models of tags, as lines fromCsv() reads; what is
+			/// kept in the settings, for new projects. The codes stay out,
+			/// kept apart (codesToCsv())
+		QString presentationToCsv() const;
 			/// The codes, the sizes of the materials and the equal DN, as
 			/// lines fromCsv() reads: the codification
-			/// kept in the settings, for new projects, apart from the palette,
-			/// as a company may keep its colours with codes of another client
+			/// kept in the settings, for new projects, apart from the
+			/// presentation, as a company may keep its colours with codes of
+			/// another client
 		QString codesToCsv() const;
-			/// The whole codification, codes then palette, as lines fromCsv()
+			/// The whole codification, codes then presentation, as lines fromCsv()
 			/// reads: what another project imports
 		QString toCsv() const;
 			/// The text of a file of codes: UTF-8, or Latin-1 when it is not,

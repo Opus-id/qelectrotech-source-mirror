@@ -74,14 +74,15 @@ class PidConfigPage : public ProjectConfigPage
 			/// What asks a colour, the colour dialog unless a test says
 			/// otherwise; it answers an invalid colour when cancelled
 		void setColorAsker(const std::function<QColor(const QColor &)> &asker) { m_ask_color = asker; }
-			/// Keep the colours and the settings of texts of this page as
-			/// those of the new projects, or none when it has none; other
-			/// projects stay as they are
-		void saveAsDefaultPalette();
+			/// Keep the presentation of this page (colours, texts,
+			/// connections drawn, models of tags) as that of the new
+			/// projects, or none when it has none; other projects stay as
+			/// they are
+		void saveAsDefaultPresentation();
 			/// Keep the codes, the sizes of the materials and the equal DN
 			/// of this page as those of the new projects, or none
-			/// when it has none; apart from the palette, other projects stay
-			/// as they are
+			/// when it has none; apart from the presentation, other projects
+			/// stay as they are
 		void saveAsDefaultCodification();
 
 			/// Read the file @p path in this page: its codes replace those of
@@ -95,7 +96,7 @@ class PidConfigPage : public ProjectConfigPage
 			/// The same with the files @p paths, read one after the other as
 			/// one: a file of codes and one of sizes, for instance
 		bool importCsv(const QStringList &paths);
-			/// Write the codification of this page, codes then palette, in
+			/// Write the codification of this page, codes then presentation, in
 			/// the file @p path, which importCsv() reads back
 		bool exportCsv(const QString &path);
 			/// The codes changed in this page, which the pipes and symbols
@@ -183,7 +184,7 @@ class PidConfigPage : public ProjectConfigPage
 		QTableWidget *m_table = nullptr;
 		QPushButton *m_choose = nullptr;
 		QPushButton *m_clear = nullptr;
-		QPushButton *m_save_palette = nullptr;
+		QPushButton *m_save_presentation = nullptr;
 		QPushButton *m_save_codification = nullptr;
 			/// What the page says of the last default saved
 		QLabel *m_default_saved = nullptr;

@@ -229,9 +229,9 @@ class tst_elementtag : public QObject
 					 QStringLiteral("{unit} {id} {train}{order:2}"));
 			QCOMPARE(read.tag_models.value(QStringLiteral("instrument")),
 					 QStringLiteral("{unit}\\n{id};{order}"));
-				// the models are a convention of the company, kept in the palette;
-				// the units belong to the project
-			const QString palette = read.paletteToCsv();
+				// the models are a convention of the company, kept in the
+				// presentation; the units belong to the project
+			const QString palette = read.presentationToCsv();
 			QVERIFY(palette.contains(QStringLiteral("tag_model;equipment;{unit} {id} {train}{order:2}")));
 			QVERIFY(!palette.contains(QStringLiteral("U01")));
 		}

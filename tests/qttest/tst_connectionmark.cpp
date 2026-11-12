@@ -301,7 +301,7 @@ class tst_connectionmark : public QObject
 			QVERIFY(read == sorted);
 
 				// with the palette, for new projects
-			const PidCodification palette = PidCodification::fromCsv(read.paletteToCsv());
+			const PidCodification palette = PidCodification::fromCsv(read.presentationToCsv());
 			QCOMPARE(palette.drawn_connections, read.drawn_connections);
 			QVERIFY(read.codesToCsv().indexOf(QStringLiteral("drawn_connections")) < 0);
 				// a word not known is left out, the others are read
@@ -467,7 +467,7 @@ class tst_connectionmark : public QObject
 			QVERIFY(read.drawn_families.isEmpty());
 				// the default presentation, an unknown word left out
 			codification.drawn_families = {QStringLiteral("valve"), QStringLiteral("pipe")};
-			QVERIFY(codification.paletteToCsv().contains(QStringLiteral("text_option;drawn_families;valve pipe")));
+			QVERIFY(codification.presentationToCsv().contains(QStringLiteral("text_option;drawn_families;valve pipe")));
 			int skipped = 0;
 			const PidCodification csv = PidCodification::fromCsv(
 						QStringLiteral("text_option;drawn_families;pipe tank valve\n"), &skipped);

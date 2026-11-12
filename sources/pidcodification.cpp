@@ -1217,10 +1217,10 @@ void PidCodification::fromXml(const QDomElement &parent)
 }
 
 /**
-	@brief PidCodification::paletteToCsv
+	@brief PidCodification::presentationToCsv
 	See the declaration
 */
-QString PidCodification::paletteToCsv() const
+QString PidCodification::presentationToCsv() const
 {
 	QString text;
 	auto write = [&text](const QString &kind, const QMap<QString, QColor> &colors) {
@@ -1272,7 +1272,7 @@ QString PidCodification::paletteToCsv() const
 */
 QString PidCodification::toCsv() const
 {
-	return codesToCsv() + paletteToCsv();
+	return codesToCsv() + presentationToCsv();
 }
 
 /**

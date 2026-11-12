@@ -226,19 +226,21 @@ namespace QetSettings
 		if (!enabled) settings.remove("scripting/live_skip_warning");
 	}
 
-	QString pidPalette()
+		//Formerly "pid/default_palette", no longer read (12/11/2026): the
+		//P&ID was not in use yet, the presentation is saved again
+	QString pidPresentation()
 	{
 		QSettings settings;
-		return settings.value("pid/default_palette").toString();
+		return settings.value("pid/default_presentation").toString();
 	}
 
-	void setPidPalette(const QString &palette)
+	void setPidPresentation(const QString &presentation)
 	{
 		QSettings settings;
-		if (palette.isEmpty()) {
-			settings.remove("pid/default_palette");
+		if (presentation.isEmpty()) {
+			settings.remove("pid/default_presentation");
 		} else {
-			settings.setValue("pid/default_palette", palette);
+			settings.setValue("pid/default_presentation", presentation);
 		}
 	}
 

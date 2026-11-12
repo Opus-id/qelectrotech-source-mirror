@@ -49,14 +49,15 @@ namespace QetSettings
 	bool liveAskFirst();
 	void setLiveAskFirst(bool ask);
 
-		// The colours and the settings of texts new projects start from, as
-		// PidCodification::paletteToCsv() writes them; empty when none was
-		// saved: they start without any
-	QString pidPalette();
-	void setPidPalette(const QString &palette);
+		// The presentation new projects start from (colours, texts,
+		// connections drawn, models of tags), as
+		// PidCodification::presentationToCsv() writes it; empty when none
+		// was saved: they start without any
+	QString pidPresentation();
+	void setPidPresentation(const QString &presentation);
 		// The codes, series and table of outside diameters new projects
 		// start from, as PidCodification::codesToCsv() writes them, apart
-		// from the palette; empty when none was saved
+		// from the presentation; empty when none was saved
 	QString pidDefaultCodification();
 	void setPidDefaultCodification(const QString &codification);
 		// Whether symbols with one label in one place are one device for the

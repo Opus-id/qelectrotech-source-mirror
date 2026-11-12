@@ -2380,8 +2380,8 @@ class tst_nozzlediameter : public QObject
 			PidCodification read;
 			read.fromXml(holder2);
 			QVERIFY(!read.nozzle_dn_prefix);
-			QVERIFY(codification.paletteToCsv().contains(QStringLiteral("text_option;nozzle_dn_prefix;false")));
-			QVERIFY(!PidCodification::fromCsv(codification.paletteToCsv()).nozzle_dn_prefix);
+			QVERIFY(codification.presentationToCsv().contains(QStringLiteral("text_option;nozzle_dn_prefix;false")));
+			QVERIFY(!PidCodification::fromCsv(codification.presentationToCsv()).nozzle_dn_prefix);
 			QVERIFY(PidCodification().fromCsv(QString()).nozzle_dn_prefix);
 		}
 

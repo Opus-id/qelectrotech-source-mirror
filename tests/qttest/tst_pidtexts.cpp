@@ -192,7 +192,7 @@ class tst_pidtexts : public QObject
 			c.text_sizes.insert("valve", 8);
 			c.colored_labels = true;
 			c.nozzle_texts_on_paper = false;
-			const PidCodification read = PidCodification::fromCsv(c.paletteToCsv());
+			const PidCodification read = PidCodification::fromCsv(c.presentationToCsv());
 			QVERIFY(read.fluids.isEmpty());
 			QCOMPARE(read.text_sizes, c.text_sizes);
 			QVERIFY(read.colored_labels);

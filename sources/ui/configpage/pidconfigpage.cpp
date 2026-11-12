@@ -76,6 +76,14 @@ namespace {
 	constexpr int size_outside_column = 1;
 	constexpr int size_default_column = 2;
 
+		/// @p text as a tool tip written on several lines: Qt cuts a tool
+		/// tip only when it is rich text; nothing for no text
+	QString wrapped(const QString &text)
+	{
+		return text.isEmpty() ? QString()
+							  : QStringLiteral("<p>") + text.toHtmlEscaped() + QStringLiteral("</p>");
+	}
+
 	QVariantList sizesToData(const QList<PidCodification::Size> &sizes)
 	{
 		QVariantList data;
@@ -244,15 +252,15 @@ void PidConfigPage::initWidgets()
 						   : materials ? QStringList{tr("Code"), tr("Name"), tr("Named by"), tr("Sizes")}
 									   : QStringList{tr("Code"), tr("Name")});
 		if (materials) {
-			table->horizontalHeaderItem(2)->setToolTip(
+			table->horizontalHeaderItem(2)->setToolTip(wrapped(
 						tr("Checked: the pipes of this material are named by their outside diameter "
-						   "(Ø 110), as plastic pipes; else by their DN, as metal pipes."));
-			table->horizontalHeaderItem(sizes_column)->setToolTip(
+						   "(Ø 110), as plastic pipes; else by their DN, as metal pipes.")));
+			table->horizontalHeaderItem(sizes_column)->setToolTip(wrapped(
 						tr("The sizes of this material found in trade: the first and the last of "
 						   "those which name its pipes, and how many. Its pipes take no other: "
 						   "without sizes, none. They are typed in the list beside, which shows "
 						   "those of the material of the current line, or read from a CSV file, by "
-						   "lines such as size;M04;125;100 (material, outside diameter, DN)."));
+						   "lines such as size;M04;125;100 (material, outside diameter, DN).")));
 		}
 		table->setSelectionBehavior(QAbstractItemView::SelectRows);
 		table->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -284,17 +292,17 @@ void PidConfigPage::initWidgets()
 		m_size_table = new QTableWidget(0, 3, this);
 		m_size_table->setObjectName(QStringLiteral("sizes"));
 		m_size_table->setHorizontalHeaderLabels({tr("DN"), tr("Outside Ø"), tr("Default")});
-		m_size_table->horizontalHeaderItem(size_outside_column)->setToolTip(
+		m_size_table->horizontalHeaderItem(size_outside_column)->setToolTip(wrapped(
 					tr("The outside diameter of this size, in millimetres, to the tenth. A material "
 					   "named by its outside diameter needs it; a material named by its DN may do "
-					   "without."));
-		m_size_table->horizontalHeaderItem(size_nominal_column)->setToolTip(
+					   "without.")));
+		m_size_table->horizontalHeaderItem(size_nominal_column)->setToolTip(wrapped(
 					tr("The DN of the line this size makes, that of its flange. A material named by "
 					   "its DN needs it. An outside diameter has one DN only; a DN may have several "
-					   "outside diameters."));
-		m_size_table->horizontalHeaderItem(size_default_column)->setToolTip(
+					   "outside diameters.")));
+		m_size_table->horizontalHeaderItem(size_default_column)->setToolTip(wrapped(
 					tr("Where a DN has several outside diameters: the one a pipe of this DN takes "
-					   "without a question. One by DN; without one, the question is asked."));
+					   "without a question. One by DN; without one, the question is asked.")));
 		m_size_table->setSelectionBehavior(QAbstractItemView::SelectRows);
 		m_size_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
 		m_size_table->setEditTriggers(table->editTriggers());
@@ -331,9 +339,9 @@ void PidConfigPage::initWidgets()
 		m_equal_dn->setObjectName(QStringLiteral("equal_dn"));
 			//Empty, it says so: its example must not be taken for a value
 		m_equal_dn->setPlaceholderText(tr("None (for example 60/65)"));
-		m_equal_dn->setToolTip(tr("The DN which are the same size of line, written together: 60/65. "
+		m_equal_dn->setToolTip(wrapped(tr("The DN which are the same size of line, written together: 60/65. "
 								  "They compare as the same at a nozzle, and a pipe whose material "
-								  "changes takes the one its new material has. Several: 60/65, 125/130."));
+								  "changes takes the one its new material has. Several: 60/65, 125/130.")));
 		connect(m_equal_dn, &QLineEdit::editingFinished, this, &PidConfigPage::equalDnEdited);
 
 		auto *splitter = new QSplitter(Qt::Horizontal, this);
@@ -364,8 +372,8 @@ void PidConfigPage::initWidgets()
 	m_remove_entry->setObjectName(QStringLiteral("remove_entry"));
 	m_import = new QPushButton(tr("Import a CSV file..."), this);
 	m_export = new QPushButton(tr("Export as a CSV file..."), this);
-	m_export->setToolTip(tr("The codes, the colors and the texts of this page, which another "
-							"project can import."));
+	m_export->setToolTip(wrapped(tr("The codes, the colors and the texts of this page, which another "
+							"project can import.")));
 	m_code_message = new QLabel(this);
 	m_code_message->setObjectName(QStringLiteral("codification_message"));
 	m_code_message->setWordWrap(true);
@@ -422,16 +430,19 @@ void PidConfigPage::initWidgets()
 	connect(m_choose, &QPushButton::clicked, this, &PidConfigPage::chooseColor);
 	connect(m_clear, &QPushButton::clicked, this, [this]() { setColorOfSelection(QColor()); });
 
-	m_save_palette = new QPushButton(tr("Save as default palette"), this);
-	m_save_palette->setObjectName(QStringLiteral("save_palette"));
-	m_save_palette->setToolTip(tr("New projects will start with these colors and these texts. "
-								  "Projects that already exist do not change."));
-	connect(m_save_palette, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultPalette);
+		//The presentation: all but the codification
+	m_save_presentation = new QPushButton(tr("Save as default presentation"), this);
+	m_save_presentation->setObjectName(QStringLiteral("save_presentation"));
+	m_save_presentation->setToolTip(wrapped(tr("Saves the tabs Colors, Texts and Connections, and the models of "
+								  "tags, on this computer. New projects will start with them; "
+								  "projects that already exist do not change.")));
+	connect(m_save_presentation, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultPresentation);
 	m_save_codification = new QPushButton(tr("Save as default codification"), this);
 	m_save_codification->setObjectName(QStringLiteral("save_codification"));
-	m_save_codification->setToolTip(tr("New projects will start with these codes and the sizes of these "
-									   "materials; the palette is saved apart. "
-									   "Projects that already exist do not change."));
+	m_save_codification->setToolTip(wrapped(tr("Saves the tab Codification, on this computer: the codes of the "
+									   "fluids, materials and functional units, the sizes of the "
+									   "materials and the equal DN. New projects will start with "
+									   "them; projects that already exist do not change.")));
 	connect(m_save_codification, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultCodification);
 	m_default_saved = new QLabel(this);
 
@@ -456,16 +467,16 @@ void PidConfigPage::initWidgets()
 	connect(m_colored_labels, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
 	m_nozzle_texts_on_paper = new QCheckBox(tr("Print and export the names and DN of the nozzles"), this);
 	m_nozzle_texts_on_paper->setObjectName(QStringLiteral("nozzle_texts_on_paper"));
-	m_nozzle_texts_on_paper->setToolTip(tr("How the box \"Draw the names and DN of the nozzles\" starts "
-										   "in each print and export."));
+	m_nozzle_texts_on_paper->setToolTip(wrapped(tr("How the box \"Draw the names and DN of the nozzles\" starts "
+										   "in each print and export.")));
 	connect(m_nozzle_texts_on_paper, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
 	m_show_nozzle_sizes = new QCheckBox(tr("Show the sizes of the nozzles under their names"), this);
 	m_show_nozzle_sizes->setObjectName(QStringLiteral("show_nozzle_sizes"));
 	connect(m_show_nozzle_sizes, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
 	m_nozzle_dn_prefix = new QCheckBox(tr("Write \"DN\" before the sizes of the nozzles"), this);
 	m_nozzle_dn_prefix->setObjectName(QStringLiteral("nozzle_dn_prefix"));
-	m_nozzle_dn_prefix->setToolTip(tr("Unchecked, a nozzle shows \"100\" for \"DN 100\". An outside "
-									  "diameter (Ø) and a thread (G) always keep their sign."));
+	m_nozzle_dn_prefix->setToolTip(wrapped(tr("Unchecked, a nozzle shows \"100\" for \"DN 100\". An outside "
+									  "diameter (Ø) and a thread (G) always keep their sign.")));
 	connect(m_nozzle_dn_prefix, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
 		//Of no use when the sizes are not shown
 	connect(m_show_nozzle_sizes, &QCheckBox::toggled, this, [this](bool shown) {
@@ -475,8 +486,8 @@ void PidConfigPage::initWidgets()
 	m_decimal->setObjectName(QStringLiteral("decimal_separator"));
 	m_decimal->addItem(tr("Comma (88,9)"), int(PidCodification::Decimal::Comma));
 	m_decimal->addItem(tr("Point (88.9)"), int(PidCodification::Decimal::Point));
-	m_decimal->setToolTip(tr("How the tenths of the sizes are written in this project, whatever the "
-							 "computer which opens it; a file always keeps a point."));
+	m_decimal->setToolTip(wrapped(tr("How the tenths of the sizes are written in this project, whatever the "
+							 "computer which opens it; a file always keeps a point.")));
 	connect(m_decimal, &QComboBox::activated, this, &PidConfigPage::readTextWidgets);
 
 	for (PipeConnection::Type type : PipeConnection::all())
@@ -553,17 +564,12 @@ void PidConfigPage::initLayout()
 
 	auto *connections_tab = new QWidget(this);
 	auto *connections_layout = new QVBoxLayout(connections_tab);
+		//Short: the drawing shows the rest (README-PID tells it)
 	auto *connections_help = new QLabel(tr("The connections checked are drawn at the end of the "
-										   "nozzles, in the color of the symbol: on a valve 1 mm "
-										   "from its body, on an equipment at the end of the nozzle. "
-										   "A pipe brings its own part, in the color of the pipe, and "
-										   "begins after it: its flange 1 mm from a flange (the side "
-										   "of a valve stands for the flange of the valve), its "
-										   "socket on a plain end (drawn with the sockets), its "
-										   "grooved end in the collar, its half of a quick coupling. "
-										   "A nozzle may say otherwise (properties of the element, "
-										   "Nozzles). Two symbols placed against each other draw "
-										   "nothing between them."), connections_tab);
+										   "nozzles, on the symbols checked; a plain end follows "
+										   "\"Socket\". The pipe draws its own part facing it. A "
+										   "nozzle may say otherwise (properties of the element, "
+										   "Nozzles)."), connections_tab);
 	connections_help->setWordWrap(true);
 	connections_layout->addWidget(connections_help);
 		//The connections drawn, beside the families of symbols they are
@@ -663,15 +669,15 @@ void PidConfigPage::initLayout()
 	tabs->addTab(texts_tab, tr("Texts"));
 	tabs->addTab(connections_tab, tr("Connections"));
 
-	auto *palette = new QHBoxLayout();
-	palette->addStretch();
-	palette->addWidget(m_default_saved);
-	palette->addWidget(m_save_codification);
-	palette->addWidget(m_save_palette);
+	auto *defaults = new QHBoxLayout();
+	defaults->addStretch();
+	defaults->addWidget(m_default_saved);
+	defaults->addWidget(m_save_codification);
+	defaults->addWidget(m_save_presentation);
 
 	auto *page_layout = new QVBoxLayout(this);
 	page_layout->addWidget(tabs);
-	page_layout->addLayout(palette);
+	page_layout->addLayout(defaults);
 }
 
 void PidConfigPage::readValuesFromProject()
@@ -843,20 +849,20 @@ void PidConfigPage::showSizes()
 				item->setBackground(missing ? QBrush(QColor(255, 200, 120)) : QBrush());
 			}
 		}
-		cell->setToolTip(missing ? tr("Without sizes, no pipe of this material can be given a size.")
+		cell->setToolTip(missing ? wrapped(tr("Without sizes, no pipe of this material can be given a size."))
 								 : QString());
 	}
 }
 
 /**
-	@brief PidConfigPage::saveAsDefaultPalette
+	@brief PidConfigPage::saveAsDefaultPresentation
 	See the declaration
 */
-void PidConfigPage::saveAsDefaultPalette()
+void PidConfigPage::saveAsDefaultPresentation()
 {
-	QetSettings::setPidPalette(m_codification.paletteToCsv());
+	QetSettings::setPidPresentation(m_codification.presentationToCsv());
 	m_default_saved->setText(m_codification.hasColors() || m_codification.hasTextSettings()
-							 ? tr("Palette saved") : tr("Default palette removed"));
+							 ? tr("Presentation saved") : tr("Default presentation removed"));
 }
 
 /**
@@ -1353,7 +1359,7 @@ void PidConfigPage::decorateSizeRows()
 												  "named by it.");
 		for (QTableWidgetItem *item : {outside_item, nominal_item, default_item}) {
 			item->setBackground(missing ? QBrush(QColor(255, 200, 120)) : QBrush());
-			item->setToolTip(lacking);
+			item->setToolTip(wrapped(lacking));
 		}
 	}
 }
@@ -1670,16 +1676,22 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 		showMaterialSizes();
 	}
 	showCodification(false, false);
-	QString message;
-	if (read.hasCodeLists() || sizes_alone.isEmpty()) {
-		const QString read_text = tr("%1 fluids, %2 materials and %3 functional units read")
-								  .arg(read.fluids.size()).arg(read.materials.size())
-								  .arg(read.functional_units.size());
-		message = tr("%1: apply this page to keep them.").arg(read_text);
-	} else {
-		message = tr("The sizes of %n material(s) read: apply this page to keep them.", "",
-					 int(sizes_alone.size()));
+		//What the files brought: codes, else sizes alone; and a
+		//presentation (colours, texts, connections), which replaces that of
+		//the page
+	const bool presentation = read.hasColors() || read.hasTextSettings();
+	QStringList what;
+	if (read.hasCodeLists() || (sizes_alone.isEmpty() && !presentation)) {
+		what << tr("%1 fluids, %2 materials and %3 functional units")
+				.arg(read.fluids.size()).arg(read.materials.size())
+				.arg(read.functional_units.size());
+	} else if (!sizes_alone.isEmpty()) {
+		what << tr("the sizes of %n material(s)", "", int(sizes_alone.size()));
 	}
+	if (presentation) {
+		what << tr("the presentation (tabs Colors, Texts and Connections)");
+	}
+	QString message = tr("Read: %1. Apply this page to keep them.").arg(what.join(QStringLiteral("; ")));
 	if (skipped) {
 		message += QStringLiteral(" ") + tr("%n line(s) could not be read.", "", skipped);
 	}

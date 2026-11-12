@@ -156,8 +156,8 @@ class QETProject : public QObject
 		void setPidCodification(const PidCodification &codification);
 			/// For a project just created: take the codes saved as the
 			/// default codification (QetSettings::pidDefaultCodification())
-			/// and the colours saved as the default palette
-			/// (QetSettings::pidPalette()), each if any. It stays unmodified,
+			/// and the presentation saved as the default one
+			/// (QetSettings::pidPresentation()), each if any. It stays unmodified,
 			/// and keeps its own copy from then on.
 		void takeDefaultPidSettings();
 		bool deferringFolios() const {return m_deferring_folios;}
