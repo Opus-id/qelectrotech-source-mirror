@@ -17,6 +17,7 @@
 */
 #include "pidconfigpage.h"
 
+#include "../../pidtooltip.h"
 #include "../../pipediameter.h"
 #include "../../pipeproperties.h"
 #include "../../qeticons.h"
@@ -76,13 +77,8 @@ namespace {
 	constexpr int size_outside_column = 1;
 	constexpr int size_default_column = 2;
 
-		/// @p text as a tool tip written on several lines: Qt cuts a tool
-		/// tip only when it is rich text; nothing for no text
-	QString wrapped(const QString &text)
-	{
-		return text.isEmpty() ? QString()
-							  : QStringLiteral("<p>") + text.toHtmlEscaped() + QStringLiteral("</p>");
-	}
+		//A long tool tip on several lines
+	using PidToolTip::wrapped;
 
 	QVariantList sizesToData(const QList<PidCodification::Size> &sizes)
 	{

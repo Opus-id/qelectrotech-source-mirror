@@ -18,6 +18,7 @@
 #include "pipingblockwidget.h"
 
 #include <pidcodification.h>
+#include <pidtooltip.h>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -32,13 +33,13 @@ PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 
 	grid->addWidget(new QLabel(tr("Family:"), this), 0, 0);
 	m_family_cb = new QComboBox(this);
-	m_family_cb->setToolTip(tr("Family of the symbol. \"pipe\": a free end or a vent, its only "
-							   "nozzle takes the size of its pipe."));
+	m_family_cb->setToolTip(PidToolTip::wrapped(tr("Family of the symbol. \"pipe\": a free end or a vent, its only "
+							   "nozzle takes the size of its pipe.")));
 	grid->addWidget(m_family_cb, 0, 1);
 
 	m_inline_cb = new QCheckBox(tr("In-line symbol (a line runs through it)"), this);
-	m_inline_cb->setToolTip(tr("Without a run chosen below, all the nozzles take the size of "
-							   "their pipe, and a change of size goes through the symbol."));
+	m_inline_cb->setToolTip(PidToolTip::wrapped(tr("Without a run chosen below, all the nozzles take the size of "
+							   "their pipe, and a change of size goes through the symbol.")));
 	grid->addWidget(m_inline_cb, 1, 0, 1, 2);
 
 	grid->addWidget(new QLabel(tr("Run of the line:"), this), 2, 0);
@@ -49,9 +50,9 @@ PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 
 	grid->addWidget(new QLabel(tr("Role:"), this), 3, 0);
 	m_role_cb = new QComboBox(this);
-	m_role_cb->setToolTip(tr("\"Reducer\": the size of the line changes at this symbol. Each of "
+	m_role_cb->setToolTip(PidToolTip::wrapped(tr("\"Reducer\": the size of the line changes at this symbol. Each of "
 							 "its nozzles takes the size of its pipe or a size of its own, and a "
-							 "change of size stops there. Tick no nozzle of the run of the line."));
+							 "change of size stops there. Tick no nozzle of the run of the line.")));
 	grid->addWidget(m_role_cb, 3, 1);
 
 	for (QComboBox *list : {m_family_cb, m_role_cb}) {
@@ -116,8 +117,8 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 	for (const QString &name : nozzles) {
 		auto *cb = new QCheckBox(name, m_run_widget);
 		cb->setChecked(effective.contains(name));
-		cb->setToolTip(tr("This nozzle takes the size of its pipe and passes a change of size "
-						  "to the other nozzles of the run."));
+		cb->setToolTip(PidToolTip::wrapped(tr("This nozzle takes the size of its pipe and passes a change of size "
+						  "to the other nozzles of the run.")));
 		connect(cb, &QCheckBox::toggled, this, [this]() {
 			if (!m_locked) {
 				emit edited();

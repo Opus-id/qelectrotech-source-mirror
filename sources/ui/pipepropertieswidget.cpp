@@ -22,6 +22,7 @@
 #include "../diagram.h"
 #include "../pidcodification.h"
 #include "../pidstatus.h"
+#include "../pidtooltip.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetproject.h"
 #include "../undocommand/changepidcodificationcommand.h"
@@ -244,9 +245,9 @@ void PipePropertiesWidget::buildUi()
 	DiameterList::setUp(m_diameter);
 	QLineEdit *diameter_edit = m_diameter->lineEdit();
 	diameter_edit->setObjectName(QStringLiteral("diameter"));
-	m_diameter->setToolTip(tr("A DN (DN 100) or an outside diameter (Ø 110): the DN is the size of "
+	m_diameter->setToolTip(PidToolTip::wrapped(tr("A DN (DN 100) or an outside diameter (Ø 110): the DN is the size of "
 							  "the line, the material chooses which one is written. A plastic pipe "
-							  "has both."));
+							  "has both.")));
 	layout->addRow(tr("Diameter:"), m_diameter);
 	m_diameter_message = new QLabel(this);
 	m_diameter_message->setObjectName(QStringLiteral("diameter_message"));

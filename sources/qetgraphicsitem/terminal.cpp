@@ -31,6 +31,7 @@
 #include "conductortextitem.h"
 #include <wiringrules.h>
 #include <autoconnect.h>
+#include <pidtooltip.h>
 
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
@@ -1925,7 +1926,7 @@ void Terminal::updateDiameterToolTip()
 			tip += QLatin1Char('\n') + unknown.arg((compared.isOutside() ? compared : own).text(locale));
 		}
 	}
-	setToolTip(tip);
+	setToolTip(PidToolTip::wrapped(tip));
 		//The pipe draws the mark
 	for (Conductor *conductor : std::as_const(m_conductors_list)) {
 		conductor->update();

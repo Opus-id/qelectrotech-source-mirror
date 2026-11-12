@@ -38,6 +38,7 @@
 #include <QetGraphicsItemModeler/qetgraphicshandleritem.h>
 #include <utils/qetutils.h>
 #include <wirehops.h>
+#include <pidtooltip.h>
 
 #include <QMultiHash>
 #include <QtDebug>
@@ -1271,7 +1272,7 @@ void Conductor::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
 	m_mouse_over = true;
 		//What its orange band says (drawOffSeries()); a wire has no tip
 	if (m_properties.m_medium == TerminalData::Pipe) {
-		setToolTip(offSeriesNote());
+		setToolTip(PidToolTip::wrapped(offSeriesNote()));
 	}
 	update();
 }

@@ -19,6 +19,7 @@
 
 #include "../diagram.h"
 #include "../pidcodification.h"
+#include "../pidtooltip.h"
 #include "../properties/terminaldata.h"
 #include "../qetproject.h"
 #include "../qetgraphicsitem/element.h"
@@ -118,15 +119,15 @@ void ElementNozzlesWidget::buildFields()
 	if (nozzles >= 2) {
 		m_same_connection = new QCheckBox(tr("One connection for all the nozzles"), this);
 		m_same_connection->setObjectName(QStringLiteral("same_connection"));
-		m_same_connection->setToolTip(tr("Checked, the first nozzle gives its connection and its "
-										 "drawing to the others."));
+		m_same_connection->setToolTip(PidToolTip::wrapped(tr("Checked, the first nozzle gives its connection and its "
+										 "drawing to the others.")));
 		connect(m_same_connection, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
 		auto *boxes = new QHBoxLayout();
 		boxes->addWidget(m_same_connection);
 		if (sized >= 2) {
 			m_same_size = new QCheckBox(tr("One size for all the nozzles"), this);
 			m_same_size->setObjectName(QStringLiteral("same_size"));
-			m_same_size->setToolTip(tr("Checked, the first nozzle gives its size to the others."));
+			m_same_size->setToolTip(PidToolTip::wrapped(tr("Checked, the first nozzle gives its size to the others.")));
 			connect(m_same_size, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
 			boxes->addWidget(m_same_size);
 		}
@@ -151,8 +152,8 @@ void ElementNozzlesWidget::buildFields()
 		mark->addItem(tr("Drawn as the project"), int(PipeConnection::MarkChoice::Project));
 		mark->addItem(tr("Always drawn"), int(PipeConnection::MarkChoice::Always));
 		mark->addItem(tr("Never drawn"), int(PipeConnection::MarkChoice::Never));
-		mark->setToolTip(tr("Whether the connection is drawn at the end of the nozzle: the P&ID "
-							"properties of the project say which connections are drawn."));
+		mark->setToolTip(PidToolTip::wrapped(tr("Whether the connection is drawn at the end of the nozzle: the P&ID "
+							"properties of the project say which connections are drawn.")));
 		auto *list = new QComboBox(this);
 			//A nozzle has no material: the DN, then the outside diameters
 		DiameterList::setUp(list, codification.nozzleSizes(), codification.locale());
@@ -160,8 +161,8 @@ void ElementNozzlesWidget::buildFields()
 		const Field field{name, terminal->symbolDiameter(), terminal->symbolConnection(),
 						  connection, mark, list, edit, terminal, terminal->followsPipe()};
 		if (field.follows) {
-			list->setToolTip(tr("This nozzle has the size of its line: the size is given to "
-								"the pipe line."));
+			list->setToolTip(PidToolTip::wrapped(tr("This nozzle has the size of its line: the size is given to "
+								"the pipe line.")));
 		}
 		const auto applied = [this, field]() {
 			if (field.follows || !checkField(field)) {

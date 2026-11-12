@@ -9,6 +9,7 @@
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
 #include "pidstatus.h"
+#include "pidtooltip.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
@@ -883,6 +884,22 @@ class tst_pidcolors : public QObject
 				QVERIFY(button);
 				QVERIFY2(Qt::mightBeRichText(button->toolTip()), qPrintable(name));
 			}
+		}
+
+			// Step 5l-1w: the long tool tips of the P&ID wrap, the short ones
+			// stay as they are, line breaks kept
+		void aLongToolTipWraps()
+		{
+			QCOMPARE(PidToolTip::wrapped(QStringLiteral("Flange")), QStringLiteral("Flange"));
+			QCOMPARE(PidToolTip::wrapped(QString()), QString());
+			const QString two_short = QStringLiteral("Plain end\nNozzle Ø 110, pipe DN 100");
+			QCOMPARE(PidToolTip::wrapped(two_short), two_short);
+			const QString long_line = QStringLiteral(
+				"A sentence long enough to run past the screen <one> when it is not cut on several lines");
+			const QString tip = PidToolTip::wrapped(QStringLiteral("Socket\n") + long_line);
+			QVERIFY(Qt::mightBeRichText(tip));
+			QVERIFY(tip.contains(QStringLiteral("Socket<br>")));
+			QVERIFY(tip.contains(QStringLiteral("&lt;one&gt;")));
 		}
 
 		void aNewProjectStartsFromTheDefaultPresentation()

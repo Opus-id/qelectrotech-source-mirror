@@ -28,6 +28,7 @@
 #include <QToolTip>
 #include <editor/elementscene.h>
 #include <ui/diameterlist.h>
+#include <pidtooltip.h>
 #include "qetelementeditor.h"
 
 namespace {
@@ -141,8 +142,8 @@ void TerminalEditor::updateForm()
 		ui->m_dn_cb->setProperty("ownTip", ui->m_dn_cb->toolTip());
 	}
 	ui->m_dn_cb->setToolTip(follows
-		? tr("This nozzle takes the size of its pipe: it has no size of its own. "
-			 "See the block Piping of the panel Informations (nothing selected).")
+		? PidToolTip::wrapped(tr("This nozzle takes the size of its pipe: it has no size of its own. "
+			 "See the block Piping of the panel Informations (nothing selected)."))
 		: ui->m_dn_cb->property("ownTip").toString());
 
 	ui->m_show_name_cb->setChecked(m_part->showName());
