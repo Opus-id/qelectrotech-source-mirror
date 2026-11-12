@@ -167,6 +167,8 @@ class PidConfigPage : public ProjectConfigPage
 		QLineEdit *m_equal_dn = nullptr;
 
 		QCheckBox *m_show_nozzle_sizes = nullptr;
+			/// Whether a DN under a nozzle is written "DN 100" or "100"
+		QCheckBox *m_nozzle_dn_prefix = nullptr;
 		QComboBox *m_decimal = nullptr;
 
 		QTabWidget *m_code_tabs = nullptr;

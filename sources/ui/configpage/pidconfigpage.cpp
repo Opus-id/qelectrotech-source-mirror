@@ -462,6 +462,15 @@ void PidConfigPage::initWidgets()
 	m_show_nozzle_sizes = new QCheckBox(tr("Show the sizes of the nozzles under their names"), this);
 	m_show_nozzle_sizes->setObjectName(QStringLiteral("show_nozzle_sizes"));
 	connect(m_show_nozzle_sizes, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
+	m_nozzle_dn_prefix = new QCheckBox(tr("Write \"DN\" before the sizes of the nozzles"), this);
+	m_nozzle_dn_prefix->setObjectName(QStringLiteral("nozzle_dn_prefix"));
+	m_nozzle_dn_prefix->setToolTip(tr("Unchecked, a nozzle shows \"100\" for \"DN 100\". An outside "
+									  "diameter (Ø) and a thread (G) always keep their sign."));
+	connect(m_nozzle_dn_prefix, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
+		//Of no use when the sizes are not shown
+	connect(m_show_nozzle_sizes, &QCheckBox::toggled, this, [this](bool shown) {
+		m_nozzle_dn_prefix->setEnabled(shown && !m_project->isReadOnly());
+	});
 	m_decimal = new QComboBox(this);
 	m_decimal->setObjectName(QStringLiteral("decimal_separator"));
 	m_decimal->addItem(tr("Comma (88,9)"), int(PidCodification::Decimal::Comma));
@@ -521,6 +530,7 @@ void PidConfigPage::initLayout()
 	texts_layout->addWidget(m_colored_labels);
 	texts_layout->addWidget(m_nozzle_texts_on_paper);
 	texts_layout->addWidget(m_show_nozzle_sizes);
+	texts_layout->addWidget(m_nozzle_dn_prefix);
 		//A list of the width of its choices
 	auto *decimal_row = new QHBoxLayout();
 	decimal_row->addWidget(m_decimal);
@@ -670,6 +680,9 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 	m_nozzle_texts_on_paper->setChecked(codification.nozzle_texts_on_paper);
 	const QSignalBlocker sizes_blocker(m_show_nozzle_sizes);
 	m_show_nozzle_sizes->setChecked(codification.show_nozzle_sizes);
+	const QSignalBlocker prefix_blocker(m_nozzle_dn_prefix);
+	m_nozzle_dn_prefix->setChecked(codification.nozzle_dn_prefix);
+	m_nozzle_dn_prefix->setEnabled(codification.show_nozzle_sizes && !m_project->isReadOnly());
 		//Not set yet: that of the language, which the project will keep
 	const QSignalBlocker decimal_blocker(m_decimal);
 	m_decimal->setCurrentIndex(m_decimal->findData(int(codification.effectiveDecimal())));
@@ -697,6 +710,7 @@ void PidConfigPage::adjustReadOnly()
 		//The boxes of the default sizes too
 	decorateSizeRows();
 	m_show_nozzle_sizes->setEnabled(!read_only);
+	m_nozzle_dn_prefix->setEnabled(!read_only && m_show_nozzle_sizes->isChecked());
 	m_decimal->setEnabled(!read_only);
 	m_import->setEnabled(!read_only);
 	m_table->setEnabled(!read_only);
@@ -745,6 +759,7 @@ void PidConfigPage::readTextWidgets()
 	m_codification.colored_labels = m_colored_labels->isChecked();
 	m_codification.nozzle_texts_on_paper = m_nozzle_texts_on_paper->isChecked();
 	m_codification.show_nozzle_sizes = m_show_nozzle_sizes->isChecked();
+	m_codification.nozzle_dn_prefix = m_nozzle_dn_prefix->isChecked();
 		//Set only when it is chosen: else it waits to be fixed with codes
 	const auto decimal = PidCodification::Decimal(m_decimal->currentData().toInt());
 	if (decimal != m_codification.effectiveDecimal()) {

@@ -31,6 +31,7 @@
 #include "qetproject.h"
 #include "qetresult.h"
 #include "properties/elementdata.h"
+#include "ui/configpage/pidconfigpage.h"
 #include "ui/elementnozzleswidget.h"
 #include "ui/pipepropertieswidget.h"
 #include "undocommand/changeelementlocationcommand.h"
@@ -2338,6 +2339,72 @@ class tst_nozzlediameter : public QObject
 			const QDomElement nozzle = tank->toXml(doc, table)
 					.firstChildElement(QStringLiteral("nozzles")).firstChildElement(QStringLiteral("nozzle"));
 			QCOMPARE(nozzle.attribute(QStringLiteral("od")), QStringLiteral("88.9"));
+		}
+
+			// Step 5l-1t: the project says whether a DN under a nozzle is
+			// written "DN 100" or "100"; Ø keeps its sign
+		void theProjectSaysWhetherADnIsWrittenWithDn()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = place(folio, addTank(project));
+			QVERIFY(tank);
+			tank->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::nominal(100)}});
+			Terminal *n1 = terminal(tank, QStringLiteral("N1"));
+				// by default, "DN": nothing written
+			PidCodification codification;
+			QVERIFY(codification.nozzle_dn_prefix);
+			QCOMPARE(n1->labelText(), QStringLiteral("N1\nDN 100"));
+			QVERIFY(!codification.hasTextSettings());
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			codification.decimal = PidCodification::Decimal::Point;
+			holder.appendChild(codification.toXml(doc));
+			QVERIFY(!holder.firstChildElement().hasAttribute(QStringLiteral("nozzle_dn_prefix")));
+
+			codification.nozzle_dn_prefix = false;
+			project.setPidCodification(codification);
+			QCOMPARE(n1->labelText(), QStringLiteral("N1\n100"));
+				// the tool tip and the lists keep it
+			QVERIFY(n1->diameterText().startsWith(QStringLiteral("DN ")));
+				// an outside diameter keeps its sign
+			tank->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::outside(110)}});
+			QCOMPARE(n1->labelText(), QStringLiteral("N1\nØ 110"));
+
+				// the file and the palette keep it
+			QDomDocument doc2;
+			QDomElement holder2 = doc2.createElement(QStringLiteral("project"));
+			holder2.appendChild(codification.toXml(doc2));
+			QCOMPARE(holder2.firstChildElement().attribute(QStringLiteral("nozzle_dn_prefix")),
+					 QStringLiteral("false"));
+			PidCodification read;
+			read.fromXml(holder2);
+			QVERIFY(!read.nozzle_dn_prefix);
+			QVERIFY(codification.paletteToCsv().contains(QStringLiteral("text_option;nozzle_dn_prefix;false")));
+			QVERIFY(!PidCodification::fromCsv(codification.paletteToCsv()).nozzle_dn_prefix);
+			QVERIFY(PidCodification().fromCsv(QString()).nozzle_dn_prefix);
+		}
+
+			// Step 5l-1t: the box of the page, greyed when the sizes are not
+			// shown, given to the project with undo
+		void thePageSetsTheDnBeforeTheSizes()
+		{
+			QETProject project;
+			PidConfigPage page(&project);
+			auto *prefix = page.findChild<QCheckBox *>(QStringLiteral("nozzle_dn_prefix"));
+			auto *sizes = page.findChild<QCheckBox *>(QStringLiteral("show_nozzle_sizes"));
+			QVERIFY(prefix && sizes);
+			QVERIFY(prefix->isChecked());
+			QVERIFY(prefix->isEnabled());
+			sizes->setChecked(false);
+			QVERIFY(!prefix->isEnabled());
+			sizes->setChecked(true);
+			QVERIFY(prefix->isEnabled());
+			prefix->setChecked(false);
+			page.applyProjectConf();
+			QVERIFY(!project.pidCodification().nozzle_dn_prefix);
+			project.undoStack()->undo();
+			QVERIFY(project.pidCodification().nozzle_dn_prefix);
 		}
 
 			// ---- the Nozzles tab of the properties of an element ----

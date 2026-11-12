@@ -292,6 +292,10 @@ class PidCodification
 		bool nozzle_texts_on_paper = true;
 			/// The sizes of the nozzles are shown under their names
 		bool show_nozzle_sizes = true;
+			/// A DN shown under the name of a nozzle is written "DN 100";
+			/// without, "100". An outside diameter and a thread keep their
+			/// sign. Written only when it is false.
+		bool nozzle_dn_prefix = true;
 			/// The connections whose mark is drawn at the end of the nozzles
 			/// (Terminal::drawsConnectionMark()), in the order of
 			/// PipeConnection::all(); none by default, so that a project
@@ -329,7 +333,7 @@ class PidCodification
 		}
 		bool hasTextSettings() const {
 			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
-					|| !show_nozzle_sizes || decimal != Decimal::Language || !tag_models.isEmpty()
+					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
 					|| !drawn_connections.isEmpty();
 		}
 		bool isEmpty() const { return !hasCodes() && !hasColors() && !hasTextSettings(); }

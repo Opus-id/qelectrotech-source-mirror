@@ -1938,9 +1938,15 @@ QString Terminal::labelText() const
 	if (folio && folio->project() && !folio->project()->pidCodification().show_nozzle_sizes) {
 		return name();
 	}
-	const QString shown = diameterText();
+	QString shown = diameterText();
 	if (shown.isEmpty()) {
 		return name();
+	}
+		//"100" for "DN 100" when the project says so: Ø and G stay
+	static const QString dn = QStringLiteral("DN ");
+	if (folio && folio->project() && !folio->project()->pidCodification().nozzle_dn_prefix
+		&& shown.startsWith(dn)) {
+		shown.remove(0, dn.size());
 	}
 	return name().isEmpty() ? shown : name() + QLatin1Char('\n') + shown;
 }

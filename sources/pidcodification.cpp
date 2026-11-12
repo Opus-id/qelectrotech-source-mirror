@@ -32,6 +32,7 @@ namespace
 	const QString colored_labels_word = QStringLiteral("colored_labels");
 	const QString nozzle_texts_word = QStringLiteral("nozzle_texts_on_paper");
 	const QString nozzle_sizes_word = QStringLiteral("show_nozzle_sizes");
+	const QString dn_prefix_word = QStringLiteral("nozzle_dn_prefix");
 	const QString decimal_word = QStringLiteral("decimal_separator");
 	const QString drawn_connections_word = QStringLiteral("drawn_connections");
 	const QString size_tag = QStringLiteral("size");
@@ -1065,6 +1066,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.colored_labels = other.colored_labels;
 		result.nozzle_texts_on_paper = other.nozzle_texts_on_paper;
 		result.show_nozzle_sizes = other.show_nozzle_sizes;
+		result.nozzle_dn_prefix = other.nozzle_dn_prefix;
 		result.decimal = other.decimal;
 		result.tag_models = other.tag_models;
 		result.drawn_connections = other.drawn_connections;
@@ -1121,6 +1123,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	if (!show_nozzle_sizes) {
 		block.setAttribute(nozzle_sizes_word, QStringLiteral("false"));
 	}
+	if (!nozzle_dn_prefix) {
+		block.setAttribute(dn_prefix_word, QStringLiteral("false"));
+	}
 	if (decimal != Decimal::Language) {
 		block.setAttribute(decimal_word, decimalToString(decimal));
 	}
@@ -1176,6 +1181,7 @@ void PidCodification::fromXml(const QDomElement &parent)
 	colored_labels = block.attribute(colored_labels_word) == QLatin1String("true");
 	nozzle_texts_on_paper = block.attribute(nozzle_texts_word) != QLatin1String("false");
 	show_nozzle_sizes = block.attribute(nozzle_sizes_word) != QLatin1String("false");
+	nozzle_dn_prefix = block.attribute(dn_prefix_word) != QLatin1String("false");
 	decimal = decimalFromString(block.attribute(decimal_word));
 	drawn_connections = connectionsFromText(block.attribute(drawn_connections_word));
 }
@@ -1208,6 +1214,9 @@ QString PidCodification::paletteToCsv() const
 	}
 	if (!show_nozzle_sizes) {
 		text += QStringLiteral("text_option;") + nozzle_sizes_word + QStringLiteral(";false\n");
+	}
+	if (!nozzle_dn_prefix) {
+		text += QStringLiteral("text_option;") + dn_prefix_word + QStringLiteral(";false\n");
 	}
 	if (decimal != Decimal::Language) {
 		text += QStringLiteral("text_option;") + decimal_word + QLatin1Char(';')
@@ -1398,6 +1407,8 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 				codification.nozzle_texts_on_paper = yes;
 			} else if (fields.value(1) == nozzle_sizes_word) {
 				codification.show_nozzle_sizes = yes;
+			} else if (fields.value(1) == dn_prefix_word) {
+				codification.nozzle_dn_prefix = yes;
 			} else {
 				++left_out;
 			}
@@ -1533,6 +1544,7 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& colored_labels == other.colored_labels
 			&& nozzle_texts_on_paper == other.nozzle_texts_on_paper
 			&& show_nozzle_sizes == other.show_nozzle_sizes
+			&& nozzle_dn_prefix == other.nozzle_dn_prefix
 			&& decimal == other.decimal
 			&& drawn_connections == other.drawn_connections;
 }

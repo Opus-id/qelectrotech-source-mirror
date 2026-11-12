@@ -13463,6 +13463,16 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Afficher la taille des piquages sous leur nom</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="467"/>
+        <source>Write &quot;DN&quot; before the sizes of the nozzles</source>
+        <translation>Écrire « DN » devant la taille des piquages</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="469"/>
+        <source>Unchecked, a nozzle shows &quot;100&quot; for &quot;DN 100&quot;. An outside diameter (Ø) and a thread (G) always keep their sign.</source>
+        <translation>Décochée, un piquage affiche « 100 » au lieu de « DN 100 ». Un diamètre extérieur (Ø) et un filetage (G) gardent toujours leur signe.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
         <source>Comma (88,9)</source>
         <translation>Virgule (88,9)</translation>

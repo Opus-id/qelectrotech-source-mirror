@@ -4686,9 +4686,12 @@ void QETProject::setPidCodification(const PidCodification &codification)
 	if (codification == m_pid_codification) {
 		return;
 	}
-		//The texts of the nozzles take another room
+		//The texts of the nozzles take another room: another size, their
+		//sizes shown or not, "DN 100" or "100"
 	if (codification.text_sizes.value(PidCodification::nozzleTexts())
-		!= m_pid_codification.text_sizes.value(PidCodification::nozzleTexts()))
+			!= m_pid_codification.text_sizes.value(PidCodification::nozzleTexts())
+		|| codification.show_nozzle_sizes != m_pid_codification.show_nozzle_sizes
+		|| codification.nozzle_dn_prefix != m_pid_codification.nozzle_dn_prefix)
 	{
 		for (Diagram *folio : std::as_const(m_diagrams_list)) {
 			for (Element *element : folio->elements()) {
