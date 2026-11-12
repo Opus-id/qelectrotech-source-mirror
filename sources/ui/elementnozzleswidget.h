@@ -26,6 +26,7 @@
 #include <QList>
 #include <QMap>
 #include <QString>
+#include <functional>
 
 class QCheckBox;
 class QComboBox;
@@ -55,6 +56,14 @@ class Terminal;
 	its value to the others, whose lists are greyed. Nothing of them is
 	written: they are checked when the nozzles are alike, at the opening of
 	the tab, and unchecked when they no longer are (an undo).
+	A reducer has no box for one size: its sides differ by nature.
+
+	A side of a reducer given a size of its own gives it to its line: the
+	pipes of that side (Terminal::nearestPipes()) and those they continue,
+	as the page of a pipe gives a size typed (PipePropertiesWidget::
+	sizeLineIn()), in the step which gives the nozzle its size. A size
+	emptied changes no pipe; a line changed later never changes the size of
+	the reducer (the gap is marked).
 */
 class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -102,6 +111,12 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// for an element with fewer than two nozzles with a size of
 			/// their own: a valve, a tee
 		QCheckBox *sameSizeBox() const { return m_same_size; }
+			/// What asks which size goes with another when a line is given
+			/// the size of a reducer (PipePropertiesWidget::setChooser()), a
+			/// list in a dialog unless a test says otherwise
+		void setChooser(const std::function<int(const QString &, const QStringList &)> &chooser) {
+			m_chooser = chooser;
+		}
 
 	protected:
 		bool eventFilter(QObject *watched, QEvent *event) override;
@@ -152,8 +167,13 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 		void sameToggled();
 			/// Grey the lists the first nozzle fills
 		void updateLinkedFields();
+			/// The sides of a reducer which @p diameters give a size of
+			/// their own other than the one they have, and which have a
+			/// line to give it to; none for any other element
+		QList<const Field *> resizedSides(const NozzleDiameters &diameters) const;
 
 		QFormLayout *m_layout = nullptr;
+		std::function<int(const QString &, const QStringList &)> m_chooser;
 		QLabel *m_message = nullptr;
 		QCheckBox *m_same_connection = nullptr;
 		QCheckBox *m_same_size = nullptr;

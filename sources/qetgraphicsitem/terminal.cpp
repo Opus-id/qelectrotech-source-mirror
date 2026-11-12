@@ -1665,6 +1665,43 @@ QList<Terminal *> Terminal::contactGroup() const
 	return group;
 }
 
+QList<Conductor *> Terminal::nearestPipes() const
+{
+	QList<Conductor *> pipes;
+	if (d->m_medium != TerminalData::Pipe) {
+		return pipes;
+	}
+	QList<const Terminal *> seen{this};
+	QList<const Terminal *> todo{this};
+	for (int i = 0 ; i < todo.size() ; ++i)
+	{
+		const Terminal *nozzle = todo.at(i);
+		for (Conductor *pipe : nozzle->conductors()) {
+			if (pipe->medium() == TerminalData::Pipe && !pipes.contains(pipe)) {
+				pipes << pipe;
+			}
+		}
+			//Against a symbol which follows its line: on through its run
+		const Terminal *against = nozzle->contactNozzle();
+		if (!against || seen.contains(against) || !against->followsPipe()) {
+			continue;
+		}
+		seen << against;
+		for (Conductor *pipe : against->conductors()) {
+			if (pipe->medium() == TerminalData::Pipe && !pipes.contains(pipe)) {
+				pipes << pipe;
+			}
+		}
+		for (const Terminal *sibling : against->runSiblings()) {
+			if (!seen.contains(sibling)) {
+				seen << sibling;
+				todo << sibling;
+			}
+		}
+	}
+	return pipes;
+}
+
 PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Terminal *> seen,
 									bool pipes_only, const Conductor **pipe_found)
 {

@@ -26,6 +26,7 @@
 #include "../qetgraphicsitem/terminal.h"
 #include "../undocommand/changenozzlediameterscommand.h"
 #include "diameterlist.h"
+#include "pipepropertieswidget.h"
 
 #include <algorithm>
 
@@ -124,7 +125,8 @@ void ElementNozzlesWidget::buildFields()
 		connect(m_same_connection, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
 		auto *boxes = new QHBoxLayout();
 		boxes->addWidget(m_same_connection);
-		if (sized >= 2) {
+			//The two sides of a reducer differ by nature
+		if (sized >= 2 && !m_element->isReducer()) {
 			m_same_size = new QCheckBox(tr("One size for all the nozzles"), this);
 			m_same_size->setObjectName(QStringLiteral("same_size"));
 			m_same_size->setToolTip(PidToolTip::wrapped(tr("Checked, the first nozzle gives its size to the others.")));
@@ -734,9 +736,38 @@ QComboBox *ElementNozzlesWidget::markFor(const QString &name) const
 }
 
 /**
+	@brief ElementNozzlesWidget::resizedSides
+	See the declaration
+*/
+QList<const ElementNozzlesWidget::Field *> ElementNozzlesWidget::resizedSides(
+		const NozzleDiameters &diameters) const
+{
+	QList<const Field *> sides;
+	if (!m_element || !m_element->isReducer()) {
+		return sides;
+	}
+	const NozzleDiameters before = m_element->nozzleDiameters();
+	for (const Field &field : m_fields)
+	{
+		if (field.follows) {
+			continue;
+		}
+			//The one of the symbol when the element keeps none
+		const PipeDiameter now = diameters.value(field.name, field.symbol_diameter);
+		const PipeDiameter was = before.value(field.name, field.symbol_diameter);
+		if (!now.isSet() || now == was || field.terminal->nearestPipes().isEmpty()) {
+			continue;
+		}
+		sides << &field;
+	}
+	return sides;
+}
+
+/**
 	@brief ElementNozzlesWidget::associatedUndo
 	@return the undo command giving the element the diameters of the fields,
-	or nullptr when they are those it has
+	or nullptr when they are those it has. A side of a reducer given a size
+	of its own gives it to its line in the same step (resizedSides()).
 */
 QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 {
@@ -751,7 +782,39 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 		&& marks == m_element->nozzleMarks()) {
 		return nullptr;
 	}
-	return new ChangeNozzleDiametersCommand(m_element, diameters, connections, marks);
+	const QList<const Field *> sides = resizedSides(diameters);
+	QUndoCommand *step = sides.isEmpty() ? nullptr : new QUndoCommand();
+	auto *change = new ChangeNozzleDiametersCommand(m_element, diameters, connections, marks, step);
+	if (!step) {
+		return change;
+	}
+	step->setText(change->text());
+	const QLocale locale = projectCodification().locale();
+	QStringList said;
+	for (const Field *field : sides)
+	{
+			//A thread gives its line the DN of the fixed table
+		PipeDiameter size = diameters.value(field->name, field->symbol_diameter);
+		if (size.isThread()) {
+			size = size.threadNominal();
+		}
+			//Read as the page of a pipe reads a size typed, with its questions
+		PipePropertiesWidget page(field->terminal->nearestPipes(),
+								  const_cast<ElementNozzlesWidget *>(this));
+		page.hide();
+		if (m_chooser) {
+			page.setChooser(m_chooser);
+		}
+		page.sizeLineIn(size.text(locale), step);
+		const QString message = page.diameterMessage();
+		if (!message.isEmpty() && !said.contains(message)) {
+			said << message;
+		}
+	}
+	if (m_message && !said.isEmpty()) {
+		m_message->setText(said.join(QLatin1Char('\n')));
+	}
+	return step;
 }
 
 /**

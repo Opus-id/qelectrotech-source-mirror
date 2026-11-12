@@ -78,8 +78,10 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QComboBox *addListField(const QString &name, const QString &label,
 								const std::function<void(PipeProperties &, const QString &)> &set,
 								const std::function<void(const QString &)> &apply_code = nullptr);
+			/// With @p parent, the commands are added to it and nothing is
+			/// pushed: the change is part of a step made elsewhere
 		void applyChange(const std::function<void(PipeProperties &)> &change,
-						 bool through_valves = false);
+						 bool through_valves = false, QUndoCommand *parent = nullptr);
 			/// The pipes edited, and with @p through_valves those they
 			/// continue through valves, see Conductor::inlineRun()
 		QList<Conductor *> changedPipes(bool through_valves) const;
@@ -92,9 +94,10 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// the user chooses, once for a material and a DN). No size
 			/// empties them all; an outside diameter without DN is not
 			/// passed on to another material. What is worth saying is added
-			/// to @p notes.
+			/// to @p notes. @p parent as for applyChange().
 		void resizeLine(const PipeDiameter &nominal, const PipeDiameter &outside,
-						const QString &material, bool one_material, QStringList &notes);
+						const QString &material, bool one_material, QStringList &notes,
+						QUndoCommand *parent = nullptr);
 		void showText(QLineEdit *edit, const std::function<QString(const PipeProperties &)> &get);
 		void fillLists();
 		static QString codeOf(const QComboBox *list, const QString &text);
@@ -116,6 +119,10 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// chooses. A size the material has not becomes the nearest
 			/// one. Otherwise the field gets its value back.
 		void diameterEdited();
+			/// What diameterEdited() and sizeLineIn() do: @p text given to
+			/// the line, in the step @p parent, or in one of its own without;
+			/// false when refused or cancelled, said in m_refused
+		bool sizeLine(const QString &text, QUndoCommand *parent);
 			/// The material of code @p code given to the pipes, in one step:
 			/// their DN stays, their outside diameter is the one the sizes
 			/// of the new material join to it: among several, its default
@@ -143,6 +150,13 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QString diameterWarning() const;
 
 	public:
+			/// Give the line of the pipes edited the size @p text, read as
+			/// when it is typed in the field of the diameter (diameterEdited(),
+			/// the same questions), in the step @p parent: the commands are
+			/// added to it, nothing is pushed. What is said of it is then in
+			/// diameterMessage(). @return false when the size is refused or
+			/// the user changed nothing: no command was added then.
+		bool sizeLineIn(const QString &text, QUndoCommand *parent);
 			/// The text under the field of the diameter: a value refused, or
 			/// one which is not in the lists of the project or which does not
 			/// suit the material

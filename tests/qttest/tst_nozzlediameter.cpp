@@ -1654,6 +1654,140 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!terminal(plain, QStringLiteral("N1"))->hasDiameterGap());
 		}
 
+			// A size typed on a side of a reducer is given to the line of that
+			// side, through the valves, in one step with the size of the
+			// nozzle; the other side, a line changed later and a size emptied
+			// change nothing else (step 5l-1j, j4b)
+		void aSizeTypedOnAReducerResizesItsLine()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			const ElementsLocation reducer_symbol = addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" "));
+			Element *start = place(folio, plain);
+			Element *reducer = place(folio, reducer_symbol);
+			Element *valve = place(folio, addValve(project));
+			Element *end = place(folio, plain);
+			QVERIFY(start && reducer && valve && end);
+			start->setPos(0, 200);
+			valve->setPos(400, 200);
+			end->setPos(600, 200);
+			Conductor *a = connect(folio, start, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *b = connect(folio, reducer, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			Conductor *c = connect(folio, valve, QStringLiteral("N2"), end, QStringLiteral("N1"));
+			QVERIFY(a && b && c);
+			setDn(a, 100);
+			setDn(b, 100);
+			setDn(c, 100);
+			Terminal *n2 = terminal(reducer, QStringLiteral("N2"));
+			QCOMPARE(n2->nearestPipes(), QList<Conductor *>{b});
+
+			ElementNozzlesWidget tab(reducer);
+			tab.setLiveEdit(true);
+				// the sides of a reducer differ by nature: no box for one size
+			QVERIFY(!tab.sameSizeBox());
+			QLineEdit *field = tab.fieldFor(QStringLiteral("N2"));
+			QVERIFY(field);
+			const int steps = folio->undoStack().count();
+			field->setText(QStringLiteral("80"));
+			emit field->editingFinished();
+			QCOMPARE(reducer->nozzleDiameters().value(QStringLiteral("N2")), PipeDiameter::nominal(80));
+			QCOMPARE(dn(b), 80);
+			QCOMPARE(dn(c), 80);
+				// the other side keeps its line
+			QCOMPARE(dn(a), 100);
+			QVERIFY(!n2->hasDiameterGap());
+			QCOMPARE(terminal(valve, QStringLiteral("N1"))->diameter().value(), 80.0);
+
+				// one step, undone at once
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			QVERIFY(reducer->nozzleDiameters().isEmpty());
+			QCOMPARE(dn(b), 100);
+			QCOMPARE(dn(c), 100);
+			folio->undoStack().redo();
+			QCOMPARE(dn(b), 80);
+			QCOMPARE(dn(c), 80);
+
+				// the line changed afterwards: the reducer keeps its size, marked
+			setDn(b, 65);
+			QCOMPARE(reducer->nozzleDiameters().value(QStringLiteral("N2")), PipeDiameter::nominal(80));
+			QVERIFY(n2->hasDiameterGap());
+
+				// emptied: the side follows its line again, no pipe changed
+			field->clear();
+			emit field->editingFinished();
+			QVERIFY(reducer->nozzleDiameters().isEmpty());
+			QCOMPARE(dn(b), 65);
+			QCOMPARE(n2->diameter().value(), 65.0);
+			QVERIFY(!n2->hasDiameterGap());
+
+				// a reducer without pipes: its size alone, in one step
+			Element *loose = place(folio, reducer_symbol);
+			QVERIFY(loose);
+			loose->setPos(200, 1000);
+			ElementNozzlesWidget loose_tab(loose);
+			loose_tab.setLiveEdit(true);
+			const int loose_steps = folio->undoStack().count();
+			loose_tab.fieldFor(QStringLiteral("N1"))->setText(QStringLiteral("150"));
+			emit loose_tab.fieldFor(QStringLiteral("N1"))->editingFinished();
+			QCOMPARE(loose->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::nominal(150));
+			QCOMPARE(folio->undoStack().count(), loose_steps + 1);
+		}
+
+			// A side of a reducer against a valve, without a pipe: the line
+			// beyond the valve takes the size; a plastic line takes the DN of
+			// an outside diameter typed, with this outside diameter
+		void aSizeTypedOnAReducerGoesBeyondAValveAgainstIt()
+		{
+			QETProject project;
+			PidCodification codification;
+			codification.materials = {plasticOf(QStringLiteral("M01"),
+												{{900, 80}, {1100, 100}, {1250, 100}})};
+			project.setPidCodification(codification);
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *valve = place(folio, addValve(project));
+			Element *end = place(folio, plain);
+			QVERIFY(reducer && valve && end);
+				// the N2 of the reducer on the N1 of the valve
+			reducer->setPos(200, 200);
+			valve->setPos(240, 200);
+			end->setPos(600, 200);
+			Terminal *n2 = terminal(reducer, QStringLiteral("N2"));
+			QCOMPARE(terminal(valve, QStringLiteral("N1"))->contactNozzle(), n2);
+			Conductor *pipe = connect(folio, valve, QStringLiteral("N2"), end, QStringLiteral("N1"));
+			QVERIFY(pipe);
+			ConductorProperties properties = pipe->properties();
+			properties.m_pipe.material = QStringLiteral("M01");
+			pipe->setProperties(properties);
+			setSizes(pipe, PipeDiameter::nominal(100), PipeDiameter::outside(110));
+			QCOMPARE(n2->nearestPipes(), QList<Conductor *>{pipe});
+
+			ElementNozzlesWidget tab(reducer);
+			tab.setLiveEdit(true);
+			const int steps = folio->undoStack().count();
+			tab.fieldFor(QStringLiteral("N2"))->setText(QStringLiteral("Ø 90"));
+			emit tab.fieldFor(QStringLiteral("N2"))->editingFinished();
+			QCOMPARE(reducer->nozzleDiameters().value(QStringLiteral("N2")), PipeDiameter::outside(90));
+			QCOMPARE(pipe->properties().m_pipe.nominal, PipeDiameter::nominal(80));
+			QCOMPARE(pipe->properties().m_pipe.outside, PipeDiameter::outside(90));
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			QCOMPARE(pipe->properties().m_pipe.outside, PipeDiameter::outside(110));
+		}
+
 		void aDifferenceIsMarkedNotCorrected()
 		{
 			QETProject project;

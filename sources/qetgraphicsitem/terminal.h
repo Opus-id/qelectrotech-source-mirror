@@ -116,6 +116,13 @@ class Terminal : public QGraphicsObject
 			/// placed against them, the runs of those, and so on. Never
 			/// beyond a pipe.
 		QList<Terminal *> contactGroup() const;
+			/// The pipes nearest to this nozzle on its line, from which a
+			/// change of size goes on (Conductor::inlineRun()): its own pipe;
+			/// without one, across the symbols placed against it which
+			/// follow their line (a valve, a tee), the first pipes beyond
+			/// them. None beyond a nozzle with a size of its own (equipment,
+			/// another reducer), nor for any other medium.
+		QList<Conductor *> nearestPipes() const;
 			/// The size brought to this nozzle from outside its symbol:
 			/// that of its pipe; without one, or with a pipe of no length
 			/// and no size, what the nozzle placed against it brings

@@ -444,15 +444,35 @@ PidCodification::SizeRule PipePropertiesWidget::sizeRule(QList<PipeDiameter> *si
 */
 void PipePropertiesWidget::diameterEdited()
 {
-	const QString text = m_diameter->lineEdit()->text().trimmed();
+	sizeLine(m_diameter->lineEdit()->text().trimmed(), nullptr);
+		//Written as the lists write it, or the value back
+	updateUi();
+}
+
+/**
+	@brief PipePropertiesWidget::sizeLineIn
+	See the declaration
+*/
+bool PipePropertiesWidget::sizeLineIn(const QString &text, QUndoCommand *parent)
+{
+	const bool given = sizeLine(text.trimmed(), parent);
+	updateUi();
+	return given;
+}
+
+/**
+	@brief PipePropertiesWidget::sizeLine
+	See the declaration
+*/
+bool PipePropertiesWidget::sizeLine(const QString &text, QUndoCommand *parent)
+{
 	const QList<Conductor *> list = pipes();
 	QList<PipeDiameter> sizes;
 	bool several = false;
 	sizeRule(&sizes, &several);
 		//Several materials, one without sizes among them: nothing to give
 	if (list.isEmpty() || (several && sizes.isEmpty())) {
-		updateUi();
-		return;
+		return false;
 	}
 	const PidCodification codes = codification();
 	const QLocale locale = codes.locale();
@@ -605,15 +625,14 @@ void PipePropertiesWidget::diameterEdited()
 		m_refused = refusal;
 			//Nothing changed: no default outside diameter either
 		m_new_defaults.clear();
-	} else {
-		m_refused.clear();
-			//The pipes continued through valves get the same size of line
-		resizeLine(nominal, outside, several ? QString() : material, !several, notes);
-			//Said after the change, which clears what was said
-		m_refused = notes.join(QLatin1Char('\n'));
+		return false;
 	}
-		//Written as the lists write it, or the value back
-	updateUi();
+	m_refused.clear();
+		//The pipes continued through valves get the same size of line
+	resizeLine(nominal, outside, several ? QString() : material, !several, notes, parent);
+		//Said after the change, which clears what was said
+	m_refused = notes.join(QLatin1Char('\n'));
+	return true;
 }
 
 /**
@@ -622,7 +641,7 @@ void PipePropertiesWidget::diameterEdited()
 */
 void PipePropertiesWidget::resizeLine(const PipeDiameter &nominal, const PipeDiameter &outside,
 									  const QString &material, bool one_material,
-									  QStringList &notes)
+									  QStringList &notes, QUndoCommand *parent)
 {
 	const PidCodification codes = codification();
 	const QLocale locale = codes.locale();
@@ -700,7 +719,7 @@ void PipePropertiesWidget::resizeLine(const PipeDiameter &nominal, const PipeDia
 			}
 		}
 	}
-	applyChange(resize, true);
+	applyChange(resize, true, parent);
 }
 
 /**
@@ -1028,12 +1047,14 @@ QList<Conductor *> PipePropertiesWidget::changedPipes(bool through_valves) const
 	@param change
 	@param through_valves : also to the pipes they continue through valves,
 	see Conductor::inlineRun()
+	@param parent : the step the commands are added to, which is not pushed;
+	without one, a step of its own, pushed
 */
 void PipePropertiesWidget::applyChange(const std::function<void(PipeProperties &)> &change,
-									   bool through_valves)
+									   bool through_valves, QUndoCommand *parent)
 {
 	const QList<Conductor *> changed = changedPipes(through_valves);
-	auto *undo = new QUndoCommand(tr("Change the properties of a pipe line"));
+	auto *undo = parent ? parent : new QUndoCommand(tr("Change the properties of a pipe line"));
 	Diagram *diagram = nullptr;
 		//The outside diameters the user chose to remember become the
 		//default ones of their DN, first: the pipes are drawn with them
@@ -1072,6 +1093,9 @@ void PipePropertiesWidget::applyChange(const std::function<void(PipeProperties &
 		if (!diagram) {
 			diagram = pipe->diagram();
 		}
+	}
+	if (parent) {
+		return;
 	}
 	if (!undo->childCount() || !diagram) {
 		delete undo;
