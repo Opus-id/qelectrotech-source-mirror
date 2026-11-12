@@ -68,7 +68,7 @@ tag `pipe-connector-freeze-2026-11-03`.
   mark, cable, wire color or section, voltage, bus or function.
 - **Data of a pipe**: nominal diameter, fluid, material, flow, line
   number, piping class, nominal pressure, kind of line, spool, external
-  finish, saved as `pipe_…` attributes of the conductor, only those set.
+  finish, saved as `pid_…` attributes of the conductor, only those set.
   They go through `.qet`, `.qetz` and `.qetdb` files with no code of their
   own (checked by a round trip through a `.qetdb` file).
 - **A page of its own** in the properties panel, and in the dialog a double
@@ -114,8 +114,7 @@ tag `pipe-connector-freeze-2026-11-03`.
 **Sizes: DN or outside diameter**
 - A size is a DN, as for a metal pipe or a flange, or an outside diameter
   to the tenth (Ø 110, Ø 88,9), as for a plastic pipe or a socket; never one
-  read as the other (`pipe_dn` or `pipe_od` on a pipe, `dn` or `od` on a
-  nozzle). Files always write a point; the project chooses the decimal
+  read as the other (`pid_dn` or `pid_od`, on a pipe as on a nozzle). Files always write a point; the project chooses the decimal
   separator shown (*P&ID* page, *Texts* tab), whatever the computer.
 - Each material of the codification says whether its pipes are named by
   their outside diameter, and has its **series** of sizes found in trade
@@ -132,7 +131,7 @@ tag `pipe-connector-freeze-2026-11-03`.
   Several CSV files can be imported at once.
 - A nozzle may have a size in its symbol (the element editor chooses DN or
   Ø beside the field), changed on a placed symbol in a *Nozzles* tab of its
-  properties (`<nozzles>` block of `<element>`, written only when set;
+  properties (`<pid_nozzles>` block of `<element>`, written only when set;
   undoable). It is shown under the name of the nozzle, when terminal names
   are shown and the project shows the sizes. A `.qetdb` file refuses it, as
   it refuses the options.
@@ -142,7 +141,7 @@ tag `pipe-connector-freeze-2026-11-03`.
 - A difference is marked without being blocked: an orange diamond in front
   of the pipe, on screen only, and a tooltip. A DN and an outside diameter
   differ when the table does not join them. No reducer is ever inserted.
-- An inline symbol (`pipe_inline` attribute of the `.elmt`, exactly two
+- An inline symbol (`pid_inline` attribute of the `.elmt`, exactly two
   nozzles) has one diameter. A change made on the page of a pipe goes through
   these symbols, in one undo step, and replaces the diameter of the pipes
   it reaches. It stops at tees, equipment and three-way valves.
@@ -150,7 +149,7 @@ tag `pipe-connector-freeze-2026-11-03`.
 **Connections of the nozzles**
 - Each nozzle has a kind of connection: flange (the default, not written),
   plain end, solvent socket, fusion socket, gasket socket, pipe thread,
-  butt weld or grooved (`connection` attribute of `<terminal>` in the
+  butt weld or grooved (`pid_connection` attribute of `<terminal>` in the
   `.elmt`, changed on a placed symbol in its *Nozzles* tab, in the same
   undo step as its size). The list is fixed in the code.
 - The connection limits the kind of size: a flange takes a DN, a solvent
@@ -158,7 +157,7 @@ tag `pipe-connector-freeze-2026-11-03`.
   outside diameter. When the connection changes, a size it allows is kept,
   else it is converted when the table gives one answer, else it is removed
   and said.
-- A pipe thread is sized in inches (`thread="1 1/2"`), shown `G 1"1/2`,
+- A pipe thread is sized in inches (`pid_thread="1 1/2"`), shown `G 1"1/2`,
   and typed as `G 1"1/2`, `1"1/2`, `3/4"` or `1-1/2`. A fixed table (the
   usual one of EN 10255, 1/8" = DN 6 to 6" = DN 150) joins inches to DN:
   for the orange diamond, and for a new pipe, which takes the DN of its
@@ -203,7 +202,7 @@ tag `pipe-connector-freeze-2026-11-03`.
   and `line-join` in the style of a part; nothing written for the default).
 - **Symbols with options**: a symbol may declare options (an `<options>`
   block, each option with named values and a default) and draw some parts
-  only for some values (`show-if` attribute). Example: one pump symbol
+  only for some values (`show_if` attribute). Example: one pump symbol
   with a *motor* option (none, fixed speed, variable speed) instead of
   three symbols. A placed symbol saves its choices in its `<element>`
   block, only when it has some; they are chosen in an *Options* tab of its
@@ -239,6 +238,42 @@ QElectroTech are saved byte for byte as by master.
   by hand or by script for now, and kept by the editor).
 - A library of P&ID symbols (symbols are drawn *inspired by* ISO 10628-2,
   never copied from it; none is published here).
+
+## What the files carry
+
+Every P&ID addition is written only when it is set, so a file without one
+is saved as by master. A name added for the P&ID starts with `pid_`; what
+is inside a `pid_` block keeps short names. `medium` keeps its name, and
+the additions that are not P&ID-only keep plain names (`prefix`,
+`<options>`, `show_if`, `line-cap` / `line-join`). Booleans are `true` /
+`false`.
+
+| Where | Name | Values | Default | Written when |
+|---|---|---|---|---|
+| `.elmt`, `<definition>` | `pid_family` | `equipment`, `valve`, `instrument`, `pipe` | none: not a P&ID symbol | the symbol has a family |
+| `.elmt`, `<definition>` | `pid_inline` | `true` | a line does not run through it | a line runs through its two nozzles (valve) |
+| `.elmt`, `<definition>` | `pid_run` | names of nozzles, space separated (`N1 N2 N3`) | the two nozzles of a `pid_inline` symbol | a tee or a three-way valve |
+| `.elmt`, `<definition>` | `pid_role` | `reducer` | none | the symbol plays that role for the lines |
+| `.elmt`, `<definition>` | `prefix` | identifier of the tag (`PC`) | that of the collection folder | the symbol gives one |
+| `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
+| `.elmt`, a part | `show_if` | `option=value,value`, conditions separated by `;` | always drawn | the part belongs to some values |
+| `.elmt`, a part | `line-cap`, `line-join` in `style` | `round`, `flat` / `miter`, `round`, `bevel` | square ends, default corners | not the default |
+| `.elmt`, `<terminal>` | `medium` | `pipe`, `signal`, `drive` | `electrical` | not electrical |
+| `.elmt`, `<terminal>` | `pid_dn`, `pid_od`, `pid_thread` | DN; outside diameter to the tenth; inches (`1 1/2`) | the size of its pipe | a nozzle with a size of its own |
+| `.elmt`, `<terminal>` | `pid_connection` | `plain_end`, `socket`, `thread`, `butt_weld`, `grooved`, `quick_coupling` | `flange` | not a flange |
+| `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
+| `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never` | those of the symbol and the project | a nozzle of the placed symbol is changed |
+| `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* tab is filled |
+| `.qet`, `<conductor>` | `medium` | `pipe`, `signal`, `drive` | `electrical` | not electrical |
+| `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
+| `.qet`, `<conductor>` | `pid_fluid`, `pid_material`, `pid_flow`, `pid_line_number`, `pid_piping_class`, `pid_nominal_pressure`, `pid_spool`, `pid_external_finish` | text (a code of the codification, or free) | empty | set |
+| `.qet`, `<conductor>` | `pid_line_kind` | `secondary`, `auxiliary` | `main` | not main |
+| `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
+| `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | not to be built |
+| `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
+
+A `medium` this version does not know is read as electrical and said in the
+log.
 
 ## Read this before using it on real work
 
