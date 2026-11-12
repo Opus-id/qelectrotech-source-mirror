@@ -204,7 +204,11 @@ class Conductor : public QGraphicsObject
 		QList<QPointF> junctions() const;
 		QPainterPath paintedPath() const;
 		QColor drawnColor() const;
-		QColor pipeColor() const;
+			/// Where the colour of a pipe comes from, see pipeColor()
+		enum class PipeColorSource { None, Status, Manual, Fluid, Family };
+			/// The colour of a pipe, and with @p source where it comes from:
+			/// the same rule for the folio and for the properties panel
+		QColor pipeColor(PipeColorSource *source = nullptr) const;
 			/// Draw again the fittings at the ends of a pipe, which take
 			/// its colour (Element::followsPipes())
 		void updateFittings() const;

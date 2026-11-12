@@ -32,6 +32,7 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QToolButton;
 
 /**
 	@brief The PipePropertiesWidget class
@@ -148,6 +149,7 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 								   const QList<PipeDiameter> &outsides, QStringList &notes);
 			/// What is wrong with the diameter shown, empty when nothing
 		QString diameterWarning() const;
+		void showColor();
 
 	public:
 			/// Give the line of the pipes edited the size @p text, read as
@@ -195,6 +197,7 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QComboBox *m_kind = nullptr;
 		QComboBox *m_status = nullptr;
 		QPushButton *m_color = nullptr;
+		QToolButton *m_automatic_color = nullptr;
 		QLabel *m_count = nullptr;
 };
 

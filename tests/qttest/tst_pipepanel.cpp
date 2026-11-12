@@ -18,8 +18,10 @@
 #include <QDomDocument>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QToolButton>
 #include <QUndoStack>
 #include <QValidator>
 
@@ -1272,6 +1274,123 @@ class tst_pipepanel : public QObject
 			stack.undo();
 			QCOMPARE(a->properties().m_pipe.fluid, QStringLiteral("W01"));
 			QVERIFY(fluid->currentText().startsWith(QStringLiteral("W01")));
+			m_project.setPidCodification(saved);
+		}
+
+			// ---- the colour ----
+			// One button shows the colour drawn and where it comes from (the
+			// order of Conductor::pipeColor()); a small one gives the
+			// automatic colour back, enabled when there is a colour to clear.
+		void theColorButtonSaysWhereTheColorComesFrom()
+		{
+			const PidCodification saved = m_project.pidCodification();
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Raw water;E\n"
+				"fluid_color;E;#0000ff\n"
+				"object_color;pipe;#808000\n"
+				"status_color;existing;#808080\n")));
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(pipe);
+			PipePropertiesWidget page({pipe});
+			auto *color = page.findChild<QPushButton *>(QStringLiteral("color"));
+			auto *automatic = page.findChild<QToolButton *>(QStringLiteral("automatic_color"));
+			QVERIFY(color && automatic);
+			auto set = [pipe](const std::function<void(PipeProperties &)> &change) {
+				ConductorProperties p = pipe->properties();
+				change(p.m_pipe);
+				pipe->setProperties(p);
+			};
+
+				// no fluid: the family of the pipes; nothing to clear
+			QCOMPARE(color->text(), QStringLiteral("Automatic (pipe lines)"));
+			QVERIFY(!color->icon().isNull());
+			QVERIFY(!automatic->isEnabled());
+				// a fluid of a family with a colour
+			set([](PipeProperties &p) { p.fluid = QStringLiteral("W01"); });
+			QCOMPARE(color->text(), QStringLiteral("Automatic (fluid)"));
+
+				// a colour chosen: its code, one step, and it may be cleared
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.index();
+			page.setManualColor(QColor(1, 2, 3));
+			QCOMPARE(stack.index(), steps + 1);
+			QCOMPARE(color->text(), QStringLiteral("#010203"));
+			QVERIFY(automatic->isEnabled());
+
+				// the status comes first, the colour chosen is kept and said
+			set([](PipeProperties &p) { p.status = QStringLiteral("existing"); });
+			QCOMPARE(pipe->drawnColor(), QColor(0x80, 0x80, 0x80));
+			QCOMPARE(color->text(), QStringLiteral("Status of works"));
+			QVERIFY(color->toolTip().contains(QStringLiteral("#010203")));
+			QVERIFY(automatic->isEnabled());
+
+				// the small button clears the colour chosen, in one step
+			set([](PipeProperties &p) { p.status.clear(); });
+			const int before_clear = stack.index();
+			automatic->click();
+			QCOMPARE(stack.index(), before_clear + 1);
+			QVERIFY(!pipe->properties().m_pipe.color.isValid());
+			QCOMPARE(color->text(), QStringLiteral("Automatic (fluid)"));
+			QVERIFY(!automatic->isEnabled());
+			stack.undo();
+			QCOMPARE(pipe->properties().m_pipe.color, QColor(1, 2, 3));
+			QCOMPARE(color->text(), QStringLiteral("#010203"));
+			QVERIFY(automatic->isEnabled());
+			stack.redo();
+
+				// no colour in the project: black
+			m_project.setPidCodification(PidCodification());
+			QCOMPARE(color->text(), QStringLiteral("Automatic (black)"));
+			m_project.setPidCodification(saved);
+		}
+
+		void severalPipesShowOneColorOrNone()
+		{
+			const PidCodification saved = m_project.pidCodification();
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Raw water;E\n"
+				"fluid_color;E;#0000ff\n"
+				"object_color;pipe;#808000\n")));
+			Conductor *a = draw(m_nozzles);
+			Conductor *b = draw(m_nozzles);
+			QVERIFY(a && b);
+			PipePropertiesWidget page({a, b});
+			auto *color = page.findChild<QPushButton *>(QStringLiteral("color"));
+			auto *automatic = page.findChild<QToolButton *>(QStringLiteral("automatic_color"));
+			QVERIFY(color && automatic);
+
+				// the same: shown as for one
+			QCOMPARE(color->text(), QStringLiteral("Automatic (pipe lines)"));
+			QVERIFY(!color->icon().isNull());
+
+				// both automatic, from different sources: no swatch
+			ConductorProperties p = a->properties();
+			p.m_pipe.fluid = QStringLiteral("W01");
+			a->setProperties(p);
+			QCOMPARE(color->text(), QStringLiteral("Automatic"));
+			QVERIFY(color->icon().isNull());
+			QVERIFY(!automatic->isEnabled());
+
+				// colours of their own which differ
+			p = a->properties();
+			p.m_pipe.color = QColor(1, 2, 3);
+			a->setProperties(p);
+			p = b->properties();
+			p.m_pipe.color = QColor(4, 5, 6);
+			b->setProperties(p);
+			QCOMPARE(color->text(), QStringLiteral("(several values)"));
+			QVERIFY(color->icon().isNull());
+			QVERIFY(automatic->isEnabled());
+
+				// cleared for both in one step
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.index();
+			automatic->click();
+			QCOMPARE(stack.index(), steps + 1);
+			QVERIFY(!a->properties().m_pipe.color.isValid());
+			QVERIFY(!b->properties().m_pipe.color.isValid());
+			stack.undo();
+			QCOMPARE(b->properties().m_pipe.color, QColor(4, 5, 6));
 			m_project.setPidCodification(saved);
 		}
 

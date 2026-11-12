@@ -3022,25 +3022,35 @@ QColor Conductor::drawnColor() const
 	@return the colour of a pipe: that of its status of works, else its own,
 	else that of its fluid, else that of the family of the pipes, from the
 	project; an invalid one when it has none, or for a wire
+	@param source : where the colour comes from, written when given
 */
-QColor Conductor::pipeColor() const
+QColor Conductor::pipeColor(PipeColorSource *source) const
 {
+	auto from = [source](PipeColorSource s, const QColor &color) {
+		if (source) {
+			*source = color.isValid() ? s : PipeColorSource::None;
+		}
+		return color;
+	};
 	if (m_properties.m_medium != TerminalData::Pipe) {
-		return QColor();
+		return from(PipeColorSource::None, QColor());
 	}
 	const Diagram *parent_diagram = diagram();
 	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
 	const PidCodification codification = project ? project->pidCodification() : PidCodification();
 	const QColor status = codification.status_colors.value(m_properties.m_pipe.status);
 	if (status.isValid()) {
-		return status;
+		return from(PipeColorSource::Status, status);
 	}
 	if (m_properties.m_pipe.color.isValid()) {
-		return m_properties.m_pipe.color;
+		return from(PipeColorSource::Manual, m_properties.m_pipe.color);
 	}
 	const QColor fluid = codification.fluidColor(m_properties.m_pipe.fluid);
-	return fluid.isValid() ? fluid
-						   : codification.object_colors.value(QStringLiteral("pipe"));
+	if (fluid.isValid()) {
+		return from(PipeColorSource::Fluid, fluid);
+	}
+	return from(PipeColorSource::Family,
+				codification.object_colors.value(QStringLiteral("pipe")));
 }
 
 /**

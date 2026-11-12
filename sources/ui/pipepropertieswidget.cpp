@@ -24,6 +24,7 @@
 #include "../pidstatus.h"
 #include "../pidtooltip.h"
 #include "../qetgraphicsitem/conductor.h"
+#include "../qeticons.h"
 #include "../qetproject.h"
 #include "../undocommand/changepidcodificationcommand.h"
 #include "diameterlist.h"
@@ -38,8 +39,11 @@
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
+#include <QPixmap>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace {
@@ -303,23 +307,113 @@ void PipePropertiesWidget::buildUi()
 		applyChange([status](PipeProperties &p) { p.status = status; });
 	});
 
+		//One button shows the colour drawn and where it comes from, and
+		//opens the dialog; a small one beside it gives the automatic colour
+		//back
 	m_color = new QPushButton(this);
 	m_color->setObjectName(QStringLiteral("color"));
-	auto *automatic = new QPushButton(tr("Automatic"), this);
-	automatic->setObjectName(QStringLiteral("automatic_color"));
+	m_automatic_color = new QToolButton(this);
+	m_automatic_color->setObjectName(QStringLiteral("automatic_color"));
+	m_automatic_color->setIcon(QET::Icons::EditUndo);
+	m_automatic_color->setAutoRaise(true);
+	m_automatic_color->setToolTip(tr("Back to the automatic colour"));
 	auto *color_row = new QHBoxLayout();
-	color_row->addWidget(m_color);
-	color_row->addWidget(automatic);
+	color_row->addWidget(m_color, 1);
+	color_row->addWidget(m_automatic_color);
 	layout->addRow(tr("Color:"), color_row);
 	connect(m_color, &QPushButton::clicked, this, [this]() {
 		const QList<Conductor *> list = pipes();
-		const QColor current = list.isEmpty() ? QColor() : list.first()->drawnColor();
+		QColor current;
+		if (!list.isEmpty()) {
+			current = list.first()->properties().m_pipe.color;
+			if (!current.isValid()) {
+				current = list.first()->drawnColor();
+			}
+		}
 		const QColor color = QColorDialog::getColor(current, this, title());
 		if (color.isValid()) {
 			setManualColor(color);
 		}
 	});
-	connect(automatic, &QPushButton::clicked, this, [this]() { setManualColor(QColor()); });
+	connect(m_automatic_color, &QToolButton::clicked, this, [this]() { setManualColor(QColor()); });
+}
+
+/**
+	@brief PipePropertiesWidget::showColor
+	The colour of the pipes edited on the button m_color: a swatch of the
+	colour drawn, and where it comes from; the button which gives the
+	automatic colour back is enabled when one of them has a colour of its
+	own
+*/
+void PipePropertiesWidget::showColor()
+{
+	const QList<Conductor *> list = pipes();
+	if (list.isEmpty()) {
+		return;
+	}
+	const QColor manual = list.first()->properties().m_pipe.color;
+	bool same_manual = true, same_source = true, same_drawn = true, any_manual = false;
+	Conductor::PipeColorSource source;
+	const QColor drawn = list.first()->pipeColor(&source);
+	for (Conductor *pipe : list) {
+		const QColor own = pipe->properties().m_pipe.color;
+		Conductor::PipeColorSource s;
+		const QColor d = pipe->pipeColor(&s);
+		same_manual = same_manual && own == manual;
+		same_source = same_source && s == source;
+		same_drawn = same_drawn && d == drawn;
+		any_manual = any_manual || own.isValid();
+	}
+
+	QString text;
+	QString tip;
+	if (!same_manual) {
+		text = tr("(several values)");
+	} else if (!same_source) {
+		text = manual.isValid() ? manual.name() : tr("Automatic");
+	} else {
+		switch (source) {
+			case Conductor::PipeColorSource::Status:
+				text = tr("Status of works");
+				tip = tr("The colour of the status of works comes first.");
+				if (manual.isValid()) {
+					tip += QLatin1Char('\n')
+						   + tr("Colour chosen, kept for when the status has none: %1")
+							 .arg(manual.name());
+				}
+				break;
+			case Conductor::PipeColorSource::Manual:
+				text = manual.name();
+				break;
+			case Conductor::PipeColorSource::Fluid:
+				text = tr("Automatic (fluid)");
+				break;
+			case Conductor::PipeColorSource::Family:
+				text = tr("Automatic (pipe lines)");
+				break;
+			case Conductor::PipeColorSource::None:
+				text = tr("Automatic (black)");
+				break;
+		}
+	}
+	m_color->setText(text);
+	m_color->setToolTip(tip);
+
+		//The swatch: the colour drawn; none when the pipes are not drawn
+		//in one colour
+	QIcon swatch;
+	if (same_manual && same_source && same_drawn) {
+		const int side = m_color->iconSize().height();
+		QPixmap pixmap(side, side);
+		pixmap.fill(list.first()->drawnColor());
+		QPainter painter(&pixmap);
+		painter.setPen(palette().color(QPalette::WindowText));
+		painter.drawRect(0, 0, side - 1, side - 1);
+		painter.end();
+		swatch = QIcon(pixmap);
+	}
+	m_color->setIcon(swatch);
+	m_automatic_color->setEnabled(any_manual);
 }
 
 /**
@@ -1232,20 +1326,7 @@ void PipePropertiesWidget::updateUi()
 		}
 	}
 
-	const QColor color = list.first()->properties().m_pipe.color;
-	bool same_color = true;
-	for (Conductor *pipe : list) {
-		if (pipe->properties().m_pipe.color != color) {
-			same_color = false;
-		}
-	}
-	m_color->setText(!same_color ? tr("(several values)")
-					 : color.isValid() ? color.name() : tr("Automatic"));
-	m_color->setStyleSheet(same_color && color.isValid()
-						   ? QStringLiteral("background-color: %1; color: %2")
-							 .arg(color.name(), color.lightness() < 128 ? QStringLiteral("white")
-																		 : QStringLiteral("black"))
-						   : QString());
+	showColor();
 }
 
 /**

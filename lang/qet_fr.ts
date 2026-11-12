@@ -14113,6 +14113,41 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <source>Color:</source>
         <translation>Couleur :</translation>
     </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="320"/>
+        <source>Back to the automatic colour</source>
+        <translation>Revenir à la couleur automatique</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="377"/>
+        <source>Status of works</source>
+        <translation>Statut de travaux</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="378"/>
+        <source>The colour of the status of works comes first.</source>
+        <translation>La couleur du statut de travaux passe avant.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="381"/>
+        <source>Colour chosen, kept for when the status has none: %1</source>
+        <translation>Couleur choisie, gardée pour un statut sans couleur : %1</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="389"/>
+        <source>Automatic (fluid)</source>
+        <translation>Automatique (fluide)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="392"/>
+        <source>Automatic (pipe lines)</source>
+        <translation>Automatique (tuyauteries)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="395"/>
+        <source>Automatic (black)</source>
+        <translation>Automatique (noir)</translation>
+    </message>
 </context>
 <context>
     <name>PlcLinkWidget</name>
