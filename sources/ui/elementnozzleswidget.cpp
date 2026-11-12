@@ -21,6 +21,7 @@
 #include "../pidcodification.h"
 #include "../pidtooltip.h"
 #include "../properties/terminaldata.h"
+#include "../qeticons.h"
 #include "../qetproject.h"
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/terminal.h"
@@ -38,6 +39,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QSignalBlocker>
+#include <QToolButton>
 #include <QToolTip>
 
 /**
@@ -123,18 +125,16 @@ void ElementNozzlesWidget::buildFields()
 		m_same_connection->setToolTip(PidToolTip::wrapped(tr("Checked, the first nozzle gives its connection and its "
 										 "drawing to the others.")));
 		connect(m_same_connection, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
-		auto *boxes = new QHBoxLayout();
-		boxes->addWidget(m_same_connection);
+			//One under the other: side by side, they would widen the panel
+		m_layout->addRow(m_same_connection);
 			//The two sides of a reducer differ by nature
 		if (sized >= 2 && !m_element->isReducer()) {
 			m_same_size = new QCheckBox(tr("One size for all the nozzles"), this);
 			m_same_size->setObjectName(QStringLiteral("same_size"));
 			m_same_size->setToolTip(PidToolTip::wrapped(tr("Checked, the first nozzle gives its size to the others.")));
 			connect(m_same_size, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
-			boxes->addWidget(m_same_size);
+			m_layout->addRow(m_same_size);
 		}
-		boxes->addStretch();
-		m_layout->addRow(boxes);
 	}
 
 	const PidCodification codification = projectCodification();
@@ -151,21 +151,49 @@ void ElementNozzlesWidget::buildFields()
 		}
 		auto *mark = new QComboBox(this);
 		mark->setObjectName(QStringLiteral("mark_list"));
-		mark->addItem(tr("Drawn as the project"), int(PipeConnection::MarkChoice::Project));
-		mark->addItem(tr("Always drawn"), int(PipeConnection::MarkChoice::Always));
-		mark->addItem(tr("Never drawn"), int(PipeConnection::MarkChoice::Never));
-		mark->setToolTip(PidToolTip::wrapped(tr("Whether the connection is drawn at the end of the nozzle: the P&ID "
-							"properties of the project say which connections are drawn.")));
+			//Short words: the list must not widen the panel; its tool tip
+			//says what it is
+		mark->addItem(tr("Project", "drawing of the connection of a nozzle"),
+					  int(PipeConnection::MarkChoice::Project));
+		mark->addItem(tr("Always", "drawing of the connection of a nozzle"),
+					  int(PipeConnection::MarkChoice::Always));
+		mark->addItem(tr("Never", "drawing of the connection of a nozzle"),
+					  int(PipeConnection::MarkChoice::Never));
+		mark->setToolTip(PidToolTip::wrapped(tr("Drawing of the connection: whether it is drawn at the end of the "
+							"nozzle. Project: as the P&ID properties of the project say, which list "
+							"the connections drawn.")));
 		auto *list = new QComboBox(this);
 			//A nozzle has no material: the DN, then the outside diameters
 		DiameterList::setUp(list, codification.nozzleSizes(), codification.locale());
 		QLineEdit *edit = list->lineEdit();
+		const bool follows = terminal->followsPipe();
+		QToolButton *follow = nullptr;
+		if (!follows) {
+				//An icon only: a word would widen the panel, and narrow the
+				//drawing with it (the text is read by a screen reader)
+			follow = new QToolButton(this);
+			follow->setObjectName(QStringLiteral("follow_pipe"));
+			follow->setText(tr("Follow the pipe"));
+				//"Refresh": the nozzle is brought up to date with its line
+		follow->setIcon(QET::Icons::ViewRefresh);
+			follow->setToolButtonStyle(Qt::ToolButtonIconOnly);
+			follow->setAutoRaise(true);
+			follow->setToolTip(PidToolTip::wrapped(tr("Follow the pipe: empty the size of this nozzle, which has "
+								  "the size of its line again. No pipe changes.")));
+		}
 		const Field field{name, terminal->symbolDiameter(), terminal->symbolConnection(),
-						  connection, mark, list, edit, terminal, terminal->followsPipe()};
+						  connection, mark, list, edit, terminal, follows, follow};
 		if (field.follows) {
 			list->setToolTip(PidToolTip::wrapped(tr("This nozzle has the size of its line: the size is given to "
 								"the pipe line.")));
 		}
+			//A value given, not a field only entered and left: the size it
+			//has gives its line this size back (resizedSides()). Connected
+			//before what applies it, so that it is known then.
+		const auto typed = [this, name]() { m_typed.insert(name); };
+		connect(edit, &QLineEdit::textEdited, this, typed);
+		connect(edit, &QLineEdit::returnPressed, this, typed);
+		connect(list, &QComboBox::activated, this, typed);
 		const auto applied = [this, field]() {
 			if (field.follows || !checkField(field)) {
 				return;
@@ -208,6 +236,10 @@ void ElementNozzlesWidget::buildFields()
 		row->addWidget(connection);
 		row->addWidget(list, 1);
 		row->addWidget(mark);
+		if (follow) {
+			connect(follow, &QToolButton::clicked, this, [this, field]() { followPipe(field); });
+			row->addWidget(follow);
+		}
 		m_layout->addRow(tr("%1:", "label of the DN of a nozzle").arg(name), row);
 		m_fields.append(field);
 	}
@@ -519,10 +551,25 @@ void ElementNozzlesWidget::showField(const Field &field)
 		//A DN given to a thread before the threads existed: in inches
 	const PipeDiameter own = PipeConnection::fitted(connection, diameters.value(field.name));
 	field.edit->setText(own.text(locale));
+		//The list on the size shown: else the field left, the list takes
+		//this size as if it were chosen there (activated), which would give
+		//it to the line of a reducer again
+	const int shown = field.list->findText(field.edit->text());
+	if (shown >= 0) {
+		const QSignalBlocker list_blocker(field.list);
+		field.list->setCurrentIndex(shown);
+	}
 		//In grey, what the nozzle has without a value of its own: the
 		//diameter of its symbol, else that of its pipe, which it follows,
 		//written as the project writes the size of this pipe
 	field.edit->setPlaceholderText(field.terminal->diameterText());
+		//What it shows is what the element has: nothing typed left
+	m_typed.remove(field.name);
+		//A size of its own, which the symbol does not give: emptied, it
+		//would have the one of its symbol, not of its line
+	if (field.follow) {
+		field.follow->setVisible(diameters.contains(field.name) && !field.symbol_diameter.isSet());
+	}
 }
 
 /**
@@ -755,7 +802,9 @@ QList<const ElementNozzlesWidget::Field *> ElementNozzlesWidget::resizedSides(
 			//The one of the symbol when the element keeps none
 		const PipeDiameter now = diameters.value(field.name, field.symbol_diameter);
 		const PipeDiameter was = before.value(field.name, field.symbol_diameter);
-		if (!now.isSet() || now == was || field.terminal->nearestPipes().isEmpty()) {
+			//The size it has, typed again: given to its line again
+		const bool again = m_typed.contains(field.name);
+		if (!now.isSet() || (now == was && !again) || field.terminal->nearestPipes().isEmpty()) {
 			continue;
 		}
 		sides << &field;
@@ -767,7 +816,10 @@ QList<const ElementNozzlesWidget::Field *> ElementNozzlesWidget::resizedSides(
 	@brief ElementNozzlesWidget::associatedUndo
 	@return the undo command giving the element the diameters of the fields,
 	or nullptr when they are those it has. A side of a reducer given a size
-	of its own gives it to its line in the same step (resizedSides()).
+	of its own gives it to its line in the same step (resizedSides()); the
+	size it has, typed again, gives its line this size back, the element
+	unchanged, or nothing if the line has it. What was typed is then known
+	no more (m_typed).
 */
 QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 {
@@ -777,18 +829,22 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 	const NozzleDiameters diameters = chosen();
 	const NozzleConnections connections = chosenConnections();
 	const NozzleMarks marks = chosenMarks();
-	if (diameters == m_element->nozzleDiameters()
-		&& connections == m_element->nozzleConnections()
-		&& marks == m_element->nozzleMarks()) {
+	const bool unchanged = diameters == m_element->nozzleDiameters()
+			&& connections == m_element->nozzleConnections()
+			&& marks == m_element->nozzleMarks();
+	const QList<const Field *> sides = resizedSides(diameters);
+	m_typed.clear();
+	if (unchanged && sides.isEmpty()) {
 		return nullptr;
 	}
-	const QList<const Field *> sides = resizedSides(diameters);
 	QUndoCommand *step = sides.isEmpty() ? nullptr : new QUndoCommand();
-	auto *change = new ChangeNozzleDiametersCommand(m_element, diameters, connections, marks, step);
+	auto *change = unchanged ? nullptr
+							 : new ChangeNozzleDiametersCommand(m_element, diameters, connections,
+																marks, step);
 	if (!step) {
 		return change;
 	}
-	step->setText(change->text());
+	step->setText(change ? change->text() : tr("Give the size of a reducer to its line"));
 	const QLocale locale = projectCodification().locale();
 	QStringList said;
 	for (const Field *field : sides)
@@ -814,7 +870,51 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 	if (m_message && !said.isEmpty()) {
 		m_message->setText(said.join(QLatin1Char('\n')));
 	}
+		//Typed again on a line which has this size: nothing to undo
+	if (!step->childCount()) {
+		delete step;
+		return nullptr;
+	}
 	return step;
+}
+
+/**
+	@brief ElementNozzlesWidget::followPipe
+	See the declaration
+*/
+void ElementNozzlesWidget::followPipe(const Field &field)
+{
+	const bool all = m_same_size && m_same_size->isChecked() && isFirstSized(field);
+	for (const Field &emptied : std::as_const(m_fields))
+	{
+		if (emptied.follows || (emptied.name != field.name && !all)) {
+			continue;
+		}
+		{
+			const QSignalBlocker blocker(emptied.edit);
+			emptied.edit->clear();
+		}
+		m_typed.remove(emptied.name);
+		if (emptied.follow) {
+			emptied.follow->hide();
+		}
+	}
+	m_message->clear();
+	if (m_live_edit) {
+		apply();
+	}
+}
+
+/**
+	@brief ElementNozzlesWidget::followButtonFor
+	See the declaration
+*/
+QToolButton *ElementNozzlesWidget::followButtonFor(const QString &name) const
+{
+	for (const Field &field : m_fields) {
+		if (field.name == name) return field.follow;
+	}
+	return nullptr;
 }
 
 /**

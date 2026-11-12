@@ -18,6 +18,7 @@
 #include "qetapptest.h"
 
 #include "diagram.h"
+#include "diagramevent/diagrameventaddelement.h"
 #include "diagramview.h"
 #include "editor/elementscene.h"
 #include "editor/ui/pipingblockwidget.h"
@@ -28,11 +29,13 @@
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
+#include "qetapp.h"
 #include "qetproject.h"
 #include "qetresult.h"
 #include "properties/elementdata.h"
 #include "ui/configpage/pidconfigpage.h"
 #include "ui/elementnozzleswidget.h"
+#include "ui/elementpropertieswidget.h"
 #include "ui/pipepropertieswidget.h"
 #include "undocommand/changeelementlocationcommand.h"
 #include "undocommand/changenozzlediameterscommand.h"
@@ -43,11 +46,15 @@
 #include <QPushButton>
 #include <QDomDocument>
 #include <QFile>
+#include <QGraphicsSceneMouseEvent>
 #include <QImage>
 #include <QLineEdit>
 #include <QPainter>
+#include <QScopeGuard>
 #include <QStyleOptionGraphicsItem>
+#include <QTabWidget>
 #include <QTemporaryDir>
+#include <QToolButton>
 #include <QUndoStack>
 
 /**
@@ -1786,6 +1793,331 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(folio->undoStack().count(), steps + 1);
 			folio->undoStack().undo();
 			QCOMPARE(pipe->properties().m_pipe.outside, PipeDiameter::outside(110));
+		}
+
+			// The size a side of a reducer has, given again by the user --
+			// typed, chosen in the list, validated by Enter -- gives its line,
+			// changed since, this size back, in one step; a field only entered
+			// and left changes nothing (step 5l-1j, j4c)
+		void aSizeTypedAgainGivesItsLineThisSizeBack()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			Element *start = place(folio, plain);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *valve = place(folio, addValve(project));
+			Element *end = place(folio, plain);
+			QVERIFY(start && reducer && valve && end);
+			start->setPos(0, 200);
+			valve->setPos(400, 200);
+			end->setPos(600, 200);
+			Conductor *a = connect(folio, start, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *b = connect(folio, reducer, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			Conductor *c = connect(folio, valve, QStringLiteral("N2"), end, QStringLiteral("N1"));
+			QVERIFY(a && b && c);
+			setDn(a, 100);
+			setDn(b, 100);
+			setDn(c, 100);
+			Terminal *n2 = terminal(reducer, QStringLiteral("N2"));
+
+			ElementNozzlesWidget tab(reducer);
+			tab.setLiveEdit(true);
+			QLineEdit *field = tab.fieldFor(QStringLiteral("N2"));
+			QVERIFY(field);
+			auto *list = qobject_cast<QComboBox *>(field->parentWidget());
+			QVERIFY(list);
+			field->setText(QStringLiteral("80"));
+			emit field->textEdited(field->text());
+			emit field->editingFinished();
+			QCOMPARE(dn(b), 80);
+			QCOMPARE(dn(c), 80);
+			const NozzleDiameters given = reducer->nozzleDiameters();
+
+				// the line changed since: marked
+			setDn(b, 65);
+			setDn(c, 65);
+			QVERIFY(n2->hasDiameterGap());
+			int steps = folio->undoStack().count();
+
+				// entered and left: nothing
+			emit field->editingFinished();
+			QCOMPARE(dn(b), 65);
+			QCOMPARE(folio->undoStack().count(), steps);
+
+				// typed again: the line has this size again, in one step, the
+				// reducer unchanged
+			emit field->textEdited(field->text());
+			emit field->editingFinished();
+			QCOMPARE(dn(b), 80);
+			QCOMPARE(dn(c), 80);
+			QVERIFY(!n2->hasDiameterGap());
+			QCOMPARE(reducer->nozzleDiameters(), given);
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			QCOMPARE(dn(b), 65);
+			QCOMPARE(dn(c), 65);
+			QCOMPARE(reducer->nozzleDiameters(), given);
+			folio->undoStack().redo();
+			QCOMPARE(dn(b), 80);
+
+				// typed again on a line which has it: no step
+			steps = folio->undoStack().count();
+			emit field->textEdited(field->text());
+			emit field->editingFinished();
+			QCOMPARE(folio->undoStack().count(), steps);
+
+				// the same size chosen again in the list
+			setDn(b, 65);
+			const int index = list->findText(field->text());
+			QVERIFY(index >= 0);
+			list->setCurrentIndex(index);
+			emit list->activated(index);
+			QCOMPARE(dn(b), 80);
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+
+				// validated by Enter, nothing typed
+			setDn(b, 65);
+			emit field->returnPressed();
+			emit field->editingFinished();
+			QCOMPARE(dn(b), 80);
+			QCOMPARE(folio->undoStack().count(), steps + 2);
+
+				// then only left: nothing more
+			setDn(b, 65);
+			emit field->editingFinished();
+			QCOMPARE(dn(b), 65);
+			QCOMPARE(folio->undoStack().count(), steps + 2);
+		}
+
+			// "Follow the pipe", at the end of the row of a nozzle with a size
+			// of its own: shown when one is given, it empties it with undo and
+			// changes no pipe; none on a nozzle which follows its pipe, hidden
+			// on a nozzle whose symbol gives a size (step 5l-1j, j4c)
+		void theButtonFollowThePipeEmptiesTheSize()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			Element *start = place(folio, plain);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *end = place(folio, plain);
+			QVERIFY(start && reducer && end);
+			start->setPos(0, 200);
+			end->setPos(600, 200);
+			Conductor *a = connect(folio, start, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *b = connect(folio, reducer, QStringLiteral("N2"), end, QStringLiteral("N1"));
+			QVERIFY(a && b);
+			setDn(a, 100);
+			setDn(b, 100);
+			Terminal *n2 = terminal(reducer, QStringLiteral("N2"));
+
+			ElementNozzlesWidget tab(reducer);
+			tab.setLiveEdit(true);
+			QToolButton *follow = tab.followButtonFor(QStringLiteral("N2"));
+			QVERIFY(follow);
+				// no size of its own: nothing to empty
+			QVERIFY(follow->isHidden());
+			QLineEdit *field = tab.fieldFor(QStringLiteral("N2"));
+			field->setText(QStringLiteral("80"));
+			emit field->textEdited(field->text());
+			emit field->editingFinished();
+			QCOMPARE(dn(b), 80);
+			QVERIFY(!follow->isHidden());
+
+				// the line changed since: emptied, the side has its size again
+			setDn(b, 65);
+			QVERIFY(n2->hasDiameterGap());
+			const int steps = folio->undoStack().count();
+			follow->click();
+			QVERIFY(reducer->nozzleDiameters().isEmpty());
+			QVERIFY(field->text().isEmpty());
+			QVERIFY(follow->isHidden());
+			QCOMPARE(dn(b), 65);
+			QCOMPARE(dn(a), 100);
+			QCOMPARE(n2->diameter().value(), 65.0);
+			QVERIFY(!n2->hasDiameterGap());
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			QCOMPARE(reducer->nozzleDiameters().value(QStringLiteral("N2")), PipeDiameter::nominal(80));
+			QVERIFY(!follow->isHidden());
+			QCOMPARE(dn(b), 65);
+			folio->undoStack().redo();
+			QVERIFY(reducer->nozzleDiameters().isEmpty());
+
+				// a valve has none; a tank, on its nozzle without a size of
+				// the symbol only
+			Element *valve = place(folio, addValve(project));
+			QVERIFY(valve);
+			ElementNozzlesWidget valve_tab(valve);
+			QVERIFY(!valve_tab.followButtonFor(QStringLiteral("N1")));
+			Element *tank = place(folio, addTank(project));
+			QVERIFY(tank);
+			tank->setPos(200, 1000);
+			tank->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 50}}));
+			ElementNozzlesWidget tank_tab(tank);
+			QVERIFY(tank_tab.followButtonFor(QStringLiteral("N1"))->isHidden());
+			QVERIFY(!tank_tab.followButtonFor(QStringLiteral("N2"))->isHidden());
+		}
+
+			// A reducing tee is an equal tee with a reducer against its N3
+			// (step 5l-1j, j1): each side of the reducer sizes its own line,
+			// and a change of the main line does not go into the branch
+		void aReducerAgainstTheBranchOfAnEqualTee()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *left = place(folio, tank);
+			Element *tee = place(folio, addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" ")));
+			Element *right = place(folio, tank);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *below = place(folio, tank);
+			QVERIFY(left && tee && right && reducer && below);
+			tee->setPos(400, 200);
+			right->setPos(600, 200);
+			below->setPos(800, 600);
+				// the N1 of the reducer on the N3 of the tee
+			Terminal *n3 = terminal(tee, QStringLiteral("N3"));
+			Terminal *big = terminal(reducer, QStringLiteral("N1"));
+			reducer->setPos(reducer->pos() + n3->dockConductor() - big->dockConductor());
+			QCOMPARE(big->contactNozzle(), n3);
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+			Conductor *after = connect(folio, tee, QStringLiteral("N2"), right, QStringLiteral("N2"));
+			Conductor *branch = connect(folio, reducer, QStringLiteral("N2"), below, QStringLiteral("N1"));
+			QVERIFY(before && after && branch);
+			setDn(before, 100);
+			setDn(after, 100);
+			setDn(branch, 100);
+				// the reducer stops the line
+			QVERIFY(!before->inlineRun().contains(branch));
+
+			ElementNozzlesWidget tab(reducer);
+			tab.setLiveEdit(true);
+			const int steps = folio->undoStack().count();
+				// the small side: the branch only
+			QLineEdit *small = tab.fieldFor(QStringLiteral("N2"));
+			small->setText(QStringLiteral("50"));
+			emit small->textEdited(small->text());
+			emit small->editingFinished();
+			QCOMPARE(dn(branch), 50);
+			QCOMPARE(dn(before), 100);
+			QCOMPARE(dn(after), 100);
+				// the big side, against the tee: the main line, through the tee
+			QLineEdit *large = tab.fieldFor(QStringLiteral("N1"));
+			large->setText(QStringLiteral("150"));
+			emit large->textEdited(large->text());
+			emit large->editingFinished();
+			QCOMPARE(dn(before), 150);
+			QCOMPARE(dn(after), 150);
+			QCOMPARE(dn(branch), 50);
+			QVERIFY(!big->hasDiameterGap());
+			QCOMPARE(folio->undoStack().count(), steps + 2);
+		}
+
+			// The Nozzles tab is never wider than the Information tab of the
+			// properties of an element, which sets the width of the panel:
+			// it would narrow the drawing (icon for "Follow the pipe", short
+			// list of drawings, boxes one under the other; j4c)
+		void theNozzlesTabDoesNotWidenThePanel()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = place(folio, addTank(project));
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			QVERIFY(tank && reducer);
+			tank->setPos(200, 600);
+			tank->setNozzleDiameters(dns({{QStringLiteral("N2"), 50}}));
+			reducer->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 80}}));
+			for (Element *element : {tank, reducer})
+			{
+				ElementPropertiesWidget properties(element);
+				auto *tabs = properties.findChild<QTabWidget *>();
+				QVERIFY(tabs);
+				QWidget *information = tabs->widget(0);
+				ElementNozzlesWidget *nozzles = properties.findChild<ElementNozzlesWidget *>();
+				QVERIFY(information && nozzles);
+				QVERIFY2(nozzles->minimumSizeHint().width() <= information->minimumSizeHint().width(),
+						 qPrintable(QStringLiteral("%1 > %2").arg(nozzles->minimumSizeHint().width())
+									.arg(information->minimumSizeHint().width())));
+			}
+		}
+
+			// "Create similar" and "Change the type" give the copy, the new
+			// type, the sizes typed on a reducer (step 5l-1j, j4c; the nozzles
+			// which follow their pipe keep none, j1)
+		void aReducerGivesItsSizesToACopyAndAnotherType()
+		{
+			QETProject project;
+				// known by the application: the tool places the symbol by
+				// the path of the project
+			QETApp::registerProject(&project);
+			const auto registered = qScopeGuard([&project]() { QETApp::unregisterProject(&project); });
+			Diagram *folio = project.addNewDiagram();
+			ElementsLocation reducer_symbol = addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" "));
+			const ElementsLocation eccentric = addSymbol(
+						project, QStringLiteral("eccentric.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555558}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" "));
+			Element *reducer = place(folio, reducer_symbol);
+			QVERIFY(reducer);
+			const NozzleDiameters given = dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 80}});
+			reducer->setNozzleDiameters(given);
+
+				// a copy dropped far from it, alone
+			{
+				const QList<Element *> before = folio->elements();
+				DiagramEventAddElement tool(reducer_symbol, folio);
+				QVERIFY(tool.pendingElement());
+				tool.setLike(reducer);
+				const QPointF at(2000, 2000);
+				for (QEvent::Type type : {QEvent::GraphicsSceneMouseMove, QEvent::GraphicsSceneMousePress,
+							  QEvent::GraphicsSceneMouseRelease}) {
+					QGraphicsSceneMouseEvent event(type);
+					event.setButton(Qt::LeftButton);
+					event.setButtons(type == QEvent::GraphicsSceneMousePress ? Qt::LeftButton : Qt::NoButton);
+					event.setScenePos(at);
+					if (type == QEvent::GraphicsSceneMouseMove) tool.mouseMoveEvent(&event);
+					else if (type == QEvent::GraphicsSceneMousePress) tool.mousePressEvent(&event);
+					else tool.mouseReleaseEvent(&event);
+				}
+				Element *copy = nullptr;
+				for (Element *element : folio->elements()) {
+					if (!before.contains(element) && element != tool.pendingElement()) {
+						copy = element;
+					}
+				}
+				QVERIFY(copy);
+				QCOMPARE(copy->nozzleDiameters(), given);
+			}
+
+				// another type: the sizes stay
+			folio->undoStack().push(new ChangeElementLocationCommand(reducer, eccentric));
+			QVERIFY(reducer->isReducer());
+			QCOMPARE(reducer->nozzleDiameters(), given);
+			QCOMPARE(terminal(reducer, QStringLiteral("N2"))->diameter().value(), 80.0);
 		}
 
 		void aDifferenceIsMarkedNotCorrected()

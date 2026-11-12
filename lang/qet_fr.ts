@@ -6459,18 +6459,21 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     <name>ElementNozzlesWidget</name>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="114"/>
-        <source>Drawn as the project</source>
-        <translation>Dessiné comme le projet</translation>
+        <source>Project</source>
+        <comment>drawing of the connection of a nozzle</comment>
+        <translation>Projet</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="115"/>
-        <source>Always drawn</source>
-        <translation>Toujours dessiné</translation>
+        <source>Always</source>
+        <comment>drawing of the connection of a nozzle</comment>
+        <translation>Toujours</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="116"/>
-        <source>Never drawn</source>
-        <translation>Jamais dessiné</translation>
+        <source>Never</source>
+        <comment>drawing of the connection of a nozzle</comment>
+        <translation>Jamais</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="110"/>
@@ -6488,6 +6491,21 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>Même taille pour tous les piquages</translation>
     </message>
     <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="150"/>
+        <source>Follow the pipe</source>
+        <translation>Suivre la tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="152"/>
+        <source>Follow the pipe: empty the size of this nozzle, which has the size of its line again. No pipe changes.</source>
+        <translation>Suivre la tuyauterie : vide la taille de ce piquage, qui reprend la taille de sa ligne. Aucune tuyauterie ne change.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="815"/>
+        <source>Give the size of a reducer to its line</source>
+        <translation>Donner la taille d&apos;une réduction à sa ligne</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="116"/>
         <source>Checked, the first nozzle gives its size to the others.</source>
         <translation>Cochée : le premier piquage donne sa taille aux autres.</translation>
@@ -6499,8 +6517,8 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="117"/>
-        <source>Whether the connection is drawn at the end of the nozzle: the P&amp;ID properties of the project say which connections are drawn.</source>
-        <translation>Dessin du raccord au bout du piquage : les propriétés P&amp;ID du projet disent quels raccords sont dessinés.</translation>
+        <source>Drawing of the connection: whether it is drawn at the end of the nozzle. Project: as the P&amp;ID properties of the project say, which list the connections drawn.</source>
+        <translation>Dessin du raccord au bout du piquage. Projet : comme le disent les propriétés P&amp;ID du projet, qui donnent la liste des raccords dessinés.</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="112"/>

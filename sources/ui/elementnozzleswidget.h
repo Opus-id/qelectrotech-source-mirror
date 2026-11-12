@@ -25,6 +25,7 @@
 
 #include <QList>
 #include <QMap>
+#include <QSet>
 #include <QString>
 #include <functional>
 
@@ -33,6 +34,7 @@ class QComboBox;
 class QFormLayout;
 class QLabel;
 class QLineEdit;
+class QToolButton;
 class Terminal;
 
 /**
@@ -63,7 +65,14 @@ class Terminal;
 	as the page of a pipe gives a size typed (PipePropertiesWidget::
 	sizeLineIn()), in the step which gives the nozzle its size. A size
 	emptied changes no pipe; a line changed later never changes the size of
-	the reducer (the gap is marked).
+	the reducer (the gap is marked). The size it has, typed again, chosen
+	again in the list or validated by Enter, gives the line this size back;
+	a field only entered and left changes nothing.
+
+	At the end of the row of a nozzle given a size of its own, the button
+	"Follow the pipe" (an icon, so that the panel is not widened) empties it, with undo: the nozzle has the size of its
+	line again, and no pipe changes. Not for a nozzle whose symbol gives a
+	size: emptied, it would have this one, not the one of its line.
 */
 class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -98,6 +107,9 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// The list saying whether the nozzle @p name draws the mark of
 			/// its connection, or nullptr
 		QComboBox *markFor(const QString &name) const;
+			/// The button "Follow the pipe" of the nozzle @p name, or nullptr
+			/// for a nozzle which follows its pipe anyway
+		QToolButton *followButtonFor(const QString &name) const;
 			/// What was said of the last value refused or changed
 		QString message() const;
 			/// What the mouse resting on the size of the nozzle @p name
@@ -133,6 +145,8 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			const Terminal *terminal;
 				/// It has the size of its line (Terminal::followsPipe())
 			bool follows;
+				/// "Follow the pipe", nullptr when it follows anyway
+			QToolButton *follow;
 		};
 		void buildFields();
 		PidCodification projectCodification() const;
@@ -168,11 +182,19 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// Grey the lists the first nozzle fills
 		void updateLinkedFields();
 			/// The sides of a reducer which @p diameters give a size of
-			/// their own other than the one they have, and which have a
-			/// line to give it to; none for any other element
+			/// their own other than the one they have, or the one they have
+			/// typed again (m_typed), and which have a line to give it to;
+			/// none for any other element
 		QList<const Field *> resizedSides(const NozzleDiameters &diameters) const;
+			/// "Follow the pipe" clicked: @p field emptied, and those it
+			/// gives its size to when the box for one size is checked
+		void followPipe(const Field &field);
 
 		QFormLayout *m_layout = nullptr;
+			/// The fields given a value by the user since the last one
+			/// applied: typed, chosen in the list or validated by Enter;
+			/// not a field only entered and left
+		mutable QSet<QString> m_typed;
 		std::function<int(const QString &, const QStringList &)> m_chooser;
 		QLabel *m_message = nullptr;
 		QCheckBox *m_same_connection = nullptr;
