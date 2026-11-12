@@ -97,8 +97,9 @@ tag `pipe-connector-freeze-2026-11-03`.
   own, what has none stays black, and a folio drawn without colors stays
   black too.
 - **Defaults for new projects**: two buttons of the *P&ID* page,
-  *Save as default codification* (codes, series of the materials, table
-  of diameters) and *Save as default palette* (colors and texts), saved
+  *Save as default codification* (codes of the fluids, materials and
+  functional units, sizes of the materials, equal DN) and *Save as default
+  presentation* (colors, texts, connections drawn, models of tags), saved
   apart. A new project starts from both; projects that already exist do
   not change.
 - **A status of works** on pipes and P&ID symbols: to be built, the default,
@@ -111,59 +112,74 @@ tag `pipe-connector-freeze-2026-11-03`.
 - A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
   through its run and keeps its branch free.
 
-**Sizes: DN or outside diameter**
-- A size is a DN, as for a metal pipe or a flange, or an outside diameter
-  to the tenth (Ø 110, Ø 88,9), as for a plastic pipe or a socket; never one
-  read as the other (`pid_dn` or `pid_od`, on a pipe as on a nozzle). Files always write a point; the project chooses the decimal
-  separator shown (*P&ID* page, *Texts* tab), whatever the computer.
-- Each material of the codification says whether its pipes are named by
-  their outside diameter, and has its **series** of sizes found in trade
-  (CSV line `series;M05;25/32/40`). A pipe takes the sizes of its material
-  only: the field is greyed without a material of the codification, or for
-  a material without series. A project without material keeps the DN of
-  ISO 6708. A size typed out of the series becomes the nearest one, and is
-  said.
-- A **table** of the project joins outside diameters to the DN of the
-  flanges they fit (CSV line `od;110;100`, *Diameters* tab). When the
-  material of a pipe changes, its size follows the table (Ø 110 of a
-  plastic becomes DN 100 of a steel, or Ø 114,3 of a stainless steel), the
-  user choosing when it gives several, else the nearest size of the series.
-  Several CSV files can be imported at once.
-- A nozzle may have a size in its symbol (the element editor chooses DN or
-  Ø beside the field), changed on a placed symbol in a *Nozzles* tab of its
-  properties (`<pid_nozzles>` block of `<element>`, written only when set;
-  undoable). It is shown under the name of the nozzle, when terminal names
-  are shown and the project shows the sizes. A `.qetdb` file refuses it, as
-  it refuses the options.
-- A diameter fills what is empty and never replaces a value: a new pipe
-  without a diameter takes that of its nozzle, once; a nozzle without a
-  diameter of its own follows its pipe, nothing being saved.
+**Sizes: the size lives on the pipe**
+- The way of working: draw, connect, place the fittings, **size at the
+  end**. The size belongs to the pipe; the valves and fittings on it follow.
+- The **DN is the size of the line**, on every pipe (`pid_dn`). A material
+  named by its outside diameter, as a plastic, also gives the pipe its
+  outside diameter to the tenth (`pid_od`, Ø 110, Ø 88,9); the material
+  chooses what is written on the drawing. Files always write a point; the
+  project chooses the decimal separator shown (*P&ID* page, *Texts* tab),
+  whatever the computer.
+- Each material of the codification has its **list of sizes** (*Materials*
+  tab, CSV line `size;M04;125;100`): an outside diameter and the DN of the
+  flange it fits for a plastic, a DN (and an outside diameter if wanted)
+  for a metal. When a DN has several outside diameters, one may be the
+  default. **Equal DN** are set for the project (`dn_equal;60;65`): a cast
+  iron DN 60 and a steel DN 65 are the same size; without a material, such
+  a size is written `DN 60/65`.
+- The page of a pipe has one size field: a DN or an outside diameter is
+  typed, the other is found in the list of its material, with a question
+  when there are several (its answer can be kept as the default). When the
+  material changes, the DN is kept and the outside diameter found again. A
+  size out of the list of its material is marked by an orange band under
+  the pipe, on screen only.
+- **Inline symbols have no size of their own**: the nozzles of a valve
+  (`pid_inline`, its two nozzles) or of a tee (`pid_run="N1 N2 N3"`, the
+  nozzles of one size) follow their pipe; their size field is greyed, in
+  the *Nozzles* tab as in the element editor. A change made on the page of
+  a pipe goes through them, and through nozzles that touch with no pipe
+  between them, in one undo step, each material taking it as it has it
+  (DN 60 for a cast iron). It stops at equipment, at reducers and at a
+  group of nozzles of different sizes.
+- Equipment, instruments and **reducers** have sizes of their own: given in
+  the symbol (the element editor chooses DN or Ø beside the field) and
+  changed on a placed symbol in its *Nozzles* tab (`<pid_nozzles>` block of
+  `<element>`, written only when set; undoable). A reducer (`pid_role` =
+  `reducer`) is where the size of the line changes: a size typed on one of
+  its sides resizes that line in the same undo step. A `.qetdb` file
+  refuses a size given on a placed symbol, as it refuses the options.
+- A size fills what is empty and never replaces a value: a new pipe
+  without a size takes that of its nozzle, once.
 - A difference is marked without being blocked: an orange diamond in front
-  of the pipe, on screen only, and a tooltip. A DN and an outside diameter
-  differ when the table does not join them. No reducer is ever inserted.
-- An inline symbol (`pid_inline` attribute of the `.elmt`, exactly two
-  nozzles) has one diameter. A change made on the page of a pipe goes through
-  these symbols, in one undo step, and replaces the diameter of the pipes
-  it reaches. It stops at tees, equipment and three-way valves.
+  of the pipe, on screen only, and a tooltip (a reducer with the same size
+  on both sides too). No reducer is ever inserted.
+- The size of a nozzle is shown under its name, when terminal names are
+  shown and the project shows the sizes; the word `DN` can be left out
+  (*Texts* tab).
 
 **Connections of the nozzles**
 - Each nozzle has a kind of connection: flange (the default, not written),
-  plain end, solvent socket, fusion socket, gasket socket, pipe thread,
-  butt weld or grooved (`pid_connection` attribute of `<terminal>` in the
+  plain end, socket (to glue, to weld or with a gasket: the material of the
+  pipe tells them apart), pipe thread, butt weld, grooved or quick coupling
+  (`pid_connection` attribute of `<terminal>` in the
   `.elmt`, changed on a placed symbol in its *Nozzles* tab, in the same
   undo step as its size). The list is fixed in the code.
-- The connection limits the kind of size: a flange takes a DN, a solvent
-  socket an outside diameter, a pipe thread inches, the others a DN or an
-  outside diameter. When the connection changes, a size it allows is kept,
-  else it is converted when the table gives one answer, else it is removed
-  and said.
+- The connection limits the kind of size: a flange or a quick coupling
+  takes a DN, a pipe thread inches, the others a DN or an outside diameter.
+  When the connection changes, a size it allows is kept, else it is
+  converted when there is one answer, else it is removed and said.
 - A pipe thread is sized in inches (`pid_thread="1 1/2"`), shown `G 1"1/2`,
   and typed as `G 1"1/2`, `1"1/2`, `3/4"` or `1-1/2`. A fixed table (the
-  usual one of EN 10255, 1/8" = DN 6 to 6" = DN 150) joins inches to DN:
+  usual one of EN 10255, 1/8" = DN 6 to 6" = DN 150, shown in the
+  *Connections* tab of the *P&ID* page) joins inches to DN:
   for the orange diamond, and for a new pipe, which takes the DN of its
   threaded nozzle (a pipe is never sized in inches).
-- The folio shows the size only (`DN 100`, `Ø 110`, `G 1"1/2`); the
-  connection is named in the tooltip of the nozzle.
+- The folio shows the size (`DN 100`, `Ø 110`, `G 1"1/2`) and draws the
+  connection at the end of the nozzle (flange, socket…), for the kinds of
+  connections and the families of symbols the project chooses
+  (*Connections* tab); the connection is also named in the tooltip of the
+  nozzle.
 
 **Symbols**
 - **Change type**: right-click a placed symbol, *Change type* lists the
@@ -182,8 +198,9 @@ tag `pipe-connector-freeze-2026-11-03`.
   starts a new line, for the three lines of an instrument bubble. The label
   follows a change of model or of type, and a label held twice in the
   project is told. Without a model, the label is typed by hand as before.
-  The functional units and the models come with the codification of the
-  project (CSV lines `unit;U01;Lifting` and `tag_model;equipment;...`).
+  The functional units come with the codification of the project (CSV line
+  `unit;U01;Lifting`), the models with its presentation (CSV line
+  `tag_model;equipment;...`).
 - **Tags numbered automatically**: the order is one more than the highest
   held by the same functional unit, identifier and train in the project
   (a number freed below it is not given again; no counter is saved, the
