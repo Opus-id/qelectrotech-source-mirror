@@ -40,6 +40,7 @@ class DeleteQGraphicsItemCommand : public QUndoCommand
 		DeleteQGraphicsItemCommand(const DeleteQGraphicsItemCommand &);
 		void setPotentialsOfRemovedElements();
 		Terminal *terminalInSamePotential(Terminal *terminal, Conductor *conductor_to_exclude);
+		void rejoinPipesOfRemovedElements();
 
 	public:
 		void undo() override;

@@ -531,6 +531,9 @@ qet_add_app_test(tst_pipemagnet tst_pipemagnet.cpp)
 # The tool which draws pipes: two clicks or a drag near two free nozzles,
 # never a symbol picked nor moved, right click / Esc, wires left alone.
 qet_add_app_test(tst_pipetool tst_pipetool.cpp)
+# A symbol a line runs through, taken away, leaves one pipe where it stood
+# (the run of a tee too, never its branch); one step to undo; wires as before.
+qet_add_app_test(tst_pipedelete tst_pipedelete.cpp)
 # The medium of a conductor: taken from the terminal it starts from, kept
 # whatever properties are applied to it, saved only when not electrical.
 qet_add_app_test(tst_conductormedium tst_conductormedium.cpp)

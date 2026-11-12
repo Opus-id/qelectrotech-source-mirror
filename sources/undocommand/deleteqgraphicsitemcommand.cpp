@@ -35,6 +35,8 @@
 #include <TerminalStrip/realterminal.h>
 #include <TerminalStrip/physicalterminal.h>
 
+#include <algorithm>
+
 /**
 	@brief DeleteQGraphicsItemCommand::DeleteQGraphicsItemCommand
 	@param diagram : diagram where this undo work
@@ -85,6 +87,7 @@ DeleteQGraphicsItemCommand::DeleteQGraphicsItemCommand(
 
 	m_removed_contents.m_texts_groups.clear();
 	setPotentialsOfRemovedElements();
+	rejoinPipesOfRemovedElements();
 
 		//Get all linkeds table of removed table.
 	for (auto table : m_removed_contents.m_tables)
@@ -278,6 +281,207 @@ void DeleteQGraphicsItemCommand::setPotentialsOfRemovedElements()
 					new AddGraphicsObjectCommand(new_cond, new_pair.second->diagram(), QPointF(), this);
 				}
 			}
+		}
+	}
+}
+
+namespace {
+
+	/// Where a line goes on, seen from a nozzle of a removed symbol
+	struct RunEnd
+	{
+			/// the nozzle that stays, or nullptr when the line stops
+		Terminal *terminal = nullptr;
+			/// the pipe with a length nearest the nozzle that stays, or nullptr
+		Conductor *pipe = nullptr;
+			/// that pipe starts on the side away from the removed symbol
+		bool pipe_comes_in = false;
+	};
+
+	/**
+		@return the nozzle of the run of its symbol (Element::pipeRun())
+		facing @a nozzle, the way a line goes on through it: N2 for N1;
+		none for the branch of a tee, a symbol without a run, or when two
+		could be chosen
+	*/
+	Terminal *opposedRunNozzle(const Terminal *nozzle)
+	{
+		Element *element = nozzle ? nozzle->parentElement() : nullptr;
+		if (!element) {
+			return nullptr;
+		}
+		const QStringList run = element->pipeRun();
+		if (!run.contains(nozzle->baseName())) {
+			return nullptr;
+		}
+		Terminal *found = nullptr;
+		for (Terminal *t : element->terminals())
+		{
+			if (t == nozzle || t->medium() != TerminalData::Pipe
+				|| !run.contains(t->baseName())
+				|| !Qet::isOpposed(t->orientation(), nozzle->orientation())) {
+				continue;
+			}
+			if (found) {
+				return nullptr;
+			}
+			found = t;
+		}
+		return found;
+	}
+
+} // namespace
+
+/**
+	@brief DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements
+	A symbol a line runs through (a valve, the run of a tee) taken away
+	leaves one pipe where it stood, as if it had never been dropped there
+	(the reverse of autoBreakConductors()): the two nozzles left on either
+	side are joined, with the data of the pipe on the N1 side. A pipe has
+	no potential, so setPotentialsOfRemovedElements() never does this.
+	- through two opposed nozzles of the run only: the branch of a tee
+	  goes with the tee, as before;
+	- one side touching another symbol with no pipe: the pipe left goes
+	  to the nozzle it touched; both sides touching: nothing, there is no
+	  line data to take;
+	- through symbols removed together, one after the other: one pipe;
+	- a pipe the user picked along with the symbol, which runs to a symbol
+	  that stays, goes as asked: that side is not joined;
+	- a reducer the same way: a size that differs at the far end is marked
+	  on its nozzle, as anywhere else.
+	Pipes only: an electrical terminal is never in a run.
+*/
+void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
+{
+	const QList<Element *> &removed = m_removed_contents.m_elements;
+	if (removed.isEmpty()) {
+		return;
+	}
+		//The pipes this command takes away, and among them those the user
+		//picked themselves
+	const QList<Conductor *> gone = m_removed_contents.conductors(DiagramContent::AnyConductor);
+	QSet<const Conductor *> picked;
+	for (QGraphicsItem *item : std::as_const(m_removed_contents.m_selected_items)) {
+		if (auto *c = qgraphicsitem_cast<Conductor *>(item)) {
+			picked << c;
+		}
+	}
+	for (Conductor *c : std::as_const(m_removed_contents.m_other_conductors)) {
+		picked << c;
+	}
+
+	QSet<Terminal *> seen;
+		//From a nozzle of a removed symbol, out along the line, through the
+		//other removed symbols, to the first nozzle that stays
+	auto goOut = [&](Terminal *nozzle) {
+		RunEnd end;
+		Terminal *t = nozzle;
+		for (int guard = 0 ; t && guard < 1000 ; ++guard)
+		{
+			seen << t;
+			Conductor *pipe = nullptr;
+			for (Conductor *c : t->conductors()) {
+				if (c->medium() == TerminalData::Pipe) {
+					pipe = c;
+					break;
+				}
+			}
+			Terminal *next = nullptr;
+			if (pipe)
+			{
+				next = pipe->terminal1 == t ? pipe->terminal2 : pipe->terminal1;
+					//A pipe this command leaves on the folio is not ours
+					//to replace
+				if (!next || !gone.contains(pipe)) {
+					return RunEnd();
+				}
+				if (!removed.contains(next->parentElement()) && picked.contains(pipe)) {
+					return RunEnd();
+				}
+					//The last one met: the pipe the nozzle that stays was on
+				if (!pipe->endsTouch()) {
+					end.pipe = pipe;
+					end.pipe_comes_in = pipe->terminal1 == next;
+				}
+			}
+			else if (t->conductors().isEmpty()) {
+					//Placed against another symbol, without a pipe
+				next = t->contactNozzle();
+			}
+			if (!next || next->medium() != TerminalData::Pipe) {
+				return RunEnd();
+			}
+			if (!removed.contains(next->parentElement())) {
+				end.terminal = next;
+				return end;
+			}
+			seen << next;
+			t = opposedRunNozzle(next);
+			if (t && seen.contains(t)) {
+				return RunEnd();
+			}
+		}
+		return RunEnd();
+	};
+
+		//Left to right, then top to bottom, not in the order of the
+		//selection: symbols removed one after the other give the pipe of
+		//the N1 side of the first, and the same file every time
+	QList<Element *> in_order = removed;
+	std::sort(in_order.begin(), in_order.end(), [](const Element *a, const Element *b) {
+		const QPointF pa = a->scenePos(), pb = b->scenePos();
+		return pa.x() != pb.x() ? pa.x() < pb.x() : pa.y() < pb.y();
+	});
+	for (Element *element : std::as_const(in_order))
+	{
+		const QStringList run = element->pipeRun();
+		if (run.isEmpty()) {
+			continue;
+		}
+		for (Terminal *first : element->terminals())
+		{
+			if (first->medium() != TerminalData::Pipe || !run.contains(first->baseName())
+				|| seen.contains(first)) {
+				continue;
+			}
+			Terminal *second = opposedRunNozzle(first);
+			if (!second || seen.contains(second)) {
+				continue;
+			}
+			const RunEnd one = goOut(first);
+			const RunEnd two = goOut(second);
+			if (!one.terminal || !two.terminal || one.terminal == two.terminal
+				|| (!one.pipe && !two.pipe)) {
+				continue;
+			}
+
+				//The data of the pipe on the N1 side, and the way it runs
+			const bool from_one = one.pipe;
+			const RunEnd &data = from_one ? one : two;
+			const bool one_first = data.pipe_comes_in == from_one;
+			Terminal *start = one_first ? one.terminal : two.terminal;
+			Terminal *end = one_first ? two.terminal : one.terminal;
+
+			auto *pipe = new Conductor(start, end);
+			if (!pipe->isValid()) {
+				delete pipe;
+				continue;
+			}
+			pipe->setProperties(data.pipe->properties());
+			pipe->takeNozzleDiameter();
+				//Its uuid from its two ends, as for a wire above (F115): the
+				//same deletion saves the same file every time
+			if (QETProject *project = m_diagram ? m_diagram->project() : nullptr) {
+				auto id = [](const Terminal *t) {
+					return t->parentElement()->uuid().toString()
+							+ QLatin1Char('/') + t->stableUuid().toString();
+				};
+				QStringList ends{id(start), id(end)};
+				ends.sort();
+				pipe->setUuid(project->derivedItemUuid(
+						QStringLiteral("conductor"), ends.join(QLatin1Char('\n'))));
+			}
+			new AddGraphicsObjectCommand(pipe, m_diagram, QPointF(), this);
 		}
 	}
 }
