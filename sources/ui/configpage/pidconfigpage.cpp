@@ -17,6 +17,7 @@
 */
 #include "pidconfigpage.h"
 
+#include "../../pipediameter.h"
 #include "../../pipeproperties.h"
 #include "../../qeticons.h"
 #include "../../qetproject.h"
@@ -25,6 +26,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QFile>
@@ -393,6 +395,7 @@ void PidConfigPage::initWidgets()
 	});
 
 	m_table = new QTableWidget(0, 3, this);
+	m_table->setObjectName(QStringLiteral("color_table"));
 	m_table->setHorizontalHeaderLabels({tr("Applies to"), tr("Name"), tr("Color")});
 	m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
 	m_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -547,6 +550,55 @@ void PidConfigPage::initLayout()
 			connections_layout->addWidget(drawn);
 		}
 	}
+
+		//The threads and their DN, fixed in the code: shown, not set
+	auto *threads_box = new QGroupBox(tr("Pipe threads and their DN (EN 10255)"), connections_tab);
+	auto *threads_layout = new QVBoxLayout(threads_box);
+	auto *threads_help = new QLabel(tr("A threaded nozzle changed to another connection, or back, "
+									   "changes its size by this table; a pipe drawn from a threaded "
+									   "nozzle takes its DN. A fixed table, which cannot be changed."),
+									threads_box);
+	threads_help->setWordWrap(true);
+	threads_layout->addWidget(threads_help);
+	const QList<QPair<int, int>> &rows = PipeDiameter::threadTable();
+	auto *threads = new QTableWidget(int(rows.size()), 2, threads_box);
+	threads->setObjectName(QStringLiteral("thread_table"));
+	threads->setHorizontalHeaderLabels({tr("Thread"), tr("DN")});
+	threads->verticalHeader()->hide();
+	threads->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+	threads->setEditTriggers(QAbstractItemView::NoEditTriggers);
+	threads->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+	for (int i = 0 ; i < rows.size() ; ++i) {
+		threads->setItem(i, 0, new QTableWidgetItem(PipeDiameter::thread(rows.at(i).first).text()));
+		threads->setItem(i, 1, new QTableWidgetItem(PipeDiameter::nominal(rows.at(i).second).text()));
+	}
+		//As wide as its two columns, no empty header beside them
+	threads->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	threads->resizeColumnsToContents();
+	threads->setFixedWidth(threads->horizontalHeader()->length() + 2 * threads->frameWidth());
+		//Ctrl+C: the cells selected, a line by row, a tab between columns
+	auto *copy = new QShortcut(QKeySequence(QKeySequence::Copy), threads);
+	copy->setContext(Qt::WidgetShortcut);
+	connect(copy, &QShortcut::activated, threads, [threads]() {
+		QStringList lines;
+		for (int i = 0 ; i < threads->rowCount() ; ++i) {
+			QStringList cells;
+			for (int j = 0 ; j < threads->columnCount() ; ++j) {
+				if (threads->item(i, j)->isSelected()) {
+					cells << threads->item(i, j)->text();
+				}
+			}
+			if (!cells.isEmpty()) {
+				lines << cells.join(QLatin1Char('\t'));
+			}
+		}
+		QApplication::clipboard()->setText(lines.join(QLatin1Char('\n')));
+	});
+	auto *threads_row = new QHBoxLayout();
+	threads_row->addWidget(threads);
+	threads_row->addStretch();
+	threads_layout->addLayout(threads_row);
+	connections_layout->addWidget(threads_box);
 	connections_layout->addStretch();
 
 	auto *codes_tab = new QWidget(this);

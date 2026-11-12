@@ -13551,6 +13551,21 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Les raccords cochés sont dessinés au bout des piquages, dans la couleur du symbole : sur une vanne à 1 mm du corps, sur un équipement au bout du piquage. Une tuyauterie apporte sa propre pièce, dans sa couleur, et commence après elle : sa bride à 1 mm d&apos;une bride (le côté d&apos;une vanne tient lieu de bride de la vanne), son emboîture sur un bout lisse (dessinée avec les emboîtements), son bout rainuré dans le collier, sa moitié de raccord rapide. Un piquage peut en décider autrement (propriétés de l&apos;élément, Piquages). Deux symboles posés l&apos;un contre l&apos;autre ne dessinent rien entre eux.</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="557"/>
+        <source>Pipe threads and their DN (EN 10255)</source>
+        <translation>Filetages et leur DN (EN 10255)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="559"/>
+        <source>A threaded nozzle changed to another connection, or back, changes its size by this table; a pipe drawn from a threaded nozzle takes its DN. A fixed table, which cannot be changed.</source>
+        <translation>Un piquage fileté passé à un autre raccord, ou l&apos;inverse, change de taille selon cette table ; une tuyauterie tirée d&apos;un piquage fileté prend son DN. Table fixe, non modifiable.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="568"/>
+        <source>Thread</source>
+        <translation>Filetage</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="112"/>
         <source>Save as default palette</source>
         <translation>Enregistrer comme palette par défaut</translation>

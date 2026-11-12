@@ -32,9 +32,11 @@
 #include <QComboBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QHelpEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSignalBlocker>
+#include <QToolTip>
 
 /**
 	@brief ElementNozzlesWidget::ElementNozzlesWidget
@@ -196,6 +198,9 @@ void ElementNozzlesWidget::buildFields()
 				apply();
 			}
 		});
+			//Its thread tells its DN when the mouse rests on it
+		list->installEventFilter(this);
+		edit->installEventFilter(this);
 		auto *row = new QHBoxLayout();
 		row->addWidget(connection);
 		row->addWidget(list, 1);
@@ -429,6 +434,55 @@ bool ElementNozzlesWidget::checkField(const Field &field)
 						  "of the project, Codification).").arg(text));
 	showField(field);
 	return false;
+}
+
+/**
+	@brief ElementNozzlesWidget::threadToolTip
+	See the declaration
+*/
+QString ElementNozzlesWidget::threadToolTip(const QString &name) const
+{
+	for (const Field &field : m_fields)
+	{
+		if (field.name != name) {
+			continue;
+		}
+			//What is typed, else what it has without a value of its own
+		QString text = field.edit->text().trimmed();
+		if (text.isEmpty()) {
+			text = field.edit->placeholderText();
+		}
+		const PipeDiameter diameter = PipeDiameter::fromText(
+					text, PipeConnection::kinds(pickedConnection(field)).constFirst());
+		return DiameterList::threadNominalText(diameter, projectCodification().locale());
+	}
+	return QString();
+}
+
+/**
+	@brief ElementNozzlesWidget::eventFilter
+	The mouse resting on the size of a nozzle: a thread tells its DN, else
+	the tool tip of the list, if any, is shown as before
+*/
+bool ElementNozzlesWidget::eventFilter(QObject *watched, QEvent *event)
+{
+	if (event->type() == QEvent::ToolTip)
+	{
+		for (const Field &field : std::as_const(m_fields))
+		{
+			if (watched != field.list && watched != field.edit) {
+				continue;
+			}
+			const QString tip = threadToolTip(field.name);
+			if (tip.isEmpty()) {
+				break;
+			}
+			QToolTip::showText(static_cast<QHelpEvent *>(event)->globalPos(), tip,
+							   static_cast<QWidget *>(watched));
+			return true;
+		}
+	}
+	return AbstractElementPropertiesEditorWidget::eventFilter(watched, event);
 }
 
 /**

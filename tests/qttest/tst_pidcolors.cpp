@@ -380,7 +380,7 @@ class tst_pidcolors : public QObject
 			PidConfigPage page(&m_project);
 			page.resize(800, 600);
 			page.show();
-			auto *table = page.findChild<QTableWidget *>();
+			auto *table = page.findChild<QTableWidget *>(QStringLiteral("color_table"));
 			QVERIFY(table);
 			int asked = 0;
 			page.setColorAsker([&asked](const QColor &) { ++asked; return QColor(4, 4, 4); });
@@ -809,7 +809,7 @@ class tst_pidcolors : public QObject
 				"fluid;W01;Raw water;E\nfluid;SL1;Sludge;B\n")));
 			{
 				PidConfigPage page(&m_project);
-				auto *table = page.findChild<QTableWidget *>();
+				auto *table = page.findChild<QTableWidget *>(QStringLiteral("color_table"));
 				QVERIFY(table);
 					// two families of fluid, five of object, two statuses
 				QCOMPARE(table->rowCount(), 9);

@@ -28,12 +28,14 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "ui/configpage/pidconfigpage.h"
 #include "ui/elementnozzleswidget.h"
 
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDomDocument>
 #include <QLineEdit>
+#include <QTableWidget>
 #include <QUndoStack>
 
 /**
@@ -738,6 +740,54 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(tank->nozzleConnections().isEmpty());
 			QVERIFY(tank->nozzleDiameters().isEmpty());
 			QCOMPARE(terminal(tank, QStringLiteral("N1"))->labelText(), QStringLiteral("N1\nDN 100"));
+		}
+
+			// Step 5l-1s: a thread tells its DN, in the list and on the field
+		void theThreadsTellTheirDn()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = placeTank(project, folio);
+			QVERIFY(tank);
+			ElementNozzlesWidget tab(tank);
+			tab.setLiveEdit(true);
+			const QString name = QStringLiteral("N1");
+			QLineEdit *n1 = tab.fieldFor(name);
+			auto *list = qobject_cast<QComboBox *>(n1->parentWidget());
+				// a flange: no thread, nothing to tell
+			QVERIFY(tab.threadToolTip(name).isEmpty());
+			QVERIFY(list->itemData(1, Qt::ToolTipRole).toString().isEmpty());
+
+			pick(tab.connectionFor(name), PipeConnection::Thread);
+			QCOMPARE(list->itemText(4), QStringLiteral("G 1/2\""));
+			QCOMPARE(list->itemData(4, Qt::ToolTipRole).toString(),
+					 QStringLiteral("G 1/2\" = DN 15 (EN 10255)"));
+			QCOMPARE(tab.threadToolTip(name), QStringLiteral("G 4\" = DN 100 (EN 10255)"));
+			n1->setText(QStringLiteral("G 1\"1/2"));
+			emit n1->editingFinished();
+			QCOMPARE(tab.threadToolTip(name), QStringLiteral("G 1\"1/2 = DN 40 (EN 10255)"));
+		}
+
+			// Step 5l-1s: the threads and their DN, shown in the P&ID
+			// properties of the project, not to be changed
+		void thePageOfTheProjectShowsTheThreads()
+		{
+			QETProject project;
+			PidConfigPage page(&project);
+			auto *table = page.findChild<QTableWidget *>(QStringLiteral("thread_table"));
+			QVERIFY(table);
+			QCOMPARE(table->rowCount(), int(PipeDiameter::threadTable().size()));
+			QCOMPARE(table->rowCount(), 14);
+			QCOMPARE(table->item(0, 0)->text(), QStringLiteral("G 1/8\""));
+			QCOMPARE(table->item(0, 1)->text(), QStringLiteral("DN 6"));
+			QCOMPARE(table->item(7, 0)->text(), QStringLiteral("G 1\"1/2"));
+			QCOMPARE(table->item(7, 1)->text(), QStringLiteral("DN 40"));
+			QCOMPARE(table->item(13, 0)->text(), QStringLiteral("G 6\""));
+			QCOMPARE(table->item(13, 1)->text(), QStringLiteral("DN 150"));
+			QCOMPARE(table->editTriggers(), QAbstractItemView::NoEditTriggers);
+				// as wide as its two columns
+			QCOMPARE(table->width(), table->horizontalHeader()->length() + 2 * table->frameWidth());
 		}
 };
 

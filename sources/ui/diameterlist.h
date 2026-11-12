@@ -44,6 +44,21 @@ inline QList<PipeDiameter> isoSizes()
 }
 
 /**
+	@brief threadNominalText
+	@return what joins the thread @p diameter to its DN: "G 1"1/2 = DN 40
+	(EN 10255)"; nothing for another size, or a thread the table has not
+*/
+inline QString threadNominalText(const PipeDiameter &diameter, const QLocale &locale = QLocale::c())
+{
+	const PipeDiameter nominal = diameter.threadNominal();
+	if (!nominal.isSet()) {
+		return QString();
+	}
+	return diameter.text(locale) + QStringLiteral(" = ") + nominal.text(locale)
+			+ QStringLiteral(" (EN 10255)");
+}
+
+/**
 	@brief fillTexts
 	Offer in @p list "nothing", then the sizes written as @p texts, keeping
 	the text shown
@@ -62,7 +77,8 @@ inline void fillTexts(QComboBox *list, const QStringList &texts)
 
 /**
 	@brief fill
-	Offer in @p list "nothing", then @p diameters, keeping the text shown
+	Offer in @p list "nothing", then @p diameters, keeping the text shown; a
+	thread tells its DN in its tool tip
 */
 inline void fill(QComboBox *list, const QList<PipeDiameter> &diameters,
 				 const QLocale &locale = QLocale::c())
@@ -72,6 +88,14 @@ inline void fill(QComboBox *list, const QList<PipeDiameter> &diameters,
 		texts << diameter.text(locale);
 	}
 	fillTexts(list, texts);
+	const QSignalBlocker blocker(list);
+	for (int i = 0 ; i < diameters.size() ; ++i) {
+		const QString tip = threadNominalText(diameters.at(i), locale);
+		if (!tip.isEmpty()) {
+				//After the first line, "nothing"
+			list->setItemData(i + 1, tip, Qt::ToolTipRole);
+		}
+	}
 }
 
 /**

@@ -50,7 +50,8 @@ class Terminal;
 
 	Above them, for an element of two nozzles or more, one box: one
 	connection (and drawing) for all; and for two nozzles or more with a size
-	of their own, another: one size for all. Checked, the first nozzle gives
+	of their own, another: one size for all. A thread tells its DN in a tool
+	tip (EN 10255, PipeDiameter::threadTable()). Checked, the first nozzle gives
 	its value to the others, whose lists are greyed. Nothing of them is
 	written: they are checked when the nozzles are alike, at the opening of
 	the tab, and unchecked when they no longer are (an undo).
@@ -90,6 +91,10 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 		QComboBox *markFor(const QString &name) const;
 			/// What was said of the last value refused or changed
 		QString message() const;
+			/// What the mouse resting on the size of the nozzle @p name
+			/// shows of a thread: "G 1"1/2 = DN 40 (EN 10255)"; nothing for
+			/// another size
+		QString threadToolTip(const QString &name) const;
 			/// The box giving all the nozzles the connection and the drawing
 			/// of the first, nullptr for an element of one nozzle
 		QCheckBox *sameConnectionBox() const { return m_same_connection; }
@@ -97,6 +102,9 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// for an element with fewer than two nozzles with a size of
 			/// their own: a valve, a tee
 		QCheckBox *sameSizeBox() const { return m_same_size; }
+
+	protected:
+		bool eventFilter(QObject *watched, QEvent *event) override;
 
 	private:
 		struct Field {
