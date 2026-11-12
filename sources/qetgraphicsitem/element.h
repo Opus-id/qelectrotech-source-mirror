@@ -266,6 +266,9 @@ class Element : public QetGraphicsItem
 		void setNozzleMarks(const NozzleMarks &marks);
 			/// Those of the <nozzles> block of @p element
 		static NozzleMarks nozzleMarksFromXml(const QDomElement &element);
+			/// Its P&ID family (ElementData::m_pid_family), without copying
+			/// all its data: none for any other symbol
+		const QString &pidFamily() const { return m_data.m_pid_family; }
 		bool isPipeInline() const;
 		QStringList pipeRun() const;
 			/// True for a reducer (pid_role="reducer"): the size of the line

@@ -432,6 +432,96 @@ class tst_connectionmark : public QObject
 			QVERIFY(!project.pidCodification().drawsConnection(PipeConnection::Flange));
 		}
 
+			// Step 5l-1u: the families of symbols the connections are drawn on
+		void theFamiliesOfSymbolsAreChosen()
+		{
+			PidCodification codification;
+				// all by default, nothing written
+			QVERIFY(codification.drawsOnAllFamilies());
+			QVERIFY(!codification.hasTextSettings());
+			QVERIFY(codification.drawsOnFamily(QStringLiteral("valve")));
+			QCOMPARE(PidCodification::connectionFamily(QString()), QStringLiteral("other"));
+			QCOMPARE(PidCodification::connectionFamily(QStringLiteral("signal")), QStringLiteral("other"));
+			QCOMPARE(PidCodification::connectionFamily(QStringLiteral("pipe")), QStringLiteral("pipe"));
+
+			codification.drawn_families = {QStringLiteral("equipment")};
+			QVERIFY(codification.hasTextSettings());
+			QVERIFY(codification.drawsOnFamily(QStringLiteral("equipment")));
+			QVERIFY(!codification.drawsOnFamily(QStringLiteral("valve")));
+			QVERIFY(!codification.drawsOnFamily(QString()));
+				// the file
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			holder.appendChild(codification.toXml(doc));
+			QCOMPARE(holder.firstChildElement().attribute(QStringLiteral("drawn_families")),
+					 QStringLiteral("equipment"));
+			PidCodification read;
+			read.fromXml(holder);
+			QCOMPARE(read.drawn_families, QStringList{QStringLiteral("equipment")});
+				// none chosen is kept as none, not as all
+			codification.drawn_families.clear();
+			QDomDocument doc2;
+			QDomElement holder2 = doc2.createElement(QStringLiteral("project"));
+			holder2.appendChild(codification.toXml(doc2));
+			read.fromXml(holder2);
+			QVERIFY(read.drawn_families.isEmpty());
+				// the default presentation, an unknown word left out
+			codification.drawn_families = {QStringLiteral("valve"), QStringLiteral("pipe")};
+			QVERIFY(codification.paletteToCsv().contains(QStringLiteral("text_option;drawn_families;valve pipe")));
+			int skipped = 0;
+			const PidCodification csv = PidCodification::fromCsv(
+						QStringLiteral("text_option;drawn_families;pipe tank valve\n"), &skipped);
+			QCOMPARE(csv.drawn_families, (QStringList{QStringLiteral("valve"), QStringLiteral("pipe")}));
+			QCOMPARE(skipped, 1);
+		}
+
+			// Step 5l-1u: a symbol of a family not chosen draws no connection,
+			// unless its nozzle says always
+		void aFamilyNotChosenDrawsNothing()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+				// a symbol of no family: "other"
+			Element *tank = place(project, folio, QPointF(200, 200));
+			QVERIFY(tank);
+			drawFlanges(project);
+			Terminal *n1 = terminal(tank, QStringLiteral("N1"));
+			QVERIFY(n1->drawsConnectionMark());
+
+			PidCodification codification = project.pidCodification();
+			codification.drawn_families = {QStringLiteral("equipment")};
+			project.setPidCodification(codification);
+			QVERIFY(!n1->drawsConnectionMark());
+				// its nozzle says always
+			tank->setNozzleMarks({{QStringLiteral("N1"), PipeConnection::MarkChoice::Always}});
+			QVERIFY(n1->drawsConnectionMark());
+			tank->setNozzleMarks({});
+				// "other" chosen again
+			codification.drawn_families << QStringLiteral("other");
+			project.setPidCodification(codification);
+			QVERIFY(n1->drawsConnectionMark());
+		}
+
+			// Step 5l-1u: the boxes of the families in the page, all checked,
+			// given to the project with undo
+		void thePageOfTheProjectSetsTheFamilies()
+		{
+			QETProject project;
+			PidConfigPage page(&project);
+			for (const QString &family : PidCodification::connectionFamilies()) {
+				auto *box = page.findChild<QCheckBox *>(QStringLiteral("drawn_family_") + family);
+				QVERIFY2(box, qPrintable(family));
+				QVERIFY(box->isChecked());
+			}
+			QVERIFY(!page.findChild<QCheckBox *>(QStringLiteral("drawn_family_signal")));
+			page.findChild<QCheckBox *>(QStringLiteral("drawn_family_valve"))->setChecked(false);
+			page.applyProjectConf();
+			QVERIFY(!project.pidCodification().drawsOnFamily(QStringLiteral("valve")));
+			QVERIFY(project.pidCodification().drawsOnFamily(QStringLiteral("equipment")));
+			project.undoStack()->undo();
+			QVERIFY(project.pidCodification().drawsOnAllFamilies());
+		}
+
 			// ---- what is in front ----
 		void aPipeOnAFlangeBringsItsOwn()
 		{

@@ -13576,6 +13576,26 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Filetage</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="496"/>
+        <source>Pipe fittings (tee, reducer…)</source>
+        <translation>Accessoires de tuyauterie (Té, réduction…)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="497"/>
+        <source>Other symbols (no family)</source>
+        <translation>Autres symboles (sans famille)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="568"/>
+        <source>Connections drawn:</source>
+        <translation>Raccords dessinés :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="576"/>
+        <source>On the symbols:</source>
+        <translation>Sur les symboles :</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="112"/>
         <source>Save as default palette</source>
         <translation>Enregistrer comme palette par défaut</translation>

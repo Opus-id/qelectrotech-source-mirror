@@ -35,6 +35,7 @@ namespace
 	const QString dn_prefix_word = QStringLiteral("nozzle_dn_prefix");
 	const QString decimal_word = QStringLiteral("decimal_separator");
 	const QString drawn_connections_word = QStringLiteral("drawn_connections");
+	const QString drawn_families_word = QStringLiteral("drawn_families");
 	const QString size_tag = QStringLiteral("size");
 	const QString equal_tag = QStringLiteral("equal_dn");
 
@@ -69,6 +70,28 @@ namespace
 		for (PipeConnection::Type type : PipeConnection::all()) {
 			if (read.contains(type)) {
 				sorted << type;
+			}
+		}
+		return sorted;
+	}
+
+		/// The families of PidCodification::connectionFamilies() @p text
+		/// names, words separated by spaces, in their order; @p unknown, if
+		/// given, counts the words not known
+	QStringList familiesFromText(const QString &text, int *unknown = nullptr)
+	{
+		const QStringList words = text.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+		QStringList sorted;
+		for (const QString &family : PidCodification::connectionFamilies()) {
+			if (words.contains(family)) {
+				sorted << family;
+			}
+		}
+		if (unknown) {
+			for (const QString &word : words) {
+				if (!PidCodification::connectionFamilies().contains(word)) {
+					++*unknown;
+				}
 			}
 		}
 		return sorted;
@@ -1070,6 +1093,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.decimal = other.decimal;
 		result.tag_models = other.tag_models;
 		result.drawn_connections = other.drawn_connections;
+		result.drawn_families = other.drawn_families;
 	}
 	return result;
 }
@@ -1132,6 +1156,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	if (!drawn_connections.isEmpty()) {
 		block.setAttribute(drawn_connections_word, connectionsToText(drawn_connections));
 	}
+	if (!drawsOnAllFamilies()) {
+		block.setAttribute(drawn_families_word, drawn_families.join(QLatin1Char(' ')));
+	}
 	return block;
 }
 
@@ -1184,6 +1211,9 @@ void PidCodification::fromXml(const QDomElement &parent)
 	nozzle_dn_prefix = block.attribute(dn_prefix_word) != QLatin1String("false");
 	decimal = decimalFromString(block.attribute(decimal_word));
 	drawn_connections = connectionsFromText(block.attribute(drawn_connections_word));
+		//None written: all of them
+	drawn_families = block.hasAttribute(drawn_families_word)
+			? familiesFromText(block.attribute(drawn_families_word)) : connectionFamilies();
 }
 
 /**
@@ -1225,6 +1255,10 @@ QString PidCodification::paletteToCsv() const
 	if (!drawn_connections.isEmpty()) {
 		text += QStringLiteral("text_option;") + drawn_connections_word + QLatin1Char(';')
 				+ connectionsToText(drawn_connections) + QLatin1Char('\n');
+	}
+	if (!drawsOnAllFamilies()) {
+		text += QStringLiteral("text_option;") + drawn_families_word + QLatin1Char(';')
+				+ drawn_families.join(QLatin1Char(' ')) + QLatin1Char('\n');
 	}
 	for (auto it = tag_models.cbegin() ; it != tag_models.cend() ; ++it) {
 		text += QStringLiteral("tag_model;") + it.key() + QLatin1Char(';') + it.value() + QLatin1Char('\n');
@@ -1392,6 +1426,12 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 				if (unknown) {
 					++left_out;
 				}
+			} else if (fields.value(1) == drawn_families_word) {
+				int unknown = 0;
+				codification.drawn_families = familiesFromText(value, &unknown);
+				if (unknown) {
+					++left_out;
+				}
 			} else if (fields.value(1) == decimal_word) {
 				const Decimal read = decimalFromString(value);
 				if (read == Decimal::Language) {
@@ -1546,5 +1586,6 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& show_nozzle_sizes == other.show_nozzle_sizes
 			&& nozzle_dn_prefix == other.nozzle_dn_prefix
 			&& decimal == other.decimal
-			&& drawn_connections == other.drawn_connections;
+			&& drawn_connections == other.drawn_connections
+			&& drawn_families == other.drawn_families;
 }

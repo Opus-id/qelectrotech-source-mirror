@@ -490,6 +490,17 @@ void PidConfigPage::initWidgets()
 		connect(drawn, &QCheckBox::toggled, this, &PidConfigPage::readConnectionWidgets);
 		m_drawn_connections.insert(type, drawn);
 	}
+	const QStringList family_names{tr("Equipment"), tr("Valves"), tr("Instruments"),
+								   tr("Pipe fittings (tee, reducer…)"),
+								   tr("Other symbols (no family)")};
+	const QStringList &families = PidCodification::connectionFamilies();
+	for (int i = 0 ; i < families.size() ; ++i)
+	{
+		auto *family = new QCheckBox(family_names.value(i), this);
+		family->setObjectName(QStringLiteral("drawn_family_") + families.at(i));
+		connect(family, &QCheckBox::toggled, this, &PidConfigPage::readConnectionWidgets);
+		m_drawn_families.insert(families.at(i), family);
+	}
 }
 
 void PidConfigPage::initLayout()
@@ -555,11 +566,28 @@ void PidConfigPage::initLayout()
 										   "nothing between them."), connections_tab);
 	connections_help->setWordWrap(true);
 	connections_layout->addWidget(connections_help);
+		//The connections drawn, beside the families of symbols they are
+		//drawn on
+	auto *types_column = new QVBoxLayout();
+	types_column->addWidget(new QLabel(tr("Connections drawn:"), connections_tab));
 	for (PipeConnection::Type type : PipeConnection::all()) {
 		if (QCheckBox *drawn = m_drawn_connections.value(type)) {
-			connections_layout->addWidget(drawn);
+			types_column->addWidget(drawn);
 		}
 	}
+	types_column->addStretch();
+	auto *families_column = new QVBoxLayout();
+	families_column->addWidget(new QLabel(tr("On the symbols:"), connections_tab));
+	for (const QString &family : PidCodification::connectionFamilies()) {
+		families_column->addWidget(m_drawn_families.value(family));
+	}
+	families_column->addStretch();
+	auto *columns = new QHBoxLayout();
+	columns->addLayout(types_column);
+	columns->addSpacing(40);
+	columns->addLayout(families_column);
+	columns->addStretch();
+	connections_layout->addLayout(columns);
 
 		//The threads and their DN, fixed in the code: shown, not set
 	auto *threads_box = new QGroupBox(tr("Pipe threads and their DN (EN 10255)"), connections_tab);
@@ -690,6 +718,10 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 		const QSignalBlocker blocker(it.value());
 		it.value()->setChecked(codification.drawsConnection(it.key()));
 	}
+	for (auto it = m_drawn_families.cbegin() ; it != m_drawn_families.cend() ; ++it) {
+		const QSignalBlocker blocker(it.value());
+		it.value()->setChecked(codification.drawn_families.contains(it.key()));
+	}
 }
 
 void PidConfigPage::adjustReadOnly()
@@ -727,6 +759,9 @@ void PidConfigPage::adjustReadOnly()
 	for (QCheckBox *drawn : std::as_const(m_drawn_connections)) {
 		drawn->setEnabled(!read_only);
 	}
+	for (QCheckBox *family : std::as_const(m_drawn_families)) {
+		family->setEnabled(!read_only);
+	}
 }
 
 /**
@@ -740,6 +775,13 @@ void PidConfigPage::readConnectionWidgets()
 		const QCheckBox *drawn = m_drawn_connections.value(type);
 		if (drawn && drawn->isChecked()) {
 			m_codification.drawn_connections << type;
+		}
+	}
+	m_codification.drawn_families.clear();
+	for (const QString &family : PidCodification::connectionFamilies()) {
+		const QCheckBox *drawn = m_drawn_families.value(family);
+		if (drawn && drawn->isChecked()) {
+			m_codification.drawn_families << family;
 		}
 	}
 }

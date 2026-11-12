@@ -1460,10 +1460,17 @@ bool Terminal::drawsConnectionMark() const
 		case PipeConnection::MarkChoice::Always:
 			break;
 		case PipeConnection::MarkChoice::Project:
-			if (!folio->project()->pidCodification().drawsConnection(PipeConnection::drawnWith(type))) {
+		{
+				//A connection the project draws, on a family of symbols it
+				//draws them on
+			const PidCodification &codification = folio->project()->pidCodification();
+			if (!codification.drawsConnection(PipeConnection::drawnWith(type))
+				|| (parent_element_
+					&& !codification.drawsOnFamily(parent_element_->pidFamily()))) {
 				return false;
 			}
 			break;
+		}
 	}
 	return !touchesNozzle();
 }

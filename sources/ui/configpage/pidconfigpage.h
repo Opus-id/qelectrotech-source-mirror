@@ -196,6 +196,9 @@ class PidConfigPage : public ProjectConfigPage
 			/// Whether the mark of each connection is drawn at the end of
 			/// the nozzles; a plain end has none
 		QMap<PipeConnection::Type, QCheckBox *> m_drawn_connections;
+			/// Whether the connections are drawn on each family of symbols,
+			/// by key of PidCodification::connectionFamilies()
+		QMap<QString, QCheckBox *> m_drawn_families;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
 		std::function<QColor(const QColor &)> m_ask_color;

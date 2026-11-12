@@ -305,6 +305,29 @@ class PidCodification
 		bool drawsConnection(PipeConnection::Type type) const {
 			return drawn_connections.contains(type);
 		}
+			/// The families of symbols whose nozzles draw the connections
+			/// above, among connectionFamilies(), in its order: all by
+			/// default, written only otherwise
+		QStringList drawn_families = connectionFamilies();
+			/// The families a project may choose for the connections drawn:
+			/// equipment, valve, instrument, pipe (fittings: tee, reducer),
+			/// other (a symbol of no family, or of another one)
+		static const QStringList &connectionFamilies() {
+			static const QStringList families{QStringLiteral("equipment"), QStringLiteral("valve"),
+											  QStringLiteral("instrument"), QStringLiteral("pipe"),
+											  QStringLiteral("other")};
+			return families;
+		}
+			/// The family of connectionFamilies() of a symbol of family
+			/// @p pid_family (ElementData::m_pid_family): "other" for none
+		static QString connectionFamily(const QString &pid_family) {
+			return connectionFamilies().contains(pid_family) ? pid_family
+															 : QStringLiteral("other");
+		}
+		bool drawsOnFamily(const QString &pid_family) const {
+			return drawn_families.contains(connectionFamily(pid_family));
+		}
+		bool drawsOnAllFamilies() const { return drawn_families == connectionFamilies(); }
 			/// How the tenths of a size are written on the screen and on
 			/// paper; a file always has a point
 		enum class Decimal {
@@ -334,7 +357,7 @@ class PidCodification
 		bool hasTextSettings() const {
 			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
-					|| !drawn_connections.isEmpty();
+					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies();
 		}
 		bool isEmpty() const { return !hasCodes() && !hasColors() && !hasTextSettings(); }
 
