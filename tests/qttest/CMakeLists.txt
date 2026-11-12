@@ -506,6 +506,8 @@ qet_add_app_test(tst_plantcounter tst_plantcounter.cpp)
 qet_add_app_test(tst_renumberwires tst_renumberwires.cpp)
 # Placing a macro: its labels and question-mark texts.
 qet_add_app_test(tst_macrolabels tst_macrolabels.cpp)
+# qet_plc_io: one row per PLC I/O entry, with the slave linked to it.
+qet_add_app_test(tst_plcio tst_plcio.cpp)
 # A read-only project builds its lazy folios whole: shown, exported, written out.
 qet_add_app_test(tst_readonlyfolios tst_readonlyfolios.cpp)
 target_compile_definitions(tst_readonlyfolios PRIVATE
@@ -617,6 +619,10 @@ qet_add_app_test(tst_rotateselectionimage tst_rotateselectionimage.cpp)
 # panel's editor and the Edit action.
 qet_add_app_test(tst_multielementinfo tst_multielementinfo.cpp)
 target_compile_definitions(tst_multielementinfo PRIVATE
+  "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
+
+qet_add_app_test(tst_elementarticleswidget tst_elementarticleswidget.cpp)
+target_compile_definitions(tst_elementarticleswidget PRIVATE
   "QET_EXAMPLES_DIR=\"${QET_DIR}/examples\"")
 
 # An elements collection item set up after the application object is gone.
