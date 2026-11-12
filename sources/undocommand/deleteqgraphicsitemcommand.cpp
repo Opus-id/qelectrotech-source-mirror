@@ -299,10 +299,28 @@ namespace {
 	};
 
 	/**
-		@return the nozzle of the run of its symbol (Element::pipeRun())
-		facing @a nozzle, the way a line goes on through it: N2 for N1;
-		none for the branch of a tee, a symbol without a run, or when two
-		could be chosen
+		@return the nozzles a line runs through, to be joined when
+		@a element goes: its run (Element::pipeRun()), else, for a reducer,
+		which has no run since a change of DN stops there, its nozzles
+	*/
+	QStringList joinedRun(const Element *element)
+	{
+		QStringList run = element->pipeRun();
+		if (run.isEmpty() && element->isReducer()) {
+			for (const Terminal *t : element->terminals()) {
+				if (t->medium() == TerminalData::Pipe && !t->baseName().isEmpty()) {
+					run << t->baseName();
+				}
+			}
+		}
+		return run.size() >= 2 ? run : QStringList();
+	}
+
+	/**
+		@return the nozzle of the run of its symbol (joinedRun()) facing
+		@a nozzle, the way a line goes on through it: N2 for N1; none for
+		the branch of a tee, a symbol without a run, or when two could be
+		chosen
 	*/
 	Terminal *opposedRunNozzle(const Terminal *nozzle)
 	{
@@ -310,7 +328,7 @@ namespace {
 		if (!element) {
 			return nullptr;
 		}
-		const QStringList run = element->pipeRun();
+		const QStringList run = joinedRun(element);
 		if (!run.contains(nozzle->baseName())) {
 			return nullptr;
 		}
@@ -347,8 +365,9 @@ namespace {
 	- through symbols removed together, one after the other: one pipe;
 	- a pipe the user picked along with the symbol, which runs to a symbol
 	  that stays, goes as asked: that side is not joined;
-	- a reducer the same way: a size that differs at the far end is marked
-	  on its nozzle, as anywhere else.
+	- a reducer the same way, though it has no run (a change of DN stops
+	  there): a size that differs at the far end is marked on its nozzle,
+	  as anywhere else.
 	Pipes only: an electrical terminal is never in a run.
 */
 void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
@@ -434,7 +453,7 @@ void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
 	});
 	for (Element *element : std::as_const(in_order))
 	{
-		const QStringList run = element->pipeRun();
+		const QStringList run = joinedRun(element);
 		if (run.isEmpty()) {
 			continue;
 		}

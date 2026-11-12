@@ -51,7 +51,7 @@ class tst_pipedelete : public QObject
 
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_valve, m_tee, m_equipment, m_electrical;
+	ElementsLocation m_valve, m_tee, m_equipment, m_electrical, m_reducer;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -132,7 +132,11 @@ class tst_pipedelete : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("pdelete"), NamesList());
-			QDomDocument a, b, c, d;
+			QDomDocument a, b, c, d, r;
+				// a reducer has no run (a change of DN stops there)
+			m_reducer = add("reducer.elmt", definition(r, "85555555-5555-5555-5555-555555555555",
+								   "pipe", "pid_role=\"reducer\" "));
+			QVERIFY(m_reducer.exist());
 			m_valve = add("valve.elmt", definition(a, "81111111-1111-1111-1111-111111111111",
 							       "pipe", "pid_inline=\"true\" "));
 			m_tee = add("tee.elmt", definition(b, "82222222-2222-2222-2222-222222222222",
@@ -146,8 +150,7 @@ class tst_pipedelete : public QObject
 		}
 
 			// a ── P1 ── valve ── P2 ── b: one pipe a ── b, with the data
-			// of P1 (the N1 side), even where P2 differs (a reducer: the
-			// far end shows the difference, as anywhere); undo, redo
+			// of P1 (the N1 side), even where P2 differs; undo, redo
 		void aValveTakenAwayLeavesOnePipe()
 		{
 			const auto e = row({m_equipment, m_valve, m_equipment});
@@ -175,6 +178,26 @@ class tst_pipedelete : public QObject
 			m_folio->undoStack().redo();
 			QVERIFY(joins(pipeOn(a), a, b));
 			QCOMPARE(pipeOn(a)->uuid(), joined->uuid());
+		}
+
+			// A reducer has no run, yet its two pipes are joined, with the
+			// data of the N1 side: DN 100, the DN 80 end shows the difference
+		void aReducerTakenAwayLeavesOnePipe()
+		{
+			const auto e = row({m_equipment, m_reducer, m_equipment});
+			QVERIFY(e[1]->isReducer());
+			QVERIFY(e[1]->pipeRun().isEmpty());
+			Terminal *a = nozzle(e[0], "N2"), *b = nozzle(e[2], "N1");
+			Conductor *p1 = draw(a, nozzle(e[1], "N1"), QStringLiteral("W01"), 100);
+			draw(nozzle(e[1], "N2"), b, QStringLiteral("W01"), 80);
+			const PipeProperties data = p1->properties().m_pipe;
+			remove({e[1]});
+			Conductor *joined = pipeOn(a);
+			QVERIFY(joins(joined, a, b));
+			QVERIFY(joined->properties().m_pipe == data);
+			QCOMPARE(joined->properties().m_pipe.nominal, PipeDiameter::nominal(100));
+			m_folio->undoStack().undo();
+			QCOMPARE(pipeOn(a), p1);
 		}
 
 			// P1 drawn from the valve out to a: the pipe left runs from b to a
