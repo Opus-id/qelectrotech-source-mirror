@@ -33,10 +33,12 @@
 #include <autoconnect.h>
 #include <pidtooltip.h>
 #include <pidtee.h>
+#include <pidfreeend.h>
 #include <pipeconnection.h>
 
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
+#include <QPointer>
 #include <QSettings>
 #include <QToolTip>
 
@@ -791,6 +793,28 @@ namespace {
 		drag_tee_diagram = nullptr;
 	}
 
+		//The free end a drag from a nozzle would take up, hidden while the
+		//preview reaches it (PidFreeEnd, 5l-1p-quater)
+	QPointer<Terminal> drag_concealed;
+
+	void concealForDrag(Terminal *nozzle)
+	{
+		if (drag_concealed == nozzle) return;
+		if (drag_concealed) PidFreeEnd::conceal(drag_concealed, false);
+		drag_concealed = nozzle;
+		if (nozzle) PidFreeEnd::conceal(nozzle, true);
+	}
+
+		/// Whether a drag from @p from released on @p to takes up the line
+		/// at its free end: from a free nozzle of a pipe only, never from a
+		/// free end (a drag from a nozzle already connected is kept for
+		/// moving the end of its pipe)
+	bool takesUp(const Terminal *from, const Terminal *to)
+	{
+		return from && from->medium() == TerminalData::Pipe && !PidFreeEnd::pipeOf(from)
+				&& PidFreeEnd::pipeOf(to) && PidFreeEnd::mayJoin(from, to);
+	}
+
 	/**
 		@return the route of the branch a release at @p scene_pos would
 		draw from @p nozzle to a tee on the pipe there (PidTee::branchFrom()),
@@ -866,9 +890,13 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 	if (!other_terminal)
 	{
 			//Not on a terminal: a pipe is caught by a free nozzle nearby,
-			//and the preview shows where it goes
+			//or a free end it takes up, and the preview shows where it goes
 		other_terminal = magnetTarget(e->scenePos(), magnetSceneRadius(e));
+		if (!other_terminal && medium() == TerminalData::Pipe && !PidFreeEnd::pipeOf(this)) {
+			other_terminal = PidFreeEnd::nozzleNear(diag, e->scenePos(), magnetSceneRadius(e), this);
+		}
 		if (!other_terminal) {
+			concealForDrag(nullptr);
 				//A pipe over a pipe: the route to the tee a release would
 				//put there; elsewhere the straight line
 			if (medium() == TerminalData::Pipe) {
@@ -879,6 +907,18 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 		diag->setConductorStop(other_terminal->dockConductor());
 	}
 	m_previous_terminal = other_terminal;
+
+		//A free end taken up: allowed, hidden, the route on along the line
+	if (takesUp(this, other_terminal)) {
+		concealForDrag(other_terminal);
+		other_terminal->m_hovered_color = allowedColor;
+		other_terminal->m_hovered = true;
+		other_terminal->update();
+		diag->setConductorStop(other_terminal->dockConductor());
+		diag->setConductorRoute(PidFreeEnd::route(this, other_terminal));
+		return;
+	}
+	concealForDrag(nullptr);
 
 	// s'il s'agit d'une borne, on lui applique l'effet hover approprie
 	if (!canBeLinkedTo(other_terminal) || wiredAutomatically(other_terminal)) {
@@ -916,6 +956,7 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 	m_previous_terminal = nullptr;
 	m_hovered_color     = neutralColor;
 	dropDragTee();
+	concealForDrag(nullptr);
 
 	if (!diagram()) return;
 
@@ -925,9 +966,21 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 		//The terminal under the cursor, even when the end of a wire
 		//already on it is drawn over it
 	Terminal *other_terminal = terminalUnder(diagram(), e->scenePos());
-		//else a pipe is caught by a free nozzle nearby (magnetTarget())
+		//else a pipe is caught by a free nozzle nearby (magnetTarget()),
+		//or by a free end it takes up
 	if (!other_terminal) {
 		other_terminal = magnetTarget(e->scenePos(), magnetSceneRadius(e));
+	}
+	if (!other_terminal && medium() == TerminalData::Pipe && !PidFreeEnd::pipeOf(this)) {
+		other_terminal = PidFreeEnd::nozzleNear(diagram(), e->scenePos(), magnetSceneRadius(e), this);
+	}
+		//The line taken up at its free end: one pipe, its route and data kept
+	if (takesUp(this, other_terminal)) {
+		other_terminal->m_hovered_color = neutralColor;
+		other_terminal->m_hovered = false;
+		other_terminal->update();
+		PidFreeEnd::carryOn(this, other_terminal);
+		return;
 	}
 	if (!other_terminal)
 	{

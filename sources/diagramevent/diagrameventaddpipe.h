@@ -63,6 +63,11 @@ class QGraphicsItem;
 	the axis of a nozzle nearly in front of it; a tee at the end goes right
 	in front of the start. Ctrl held: no snapping, the grid only.
 
+	A click near the nozzle of a free end starts or ends the pipe there too:
+	the free end goes and the line goes on, as one pipe keeping its route and
+	its data (PidFreeEnd); the free end is hidden while the preview reaches
+	it.
+
 	The preview shows the route the pipe will take, bends included. Where
 	a free end decides it, the route is in L (one bend) or, after Space, in
 	S (two bends); the choice stays while the tool runs.
@@ -106,6 +111,9 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		bool startsOnPipe() const { return m_start_tee; }
 			/// Where on which pipe it starts then
 		PidTee::Spot startSpot() const { return m_start_spot; }
+			/// Whether the pipe being drawn takes up a line at its free end
+			/// (PidFreeEnd, 5l-1p-quater): the line goes on from there
+		bool startsOnFreeEnd() const { return m_start_end; }
 			/// How many free nozzles are marked
 		int markCount() const { return m_marks.size(); }
 
@@ -201,7 +209,20 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// The preview for the mouse at @p scene_pos: where it ends, its
 			/// route, the nozzle lit; kept to be shown again (m_mouse_*)
 		void updatePreview(const QPointF &scene_pos, bool snap, qreal radius);
-		bool hasStart() const { return m_start || m_start_free || m_start_tee; }
+			/// Start the pipe at the free end of @p nozzle: the line goes on
+			/// from there (PidFreeEnd)
+		void startOnFreeEnd(Terminal *nozzle);
+			/// Where a first click near @p scene_pos starts: the nearest free
+			/// nozzle or free end within @p radius, nullptr for none
+		Terminal *startNear(const QPointF &scene_pos, qreal radius) const;
+			/// Where a click near @p scene_pos ends the pipe being drawn: the
+			/// nearest free nozzle, or free end of another line, within
+			/// @p radius; nullptr for none
+		Terminal *targetNear(const QPointF &scene_pos, qreal radius) const;
+			/// The free ends the preview reaches hidden: the one the pipe
+			/// starts from, and @p target when it is one; the others shown
+		void concealFreeEnds(Terminal *target);
+		bool hasStart() const { return m_start || m_start_free || m_start_tee || m_start_end; }
 		QPointF startScenePoint() const;
 		qreal teeArm();
 		void refuse(const QGraphicsSceneMouseEvent *event, const QString &why) const;
@@ -214,6 +235,10 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		QPointF m_start_point;
 		bool m_start_tee = false;
 		PidTee::Spot m_start_spot;
+			/// The nozzle of the free end the pipe starts from, which goes
+		QPointer<Terminal> m_start_end;
+			/// The free ends hidden while the preview reaches them
+		QList<QPointer<Terminal>> m_concealed;
 			/// The arms of the tee of the project while the tool runs, for
 			/// the preview: -1 until measured
 		qreal m_tee_arm = -1;

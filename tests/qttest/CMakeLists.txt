@@ -569,6 +569,10 @@ qet_add_app_test(tst_pipetee tst_pipetee.cpp)
 # A symbol a line runs through, taken away, leaves one pipe where it stood
 # (the run of a tee too, never its branch); one step to undo; wires as before.
 qet_add_app_test(tst_pipedelete tst_pipedelete.cpp)
+# A line taken up at its free end (5l-1p-quater): with the tool or a drag,
+# the route already drawn kept, the data of the line, two lines joined; one
+# step to undo; wires as before.
+qet_add_app_test(tst_pipefreeend tst_pipefreeend.cpp)
 # The medium of a conductor: taken from the terminal it starts from, kept
 # whatever properties are applied to it, saved only when not electrical.
 qet_add_app_test(tst_conductormedium tst_conductormedium.cpp)

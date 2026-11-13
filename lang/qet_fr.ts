@@ -4267,6 +4267,18 @@ Continuer ?</translation>
 <context>
     <name>DiagramEventAddPipe</name>
     <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="286"/>
+        <source>This pipe is the line taken up: end the pipe elsewhere.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cette tuyauterie est la ligne reprise : finissez la tuyauterie ailleurs.</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="786"/>
+        <source>These two ends cannot be joined into one line.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Ces deux extrémités ne peuvent pas être réunies en une seule ligne.</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="166"/>
         <source>No free nozzle here: click nearer to a nozzle.</source>
         <comment>pipe drawing tool</comment>
@@ -4368,6 +4380,59 @@ Continuer ?</translation>
         <source>Click near a free nozzle or on a pipe (tee): start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>
         <translation>Cliquez près d&apos;un piquage libre ou sur une tuyauterie (Té) : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+    </message>
+</context>
+<context>
+    <name>PidFreeEnd</name>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="205"/>
+        <source>size %1</source>
+        <translation>taille %1</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="207"/>
+        <source>line number</source>
+        <translation>numéro de ligne</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="208"/>
+        <source>fluid</source>
+        <translation>fluide</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="209"/>
+        <source>material</source>
+        <translation>matériau</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="210"/>
+        <source>piping class</source>
+        <translation>classe de tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="211"/>
+        <source>nominal pressure</source>
+        <translation>pression nominale</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="212"/>
+        <source>flow</source>
+        <translation>débit</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="213"/>
+        <source>spool</source>
+        <translation>numéro de tronçon</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="214"/>
+        <source>external finish</source>
+        <translation>finition extérieure</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidfreeend.cpp" line="291"/>
+        <source>Lines joined: the data of the line drawn from are kept; set aside from the other one: %1.</source>
+        <translation>Lignes réunies : les données de la ligne de départ sont gardées ; écartées de l&apos;autre : %1.</translation>
     </message>
 </context>
 <context>
