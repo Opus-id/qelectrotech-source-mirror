@@ -74,6 +74,13 @@ set_tests_properties(tst_darkimagelayers PROPERTIES
   ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 target_include_directories(tst_darkimagelayers PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_darkimagelayers PRIVATE Qt::Test Qt::Widgets)
+# The frame of a selected item, deferred past the inversion of a dark sheet.
+add_executable(tst_darkselectionframe tst_darkselectionframe.cpp
+  ${QET_DIR}/sources/palettegraphicsview.cpp ${QET_DIR}/sources/palettegraphicsview.h
+  ${QET_DIR}/sources/qetpalette.cpp)
+add_test(NAME tst_darkselectionframe COMMAND tst_darkselectionframe)
+target_include_directories(tst_darkselectionframe PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_darkselectionframe PRIVATE Qt::Test Qt::Widgets)
 # MSVC's Debug libraries make QElectroTech five to eight times slower than a
 # GCC build, for which the tests' time limits were chosen. Every limit is
 # multiplied by this scale: ctest's below, and the tests' own through
@@ -222,6 +229,15 @@ if(Python3_Interpreter_FOUND AND CMAKE_GENERATOR STREQUAL "Ninja")
       --source ${CMAKE_CURRENT_SOURCE_DIR}/auto_connect_drag_probe.cpp
       --fixture ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/auto_connect_drag.qet)
   set_tests_properties(tst_autoconnectdragintegration PROPERTIES TIMEOUT ${qet_probe_ctest_timeout} RESOURCE_LOCK qet_probe_ninja
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  # A drawing aid (an interruption point): light grey on screen, never
+  # printed nor exported, hidden with View > Show, no label of its own.
+  add_test(NAME tst_drawingaidintegration
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run_drawing_aid_probe.py
+      --build ${CMAKE_BINARY_DIR} --binary $<TARGET_FILE:qelectrotech>
+      --source ${CMAKE_CURRENT_SOURCE_DIR}/drawing_aid_probe.cpp
+      --fixture ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/auto_connect.qet)
+  set_tests_properties(tst_drawingaidintegration PROPERTIES TIMEOUT ${qet_probe_ctest_timeout} RESOURCE_LOCK qet_probe_ninja
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 if(Python3_Interpreter_FOUND AND CMAKE_GENERATOR STREQUAL "Ninja")
@@ -468,6 +484,14 @@ set_tests_properties(tst_handlersize PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=off
 target_include_directories(tst_handlersize PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_handlersize PRIVATE Qt::Test Qt::Widgets)
 
+# The Add and Tape measure menus draw no radio button in front of their
+# tools; the toolbar buttons still show the tool in use.
+add_executable(tst_toolmenu tst_toolmenu.cpp)
+add_test(NAME tst_toolmenu COMMAND tst_toolmenu)
+set_tests_properties(tst_toolmenu PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+target_include_directories(tst_toolmenu PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_toolmenu PRIVATE Qt::Test Qt::Widgets)
+
 # Tests that need the application around the class they test -- a folio,
 # its view, the editor window and its actions -- link the application's own
 # code (the qelectrotech_objects library) and run a real QETApp offscreen,
@@ -518,6 +542,7 @@ target_compile_definitions(tst_linklists PRIVATE
   QET_EXAMPLES_DIR="${QET_DIR}/examples")
 # IEC 81346 plant/location: an element takes its folio's, %{structure_id} composes them.
 qet_add_app_test(tst_structureid tst_structureid.cpp)
+qet_add_app_test(tst_stripplacefrombox tst_stripplacefrombox.cpp)
 # qet_device_list: one row per reference designation, a contact with its coil.
 qet_add_app_test(tst_devicelist tst_devicelist.cpp)
 # qet_terminals: one row per terminal of a strip, in the strip's order.
@@ -606,6 +631,9 @@ qet_add_app_test(tst_conductordefcopy tst_conductordefcopy.cpp)
 # The projects of the last session are opened again at start, and the
 # ones open when the editor closes are kept for the next start.
 qet_add_app_test(tst_autoconnecthand tst_autoconnecthand.cpp)
+# Automatic connections: only a symbol's frame stops a wire, not the pixel
+# of line width around its drawing.
+qet_add_app_test(tst_autoconnectframe tst_autoconnectframe.cpp)
 # A T-junction shown as a dot: drawn, saved and undone.
 qet_add_app_test(tst_junctiondot tst_junctiondot.cpp)
 qet_add_app_test(tst_reopenprojects tst_reopenprojects.cpp)
@@ -718,7 +746,11 @@ qet_add_app_test(tst_selectionfilter tst_selectionfilter.cpp)
 # The arrow keys: the crosshair on the leftmost selected symbol's terminal
 # or a text's middle; the folio's grid step when set so.
 qet_add_app_test(tst_keyboardmovereference tst_keyboardmovereference.cpp)
+# "Pointer on the grid only while placing": off by default, the grid as before.
+qet_add_app_test(tst_pointerfreeunlessplacing tst_pointerfreeunlessplacing.cpp)
 qet_add_app_test(tst_tidyeditmenu tst_tidyeditmenu.cpp)
+# Edit > Replace the symbols: place, label and wires kept, one undo step.
+qet_add_app_test(tst_replacesymbols tst_replacesymbols.cpp)
 # Edit > Select the same symbols: the folio's symbols drawn from the
 # definition of a selected one, the rest deselected.
 qet_add_app_test(tst_selectsamesymbols tst_selectsamesymbols.cpp)
@@ -728,6 +760,11 @@ qet_add_app_test(tst_terminalcolor tst_terminalcolor.cpp)
 # The corner radius of the frame around a selected symbol: 10 as before,
 # 0 square.
 qet_add_app_test(tst_selectionframeradius tst_selectionframeradius.cpp)
+# Selected symbols framed clearly in the highlight colour, a setting.
+qet_add_app_test(tst_strongselection tst_strongselection.cpp)
+# Text grid, "Snap the middle of the text": the middle of a dragged text on
+# the grid instead of the corner of its frame; off by default.
+qet_add_app_test(tst_textgridmiddle tst_textgridmiddle.cpp)
 
 # The element editor's collections dock: an element dropped on the drawing
 # pastes its parts, centred on the drop and on the grid; double-clicked, the

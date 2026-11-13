@@ -49,6 +49,7 @@
 #include "QWidgetAnimation/qwidgetanimation.h"
 #include "autoNum/ui/autonumberingdockwidget.h"
 #include "ui/devicenavigatordockwidget.h"
+#include "ui/toolmenu.h"
 #include "conductornumexport.h"
 #include "diagramcommands.h"
 #include "diagramcontent.h"
@@ -163,6 +164,8 @@
 #include <QUrl>
 #include <algorithm>
 #include "foliogrid.h"
+#include "replacesymbols.h"
+#include "elementdialog.h"
 
 namespace {
 	/**
@@ -777,6 +780,11 @@ void QETDiagramEditor::setUpActions()
 			dv->diagram()->undoStack().push(undo);
 	});
 
+	m_replace_symbols = new QAction(QET::Icons::Element, tr("Replace the symbols..."), this);
+	m_replace_symbols->setStatusTip(tr("Replaces the selected symbols by a symbol from a collection, keeping their place, label and wires", "status bar tip"));
+	ShortcutManager::instance().registerAction(m_replace_symbols, "diagrameditor.replace_symbols", tr("Diagram editors"), QKeySequence());
+	connect(m_replace_symbols, &QAction::triggered, this, &QETDiagramEditor::replaceSelectedSymbols);
+
 		//Duplicate: copy the selection and place it at a configured,
 		//grid-step offset immediately -- no interactive follow-the-
 		//cursor step, unlike Ctrl+V above. That is deliberate (#991):
@@ -1025,6 +1033,15 @@ void QETDiagramEditor::setUpActions()
 		QSettings().setValue(TextGrid::settings_key, action->data());
 		emit QETApp::instance()->textGridChanged();
 	});
+	m_text_grid_menu->addSeparator();
+	QAction *text_middle = m_text_grid_menu->addAction(tr("Snap the middle of the text"));
+	text_middle->setToolTip(tr("Puts the middle of a moved text on the grid instead of the top "
+							   "left corner of its frame, e.g. a terminal number centred on a grid line."));
+	text_middle->setCheckable(true);
+	text_middle->setChecked(QSettings().value(TextGrid::middle_key, false).toBool());
+	connect(text_middle, &QAction::toggled, this, [](bool on) {
+		QSettings().setValue(TextGrid::middle_key, on);
+	});
 	connect(QETApp::instance(), &QETApp::textGridChanged,
 			this, &QETDiagramEditor::updateTextGridButton);
 	updateTextGridButton();
@@ -1078,7 +1095,8 @@ void QETDiagramEditor::setUpActions()
 		{ShownKinds::Shapes,          tr("Shapes")},
 		{ShownKinds::Pictures,        tr("Pictures")},
 		{ShownKinds::Tables,          tr("Tables")},
-		{ShownKinds::CrossReferences, tr("Cross-references")}};
+		{ShownKinds::CrossReferences, tr("Cross-references")},
+		{ShownKinds::DrawingAids,     tr("Drawing aids")}};
 	for (const auto &kind : kinds)
 	{
 		QAction *action = m_shown_kinds_menu->addAction(kind.second);
@@ -2276,10 +2294,14 @@ void QETDiagramEditor::setUpMenu()
 		//toolbar button has no key, so text fields, images and every drawing
 		//shape simply could not be added. m_depth_action_group below has
 		//always been in both places; this brings these into line with it.
-	m_add_item_menu = menu_edition -> addMenu(tr("&Add"));
+		//Tool menus: no radio button in front of each tool (see ToolMenu)
+	m_add_item_menu = new ToolMenu(tr("&Add"), menu_edition);
+	menu_edition -> addMenu(m_add_item_menu);
 	m_add_item_menu -> setIcon(QET::Icons::Add);
 	m_add_item_menu -> addActions(m_add_item_actions_group.actions());
-	QMenu *tape_menu = menu_edition -> addMenu(QET::Icons::DimensionLinear, tr("Tape measure"));
+	QMenu *tape_menu = new ToolMenu(tr("Tape measure"), menu_edition);
+	tape_menu -> setIcon(QET::Icons::DimensionLinear);
+	menu_edition -> addMenu(tape_menu);
 	tape_menu -> addAction(m_add_dimension_linear);
 	tape_menu -> addAction(m_add_dimension_chain);
 	menu_edition -> addSeparator();
@@ -2309,6 +2331,7 @@ void QETDiagramEditor::setUpMenu()
 	texts_menu -> addAction(m_copy_text_format);
 	texts_menu -> addAction(m_apply_text_format);
 	QMenu *symbols_menu = menu_edition -> addMenu(QET::Icons::Element, tr("Symbols"));
+	symbols_menu -> addAction(m_replace_symbols);
 	symbols_menu -> addAction(m_show_as_dot);
 	symbols_menu -> addAction(m_find_element);
 	symbols_menu -> addAction(m_contact_display);
@@ -4105,7 +4128,8 @@ void QETDiagramEditor::slot_updateComplexActions()
 			    << m_group_selection
 			    << m_ungroup_selection
 			    << m_select_same_symbols
-			    << m_show_as_dot;
+			    << m_show_as_dot
+			    << m_replace_symbols;
 		for(QAction *action : action_list)
 			action->setEnabled(false);
 		m_align_actions_group.setEnabled(false);
@@ -4131,6 +4155,7 @@ void QETDiagramEditor::slot_updateComplexActions()
 	m_apply_text_format->setEnabled(!ro && ((selected_elements_count >= 1 && ElementTextFormatPattern::hasPattern()) ||
 	                                        (selected_dimensions_count >= 1 && DimensionFormatPattern::hasPattern())));
 	m_place_texts->setEnabled(!ro && selected_elements_count >= 1);
+	m_replace_symbols->setEnabled(!ro && selected_elements_count >= 1);
 	m_select_same_symbols->setEnabled(selected_elements_count >= 1);
 	{
 		bool any = false, all = true;
@@ -6229,7 +6254,8 @@ void QETDiagramEditor::updateTextGridButton()
 	const qreal divisor = QSettings().value(TextGrid::settings_key, 1).toReal();
 	for (QAction *action : m_text_grid_menu->actions())
 	{
-		if (qFuzzyCompare(action->data().toReal() + 1, divisor + 1))
+			//The divisors only, not the middle switch below them
+		if (action->actionGroup() && qFuzzyCompare(action->data().toReal() + 1, divisor + 1))
 		{
 			action->setChecked(true);
 			m_text_grid_button->setText(tr("Texts %1").arg(action->text()));
@@ -6300,6 +6326,39 @@ void QETDiagramEditor::showSelectedAsDot(bool dot)
  * @brief QETDiagramEditor::applyTextFormat
  * Applies the stored text formatting template to all selected elements in the active diagram.
  */
+/**
+	@brief QETDiagramEditor::replaceSelectedSymbols
+	Ask for a symbol in the collections and put it in place of each
+	selected symbol, in one undo step (see ReplaceSymbols). Wires that
+	find no terminal on the new symbol are removed, and the user is told.
+*/
+void QETDiagramEditor::replaceSelectedSymbols()
+{
+	DiagramView *dv = currentDiagramView();
+	if (!dv || !dv->diagram() || dv->diagram()->isReadOnly())
+		return;
+	Diagram *diagram = dv->diagram();
+	const QList<Element *> elements = DiagramContent(diagram).m_elements;
+	if (elements.isEmpty())
+		return;
+	const ElementsLocation location = ElementDialog::getOpenElementLocation(this);
+	if (!location.isElement())
+		return;
+
+	const ReplaceSymbols::Result result = ReplaceSymbols::build(diagram, elements, location);
+	if (!result.command) {
+		if (!result.problem.isEmpty())
+			QET::QetMessageBox::information(this, tr("Replace the symbols"), result.problem);
+		return;
+	}
+	diagram->clearSelection();
+	diagram->undoStack().push(result.command);
+	if (result.lost_wires)
+		QET::QetMessageBox::information(this, tr("Replace the symbols"),
+			tr("%n wire(s) found no terminal on the new symbol and were removed. "
+			   "Undo brings them back.", "", result.lost_wires));
+}
+
 /**
 	@brief QETDiagramEditor::placeSymbolTexts
 	Place the texts of the selected symbols as one block at @a where,
