@@ -13,6 +13,7 @@
 #include "ui/configpage/pidconfigpage.h"
 
 #include <QDomDocument>
+#include <QGraphicsLineItem>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QLineEdit>
@@ -131,12 +132,13 @@ class tst_pipetool : public QObject
 	}
 
 	void mouse(QEvent::Type type, const QPointF &at, Qt::MouseButton button,
-		   Qt::MouseButtons buttons)
+		   Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers = Qt::NoModifier)
 	{
 		QGraphicsSceneMouseEvent event(type);
 		event.setScenePos(at);
 		event.setButton(button);
 		event.setButtons(buttons);
+		event.setModifiers(modifiers);
 		QCoreApplication::sendEvent(m_folio, &event);
 	}
 
@@ -144,6 +146,24 @@ class tst_pipetool : public QObject
 	{
 		mouse(QEvent::GraphicsSceneMousePress, at, button, button);
 		mouse(QEvent::GraphicsSceneMouseRelease, at, button, Qt::NoButton);
+	}
+
+		// A left click with Ctrl held
+	void ctrlClick(const QPointF &at)
+	{
+		mouse(QEvent::GraphicsSceneMousePress, at, Qt::LeftButton, Qt::LeftButton, Qt::ControlModifier);
+		mouse(QEvent::GraphicsSceneMouseRelease, at, Qt::LeftButton, Qt::NoButton, Qt::ControlModifier);
+	}
+
+		// The dashed line which shows the pipe being drawn
+	QLineF preview() const
+	{
+		for (QGraphicsItem *item : m_folio->items()) {
+			if (auto *line = qgraphicsitem_cast<QGraphicsLineItem *>(item)) {
+				if (line->zValue() >= 1000000) return line->line();
+			}
+		}
+		return QLineF();
 	}
 
 	void drag(const QPointF &from, const QPointF &to)
@@ -538,6 +558,146 @@ class tst_pipetool : public QObject
 			click(QPointF(100, m_next_y + 100));
 			QCOMPARE(m_folio->elements().size(), elements + 1);
 			QCOMPARE(from->conductors().size(), 1);
+		}
+
+			// Step 5l-1p-bis: within 10° of an axis of its start, the end
+			// snaps onto it, in the preview as at the click; not at 15°,
+			// nor with Ctrl
+		void aNearlyStraightPipeIsStraight()
+		{
+			setFreeEnd(freeEndPath());
+			QCOMPARE(DiagramEventAddPipe::axisAngle, 10.0);
+			QVERIFY(DiagramEventAddPipe::nearAxis(QPointF(), Qet::East, QPointF(200, 35)));
+			QVERIFY(!DiagramEventAddPipe::nearAxis(QPointF(), Qet::East, QPointF(200, 36)));
+			QVERIFY(!DiagramEventAddPipe::nearAxis(QPointF(), Qet::West, QPointF(200, 0)));
+			QVERIFY(DiagramEventAddPipe::nearAxis(QPointF(), Qet::North, QPointF(-20, -200)));
+
+				// horizontal, 5°
+			m_next_y += 200;
+			const QPointF a = Diagram::snapToGrid(QPointF(400, m_next_y));
+			const QPointF mouse_at = a + QPointF(200, 17);
+			const QPointF on_axis(Diagram::snapToGrid(mouse_at).x(), a.y());
+			QVERIFY(Diagram::snapToGrid(mouse_at).y() != a.y());
+			click(a);
+			QVERIFY(m_tool->startsInEmptyPlace());
+			mouse(QEvent::GraphicsSceneMouseMove, mouse_at, Qt::NoButton, Qt::NoButton);
+			QCOMPARE(preview().p2(), on_axis);
+			QCOMPARE(m_tool->endPoint(mouse_at, true), on_axis);
+			QCOMPARE(m_tool->endPoint(mouse_at, false), Diagram::snapToGrid(mouse_at));
+			click(mouse_at);
+			Element *start = freeEndAt(a), *end = freeEndAt(on_axis);
+			QVERIFY(start && end);
+				// straight: the ends face each other
+			QCOMPARE(start->terminals().first()->orientation(), Qet::East);
+			QCOMPARE(end->terminals().first()->orientation(), Qet::West);
+			QVERIFY(start->terminals().first()->isLinkedTo(end->terminals().first()));
+
+				// vertical, upward, 7°
+			m_next_y += 400;
+			const QPointF b = Diagram::snapToGrid(QPointF(400, m_next_y));
+			click(b);
+			click(b + QPointF(-30, -250));
+			const QPointF up(b.x(), Diagram::snapToGrid(b + QPointF(-30, -250)).y());
+			QVERIFY(freeEndAt(up));
+			QCOMPARE(freeEndAt(up)->terminals().first()->orientation(), Qet::South);
+
+				// 17°: on the grid only
+			m_next_y += 200;
+			const QPointF c = Diagram::snapToGrid(QPointF(400, m_next_y));
+			click(c);
+			click(c + QPointF(200, 60));
+			QVERIFY(freeEndAt(Diagram::snapToGrid(c + QPointF(200, 60))));
+
+				// Ctrl: on the grid only, the preview too
+			m_next_y += 200;
+			const QPointF d = Diagram::snapToGrid(QPointF(400, m_next_y));
+			click(d);
+			mouse(QEvent::GraphicsSceneMouseMove, d + QPointF(200, 17), Qt::NoButton, Qt::NoButton,
+				  Qt::ControlModifier);
+			QCOMPARE(preview().p2(), Diagram::snapToGrid(d + QPointF(200, 17)));
+			ctrlClick(d + QPointF(200, 17));
+			QVERIFY(freeEndAt(Diagram::snapToGrid(d + QPointF(200, 17))));
+			QVERIFY(!freeEndAt(QPointF(Diagram::snapToGrid(d + QPointF(200, 17)).x(), d.y())));
+		}
+
+			// Step 5l-1p-bis: from a nozzle, its way out only, in front
+		void fromANozzleItsWayOutOnly()
+		{
+			setFreeEnd(freeEndPath());
+			m_next_y += 200;
+			Element *s = place(m_pipe, QPointF(0, m_next_y));
+			QVERIFY(s);
+			Terminal *west = s->terminals().at(0), *east = s->terminals().at(1);
+			const QPointF e = east->dockConductor(), w = west->dockConductor();
+
+				// in front of the east nozzle: straight
+			click(nearBelow(east));
+			QCOMPARE(m_tool->startNozzle(), east);
+			click(e + QPointF(200, 17));
+			Element *end = freeEndAt(QPointF(Diagram::snapToGrid(e + QPointF(200, 17)).x(), e.y()));
+			QVERIFY(end);
+			QVERIFY(east->isLinkedTo(end->terminals().first()));
+
+				// behind the west nozzle, beyond its symbol: on the grid only
+			click(nearBelow(west));
+			QCOMPARE(m_tool->startNozzle(), west);
+			const QPointF behind = w + QPointF(400, 17);
+			click(behind);
+			QVERIFY(freeEndAt(Diagram::snapToGrid(behind)));
+			QVERIFY(west->isLinkedTo(freeEndAt(Diagram::snapToGrid(behind))->terminals().first()));
+		}
+
+			// Step 5l-1p-bis: started in an empty place nearly in front of
+			// the nozzle it ends at, the start moves onto its axis (preview
+			// too); not with Ctrl, nor onto a place which is not empty
+		void aStartInAnEmptyPlaceMovesOntoTheAxis()
+		{
+			setFreeEnd(freeEndPath());
+			m_next_y += 200;
+			Element *s = place(m_pipe, QPointF(0, m_next_y));
+			QVERIFY(s);
+			Terminal *west = s->terminals().at(0);
+			const QPointF start = Diagram::snapToGrid(QPointF(-300, m_next_y + 30));
+			const QPointF moved(start.x(), west->dockConductor().y());
+			click(start);
+			QVERIFY(m_tool->startsInEmptyPlace());
+			QCOMPARE(m_tool->startPointFor(west, true), moved);
+			QCOMPARE(m_tool->startPointFor(west, false), start);
+				// over the nozzle, the preview starts on its axis; away, back
+			mouse(QEvent::GraphicsSceneMouseMove, nearBelow(west), Qt::NoButton, Qt::NoButton);
+			QCOMPARE(preview().p1(), moved);
+			QCOMPARE(preview().p2(), west->dockConductor());
+			mouse(QEvent::GraphicsSceneMouseMove, QPointF(-150, m_next_y + 100), Qt::NoButton, Qt::NoButton);
+			QCOMPARE(preview().p1(), start);
+			click(nearBelow(west));
+			Element *free_end = freeEndAt(moved);
+			QVERIFY(free_end);
+			QCOMPARE(free_end->terminals().first()->orientation(), Qet::East);
+			QVERIFY(free_end->terminals().first()->isLinkedTo(west));
+			QVERIFY(!freeEndAt(start));
+
+				// with Ctrl, where it was clicked
+			m_next_y += 200;
+			s = place(m_pipe, QPointF(0, m_next_y));
+			QVERIFY(s);
+			west = s->terminals().at(0);
+			const QPointF start2 = Diagram::snapToGrid(QPointF(-300, m_next_y + 30));
+			click(start2);
+			ctrlClick(nearBelow(west));
+			QVERIFY(freeEndAt(start2));
+			QVERIFY(freeEndAt(start2)->terminals().first()->isLinkedTo(west));
+
+				// a symbol on the axis: the start stays
+			m_next_y += 200;
+			s = place(m_pipe, QPointF(0, m_next_y));
+			Element *in_the_way = place(m_electrical, QPointF(-300, m_next_y));
+			QVERIFY(s && in_the_way);
+			west = s->terminals().at(0);
+			const QPointF start3 = Diagram::snapToGrid(QPointF(-300, m_next_y + 30));
+			click(start3);
+			QVERIFY(m_tool->startsInEmptyPlace());
+			click(nearBelow(west));
+			QVERIFY(freeEndAt(start3));
 		}
 
 			// Step 5l-1p: the symbol of free end, a setting of the

@@ -197,19 +197,38 @@ class tst_pipetee : public QObject
 				&& c->properties().m_pipe.line_number == QStringLiteral("W01-L");
 	}
 
-	void mouse(QEvent::Type type, const QPointF &at, Qt::MouseButton button, Qt::MouseButtons buttons)
+	void mouse(QEvent::Type type, const QPointF &at, Qt::MouseButton button, Qt::MouseButtons buttons,
+			   Qt::KeyboardModifiers modifiers = Qt::NoModifier)
 	{
 		QGraphicsSceneMouseEvent event(type);
 		event.setScenePos(at);
 		event.setButton(button);
 		event.setButtons(buttons);
+		event.setModifiers(modifiers);
 		QCoreApplication::sendEvent(m_folio, &event);
 	}
 
-	void click(const QPointF &at)
+	void click(const QPointF &at, Qt::KeyboardModifiers modifiers = Qt::NoModifier)
 	{
-		mouse(QEvent::GraphicsSceneMousePress, at, Qt::LeftButton, Qt::LeftButton);
-		mouse(QEvent::GraphicsSceneMouseRelease, at, Qt::LeftButton, Qt::NoButton);
+		mouse(QEvent::GraphicsSceneMousePress, at, Qt::LeftButton, Qt::LeftButton, modifiers);
+		mouse(QEvent::GraphicsSceneMouseRelease, at, Qt::LeftButton, Qt::NoButton, modifiers);
+	}
+
+		// Where the ways of @p tee meet: between its two facing nozzles
+	static QPointF middleOf(Element *tee)
+	{
+		return (nozzle(tee, "N1")->dockConductor() + nozzle(tee, "N2")->dockConductor()) / 2;
+	}
+
+		// The elements added since @p before: the tee and the free end
+	void addedTeeAndFreeEnd(const QSet<Element *> &before, Element **tee, Element **free_end) const
+	{
+		*tee = *free_end = nullptr;
+		QSet<Element *> now = elements();
+		now.subtract(before);
+		for (Element *element : std::as_const(now)) {
+			(element->isFreeEnd() ? *free_end : *tee) = element;
+		}
 	}
 
 		// Outside the tool: the mouse pressed on @p from, released at @p at
@@ -622,6 +641,63 @@ class tst_pipetee : public QObject
 			QCOMPARE(m_folio->undoStack().index(), steps + 1);
 			m_folio->undoStack().undo();
 			QCOMPARE(elements(), before);
+		}
+
+			// Step 5l-1p-bis: from a tee, an end nearly in the axis of its
+			// way out snaps onto it
+		void fromATeeTheAxisOfItsWayOut()
+		{
+			setToolSymbol(PidCodification::freeEndRole(), path("freeend.elmt"));
+			const Line l = line();
+			const QSet<Element *> before = elements();
+			startTool();
+			click(QPointF(200, l.y));
+			QVERIFY(m_tool->startsOnPipe());
+			const QPointF at(218, l.y + 200);
+			click(at);
+			Element *tee = nullptr, *free_end = nullptr;
+			addedTeeAndFreeEnd(before, &tee, &free_end);
+			QVERIFY(tee && free_end);
+			QCOMPARE(middleOf(tee), QPointF(200, l.y));
+			QCOMPARE(nozzle(tee, "N3")->orientation(), Qet::South);
+				// right below the tee, on the grid along the axis
+			QCOMPARE(free_end->terminals().first()->dockConductor(),
+					 QPointF(200, Diagram::snapToGrid(at).y()));
+			QCOMPARE(free_end->terminals().first()->orientation(), Qet::North);
+		}
+
+			// Step 5l-1p-bis: from an empty place to a pipe nearly in front,
+			// the tee goes right in front of the start; not with Ctrl
+		void aTeeGoesInFrontOfTheStart()
+		{
+			setToolSymbol(PidCodification::freeEndRole(), path("freeend.elmt"));
+			startTool();
+			for (const bool ctrl : {false, true})
+			{
+				const Line l = line();
+				const QSet<Element *> before = elements();
+				const QPointF start(200, l.y + 200);
+				click(start);
+				QVERIFY(m_tool->startsInEmptyPlace());
+				click(QPointF(220, l.y + 1), ctrl ? Qt::ControlModifier : Qt::NoModifier);
+				Element *tee = nullptr, *free_end = nullptr;
+				addedTeeAndFreeEnd(before, &tee, &free_end);
+				QVERIFY(tee && free_end);
+				QCOMPARE(middleOf(tee), QPointF(ctrl ? 220 : 200, l.y));
+				QCOMPARE(nozzle(tee, "N3")->orientation(), Qet::South);
+				QCOMPARE(free_end->terminals().first()->dockConductor(), start);
+				QVERIFY(joins(pipeOn(nozzle(tee, "N3")), nozzle(tee, "N3"), free_end->terminals().first()));
+			}
+				// from a nozzle which leaves away from the pipe: where clicked
+			const Line l = line();
+			Element *c = place(m_pipe, QPointF(200, l.y + 200));
+			const QSet<Element *> before = elements();
+			click(nozzle(c, "N2")->dockConductor() + QPointF(5, 5));
+			QCOMPARE(m_tool->startNozzle(), nozzle(c, "N2"));
+			click(QPointF(230, l.y + 1));
+			Element *tee = added(before);
+			QVERIFY(tee);
+			QCOMPARE(middleOf(tee), QPointF(230, l.y));
 		}
 
 			// Step 5l-1q: the symbol of tee, a setting of the presentation

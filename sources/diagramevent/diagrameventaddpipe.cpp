@@ -39,10 +39,18 @@
 #include <QTimer>
 #include <QToolTip>
 #include <QUndoStack>
+#include <QtMath>
 
 namespace {
 		///Radius of the mark of a free nozzle, in pixels of the screen
 	const qreal mark_radius = 6.0;
+
+		///Ctrl held: the pipe goes where the mouse is, on the grid, without
+		///snapping to the axis of its start (as the grid of the other tools)
+	bool snaps(const QGraphicsSceneMouseEvent *event)
+	{
+		return !(event->modifiers() & Qt::ControlModifier);
+	}
 }
 
 /**
@@ -218,10 +226,10 @@ void DiagramEventAddPipe::mousePressEvent(QGraphicsSceneMouseEvent *event)
 
 	const qreal radius = Terminal::magnetSceneRadius(event);
 	const QPointF pos = event->scenePos();
+	const bool snap = snaps(event);
 		//A click in an empty place starts or ends the pipe on a free end
 		//only when the project has a symbol for it
-	const bool free_end = m_diagram->project()
-			&& !m_diagram->project()->pidCodification().toolSymbol(PidCodification::freeEndRole()).isEmpty();
+	const bool free_end = hasFreeEndSymbol();
 		//A click on a pipe starts or ends the pipe on a tee there, when the
 		//project has a symbol of tee; a click on a wire or a signal line
 		//says why not
@@ -252,24 +260,25 @@ void DiagramEventAddPipe::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	Terminal *near = freeNozzleNear(m_diagram, pos, radius);
 	Terminal *target = m_start ? m_start->magnetTarget(pos, radius) : near;
 	if (target) {
-		finishAt(target);
+		finishAt(target, snap);
 	} else if (m_start && near == m_start) {
 			//On the nozzle it starts from: nothing
 	} else if (spot.pipe && !spot.isValid()) {
 		refuse(event, spot.refusal);
 	} else if (spot.pipe) {
 			//Two tees on one pipe keep their distance
-		const QString clash = m_start_tee ? PidTee::clash(m_start_spot, spot, teeArm()) : QString();
+		const PidTee::Spot end_spot = spotFacingStart(spot, snap);
+		const QString clash = m_start_tee ? PidTee::clash(m_start_spot, end_spot, teeArm()) : QString();
 		if (clash.isEmpty()) {
-			finishOnPipe(spot);
+			finishOnPipe(end_spot);
 		} else {
 			refuse(event, clash);
 		}
 	} else if (!free_end) {
 		showHint(tr("No free nozzle of another symbol here: the pipe waits for "
 					"its end. Right click or Esc: cancel.", "pipe drawing tool"));
-	} else if (isEmptyPlace(pos)) {
-		finishAtPoint(pos);
+	} else if (isEmptyPlace(pos) && isEmptyPlace(endPoint(pos, snap))) {
+		finishAtPoint(endPoint(pos, snap));
 	} else {
 		showHint(tr("No free nozzle of another symbol here, nor an empty place: the pipe "
 					"waits for its end. Right click or Esc: cancel.", "pipe drawing tool"));
@@ -356,6 +365,116 @@ Qet::Orientation DiagramEventAddPipe::dominantFacing(const QPointF &from, const 
 }
 
 /**
+	@brief DiagramEventAddPipe::nearAxis
+	See the declaration
+*/
+bool DiagramEventAddPipe::nearAxis(const QPointF &from, Qet::Orientation facing, const QPointF &to)
+{
+	static const qreal slope = qTan(qDegreesToRadians(axisAngle));
+	const QPointF d = to - from;
+	qreal ahead = 0, aside = 0;
+	switch (facing) {
+		case Qet::East:  ahead =  d.x(); aside = d.y(); break;
+		case Qet::West:  ahead = -d.x(); aside = d.y(); break;
+		case Qet::South: ahead =  d.y(); aside = d.x(); break;
+		case Qet::North: ahead = -d.y(); aside = d.x(); break;
+	}
+	return ahead > 0 && qAbs(aside) <= ahead * slope;
+}
+
+/**
+	@brief DiagramEventAddPipe::endPoint
+	See the declaration
+*/
+QPointF DiagramEventAddPipe::endPoint(const QPointF &scene_pos, bool snap) const
+{
+	const QPointF grid = Diagram::snapToGrid(scene_pos);
+	if (!snap || !hasStart()) return grid;
+
+	const QPointF from = startScenePoint();
+		//A nozzle or a tee: its way out, in front; an empty place: both
+		//axes, both ways
+	QList<Qet::Orientation> ways;
+	if (m_start) {
+		ways << m_start->orientation();
+	} else if (m_start_tee) {
+		ways << PidTee::branchFacing(m_start_spot, scene_pos);
+	} else {
+		ways << Qet::North << Qet::East << Qet::South << Qet::West;
+	}
+	for (const Qet::Orientation way : std::as_const(ways))
+	{
+		if (nearAxis(from, way, scene_pos)) {
+				//Exactly on the axis, on the grid along it
+			return Qet::isHorizontal(way) ? QPointF(grid.x(), from.y())
+										  : QPointF(from.x(), grid.y());
+		}
+	}
+	return grid;
+}
+
+/**
+	@brief DiagramEventAddPipe::startPointFor
+	See the declaration
+*/
+QPointF DiagramEventAddPipe::startPointFor(const Terminal *target, bool snap) const
+{
+	if (!m_start_free || !target || !snap) return m_start_point;
+	const QPointF dock = target->dockConductor();
+	const Qet::Orientation way = target->orientation();
+	if (!nearAxis(dock, way, m_start_point)) return m_start_point;
+	const QPointF aligned = Qet::isHorizontal(way) ? QPointF(m_start_point.x(), dock.y())
+												   : QPointF(dock.x(), m_start_point.y());
+		//Nothing is placed yet: the start may move, onto an empty place only
+	return isEmptyPlace(aligned) ? aligned : m_start_point;
+}
+
+/**
+	@brief DiagramEventAddPipe::spotFacingStart
+	@return @p spot, or the spot of its pipe right in front of the start of
+	the pipe being drawn, when the start lies nearly in front of @p spot
+	(within axisAngle) and, for a nozzle or a tee, leaves toward it; not at
+	a bend, nor when @p snap is false (Ctrl)
+*/
+PidTee::Spot DiagramEventAddPipe::spotFacingStart(const PidTee::Spot &spot, bool snap)
+{
+	if (!snap || !hasStart() || !spot.isValid() || spot.corner) return spot;
+
+	const QPointF from = startScenePoint();
+	const bool along_x = Qet::isHorizontal(spot.forward);
+		//The way from the spot to the start, across the pipe
+	const Qet::Orientation to_start = along_x
+			? (from.y() < spot.point.y() ? Qet::North : Qet::South)
+			: (from.x() < spot.point.x() ? Qet::West : Qet::East);
+	if (!nearAxis(spot.point, to_start, from)) return spot;
+
+		//A nozzle or a tee at the start must leave toward the spot
+	const auto toward_spot = Qet::Orientation((int(to_start) + 2) % 4);
+	if (m_start && m_start->orientation() != toward_spot) return spot;
+	if (m_start_tee && PidTee::branchFacing(m_start_spot, spot.point) != toward_spot) return spot;
+
+	const QPointF facing = along_x ? QPointF(from.x(), spot.point.y())
+								   : QPointF(spot.point.x(), from.y());
+	const PidTee::Spot moved = PidTee::spotOn(spot.pipe, facing, teeArm());
+		//Kept only right in front, on the same straight part
+	if (!moved.isValid() || moved.corner || QLineF(moved.point, facing).length() > 0.5) {
+		return spot;
+	}
+	return moved;
+}
+
+/**
+	@brief DiagramEventAddPipe::hasFreeEndSymbol
+	@return true when the project has a symbol of free end set: a click in
+	an empty place may start or end a pipe
+*/
+bool DiagramEventAddPipe::hasFreeEndSymbol() const
+{
+	return m_diagram && m_diagram->project()
+			&& !m_diagram->project()->pidCodification().toolSymbol(PidCodification::freeEndRole()).isEmpty();
+}
+
+/**
 	@brief DiagramEventAddPipe::startAtPoint
 	Start the pipe in an empty place, at the point of the grid nearest to
 	@p scene_pos: nothing is placed until it ends
@@ -379,12 +498,10 @@ void DiagramEventAddPipe::startAtPoint(const QPointF &scene_pos)
 
 /**
 	@brief DiagramEventAddPipe::finishAtPoint
-	End the pipe in an empty place, at the point of the grid nearest to
-	@p scene_pos
+	End the pipe in an empty place, at @p end, as endPoint() gives it
 */
-void DiagramEventAddPipe::finishAtPoint(const QPointF &scene_pos)
+void DiagramEventAddPipe::finishAtPoint(const QPointF &end)
 {
-	const QPointF end = Diagram::snapToGrid(scene_pos);
 	if (QLineF(startScenePoint(), end).length() < 0.5) {
 		showHint(tr("Too short: the pipe would end where it starts. Right click or Esc: cancel.",
 					"pipe drawing tool"));
@@ -642,15 +759,25 @@ void DiagramEventAddPipe::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 		return;
 	}
 
+	const bool snap = snaps(event);
 	Terminal *target = m_start ? m_start->magnetTarget(event->scenePos(), radius)
 							   : freeNozzleNear(m_diagram, event->scenePos(), radius);
-	QPointF stop = target ? target->dockConductor() : event->scenePos();
+		//Started in an empty place: moved onto the axis of the nozzle
+		//which would catch the pipe, back when it no longer would
+	if (m_start_free) {
+		m_diagram->setConductorStart(startPointFor(target, snap));
+	}
+		//The preview ends exactly where a click would end the pipe
+	QPointF stop = target ? target->dockConductor()
+						  : (hasFreeEndSymbol() ? endPoint(event->scenePos(), snap)
+												: event->scenePos());
 		//Over a pipe, the preview ends where the tee would go
 	if (!target && PidTee::isSet(m_diagram) && teeArm() > 0)
 	{
 		Conductor *pipe = PidTee::conductorAt(m_diagram, event->scenePos());
 		if (pipe && pipe->medium() == TerminalData::Pipe) {
-			const PidTee::Spot spot = PidTee::spotOn(pipe, event->scenePos(), teeArm());
+			const PidTee::Spot spot = spotFacingStart(
+						PidTee::spotOn(pipe, event->scenePos(), teeArm()), snap);
 			if (spot.isValid()) stop = spot.point;
 		}
 	}
@@ -675,7 +802,7 @@ void DiagramEventAddPipe::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 	Terminal *target = m_start ? m_start->magnetTarget(event->scenePos(), radius)
 							   : freeNozzleNear(m_diagram, event->scenePos(), radius);
 	if (target) {
-		finishAt(target);
+		finishAt(target, snaps(event));
 		return;
 	}
 		//A drag from a nozzle released on a pipe: a tee there, as the
@@ -684,7 +811,7 @@ void DiagramEventAddPipe::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 	{
 		const PidTee::Spot spot = PidTee::spotAt(m_diagram, event->scenePos());
 		if (spot.isValid()) {
-			finishOnPipe(spot);
+			finishOnPipe(spotFacingStart(spot, snaps(event)));
 		}
 	}
 }
@@ -710,12 +837,13 @@ void DiagramEventAddPipe::keyPressEvent(QKeyEvent *event)
 	The pipe from the start nozzle to @p target, in one undo step; the tool
 	then waits for the next one.
 	@param target
+	@param snap : false with Ctrl: a start in an empty place stays where it is
 */
-void DiagramEventAddPipe::finishAt(Terminal *target)
+void DiagramEventAddPipe::finishAt(Terminal *target, bool snap)
 {
 	Terminal *start = m_start;
 	const bool start_free = m_start_free;
-	const QPointF start_point = m_start_point;
+	const QPointF start_point = startPointFor(target, snap);
 	const bool start_tee = m_start_tee && m_start_spot.pipe;
 	const PidTee::Spot start_spot = start_tee ? m_start_spot : PidTee::Spot();
 	reset();
@@ -817,19 +945,19 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 	auto *editor = QETApp::diagramEditorAncestorOf(m_diagram->views().constFirst());
 	if (!editor) return;
 
-	const bool free_end = m_diagram->project()
-			&& !m_diagram->project()->pidCodification().toolSymbol(PidCodification::freeEndRole()).isEmpty();
+	const bool free_end = hasFreeEndSymbol();
 	const bool tee = PidTee::isSet(m_diagram);
 	if (!message.isEmpty()) {
 		editor->statusBar()->showMessage(message);
 	} else if (hasStart() && tee && free_end) {
 		editor->statusBar()->showMessage(tr(
 			"Click or release near another free nozzle, click on a pipe (tee) or in an empty "
-			"place: end the pipe; right click or Esc: cancel", "pipe drawing tool"));
+			"place: end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel",
+			"pipe drawing tool"));
 	} else if (hasStart() && tee) {
 		editor->statusBar()->showMessage(tr(
 			"Click or release near another free nozzle, or click on a pipe (tee): end the "
-			"pipe; right click or Esc: cancel", "pipe drawing tool"));
+			"pipe; Ctrl: no snapping to the axis; right click or Esc: cancel", "pipe drawing tool"));
 	} else if (!hasStart() && tee && free_end) {
 		editor->statusBar()->showMessage(tr(
 			"Click near a free nozzle, on a pipe (tee) or in an empty place: start a pipe; "
@@ -841,7 +969,8 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 	} else if (hasStart() && free_end) {
 		editor->statusBar()->showMessage(tr(
 			"Click or release near another free nozzle, or click in an empty place: end "
-			"the pipe; right click or Esc: cancel", "pipe drawing tool"));
+			"the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel",
+			"pipe drawing tool"));
 	} else if (hasStart()) {
 		editor->statusBar()->showMessage(tr(
 			"Click or release near another free nozzle: end the pipe; "

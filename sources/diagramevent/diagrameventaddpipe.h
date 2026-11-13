@@ -55,6 +55,12 @@ class QGraphicsItem;
 	When the project has a symbol of tee, a click on a pipe starts or ends
 	the pipe there, on a tee (PidTee): the pipe is cut through it at the
 	end, in the same undo step.
+
+	After the first click, an end nearly in the axis of the start (within
+	axisAngle) snaps onto it, in the preview as at the click: no small
+	bends for a pipe meant straight. A start in an empty place moves onto
+	the axis of a nozzle nearly in front of it; a tee at the end goes right
+	in front of the start. Ctrl held: no snapping, the grid only.
 */
 class DiagramEventAddPipe : public DiagramEventInterface
 {
@@ -111,14 +117,33 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// is longer
 		static Qet::Orientation dominantFacing(const QPointF &from, const QPointF &to);
 
+			/// Within this angle of an axis of its start, in degrees, the end
+			/// of the pipe being drawn snaps onto it (5l-1p-bis)
+		static constexpr qreal axisAngle = 10.0;
+			/// Whether @p to lies in front of @p from along @p facing, within
+			/// axisAngle of that axis
+		static bool nearAxis(const QPointF &from, Qet::Orientation facing, const QPointF &to);
+			/// Where the pipe being drawn ends, in an empty place, for the
+			/// mouse at @p scene_pos: on the grid; exactly on the axis of its
+			/// start when nearly on it (a nozzle or a tee: its way out, in
+			/// front; an empty place: both axes), unless @p snap is false (Ctrl)
+		QPointF endPoint(const QPointF &scene_pos, bool snap) const;
+			/// Where the pipe being drawn starts when it ends at @p target:
+			/// started in an empty place nearly in front of @p target, moved
+			/// onto its axis when that place is empty too; unless @p snap is
+			/// false (Ctrl). Nothing is placed before the end.
+		QPointF startPointFor(const Terminal *target, bool snap) const;
+
 	private:
 		void reset();
 		void refreshMarks();
 		void clearMarks();
 		void hover(Terminal *terminal, const QColor &color);
-		void finishAt(Terminal *target);
+		void finishAt(Terminal *target, bool snap = true);
 		void startAtPoint(const QPointF &scene_pos);
-		void finishAtPoint(const QPointF &scene_pos);
+		void finishAtPoint(const QPointF &end);
+		PidTee::Spot spotFacingStart(const PidTee::Spot &spot, bool snap);
+		bool hasFreeEndSymbol() const;
 		void startOnPipe(const PidTee::Spot &spot);
 		void finishOnPipe(const PidTee::Spot &spot);
 		void drawPipe(Terminal *start, const QPointF &start_point, const PidTee::Spot &start_spot,
