@@ -760,6 +760,23 @@ void Terminal::mousePressEvent(QGraphicsSceneMouseEvent *e)
 	}
 }
 
+namespace {
+	/**
+		@return the topmost terminal at @p pos of @p diagram, or nullptr.
+		A wire ending on a terminal is drawn over it, so the topmost item
+		there is often that wire, not the terminal.
+	*/
+	Terminal *terminalUnder(Diagram *diagram, const QPointF &pos)
+	{
+		const QList<QGraphicsItem *> items = diagram->items(pos);
+		for (QGraphicsItem *item : items) {
+			if (auto *terminal = qgraphicsitem_cast<Terminal *>(item))
+				return terminal;
+		}
+		return nullptr;
+	}
+}
+
 /**
 	@brief Terminal::mouseMoveEvent
 	Gere le fait qu'on bouge la souris sur la Borne.
@@ -794,10 +811,10 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 	*/
 	Q_ASSERT_X(!(qgis.isEmpty()), "Terminal::mouseMoveEvent", "La liste d'items ne devrait pas etre vide");
 
-	// sinon on prend le deuxieme element de la liste et on verifie s'il s'agit d'une borne
-	Terminal *other_terminal = qgis.size() > 1
-			? qgraphicsitem_cast<Terminal *>(qgis.at(1))
-			: nullptr;
+		//The first terminal under the pointer, even under the end of a
+		//wire already on it: the wire is drawn over the terminal
+	Terminal *other_terminal = qgis.size() > 1 ? terminalUnder(diag, e->scenePos())
+											   : nullptr;
 	if (!other_terminal)
 	{
 			//Not on a terminal: a pipe is caught by a free nozzle nearby,
@@ -838,9 +855,9 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 	//Stop conductor preview
 	diagram() -> setConductor(false);
 
-	//Get item under cursor: it must be a terminal
-	QGraphicsItem *qgi = diagram() -> itemAt(e -> scenePos(), QTransform());
-	Terminal *other_terminal = qgi ? qgraphicsitem_cast<Terminal *>(qgi) : nullptr;
+		//The terminal under the cursor, even when the end of a wire
+		//already on it is drawn over it
+	Terminal *other_terminal = terminalUnder(diagram(), e->scenePos());
 		//else a pipe is caught by a free nozzle nearby (magnetTarget())
 	if (!other_terminal) {
 		other_terminal = magnetTarget(e->scenePos(), magnetSceneRadius(e));
