@@ -776,6 +776,48 @@ class tst_connectionmark : public QObject
 			QCOMPARE(firstRun(wire), 10.0);
 		}
 
+		void theDefaultRouteIsThePathOfANewConductor()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			drawFlanges(project);
+			Element *a = place(project, folio, QPointF(200, 200));
+			Element *b = place(project, folio, QPointF(300, 300));
+			QVERIFY(a && b);
+			auto pathOf = [](const QList<QPointF> &points) {
+				QPainterPath path;
+				path.moveTo(points.constFirst());
+				for (int i = 1; i < points.size(); ++i) path.lineTo(points.at(i));
+				return path;
+			};
+			auto routeOf = [](const Terminal *t1, const Terminal *t2, qreal exit_room) {
+				return Conductor::defaultRoute(t1->dockConductor(), t1->orientation(),
+											   t2->dockConductor(), t2->orientation(), exit_room);
+			};
+				// a pipe, every pair of nozzles, both ways, and on one line
+			for (const QPointF &pos : {QPointF(300, 300), QPointF(300, 200), QPointF(120, 260)}) {
+				b->setPos(pos);
+				for (const QString &n1 : {QStringLiteral("N1"), QStringLiteral("N2")}) {
+					for (const QString &n2 : {QStringLiteral("N1"), QStringLiteral("N2")}) {
+						Terminal *t1 = terminal(a, n1);
+						Terminal *t2 = terminal(b, n2);
+						auto *pipe = new Conductor(t1, t2);
+						folio->addItem(pipe);
+						QCOMPARE(pipe->medium(), TerminalData::Pipe);
+						QCOMPARE(pipe->path(), pathOf(routeOf(t1, t2, PipeConnection::pipeExit)));
+						folio->removeItem(pipe);
+						delete pipe;
+					}
+				}
+			}
+				// an electrical wire: no exit room
+			Terminal *e1 = terminal(a, QStringLiteral("E1"));
+			Terminal *e2 = terminal(b, QStringLiteral("E1"));
+			auto *wire = new Conductor(e1, e2);
+			folio->addItem(wire);
+			QCOMPARE(wire->path(), pathOf(routeOf(e1, e2, 0)));
+		}
+
 		void twoSymbolsAgainstEachOtherDrawNothingBetweenThem()
 		{
 			QETProject project;

@@ -520,23 +520,31 @@ QHash<ConductorSegmentProfile *, qreal> Conductor::shareOffsetBetweenSegments(
 	@param o2 Orientation de la borne 2
 */
 void Conductor::generateConductorPath(const QPointF &p1, Qet::Orientation o1, const QPointF &p2, Qet::Orientation o2) {
-	QPointF sp1, sp2, depart, newp1, newp2, arrivee, depart0, arrivee0;
+	// mappe les points par rapport a la scene
+	pointsToSegments(defaultRoute(mapFromScene(p1), o1, mapFromScene(p2), o2, exitRoom()));
+	segmentsToPath();
+}
+
+/**
+	@brief Conductor::defaultRoute
+	See the declaration. @p sp1 and @p sp2 are in the frame the points are
+	given back in (the frame of the conductor for generateConductorPath()).
+*/
+QList<QPointF> Conductor::defaultRoute(const QPointF &sp1, Qet::Orientation o1,
+									   const QPointF &sp2, Qet::Orientation o2,
+									   qreal exit_room)
+{
+	QPointF depart, newp1, newp2, arrivee, depart0, arrivee0;
 	Qet::Orientation ori_depart, ori_arrivee;
 
 	// s'assure qu'il n'y a ni points
 	QList<QPointF> points;
 
-	// mappe les points par rapport a la scene
-	sp1 = mapFromScene(p1);
-	sp2 = mapFromScene(p2);
-
 		//A pipe between two nozzles facing each other on one line goes
 		//straight, however short; between two nozzles on one point (symbols
 		//placed against each other) it has no length: no loop out and back
-	if (exitRoom() > 0 && (QLineF(sp1, sp2).length() < 0.5 || facesOnOneLine(sp1, o1, sp2, o2))) {
-		pointsToSegments({sp1, sp2});
-		segmentsToPath();
-		return;
+	if (exit_room > 0 && (QLineF(sp1, sp2).length() < 0.5 || facesOnOneLine(sp1, o1, sp2, o2))) {
+		return {sp1, sp2};
 	}
 
 	// prolonge les bornes
@@ -547,8 +555,8 @@ void Conductor::generateConductorPath(const QPointF &p1, Qet::Orientation o1, co
 		//same route for the same symbols (straight between two nozzles
 		//facing each other, above). A segment moved by hand never shortens
 		//this first one.
-	newp1 = extendTerminalBeyond(sp1, o1, exitRoom(), newp1);
-	newp2 = extendTerminalBeyond(sp2, o2, exitRoom(), newp2);
+	newp1 = extendTerminalBeyond(sp1, o1, exit_room, newp1);
+	newp2 = extendTerminalBeyond(sp2, o2, exit_room, newp2);
 
 	// distingue le depart de l'arrivee : le trajet se fait toujours de gauche a droite (apres prolongation)
 	if (newp1.x() <= newp2.x()) {
@@ -668,8 +676,7 @@ void Conductor::generateConductorPath(const QPointF &p1, Qet::Orientation o1, co
 		points = points2;
 	}
 
-	pointsToSegments(points);
-	segmentsToPath();
+	return points;
 }
 
 /**

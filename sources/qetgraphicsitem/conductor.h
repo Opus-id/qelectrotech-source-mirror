@@ -121,6 +121,14 @@ class Conductor : public QGraphicsObject
 			/// nozzle: after the part it brings, at the mark of a connection
 			/// drawn beyond the nozzle of a valve, else 0
 		qreal pipeStartAt(const Terminal *terminal) const;
+			/// The points of the path a conductor takes by itself from the
+			/// terminal at @p p1 facing @p o1 to the terminal at @p p2 facing
+			/// @p o2, leaving each straight for @p exit_room at least (see
+			/// exitRoom()): what a new conductor draws, and what the pipe
+			/// drawing tool shows before the pipe is placed
+		static QList<QPointF> defaultRoute(const QPointF &p1, Qet::Orientation o1,
+										   const QPointF &p2, Qet::Orientation o2,
+										   qreal exit_room);
 		qreal length() const;
 		ConductorSegment *middleSegment();
 		QPointF posForText(Qt::Orientations &flag);
