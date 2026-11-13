@@ -117,7 +117,7 @@ class tst_pendingelement : public QObject
 		}
 
 			//"Create similar" is a command of the editor with its own
-			//shortcut, Ctrl+Alt+D, usable when one symbol is selected
+			//shortcut, C then S, usable when one symbol is selected
 		void createSimilarHasAShortcut()
 		{
 			QETDiagramEditor *editor = QetAppTest::editor();
@@ -136,7 +136,8 @@ class tst_pendingelement : public QObject
 
 			QAction *action = editor->findChild<QAction *>(QStringLiteral("createSimilar"));
 			QVERIFY(action);
-			QCOMPARE(action->shortcut(), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_D));
+			QCOMPARE(action->shortcut(), QKeySequence(Qt::Key_C, Qt::Key_S));
+			QCOMPARE(action->shortcut().toString(QKeySequence::PortableText), QStringLiteral("C, S"));
 
 				//nothing selected, then two symbols: nothing to copy
 			diagram->clearSelection();

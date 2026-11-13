@@ -837,7 +837,7 @@ void QETDiagramEditor::setUpActions()
 		//mouse. Beside Duplicate in the Edit menu and the context menu.
 	m_create_similar = new QAction(tr("Create similar", "context menu action"), this);
 	m_create_similar->setObjectName(QStringLiteral("createSimilar"));
-	ShortcutManager::instance().registerAction(m_create_similar, "diagrameditor.create_similar", tr("Diagram editors"), Qt::CTRL | Qt::ALT | Qt::Key_D);
+	ShortcutManager::instance().registerAction(m_create_similar, "diagrameditor.create_similar", tr("Diagram editors"), QKeySequence(Qt::Key_C, Qt::Key_S));
 	m_create_similar->setStatusTip(tr("Place another copy of the selected symbol, with the same options and status, and the next P&ID tag"));
 	connect(m_create_similar, &QAction::triggered, this, [this]() {
 		if (DiagramView *dv = currentDiagramView()) {

@@ -256,7 +256,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_copy,                    ///< Copy selection to clipboard
 		*m_paste_element_info,      ///< Copy the information of the copied element onto the selected elements (#1375)
 		*m_insert_last_element = nullptr, ///< Place the last placed element again
-		*m_create_similar = nullptr,	///< Place another copy of the selected symbol, at the mouse (Ctrl+Alt+D)
+		*m_create_similar = nullptr,	///< Place another copy of the selected symbol, at the mouse (C, S)
 		*m_copy_text_format = nullptr,  ///< Copy label/text formatting template
 		*m_apply_text_format = nullptr, ///< Apply label/text formatting template
 		*m_place_texts = nullptr,	///< Place the texts of the selected symbols at one of nine points
