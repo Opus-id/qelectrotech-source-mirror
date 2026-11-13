@@ -4372,13 +4372,13 @@ Continuer ?</translation>
     </message>
     <message>
         <location filename="../sources/pidtee.cpp" line="235"/>
-        <source>No room for a tee at this bend: it would come too near a nozzle (5 mm at least) or another bend.</source>
-        <translation>Pas de place pour un Té à ce coude : il viendrait trop près d&apos;un piquage (5 mm au moins) ou d&apos;un autre coude.</translation>
+        <source>No room for a tee at this bend: it would come too near a nozzle (2.5 mm at least) or another bend.</source>
+        <translation>Pas de place pour un Té à ce coude : il viendrait trop près d&apos;un piquage (2,5 mm au moins) ou d&apos;un autre coude.</translation>
     </message>
     <message>
         <location filename="../sources/pidtee.cpp" line="262"/>
-        <source>Too near a nozzle: a tee keeps 5 mm at least from the nozzles. Click further from it.</source>
-        <translation>Trop près d&apos;un piquage : un Té reste à 5 mm au moins des piquages. Cliquez plus loin.</translation>
+        <source>Too near a nozzle: a tee keeps 2.5 mm at least from the nozzles. Click further from it.</source>
+        <translation>Trop près d&apos;un piquage : un Té reste à 2,5 mm au moins des piquages. Cliquez plus loin.</translation>
     </message>
     <message>
         <location filename="../sources/pidtee.cpp" line="310"/>
@@ -4393,8 +4393,8 @@ Continuer ?</translation>
     </message>
     <message>
         <location filename="../sources/pidtee.cpp" line="355"/>
-        <source>Too near the other tee on this pipe: two tees keep 5 mm at least between them.</source>
-        <translation>Trop près de l&apos;autre Té sur cette tuyauterie : deux Tés restent à 5 mm au moins l&apos;un de l&apos;autre.</translation>
+        <source>Too near the other tee on this pipe: two tees keep 2.5 mm at least between them.</source>
+        <translation>Trop près de l&apos;autre Té sur cette tuyauterie : deux Tés restent à 2,5 mm au moins l&apos;un de l&apos;autre.</translation>
     </message>
     <message>
         <location filename="../sources/pidtee.cpp" line="460"/>

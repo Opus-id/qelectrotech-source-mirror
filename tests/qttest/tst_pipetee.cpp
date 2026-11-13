@@ -26,7 +26,7 @@
 // tee (symbol of the project) sits on the grid along the line, exactly on
 // it, its way out toward the new pipe; near a bend it takes the place of
 // the bend. The pipe is cut through it only, the pieces keeping its data
-// and its way; all in one undo step. Refused: too near a nozzle (5 mm),
+// and its way; all in one undo step. Refused: too near a nozzle (2.5 mm),
 // two tees too near on one pipe, a wire or a signal line, a symbol of tee
 // which is not one, a nozzle already connected.
 class tst_pipetee : public QObject
@@ -317,18 +317,22 @@ class tst_pipetee : public QObject
 			QCOMPARE(PidTee::branchFacing(spot, QPointF(-100, m_next_y)), Qet::West);
 		}
 
-			// 5 mm at least from a nozzle; two tees on one pipe too
+			// 2.5 mm at least from a nozzle (13/11, after 5 mm at the first
+			// trial); two tees on one pipe too
 		void aTeeKeepsItsDistance()
 		{
+			QCOMPARE(PidTee::nozzle_room, 10.0);
 			const Line l = line();
-				// the pipe starts at x = 10: 20 of arm and 20 of room
-			QVERIFY(!PidTee::spotOn(l.pipe, QPointF(40, l.y), 20).isValid());
-			QVERIFY(!PidTee::spotOn(l.pipe, QPointF(40, l.y), 20).refusal.isEmpty());
-			QVERIFY(PidTee::spotOn(l.pipe, QPointF(60, l.y), 20).isValid());
-			QVERIFY(!PidTee::spotOn(l.pipe, QPointF(360, l.y), 20).isValid());
+				// the pipe starts at x = 10 and ends at x = 390: 20 of arm
+				// and 10 of room
+			QVERIFY(!PidTee::spotOn(l.pipe, QPointF(35, l.y), 20).isValid());
+			QVERIFY(!PidTee::spotOn(l.pipe, QPointF(35, l.y), 20).refusal.isEmpty());
+			QCOMPARE(PidTee::spotOn(l.pipe, QPointF(40, l.y), 20).point, QPointF(40, l.y));
+			QVERIFY(PidTee::spotOn(l.pipe, QPointF(360, l.y), 20).isValid());
+			QVERIFY(!PidTee::spotOn(l.pipe, QPointF(365, l.y), 20).isValid());
 			const PidTee::Spot one = PidTee::spotOn(l.pipe, QPointF(150, l.y), 20);
-			const PidTee::Spot two = PidTee::spotOn(l.pipe, QPointF(200, l.y), 20);
-			const PidTee::Spot three = PidTee::spotOn(l.pipe, QPointF(210, l.y), 20);
+			const PidTee::Spot two = PidTee::spotOn(l.pipe, QPointF(190, l.y), 20);
+			const PidTee::Spot three = PidTee::spotOn(l.pipe, QPointF(200, l.y), 20);
 			QVERIFY(PidTee::clash(one, three, 20).isEmpty());
 			QVERIFY(!PidTee::clash(one, two, 20).isEmpty());
 		}

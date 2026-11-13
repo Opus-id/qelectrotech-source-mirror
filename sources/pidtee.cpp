@@ -233,7 +233,7 @@ PidTee::Spot PidTee::spotOn(Conductor *pipe, const QPointF &scene_pos, qreal arm
 		if (QLineF(points.at(k - 1), points.at(k)).length() < back_room
 			|| QLineF(points.at(k), points.at(k + 1)).length() < forward_room) {
 			bend.refusal = tr("No room for a tee at this bend: it would come too near a nozzle "
-							  "(5 mm at least) or another bend.");
+							  "(2.5 mm at least) or another bend.");
 		}
 		return bend;
 	};
@@ -259,7 +259,7 @@ PidTee::Spot PidTee::spotOn(Conductor *pipe, const QPointF &scene_pos, qreal arm
 		if (!nozzle) {
 			return atBend(by_a ? part : part + 1);
 		}
-		spot.refusal = tr("Too near a nozzle: a tee keeps 5 mm at least from the nozzles. Click "
+		spot.refusal = tr("Too near a nozzle: a tee keeps 2.5 mm at least from the nozzles. Click "
 						  "further from it.");
 		return spot;
 	}
@@ -350,7 +350,7 @@ QString PidTee::clash(const Spot &a, const Spot &b, qreal arm)
 {
 	if (a.pipe != b.pipe) return QString();
 	if (qAbs(a.along - b.along) < 2 * arm + nozzle_room) {
-		return tr("Too near the other tee on this pipe: two tees keep 5 mm at least between them.");
+		return tr("Too near the other tee on this pipe: two tees keep 2.5 mm at least between them.");
 	}
 	return QString();
 }

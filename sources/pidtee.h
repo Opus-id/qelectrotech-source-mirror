@@ -67,8 +67,9 @@ class PidTee
 		};
 
 			/// Least room between an arm of a tee and a nozzle at the end
-			/// of the straight part it lies on (5 mm)
-		static constexpr qreal nozzle_room = 20.0;
+			/// of the straight part it lies on, and between two tees: one
+			/// step of the grid (2.5 mm), room for the connections drawn
+		static constexpr qreal nozzle_room = 10.0;
 
 			/// The symbol of tee of the project of @p diagram, invalid when
 			/// not set or not found
