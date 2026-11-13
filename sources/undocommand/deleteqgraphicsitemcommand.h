@@ -35,6 +35,12 @@ class DeleteQGraphicsItemCommand : public QUndoCommand
 		DeleteQGraphicsItemCommand(Diagram *diagram, const DiagramContent &content, QUndoCommand * parent = nullptr);
 		~DeleteQGraphicsItemCommand() override;
 		static bool hasNonDeletableTerminal(const DiagramContent &content);
+			/// Add to @p content the free ends (Element::isFreeEnd()) a pipe
+			/// the user picked leaves alone: all their pipes go, one of them
+			/// picked. For the deletion the user asks only: a pipe cut by a
+			/// symbol dropped on it (autoBreakConductors()) keeps its free
+			/// end. A strainer or a vent stays. Returns how many were added.
+		static int addLonelyFreeEnds(DiagramContent &content);
 
 	private:
 		DeleteQGraphicsItemCommand(const DeleteQGraphicsItemCommand &);

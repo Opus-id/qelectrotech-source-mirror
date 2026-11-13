@@ -3723,6 +3723,10 @@ void QETDiagramEditor::selectionGroupTriggered(QAction *action)
 						bridge_parts << part;
 					}
 				}
+					//The symbols the user picked: a free end its pipe leaves
+					//alone goes with it (P&ID), but is no symbol picked
+				const QList<Element *> picked_elements = dc.m_elements;
+				DeleteQGraphicsItemCommand::addLonelyFreeEnds(dc);
 				const bool other_items = dc.hasDeletableItems();
 
                 diagram->clearSelection();
@@ -3733,9 +3737,8 @@ void QETDiagramEditor::selectionGroupTriggered(QAction *action)
 					auto *undo = new QUndoCommand(QObject::tr("Delete"));
 					auto *del = new DeleteQGraphicsItemCommand(diagram, dc, undo);
 					undo->setText(del->text());
-					const QList<Element *> elements = dc.m_elements;
 					AutoConnect::update(diagram, {}, {}, undo,
-										QSet<Element *>(elements.begin(), elements.end()));
+										QSet<Element *>(picked_elements.begin(), picked_elements.end()));
 					diagram->undoStack().push(undo);
 				} else {
 					QList<QUndoCommand *> steps;

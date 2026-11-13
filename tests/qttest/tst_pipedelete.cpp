@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "qetapptest.h"
 
+#include "autobreakconductor.h"
 #include "autoconnect.h"
 #include "diagram.h"
 #include "diagramcontent.h"
@@ -51,7 +52,7 @@ class tst_pipedelete : public QObject
 
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_valve, m_tee, m_equipment, m_electrical, m_reducer;
+	ElementsLocation m_valve, m_tee, m_equipment, m_electrical, m_reducer, m_free_end, m_strainer;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -115,6 +116,34 @@ class tst_pipedelete : public QObject
 		m_folio->undoStack().push(new DeleteQGraphicsItemCommand(m_folio, content));
 	}
 
+		// Deleted as the editor does when the user asks it: the free ends
+		// a picked pipe leaves alone go too
+	void removeAsTheUser(const QList<QGraphicsItem *> &items)
+	{
+		m_folio->clearSelection();
+		for (QGraphicsItem *item : items) item->setSelected(true);
+		DiagramContent content(m_folio);
+		DeleteQGraphicsItemCommand::addLonelyFreeEnds(content);
+		m_folio->clearSelection();
+		m_folio->undoStack().push(new DeleteQGraphicsItemCommand(m_folio, content));
+	}
+
+		// A symbol of one nozzle N1 at its middle, facing east: a free
+		// end with @p role "free_end", else a strainer
+	static QDomElement endDefinition(QDomDocument &doc, const QString &uuid, const QString &role)
+	{
+		const QString attr = role.isEmpty() ? QString()
+											: QStringLiteral(" pid_role=\"%1\"").arg(role);
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pid_family=\"pipe\"%2 "
+			"width=\"20\" height=\"20\" hotspot_x=\"10\" hotspot_y=\"10\">"
+			"<uuid uuid=\"{%1}\"/><names><name lang=\"en\">E</name></names>"
+			"<description>"
+			"<terminal name=\"N1\" x=\"0\" y=\"0\" orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>"
+			"</description></definition>").arg(uuid, attr));
+		return doc.documentElement();
+	}
+
 		// The only pipe on @p t, or nullptr
 	static Conductor *pipeOn(Terminal *t)
 	{
@@ -146,6 +175,12 @@ class tst_pipedelete : public QObject
 			m_electrical = add("electrical.elmt", definition(d, "84444444-4444-4444-4444-444444444444",
 									 QString(), QString()));
 			QVERIFY(m_valve.exist() && m_tee.exist() && m_equipment.exist() && m_electrical.exist());
+			QDomDocument f, s;
+			m_free_end = add("freeend.elmt", endDefinition(f, "86666666-6666-6666-6666-666666666666",
+															QStringLiteral("free_end")));
+			m_strainer = add("strainer.elmt", endDefinition(s, "87777777-7777-7777-7777-777777777777",
+															 QString()));
+			QVERIFY(m_free_end.exist() && m_strainer.exist());
 			m_folio = m_project.addNewDiagram();
 		}
 
@@ -355,6 +390,93 @@ class tst_pipedelete : public QObject
 			QCOMPARE(b->conductors().size(), 1);
 			QVERIFY(joins(pipeOn(a), a, b));
 			QVERIFY(pipeOn(a)->properties().m_pipe.fluid == QStringLiteral("W01"));
+		}
+
+			// Step 5l-1p: a pipe the user deletes takes its free end, left
+			// alone; one step to undo
+		void aPipeDeletedTakesItsFreeEnd()
+		{
+			const auto e = row({m_free_end, m_equipment});
+			Terminal *end = nozzle(e[0], "N1"), *b = nozzle(e[1], "N1");
+			Conductor *pipe = draw(end, b);
+			const int steps = m_folio->undoStack().index();
+
+			removeAsTheUser({pipe});
+			QVERIFY(!pipe->scene());
+			QVERIFY(!e[0]->scene());
+			QVERIFY(e[1]->scene() == m_folio);
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+
+			m_folio->undoStack().undo();
+			QVERIFY(e[0]->scene() == m_folio);
+			QCOMPARE(pipeOn(end), pipe);
+			QCOMPARE(pipeOn(b), pipe);
+			m_folio->undoStack().redo();
+			QVERIFY(!e[0]->scene());
+		}
+
+			// Step 5l-1p: a strainer is a part: it stays
+		void aStrainerStays()
+		{
+			const auto e = row({m_strainer, m_equipment});
+			Conductor *pipe = draw(nozzle(e[0], "N1"), nozzle(e[1], "N1"));
+			removeAsTheUser({pipe});
+			QVERIFY(!pipe->scene());
+			QVERIFY(e[0]->scene() == m_folio);
+		}
+
+			// Step 5l-1p: a pipe between two free ends takes both; picked
+			// with the pipe, a free end goes once
+		void aPipeBetweenTwoFreeEndsTakesBoth()
+		{
+			const auto e = row({m_free_end, m_free_end});
+			Conductor *pipe = draw(nozzle(e[0], "N1"), nozzle(e[1], "N1"));
+			removeAsTheUser({pipe});
+			QVERIFY(!e[0]->scene() && !e[1]->scene());
+			m_folio->undoStack().undo();
+			QVERIFY(e[0]->scene() == m_folio && e[1]->scene() == m_folio);
+
+			m_folio->clearSelection();
+			pipe->setSelected(true);
+			e[0]->setSelected(true);
+			DiagramContent content(m_folio);
+			m_folio->clearSelection();
+			QCOMPARE(DeleteQGraphicsItemCommand::addLonelyFreeEnds(content), 1);
+			QCOMPARE(content.m_elements.size(), 2);
+		}
+
+			// Step 5l-1p: the symbol deleted, its pipe goes with it, not
+			// picked: the free end stays, as the user asked a pipe only
+		void aSymbolDeletedLeavesTheFreeEnd()
+		{
+			const auto e = row({m_free_end, m_equipment});
+			Conductor *pipe = draw(nozzle(e[0], "N1"), nozzle(e[1], "N1"));
+			removeAsTheUser({e[1]});
+			QVERIFY(!pipe->scene());
+			QVERIFY(e[0]->scene() == m_folio);
+		}
+
+			// Step 5l-1p: a pipe cut by a symbol dropped on it keeps its free
+			// end, on the half that goes on to it
+		void aPipeCutByASymbolKeepsItsFreeEnd()
+		{
+			const auto e = row({m_free_end, m_equipment}, 400);
+			Terminal *end = nozzle(e[0], "N1");
+			draw(end, nozzle(e[1], "N1"));
+			Element *valve = place(m_valve, QPointF(200, m_next_y));
+			QVERIFY(valve);
+
+			const bool was = m_project.autoBreakConductor();
+			m_project.setAutoBreakConductor(true);
+			QList<Conductor *> handled;
+			QSet<Terminal *> used;
+			auto *undo = new QUndoCommand();
+			autoBreakConductors(m_folio, valve, undo, handled, used);
+			m_folio->undoStack().push(undo);
+			m_project.setAutoBreakConductor(was);
+
+			QVERIFY(e[0]->scene() == m_folio);
+			QVERIFY(joins(pipeOn(end), end, nozzle(valve, "N1")));
 		}
 };
 

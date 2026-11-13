@@ -155,6 +155,44 @@ bool DeleteQGraphicsItemCommand::hasNonDeletableTerminal(const DiagramContent &c
 }
 
 /**
+	@brief DeleteQGraphicsItemCommand::addLonelyFreeEnds
+	See the declaration. A pipe the user picked is never joined again by
+	rejoinPipesOfRemovedElements() to a symbol that stays: a free end it
+	leaves stays alone.
+*/
+int DeleteQGraphicsItemCommand::addLonelyFreeEnds(DiagramContent &content)
+{
+	const QList<Conductor *> gone = content.conductors(DiagramContent::AnyConductor);
+	QList<Element *> lonely;
+	for (QGraphicsItem *item : std::as_const(content.m_selected_items))
+	{
+		auto *pipe = qgraphicsitem_cast<Conductor *>(item);
+		if (!pipe || pipe->medium() != TerminalData::Pipe) {
+			continue;
+		}
+		for (Terminal *end : {pipe->terminal1, pipe->terminal2})
+		{
+			Element *element = end ? end->parentElement() : nullptr;
+			if (!element || !element->isFreeEnd() || content.m_elements.contains(element)
+				|| lonely.contains(element)) {
+				continue;
+			}
+			bool alone = true;
+			for (Terminal *t : element->terminals()) {
+				for (Conductor *c : t->conductors()) {
+					alone = alone && gone.contains(c);
+				}
+			}
+			if (alone) {
+				lonely << element;
+			}
+		}
+	}
+	content.m_elements << lonely;
+	return int(lonely.size());
+}
+
+/**
 	@brief DeleteQGraphicsItemCommand::setPotentialsOfRemovedElements
 	This function creates new conductors (if needed) for conserve the electrical potentials
 	present at the terminals of each removed elements.
