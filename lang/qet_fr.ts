@@ -4333,6 +4333,74 @@ Continuer ?</translation>
         <comment>pipe drawing tool</comment>
         <translation>Clic près d&apos;un piquage libre : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
     </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="820"/>
+        <source>Click or release near another free nozzle, click on a pipe (tee) or in an empty place: end the pipe; right click or Esc: cancel</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre, cliquez sur une tuyauterie (Té) ou dans un endroit vide : finir la tuyauterie ; clic droit ou Échap : annuler</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="824"/>
+        <source>Click or release near another free nozzle, or click on a pipe (tee): end the pipe; right click or Esc: cancel</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre, ou cliquez sur une tuyauterie (Té) : finir la tuyauterie ; clic droit ou Échap : annuler</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="828"/>
+        <source>Click near a free nozzle, on a pipe (tee) or in an empty place: start a pipe; right click or Esc: quit the tool</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cliquez près d&apos;un piquage libre, sur une tuyauterie (Té) ou dans un endroit vide : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="832"/>
+        <source>Click near a free nozzle or on a pipe (tee): start a pipe; right click or Esc: quit the tool</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cliquez près d&apos;un piquage libre ou sur une tuyauterie (Té) : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+    </message>
+</context>
+<context>
+    <name>PidTee</name>
+    <message>
+        <location filename="../sources/pidtee.cpp" line="130"/>
+        <source>The symbol of tee of the project is not a tee (two nozzles facing each other and a third aside): choose another one (properties of the project, P&amp;ID, Connections).</source>
+        <translation>Le symbole de Té du projet n&apos;est pas un Té (deux piquages face à face et un troisième de côté) : choisissez-en un autre (propriétés du projet, P&amp;ID, Raccords).</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidtee.cpp" line="200"/>
+        <source>This pipe has no length to take a tee.</source>
+        <translation>Cette tuyauterie n&apos;a pas de longueur où poser un Té.</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidtee.cpp" line="235"/>
+        <source>No room for a tee at this bend: it would come too near a nozzle (5 mm at least) or another bend.</source>
+        <translation>Pas de place pour un Té à ce coude : il viendrait trop près d&apos;un piquage (5 mm au moins) ou d&apos;un autre coude.</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidtee.cpp" line="262"/>
+        <source>Too near a nozzle: a tee keeps 5 mm at least from the nozzles. Click further from it.</source>
+        <translation>Trop près d&apos;un piquage : un Té reste à 5 mm au moins des piquages. Cliquez plus loin.</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidtee.cpp" line="310"/>
+        <source>A tee goes on a pipe only: not on a signal line nor on a wire.</source>
+        <translation>Un Té ne se pose que sur une tuyauterie : ni sur une ligne de signal ni sur un fil.</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidtee.cpp" line="318"/>
+        <location filename="../sources/pidtee.cpp" line="390"/>
+        <source>The symbol of tee of the project is not found: choose another one (properties of the project, P&amp;ID, Connections).</source>
+        <translation>Le symbole de Té du projet est introuvable : choisissez-en un autre (propriétés du projet, P&amp;ID, Raccords).</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidtee.cpp" line="355"/>
+        <source>Too near the other tee on this pipe: two tees keep 5 mm at least between them.</source>
+        <translation>Trop près de l&apos;autre Té sur cette tuyauterie : deux Tés restent à 5 mm au moins l&apos;un de l&apos;autre.</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidtee.cpp" line="460"/>
+        <source>This nozzle is already connected: a nozzle takes one pipe.</source>
+        <translation>Ce piquage est déjà raccordé : un piquage reçoit une seule tuyauterie.</translation>
+    </message>
 </context>
 <context>
     <name>DiagramEventAddBridge</name>
@@ -13639,13 +13707,18 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="615"/>
-        <source>A click in an empty place with the tool &quot;Draw a pipe&quot; starts or ends the pipe there, on this symbol, which is taken into the project. None: the tool asks for a nozzle.</source>
-        <translation>Avec l&apos;outil « Tracer une tuyauterie », un clic dans un endroit vide y commence ou y finit la tuyauterie, sur ce symbole, importé dans le projet. Aucun : l&apos;outil demande un piquage.</translation>
+        <source>With the tool &quot;Draw a pipe&quot;, a click in an empty place starts or ends the pipe on the free end, a click on a pipe on the tee, which is taken into the project; a drag from a nozzle released on a pipe too. None: the tool asks for a nozzle.</source>
+        <translation>Avec l&apos;outil « Tracer une tuyauterie », un clic dans un endroit vide commence ou finit la tuyauterie sur l&apos;extrémité libre, un clic sur une tuyauterie sur le Té, importé dans le projet ; de même, un glisser depuis un piquage relâché sur une tuyauterie. Aucun : l&apos;outil demande un piquage.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="621"/>
         <source>Free end:</source>
         <translation>Extrémité libre :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="622"/>
+        <source>Tee:</source>
+        <translation>Té :</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="790"/>

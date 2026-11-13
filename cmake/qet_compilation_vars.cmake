@@ -229,6 +229,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidtag.h
   ${QET_DIR}/sources/pidstatus.cpp
   ${QET_DIR}/sources/pidstatus.h
+  ${QET_DIR}/sources/pidtee.cpp
+  ${QET_DIR}/sources/pidtee.h
   ${QET_DIR}/sources/conductormultiedit.h
   ${QET_DIR}/sources/conductorsegment.cpp
   ${QET_DIR}/sources/conductorsegment.h

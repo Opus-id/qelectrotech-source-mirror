@@ -613,13 +613,14 @@ void PidConfigPage::initLayout()
 		//The symbols the tools place by themselves
 	auto *tools_box = new QGroupBox(tr("Symbols placed by the tools"), connections_tab);
 	auto *tools_layout = new QVBoxLayout(tools_box);
-	auto *tools_help = new QLabel(tr("A click in an empty place with the tool \"Draw a pipe\" starts or "
-									 "ends the pipe there, on this symbol, which is taken into the "
-									 "project. None: the tool asks for a nozzle."), tools_box);
+	auto *tools_help = new QLabel(tr("With the tool \"Draw a pipe\", a click in an empty place starts or "
+									 "ends the pipe on the free end, a click on a pipe on the tee, "
+									 "which is taken into the project; a drag from a nozzle released "
+									 "on a pipe too. None: the tool asks for a nozzle."), tools_box);
 	tools_help->setWordWrap(true);
 	tools_layout->addWidget(tools_help);
 	auto *tools_form = new QFormLayout();
-	const QStringList role_names{tr("Free end:")};
+	const QStringList role_names{tr("Free end:"), tr("Tee:")};
 	const QStringList &roles = PidCodification::toolSymbolRoles();
 	for (int i = 0 ; i < roles.size() ; ++i) {
 		auto *row = new QHBoxLayout();

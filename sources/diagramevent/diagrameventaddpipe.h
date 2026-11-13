@@ -20,6 +20,7 @@
 
 #include "diagrameventinterface.h"
 #include "../ElementsCollection/elementslocation.h"
+#include "../pidtee.h"
 #include "../qet.h"
 #include "../qetgraphicsitem/terminal.h"
 
@@ -50,6 +51,10 @@ class QGraphicsItem;
 	placed at the end, turned so that its nozzle faces the pipe, along the
 	simplest way (straight when aligned, else one bend). Nothing is placed
 	before the end: the free ends and the pipe are one undo step.
+
+	When the project has a symbol of tee, a click on a pipe starts or ends
+	the pipe there, on a tee (PidTee): the pipe is cut through it at the
+	end, in the same undo step.
 */
 class DiagramEventAddPipe : public DiagramEventInterface
 {
@@ -85,6 +90,11 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		bool startsInEmptyPlace() const { return m_start_free; }
 			/// Where it starts then, on the grid
 		QPointF startPoint() const { return m_start_point; }
+			/// Whether the pipe being drawn starts on a pipe, at a tee placed
+			/// at the end
+		bool startsOnPipe() const { return m_start_tee; }
+			/// Where on which pipe it starts then
+		PidTee::Spot startSpot() const { return m_start_spot; }
 			/// How many free nozzles are marked
 		int markCount() const { return m_marks.size(); }
 
@@ -109,10 +119,15 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		void finishAt(Terminal *target);
 		void startAtPoint(const QPointF &scene_pos);
 		void finishAtPoint(const QPointF &scene_pos);
-		void drawPipe(Terminal *start, const QPointF &start_point, Terminal *target,
-					  const QPointF &end_point);
+		void startOnPipe(const PidTee::Spot &spot);
+		void finishOnPipe(const PidTee::Spot &spot);
+		void drawPipe(Terminal *start, const QPointF &start_point, const PidTee::Spot &start_spot,
+					  Terminal *target, const QPointF &end_point, const PidTee::Spot &end_spot);
 		bool isEmptyPlace(const QPointF &scene_pos) const;
-		bool hasStart() const { return m_start || m_start_free; }
+		bool hasStart() const { return m_start || m_start_free || m_start_tee; }
+		QPointF startScenePoint() const;
+		qreal teeArm();
+		void refuse(const QGraphicsSceneMouseEvent *event, const QString &why) const;
 		void showHint(const QString &message = QString()) const;
 		void clearHint() const;
 
@@ -120,6 +135,11 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		QPointer<Terminal> m_start;
 		bool m_start_free = false;
 		QPointF m_start_point;
+		bool m_start_tee = false;
+		PidTee::Spot m_start_spot;
+			/// The arms of the tee of the project while the tool runs, for
+			/// the preview: -1 until measured
+		qreal m_tee_arm = -1;
 		QPointer<Terminal> m_hovered;
 		QList<QGraphicsEllipseItem *> m_marks;
 };

@@ -537,6 +537,10 @@ qet_add_app_test(tst_pipemagnet tst_pipemagnet.cpp)
 # The tool which draws pipes: two clicks or a drag near two free nozzles,
 # never a symbol picked nor moved, right click / Esc, wires left alone.
 qet_add_app_test(tst_pipetool tst_pipetool.cpp)
+# A tee placed by a click on a pipe (tool, or a drag released on it): on the
+# grid along the line, at a bend, refusals, the pipe cut keeping its data,
+# one step to undo; wires never cut.
+qet_add_app_test(tst_pipetee tst_pipetee.cpp)
 # A symbol a line runs through, taken away, leaves one pipe where it stood
 # (the run of a tee too, never its branch); one step to undo; wires as before.
 qet_add_app_test(tst_pipedelete tst_pipedelete.cpp)

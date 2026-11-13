@@ -334,12 +334,14 @@ class PidCodification
 			/// project, none in the code; written only when it is set.
 		QMap<QString, QString> tool_symbols;
 			/// The roles of the symbols a tool may place: the free end of a
-			/// pipe drawn from or to an empty place (DiagramEventAddPipe)
+			/// pipe drawn from or to an empty place (DiagramEventAddPipe),
+			/// the tee of a pipe drawn from or to a pipe (PidTee)
 		static const QStringList &toolSymbolRoles() {
-			static const QStringList roles{freeEndRole()};
+			static const QStringList roles{freeEndRole(), teeRole()};
 			return roles;
 		}
 		static QString freeEndRole() { return QStringLiteral("free_end"); }
+		static QString teeRole() { return QStringLiteral("tee"); }
 		QString toolSymbol(const QString &role) const { return tool_symbols.value(role); }
 			/// How the tenths of a size are written on the screen and on
 			/// paper; a file always has a point

@@ -32,6 +32,7 @@
 #include <wiringrules.h>
 #include <autoconnect.h>
 #include <pidtooltip.h>
+#include <pidtee.h>
 
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
@@ -862,7 +863,16 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 	if (!other_terminal) {
 		other_terminal = magnetTarget(e->scenePos(), magnetSceneRadius(e));
 	}
-	if (!other_terminal) return;
+	if (!other_terminal)
+	{
+			//A pipe released on a pipe: a tee there, when the project has
+			//one (PidTee); a wire, or a nozzle without, does nothing
+		QString refusal;
+		if (PidTee::branchFrom(this, e->scenePos(), &refusal) && !refusal.isEmpty()) {
+			QToolTip::showText(e->screenPos(), refusal);
+		}
+		return;
+	}
 
 	other_terminal -> m_hovered_color = neutralColor;
 	other_terminal -> m_hovered       = false;
