@@ -21,6 +21,7 @@
 #include "../diagram.h"
 #include "../factory/elementfactory.h"
 #include "../pidcodification.h"
+#include "../pipeconnection.h"
 #include "../qetapp.h"
 #include "../qetdiagrameditor.h"
 #include "../qetgraphicsitem/conductor.h"
@@ -326,7 +327,7 @@ ElementsLocation DiagramEventAddPipe::freeEndSymbol(const Diagram *diagram)
 	See the declaration
 */
 Qet::Orientation DiagramEventAddPipe::freeEndFacing(const QPointF &from, Qet::Orientation from_facing,
-													const QPointF &end)
+													const QPointF &end, bool s_shape)
 {
 	const QPointF d = end - from;
 	const bool horizontal = Qet::isHorizontal(from_facing);
@@ -343,12 +344,40 @@ Qet::Orientation DiagramEventAddPipe::freeEndFacing(const QPointF &from, Qet::Or
 		return horizontal ? Qet::South : Qet::East;
 	}
 	if (ahead > tolerance) {
+			//Two bends: the end faces back toward the start, the run across
+			//halfway (Conductor::defaultRoute())
+		if (s_shape && ahead >= sShapeRoom()) return opposite(from_facing);
 			//One bend: the end faces back to the axis of the way out
 		if (horizontal) return aside > 0 ? Qet::North : Qet::South;
 		return aside > 0 ? Qet::West : Qet::East;
 	}
 		//Beside or behind: out, aside, then back to the end
 	return from_facing;
+}
+
+/**
+	@brief DiagramEventAddPipe::sShapeRoom
+	See the declaration
+*/
+qreal DiagramEventAddPipe::sShapeRoom()
+{
+	return 2 * PipeConnection::pipeExit;
+}
+
+/**
+	@brief DiagramEventAddPipe::facingOfFreeEnds
+	See the declaration
+*/
+void DiagramEventAddPipe::facingOfFreeEnds(PipeEnd &start, PipeEnd &end, bool s_shape)
+{
+	if (!start.free && end.free) {
+		end.facing = freeEndFacing(start.point, start.facing, end.point, s_shape);
+	} else if (start.free && !end.free) {
+		start.facing = freeEndFacing(end.point, end.facing, start.point, s_shape);
+	} else if (start.free && end.free) {
+		start.facing = dominantFacing(start.point, end.point);
+		end.facing = freeEndFacing(start.point, start.facing, end.point, s_shape);
+	}
 }
 
 /**
@@ -640,16 +669,14 @@ void DiagramEventAddPipe::drawPipe(Terminal *start, const QPointF &start_point,
 		return;
 	}
 
-		//Which way the nozzle of each free end faces
-	Qet::Orientation start_facing = Qet::East, end_facing = Qet::West;
-	if (from && !to) {
-		end_facing = freeEndFacing(from->dockConductor(), from->orientation(), end_point);
-	} else if (to && !from) {
-		start_facing = freeEndFacing(to->dockConductor(), to->orientation(), start_point);
-	} else if (!from && !to) {
-		start_facing = dominantFacing(start_point, end_point);
-		end_facing = freeEndFacing(start_point, start_facing, end_point);
-	}
+		//Which way the nozzle of each free end faces, as the preview shows
+	PipeEnd start_end{from ? from->dockConductor() : start_point,
+					  from ? from->orientation() : Qet::East, !from};
+	PipeEnd end_end{to ? to->dockConductor() : end_point,
+					to ? to->orientation() : Qet::West, !to};
+	facingOfFreeEnds(start_end, end_end, m_s_shape);
+	const Qet::Orientation start_facing = start_end.facing;
+	const Qet::Orientation end_facing = end_end.facing;
 
 	ElementsLocation imported;
 	if (!from || !to)

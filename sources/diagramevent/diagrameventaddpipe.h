@@ -110,12 +110,39 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// Which way the nozzle of a free end placed at @p end faces, for
 			/// a pipe from @p from, which leaves it facing @p from_facing:
 			/// straight in front, back along it; else the simplest way, one
-			/// bend in front, two beside or behind
+			/// bend in front (a route in L), two beside or behind. With
+			/// @p s_shape, in front and aside: back toward @p from, two bends
+			/// (a route in S), when there is room for it (sShapeRoom)
 		static Qet::Orientation freeEndFacing(const QPointF &from, Qet::Orientation from_facing,
-											  const QPointF &end);
+											  const QPointF &end, bool s_shape = false);
 			/// The way from @p from to @p to, horizontal or vertical, whichever
 			/// is longer
 		static Qet::Orientation dominantFacing(const QPointF &from, const QPointF &to);
+			/// How far in front of its start a free end must be for a route
+			/// in S: room for the straight run leaving each end
+			/// (PipeConnection::pipeExit) before the bends; nearer, in L
+		static qreal sShapeRoom();
+
+			/// One end of a pipe: where it docks and which way it faces;
+			/// @c free for a free end, whose way facingOfFreeEnds() gives
+		struct PipeEnd
+		{
+			QPointF point;
+			Qet::Orientation facing = Qet::East;
+			bool free = false;
+		};
+			/// Turn the free ends among @p start and @p end the way their
+			/// nozzles face, for a pipe from @p start to @p end: what the tool
+			/// places and what it shows before (one rule for both). A nozzle
+			/// or a tee keeps its way. @p s_shape: a route in S where a free
+			/// end decides it, else in L
+		static void facingOfFreeEnds(PipeEnd &start, PipeEnd &end, bool s_shape);
+
+			/// Whether the next pipes take a route in S (two bends) rather than
+			/// in L (one bend) where a free end decides it; kept while the tool
+			/// runs, in L again the next time
+		bool sShape() const { return m_s_shape; }
+		void setSShape(bool s_shape) { m_s_shape = s_shape; }
 
 			/// Within this angle of an axis of its start, in degrees, the end
 			/// of the pipe being drawn snaps onto it (5l-1p-bis)
@@ -165,6 +192,8 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// The arms of the tee of the project while the tool runs, for
 			/// the preview: -1 until measured
 		qreal m_tee_arm = -1;
+			/// A route in S rather than in L (sShape())
+		bool m_s_shape = false;
 		QPointer<Terminal> m_hovered;
 		QList<QGraphicsEllipseItem *> m_marks;
 };

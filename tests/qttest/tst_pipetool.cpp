@@ -422,6 +422,89 @@ class tst_pipetool : public QObject
 			QCOMPARE(DiagramEventAddPipe::dominantFacing(o, QPointF(30, -50)), Qet::North);
 		}
 
+			// Step 5l-1p-ter: a route in S, in front and aside: the free end
+			// faces back toward the start; else as in L
+		void aRouteInSFacesBackTowardTheStart()
+		{
+			const QPointF o(0, 0);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(100, 50), true), Qet::West);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(100, -50), true), Qet::West);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::South, QPointF(50, 100), true), Qet::North);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::West, QPointF(-100, 50), true), Qet::East);
+				// no room for two bends: in L
+			const qreal near = DiagramEventAddPipe::sShapeRoom() - 10;
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(near, 50), true), Qet::North);
+				// straight, beside, behind: as in L
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(100, 0), true), Qet::West);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(-100, 50), true), Qet::East);
+
+				// the same rule for both ends, whichever is free
+			using End = DiagramEventAddPipe::PipeEnd;
+			End nozzle{o, Qet::East, false}, free_end{QPointF(100, 50), Qet::East, true};
+			DiagramEventAddPipe::facingOfFreeEnds(nozzle, free_end, true);
+			QCOMPARE(nozzle.facing, Qet::East);
+			QCOMPARE(free_end.facing, Qet::West);
+			End start{QPointF(-150, 50), Qet::West, true}, west{o, Qet::West, false};
+			DiagramEventAddPipe::facingOfFreeEnds(start, west, true);
+			QCOMPARE(start.facing, Qet::East);
+			QCOMPARE(west.facing, Qet::West);
+			DiagramEventAddPipe::facingOfFreeEnds(start, west, false);
+			QCOMPARE(start.facing, Qet::North);
+			End a{o, Qet::North, true}, b{QPointF(200, 100), Qet::North, true};
+			DiagramEventAddPipe::facingOfFreeEnds(a, b, true);
+			QCOMPARE(a.facing, Qet::East);
+			QCOMPARE(b.facing, Qet::West);
+		}
+
+			// Step 5l-1p-ter: a pipe in S to an empty place has two bends; the
+			// choice is kept for the next pipe, in L again with a new tool
+		void aPipeInSHasTwoBends()
+		{
+			setFreeEnd(freeEndPath());
+			auto bends = [](const Conductor *pipe) {
+				const QPainterPath path = pipe->path();
+				int count = 0;
+				for (int i = 2; i < path.elementCount(); ++i) {
+					const QLineF a(QPointF(path.elementAt(i - 2)), QPointF(path.elementAt(i - 1)));
+					const QLineF b(QPointF(path.elementAt(i - 1)), QPointF(path.elementAt(i)));
+					if (a.length() > 0.5 && b.length() > 0.5
+							&& qAbs(a.angleTo(b)) > 1 && qAbs(a.angleTo(b) - 360) > 1) {
+						++count;
+					}
+				}
+				return count;
+			};
+
+			QVERIFY(!m_tool->sShape());
+			m_tool->setSShape(true);
+			for (int i = 0; i < 2; ++i) {
+				const auto ends = row(m_pipe, m_pipe);
+				QVERIFY(ends.first && ends.second);
+				Terminal *from = ends.first->terminals().at(1);
+				click(nearBelow(from));
+				const QPointF end = Diagram::snapToGrid(QPointF(150, m_next_y + 100));
+				click(QPointF(150, m_next_y + 100));
+				Element *free_end = freeEndAt(end);
+				QVERIFY(free_end);
+				QCOMPARE(free_end->terminals().first()->orientation(), Qet::West);
+				QCOMPARE(bends(from->conductors().first()), 2);
+					// kept for the next pipe
+				QVERIFY(m_tool->sShape());
+			}
+				// in L: one bend
+			m_tool->setSShape(false);
+			const auto ends = row(m_pipe, m_pipe);
+			Terminal *from = ends.first->terminals().at(1);
+			click(nearBelow(from));
+			click(QPointF(150, m_next_y + 100));
+			QCOMPARE(bends(from->conductors().first()), 1);
+				// a new tool: in L
+			m_tool->setSShape(true);
+			m_folio->clearEventInterface();
+			startTool();
+			QVERIFY(!m_tool->sShape());
+		}
+
 			// Step 5l-1p: from a nozzle to an empty place, a free end there,
 			// facing the pipe; one undo step
 		void aPipeEndsInAnEmptyPlaceOnAFreeEnd()
