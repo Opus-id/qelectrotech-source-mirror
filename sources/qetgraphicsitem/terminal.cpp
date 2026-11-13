@@ -794,7 +794,7 @@ namespace {
 	/**
 		@return the route of the branch a release at @p scene_pos would
 		draw from @p nozzle to a tee on the pipe there (PidTee::branchFrom()),
-		empty when it would draw none
+		carried on to the middle of the tee; empty when it would draw none
 	*/
 	QList<QPointF> teeRoute(Terminal *nozzle, const QPointF &scene_pos)
 	{
@@ -815,9 +815,13 @@ namespace {
 		const Terminal *out = PidTee::fit(drag_tee, spot,
 										  PidTee::branchFacing(spot, nozzle->dockConductor()));
 		if (!out) return {};
-		return Conductor::defaultRoute(nozzle->dockConductor(), nozzle->orientation(),
-									   out->dockConductor(), out->orientation(),
-									   PipeConnection::pipeExit);
+		QList<QPointF> route = Conductor::defaultRoute(nozzle->dockConductor(), nozzle->orientation(),
+													   out->dockConductor(), out->orientation(),
+													   PipeConnection::pipeExit);
+			//The tee is not drawn: the line goes on, straight, to the pipe it cuts
+		const QPointF middle = PidTee::middleOf(drag_tee);
+		if (!middle.isNull()) route.append(middle);
+		return route;
 	}
 }
 

@@ -385,6 +385,17 @@ bool PidTee::waysOf(const Element *tee, Terminal **run1, Terminal **run2, Termin
 }
 
 /**
+	@brief PidTee::middleOf
+	See the declaration
+*/
+QPointF PidTee::middleOf(const Element *tee)
+{
+	Terminal *run1 = nullptr, *run2 = nullptr;
+	if (!waysOf(tee, &run1, &run2, nullptr)) return QPointF();
+	return (run1->dockConductor() + run2->dockConductor()) / 2;
+}
+
+/**
 	@brief PidTee::build
 	See the declaration
 	@param import : false to measure it only, without taking the symbol

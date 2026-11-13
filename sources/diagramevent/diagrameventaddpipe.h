@@ -184,13 +184,17 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// Where the nozzle of a tee at @p spot, facing @p toward as
 			/// drawPipe() turns it, docks and which way it faces; false
 			/// without a symbol of tee. The tee is built once per pipe,
-			/// never placed (m_tee_model).
-		bool teeWayOut(const PidTee::Spot &spot, const QPointF &toward, PipeEnd *end);
+			/// never placed (m_tee_model). @p middle, when given, takes
+			/// where its ways meet (PidTee::middleOf()).
+		bool teeWayOut(const PidTee::Spot &spot, const QPointF &toward, PipeEnd *end,
+					   QPointF *middle = nullptr);
 			/// The route the pipe being drawn would take, from its start (at
 			/// @p start_point when it starts in an empty place) to @p target,
 			/// else to a tee at @p end_spot (valid), else to a free end at
 			/// @p end_point when @p free_end: the points of the pipe placed
-			/// on a click; empty when the end is not known
+			/// on a click, carried on to the middle of a tee at either end
+			/// (the tee is not drawn: the line reaches the pipe it cuts);
+			/// empty when the end is not known
 		QList<QPointF> previewRoute(const QPointF &start_point, Terminal *target,
 									const PidTee::Spot &end_spot, const QPointF &end_point,
 									bool free_end);

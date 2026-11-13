@@ -125,6 +125,10 @@ class PidTee
 			/// the one aside; false when @p tee is not a tee
 		static bool waysOf(const Element *tee, Terminal **run1, Terminal **run2,
 						   Terminal **branch);
+			/// Where the ways of @p tee meet, on the folio: between its two
+			/// facing nozzles (on the axis of the pipe it cuts); a null point
+			/// when @p tee is not a tee
+		static QPointF middleOf(const Element *tee);
 };
 
 #endif // PIDTEE_H

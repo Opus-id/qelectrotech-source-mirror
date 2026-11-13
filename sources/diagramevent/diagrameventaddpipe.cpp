@@ -837,7 +837,8 @@ void DiagramEventAddPipe::updatePreview(const QPointF &scene_pos, bool snap, qre
 	@brief DiagramEventAddPipe::teeWayOut
 	See the declaration
 */
-bool DiagramEventAddPipe::teeWayOut(const PidTee::Spot &spot, const QPointF &toward, PipeEnd *end)
+bool DiagramEventAddPipe::teeWayOut(const PidTee::Spot &spot, const QPointF &toward, PipeEnd *end,
+									 QPointF *middle)
 {
 	if (!end || !spot.isValid()) return false;
 	if (!m_tee_model) {
@@ -847,6 +848,7 @@ bool DiagramEventAddPipe::teeWayOut(const PidTee::Spot &spot, const QPointF &tow
 	const Terminal *out = PidTee::fit(m_tee_model, spot, PidTee::branchFacing(spot, toward));
 	if (!out) return false;
 	*end = PipeEnd{out->dockConductor(), out->orientation(), false};
+	if (middle) *middle = PidTee::middleOf(m_tee_model);
 	return true;
 }
 
@@ -866,10 +868,11 @@ QList<QPointF> DiagramEventAddPipe::previewRoute(const QPointF &start_point, Ter
 	const QPointF end_at = target ? target->dockConductor()
 								  : (end_tee ? end_spot.point : end_point);
 	PipeEnd start;
+	QPointF start_middle, end_middle;
 	if (m_start) {
 		start = PipeEnd{m_start->dockConductor(), m_start->orientation(), false};
 	} else if (m_start_tee) {
-		if (!teeWayOut(m_start_spot, end_at, &start)) return {};
+		if (!teeWayOut(m_start_spot, end_at, &start, &start_middle)) return {};
 	} else {
 		start = PipeEnd{start_point, Qet::East, true};
 	}
@@ -878,15 +881,19 @@ QList<QPointF> DiagramEventAddPipe::previewRoute(const QPointF &start_point, Ter
 	if (target) {
 		end = PipeEnd{target->dockConductor(), target->orientation(), false};
 	} else if (end_tee) {
-		if (!teeWayOut(end_spot, start.point, &end)) return {};
+		if (!teeWayOut(end_spot, start.point, &end, &end_middle)) return {};
 	} else {
 		end = PipeEnd{end_point, Qet::West, true};
 	}
 	if (QLineF(start.point, end.point).length() < 0.5) return {};
 
 	facingOfFreeEnds(start, end, m_s_shape);
-	return Conductor::defaultRoute(start.point, start.facing, end.point, end.facing,
-								   PipeConnection::pipeExit);
+	QList<QPointF> route = Conductor::defaultRoute(start.point, start.facing, end.point, end.facing,
+												   PipeConnection::pipeExit);
+		//The tee is not drawn: the line goes on, straight, to the pipe it cuts
+	if (m_start_tee && !start_middle.isNull()) route.prepend(start_middle);
+	if (end_tee && !end_middle.isNull()) route.append(end_middle);
+	return route;
 }
 
 /**

@@ -241,13 +241,18 @@ class tst_pipetee : public QObject
 	}
 
 		// The route of the preview is the path of @p pipe, in one way or the
-		// other, on the folio
+		// other, on the folio, carried on to the middle of a tee at its ends
+		// (the preview draws no tee: its line reaches the pipe cut)
 	static bool sameRoute(const QPainterPath &route, const Conductor *pipe)
 	{
 		QList<QPointF> a, b;
 		for (int i = 0; i < route.elementCount(); ++i) a << QPointF(route.elementAt(i));
 		const QPainterPath path = pipe->path();
 		for (int i = 0; i < path.elementCount(); ++i) b << pipe->mapToScene(QPointF(path.elementAt(i)));
+		if (PidTee::waysOf(pipe->terminal1->parentElement(), nullptr, nullptr, nullptr))
+			b.prepend(PidTee::middleOf(pipe->terminal1->parentElement()));
+		if (PidTee::waysOf(pipe->terminal2->parentElement(), nullptr, nullptr, nullptr))
+			b.append(PidTee::middleOf(pipe->terminal2->parentElement()));
 		if (a == b) return true;
 		std::reverse(b.begin(), b.end());
 		return a == b;
@@ -665,7 +670,8 @@ class tst_pipetee : public QObject
 			const QPointF empty(300, l2.y + 200);
 			mouse(QEvent::GraphicsSceneMouseMove, empty, Qt::NoButton, Qt::NoButton);
 			const QPainterPath route2 = m_folio->conductorRoute();
-			QCOMPARE(route2.elementCount(), 6);
+				// in S, from the middle of the tee
+			QCOMPARE(route2.elementCount(), 7);
 			click(empty);
 			Element *tee = nullptr, *free_end = nullptr;
 			addedTeeAndFreeEnd(before, &tee, &free_end);
@@ -698,6 +704,8 @@ class tst_pipetee : public QObject
 			move(on_pipe);
 			const QPainterPath route = m_folio->conductorRoute();
 			QVERIFY(route.elementCount() >= 4);
+				// it reaches the pipe: no gap where the tee goes
+			QCOMPARE(QPointF(route.elementAt(route.elementCount() - 1)).y(), l.y);
 			release(on_pipe);
 			QVERIFY(m_folio->conductorRoute().isEmpty());
 			QVERIFY(pipeOn(from));
