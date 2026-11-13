@@ -240,6 +240,19 @@ class tst_pipetee : public QObject
 		mouse(QEvent::GraphicsSceneMouseRelease, at, Qt::LeftButton, Qt::NoButton);
 	}
 
+		// The route of the preview is the path of @p pipe, in one way or the
+		// other, on the folio
+	static bool sameRoute(const QPainterPath &route, const Conductor *pipe)
+	{
+		QList<QPointF> a, b;
+		for (int i = 0; i < route.elementCount(); ++i) a << QPointF(route.elementAt(i));
+		const QPainterPath path = pipe->path();
+		for (int i = 0; i < path.elementCount(); ++i) b << pipe->mapToScene(QPointF(path.elementAt(i)));
+		if (a == b) return true;
+		std::reverse(b.begin(), b.end());
+		return a == b;
+	}
+
 	void startTool()
 	{
 		m_tool = new DiagramEventAddPipe(m_folio);
@@ -622,6 +635,42 @@ class tst_pipetee : public QObject
 			QVERIFY(joins(pipeOn(to), nozzle(tee, "N3"), to));
 			QVERIFY(joins(pipeOn(nozzle(e, "N1")), nozzle(tee, "N2"), nozzle(e, "N1")));
 			QVERIFY(hasTheData(pipeOn(to)));
+		}
+
+			// Step 5l-1p-ter: the preview shows the route of the pipe placed,
+			// to a tee and from a tee (in S to a free end)
+		void thePreviewOfAPipeWithATee()
+		{
+			const Line l = line();
+				// from a nozzle above and aside to the pipe: bends
+			Element *c = place(m_pipe, QPointF(250, l.y - 200));
+			Terminal *from = nozzle(c, "N2");
+			startTool();
+			click(from->dockConductor() + QPointF(0, -5));
+			const QPointF on_pipe(100, l.y + 2);
+			mouse(QEvent::GraphicsSceneMouseMove, on_pipe, Qt::NoButton, Qt::NoButton);
+			const QPainterPath route = m_folio->conductorRoute();
+			QVERIFY(route.elementCount() >= 4);
+			click(on_pipe);
+			QVERIFY(pipeOn(from));
+			QVERIFY(sameRoute(route, pipeOn(from)));
+
+				// from a pipe to a free end, in S
+			setToolSymbol(PidCodification::freeEndRole(), path("freeend.elmt"));
+			const Line l2 = line();
+			m_tool->setSShape(true);
+			const QSet<Element *> before = elements();
+			click(QPointF(200, l2.y + 1));
+			QVERIFY(m_tool->startsOnPipe());
+			const QPointF empty(300, l2.y + 200);
+			mouse(QEvent::GraphicsSceneMouseMove, empty, Qt::NoButton, Qt::NoButton);
+			const QPainterPath route2 = m_folio->conductorRoute();
+			QCOMPARE(route2.elementCount(), 6);
+			click(empty);
+			Element *tee = nullptr, *free_end = nullptr;
+			addedTeeAndFreeEnd(before, &tee, &free_end);
+			QVERIFY(tee && free_end);
+			QVERIFY(sameRoute(route2, pipeOn(free_end->terminals().first())));
 		}
 
 			// From an empty place to a pipe: a free end and a tee, one step

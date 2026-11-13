@@ -218,6 +218,10 @@ Diagram::Diagram(QETProject *project) :
 	QPen pen(Qt::NoBrush, 1.5, Qt::DashLine);
 	pen.setColor(Qt::black);
 	conductor_setter_ -> setPen(pen);
+	m_conductor_route = new QGraphicsPathItem(nullptr);
+	m_conductor_route->setZValue(1000000);
+	m_conductor_route->setPen(pen);
+	m_conductor_route->setBrush(Qt::NoBrush);
 
 	connect(&border_and_titleblock, &BorderTitleBlock::informationChanged, this, [this]() {
 		for (auto conductor : content().conductors()) {
@@ -282,6 +286,34 @@ Diagram::Diagram(QETProject *project) :
 	}
 }
 /**
+	@brief Diagram::setConductorRoute
+	See the declaration
+*/
+void Diagram::setConductorRoute(const QList<QPointF> &points)
+{
+	if (points.size() < 2) {
+		if (m_conductor_route->scene()) removeItem(m_conductor_route);
+		m_conductor_route->setPath(QPainterPath());
+		conductor_setter_->setVisible(true);
+		return;
+	}
+	QPainterPath path(points.constFirst());
+	for (int i = 1 ; i < points.size() ; ++i) path.lineTo(points.at(i));
+	m_conductor_route->setPath(path);
+	if (!m_conductor_route->scene()) addItem(m_conductor_route);
+	conductor_setter_->setVisible(false);
+}
+
+/**
+	@brief Diagram::conductorRoute
+	See the declaration
+*/
+QPainterPath Diagram::conductorRoute() const
+{
+	return m_conductor_route->scene() ? m_conductor_route->path() : QPainterPath();
+}
+
+/**
 	@brief Diagram::~Diagram
 	Destructor
 */
@@ -296,6 +328,7 @@ Diagram::~Diagram()
 	delete qgi_manager_;
 	// remove of conductor setter
 	delete conductor_setter_;
+	delete m_conductor_route;
 
 	if (m_event_interface)
 	delete m_event_interface;

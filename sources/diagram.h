@@ -119,6 +119,9 @@ class Diagram : public QGraphicsScene
 
 	private:
 		QGraphicsLineItem *conductor_setter_;
+			/// The route of a pipe being drawn, in place of the straight
+			/// conductor setter (setConductorRoute())
+		QGraphicsPathItem *m_conductor_route;
 		ElementsMover     m_elements_mover;
 		ElementTextsMover m_element_texts_mover;
 		QGIManager        *qgi_manager_;
@@ -244,6 +247,13 @@ class Diagram : public QGraphicsScene
 		void setConductor(bool);
 		void setConductorStart (QPointF);
 		void setConductorStop(QPointF);
+			/// While a pipe is drawn: show its route through @p points (on
+			/// the folio, two at least), dashed like the conductor setter,
+			/// in place of the straight line; fewer points: the straight
+			/// line again. Gone with setConductor(false). Wires never use it.
+		void setConductorRoute(const QList<QPointF> &points);
+			/// The route shown by setConductorRoute(), empty when none
+		QPainterPath conductorRoute() const;
 		QList < QSet <Conductor *> > potentials();
 	
 		// methods related to XML import/export
@@ -504,6 +514,8 @@ inline void Diagram::setConductor(bool adding) {
 		if (!conductor_setter_ -> scene()) addItem(conductor_setter_);
 	} else {
 		if (conductor_setter_ -> scene()) removeItem(conductor_setter_);
+			//The route of a pipe, if any, goes with it
+		setConductorRoute({});
 	}
 }
 

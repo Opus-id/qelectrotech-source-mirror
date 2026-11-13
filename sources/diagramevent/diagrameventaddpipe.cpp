@@ -81,6 +81,8 @@ DiagramEventAddPipe::~DiagramEventAddPipe()
 {
 	hover(nullptr, QColor());
 	clearMarks();
+	delete m_tee_model;
+	m_tee_model = nullptr;
 	if (m_diagram)
 	{
 		if (hasStart()) {
@@ -785,31 +787,102 @@ void DiagramEventAddPipe::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 		hover(freeNozzleNear(m_diagram, event->scenePos(), radius), Terminal::allowedColor);
 		return;
 	}
+	updatePreview(event->scenePos(), snaps(event), radius);
+}
 
-	const bool snap = snaps(event);
-	Terminal *target = m_start ? m_start->magnetTarget(event->scenePos(), radius)
-							   : freeNozzleNear(m_diagram, event->scenePos(), radius);
+/**
+	@brief DiagramEventAddPipe::updatePreview
+	See the declaration
+*/
+void DiagramEventAddPipe::updatePreview(const QPointF &scene_pos, bool snap, qreal radius)
+{
+	if (!m_diagram || !hasStart()) return;
+	m_mouse_pos = scene_pos;
+	m_mouse_snap = snap;
+	m_mouse_radius = radius;
+
+	Terminal *target = m_start ? m_start->magnetTarget(scene_pos, radius)
+							   : freeNozzleNear(m_diagram, scene_pos, radius);
 		//Started in an empty place: moved onto the axis of the nozzle
 		//which would catch the pipe, back when it no longer would
+	const QPointF start_point = m_start_free ? startPointFor(target, snap) : m_start_point;
 	if (m_start_free) {
-		m_diagram->setConductorStart(startPointFor(target, snap));
+		m_diagram->setConductorStart(start_point);
 	}
 		//The preview ends exactly where a click would end the pipe
-	QPointF stop = target ? target->dockConductor()
-						  : (hasFreeEndSymbol() ? endPoint(event->scenePos(), snap)
-												: event->scenePos());
+	const bool free_end = !target && hasFreeEndSymbol();
+	const QPointF end_point = free_end ? endPoint(scene_pos, snap) : scene_pos;
+	QPointF stop = target ? target->dockConductor() : end_point;
 		//Over a pipe, the preview ends where the tee would go
+	PidTee::Spot spot;
 	if (!target && PidTee::isSet(m_diagram) && teeArm() > 0)
 	{
-		Conductor *pipe = PidTee::conductorAt(m_diagram, event->scenePos());
+		Conductor *pipe = PidTee::conductorAt(m_diagram, scene_pos);
 		if (pipe && pipe->medium() == TerminalData::Pipe) {
-			const PidTee::Spot spot = spotFacingStart(
-						PidTee::spotOn(pipe, event->scenePos(), teeArm()), snap);
+			spot = spotFacingStart(PidTee::spotOn(pipe, scene_pos, teeArm()), snap);
 			if (spot.isValid()) stop = spot.point;
 		}
 	}
 	m_diagram->setConductorStop(stop);
+		//The real route, bends included, when the end is known
+	m_diagram->setConductorRoute(previewRoute(start_point, target, spot, end_point, free_end));
 	hover(target, Terminal::allowedColor);
+}
+
+/**
+	@brief DiagramEventAddPipe::teeWayOut
+	See the declaration
+*/
+bool DiagramEventAddPipe::teeWayOut(const PidTee::Spot &spot, const QPointF &toward, PipeEnd *end)
+{
+	if (!end || !spot.isValid()) return false;
+	if (!m_tee_model) {
+		m_tee_model = PidTee::build(m_diagram, nullptr, false);
+	}
+	if (!m_tee_model) return false;
+	const Terminal *out = PidTee::fit(m_tee_model, spot, PidTee::branchFacing(spot, toward));
+	if (!out) return false;
+	*end = PipeEnd{out->dockConductor(), out->orientation(), false};
+	return true;
+}
+
+/**
+	@brief DiagramEventAddPipe::previewRoute
+	See the declaration. The same ends as drawPipe() gives the pipe.
+*/
+QList<QPointF> DiagramEventAddPipe::previewRoute(const QPointF &start_point, Terminal *target,
+												 const PidTee::Spot &end_spot,
+												 const QPointF &end_point, bool free_end)
+{
+	const bool end_tee = !target && end_spot.isValid();
+	if (!target && !end_tee && !free_end) return {};
+	if (m_start_tee && !m_start_spot.pipe) return {};
+
+		//Where the other end is, for a tee to face it
+	const QPointF end_at = target ? target->dockConductor()
+								  : (end_tee ? end_spot.point : end_point);
+	PipeEnd start;
+	if (m_start) {
+		start = PipeEnd{m_start->dockConductor(), m_start->orientation(), false};
+	} else if (m_start_tee) {
+		if (!teeWayOut(m_start_spot, end_at, &start)) return {};
+	} else {
+		start = PipeEnd{start_point, Qet::East, true};
+	}
+
+	PipeEnd end;
+	if (target) {
+		end = PipeEnd{target->dockConductor(), target->orientation(), false};
+	} else if (end_tee) {
+		if (!teeWayOut(end_spot, start.point, &end)) return {};
+	} else {
+		end = PipeEnd{end_point, Qet::West, true};
+	}
+	if (QLineF(start.point, end.point).length() < 0.5) return {};
+
+	facingOfFreeEnds(start, end, m_s_shape);
+	return Conductor::defaultRoute(start.point, start.facing, end.point, end.facing,
+								   PipeConnection::pipeExit);
 }
 
 /**
@@ -897,6 +970,8 @@ void DiagramEventAddPipe::reset()
 	m_start_spot = PidTee::Spot();
 		//Measured again for the next pipe: the project may have changed
 	m_tee_arm = -1;
+	delete m_tee_model;
+	m_tee_model = nullptr;
 	showHint();
 }
 

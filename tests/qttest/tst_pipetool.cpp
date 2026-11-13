@@ -166,6 +166,32 @@ class tst_pipetool : public QObject
 		return QLineF();
 	}
 
+	void move(const QPointF &at)
+	{
+		mouse(QEvent::GraphicsSceneMouseMove, at, Qt::NoButton, Qt::NoButton);
+	}
+
+		// The points of @p path, on the folio
+	static QList<QPointF> pointsOf(const QPainterPath &path, const QGraphicsItem *item = nullptr)
+	{
+		QList<QPointF> points;
+		for (int i = 0; i < path.elementCount(); ++i) {
+			const QPointF p(path.elementAt(i));
+			points << (item ? item->mapToScene(p) : p);
+		}
+		return points;
+	}
+
+		// The route of the preview, as the points of the pipe @p pipe: the
+		// same in one way or the other
+	static bool sameRoute(const QList<QPointF> &route, const Conductor *pipe)
+	{
+		QList<QPointF> points = pointsOf(pipe->path(), pipe);
+		if (route == points) return true;
+		std::reverse(points.begin(), points.end());
+		return route == points;
+	}
+
 	void drag(const QPointF &from, const QPointF &to)
 	{
 		mouse(QEvent::GraphicsSceneMousePress, from, Qt::LeftButton, Qt::LeftButton);
@@ -454,6 +480,71 @@ class tst_pipetool : public QObject
 			DiagramEventAddPipe::facingOfFreeEnds(a, b, true);
 			QCOMPARE(a.facing, Qet::East);
 			QCOMPARE(b.facing, Qet::West);
+		}
+
+			// Step 5l-1p-ter: the preview shows the route of the pipe a click
+			// places there, bends included, in L and in S; gone after it
+		void thePreviewIsTheRouteOfThePipe()
+		{
+			setFreeEnd(freeEndPath());
+			for (bool s_shape : {false, true}) {
+				m_tool->setSShape(s_shape);
+					// to a free end
+				auto ends = row(m_pipe, m_pipe);
+				Terminal *from = ends.first->terminals().at(1);
+				click(nearBelow(from));
+				const QPointF mouse_at(150, m_next_y + 100);
+				move(mouse_at);
+				const QList<QPointF> route = pointsOf(m_folio->conductorRoute());
+				QVERIFY(route.size() >= 4);
+				click(mouse_at);
+				QVERIFY(sameRoute(route, from->conductors().first()));
+				QVERIFY(m_folio->conductorRoute().isEmpty());
+
+					// between two nozzles, one below the other
+				ends = row(m_pipe, m_pipe);
+				from = ends.first->terminals().at(1);
+				Element *below = place(m_pipe, QPointF(200, m_next_y + 120));
+				Terminal *to = below->terminals().at(0);
+				click(nearBelow(from));
+				move(nearBelow(to));
+				const QList<QPointF> route2 = pointsOf(m_folio->conductorRoute());
+				QVERIFY(route2.size() >= 3);
+				click(nearBelow(to));
+				QVERIFY(from->isLinkedTo(to));
+				QVERIFY(sameRoute(route2, from->conductors().first()));
+
+					// between two empty places
+				m_next_y += 200;
+				const QPointF a = Diagram::snapToGrid(QPointF(400, m_next_y));
+				const QPointF b = Diagram::snapToGrid(QPointF(600, m_next_y + 100));
+				click(a);
+				move(b);
+				const QList<QPointF> route3 = pointsOf(m_folio->conductorRoute());
+				QCOMPARE(route3.size() >= 6, s_shape);
+				click(b);
+				Element *start = freeEndAt(a);
+				QVERIFY(start);
+				QVERIFY(sameRoute(route3, start->terminals().first()->conductors().first()));
+			}
+		}
+
+			// Step 5l-1p-ter: without a symbol of free end, an empty place ends
+			// nothing: the straight line as before, no route
+		void noKnownEndNoRoute()
+		{
+			const auto ends = row(m_pipe, m_pipe);
+			Terminal *from = ends.first->terminals().at(1);
+			click(nearBelow(from));
+			const QPointF mouse_at(150, m_next_y + 100);
+			move(mouse_at);
+			QVERIFY(m_folio->conductorRoute().isEmpty());
+			QCOMPARE(preview().p2(), mouse_at);
+				// over a free nozzle: the route
+			move(nearBelow(ends.second->terminals().at(0)));
+			QVERIFY(!m_folio->conductorRoute().isEmpty());
+			key(Qt::Key_Escape);
+			QVERIFY(m_folio->conductorRoute().isEmpty());
 		}
 
 			// Step 5l-1p-ter: a pipe in S to an empty place has two bends; the

@@ -29,6 +29,7 @@
 #include <QPointF>
 #include <QPointer>
 
+class Element;
 class QGraphicsEllipseItem;
 class QGraphicsItem;
 
@@ -176,6 +177,22 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		void drawPipe(Terminal *start, const QPointF &start_point, const PidTee::Spot &start_spot,
 					  Terminal *target, const QPointF &end_point, const PidTee::Spot &end_spot);
 		bool isEmptyPlace(const QPointF &scene_pos) const;
+			/// Where the nozzle of a tee at @p spot, facing @p toward as
+			/// drawPipe() turns it, docks and which way it faces; false
+			/// without a symbol of tee. The tee is built once per pipe,
+			/// never placed (m_tee_model).
+		bool teeWayOut(const PidTee::Spot &spot, const QPointF &toward, PipeEnd *end);
+			/// The route the pipe being drawn would take, from its start (at
+			/// @p start_point when it starts in an empty place) to @p target,
+			/// else to a tee at @p end_spot (valid), else to a free end at
+			/// @p end_point when @p free_end: the points of the pipe placed
+			/// on a click; empty when the end is not known
+		QList<QPointF> previewRoute(const QPointF &start_point, Terminal *target,
+									const PidTee::Spot &end_spot, const QPointF &end_point,
+									bool free_end);
+			/// The preview for the mouse at @p scene_pos: where it ends, its
+			/// route, the nozzle lit; kept to be shown again (m_mouse_*)
+		void updatePreview(const QPointF &scene_pos, bool snap, qreal radius);
 		bool hasStart() const { return m_start || m_start_free || m_start_tee; }
 		QPointF startScenePoint() const;
 		qreal teeArm();
@@ -194,6 +211,15 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		qreal m_tee_arm = -1;
 			/// A route in S rather than in L (sShape())
 		bool m_s_shape = false;
+			/// The symbol of tee of the project, never placed: where its
+			/// nozzles would go, for the preview (teeWayOut()); built once
+			/// per pipe
+		Element *m_tee_model = nullptr;
+			/// The last mouse move: where, with or without snapping, how
+			/// near a nozzle catches the pipe
+		QPointF m_mouse_pos;
+		bool m_mouse_snap = true;
+		qreal m_mouse_radius = 0;
 		QPointer<Terminal> m_hovered;
 		QList<QGraphicsEllipseItem *> m_marks;
 };
