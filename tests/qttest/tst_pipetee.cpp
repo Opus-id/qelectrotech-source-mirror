@@ -673,6 +673,69 @@ class tst_pipetee : public QObject
 			QVERIFY(sameRoute(route2, pipeOn(free_end->terminals().first())));
 		}
 
+			// Step 5l-1p-ter (e): a drag from a nozzle, outside the tool,
+			// shows the route of the pipe it draws, to a tee or to a nozzle;
+			// the straight line where it draws none, and for a wire
+		void aDragShowsTheRouteOfThePipe()
+		{
+			const auto on = [](Terminal *t) { return t->mapToScene(t->shape().boundingRect().center()); };
+			const auto press = [&](Terminal *t) {
+				mouse(QEvent::GraphicsSceneMousePress, on(t), Qt::LeftButton, Qt::LeftButton);
+			};
+			const auto move = [&](const QPointF &at) {
+				mouse(QEvent::GraphicsSceneMouseMove, at, Qt::NoButton, Qt::LeftButton);
+			};
+			const auto release = [&](const QPointF &at) {
+				mouse(QEvent::GraphicsSceneMouseRelease, at, Qt::LeftButton, Qt::NoButton);
+			};
+			const Line l = line();
+
+				// from a nozzle above and aside to the pipe: a tee, bends
+			Element *c = place(m_pipe, QPointF(250, l.y - 200));
+			Terminal *from = nozzle(c, "N2");
+			const QPointF on_pipe(100, l.y + 1);
+			press(from);
+			move(on_pipe);
+			const QPainterPath route = m_folio->conductorRoute();
+			QVERIFY(route.elementCount() >= 4);
+			release(on_pipe);
+			QVERIFY(m_folio->conductorRoute().isEmpty());
+			QVERIFY(pipeOn(from));
+			QVERIFY(sameRoute(route, pipeOn(from)));
+
+				// to a nozzle
+			Element *d = place(m_pipe, QPointF(600, l.y - 100));
+			Terminal *start = nozzle(c, "N1");
+			Terminal *to = nozzle(d, "N1");
+			press(start);
+			move(on(to));
+			const QPainterPath route2 = m_folio->conductorRoute();
+			QVERIFY(route2.elementCount() >= 4);
+			release(on(to));
+			QVERIFY(joins(pipeOn(start), start, to));
+			QVERIFY(sameRoute(route2, pipeOn(start)));
+
+				// to a nozzle already connected, or nowhere: no route
+			Terminal *third = nozzle(d, "N2");
+			press(third);
+			move(on(from));
+			QVERIFY(m_folio->conductorRoute().isEmpty());
+			move(QPointF(800, l.y - 300));
+			QVERIFY(m_folio->conductorRoute().isEmpty());
+			release(QPointF(800, l.y - 300));
+			QVERIFY(third->conductors().isEmpty());
+
+				// a wire: the straight line, as always
+			Element *e1 = place(m_electrical, QPointF(0, l.y - 300));
+			Element *e2 = place(m_electrical, QPointF(200, l.y - 250));
+			Terminal *wire_from = nozzle(e1, "N2");
+			press(wire_from);
+			move(on(nozzle(e2, "N1")));
+			QVERIFY(m_folio->conductorRoute().isEmpty());
+			release(on(nozzle(e2, "N1")));
+			QCOMPARE(wire_from->conductors().size(), 1);
+		}
+
 			// From an empty place to a pipe: a free end and a tee, one step
 		void fromAnEmptyPlaceToAPipe()
 		{

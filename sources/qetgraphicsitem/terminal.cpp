@@ -33,6 +33,7 @@
 #include <autoconnect.h>
 #include <pidtooltip.h>
 #include <pidtee.h>
+#include <pipeconnection.h>
 
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
@@ -776,6 +777,48 @@ namespace {
 		}
 		return nullptr;
 	}
+
+		//The tee of a drag from a nozzle, fitted on the pipe under the
+		//pointer to show the route of the branch, never placed: built at
+		//the first need of a drag, deleted at its release
+	Element *drag_tee = nullptr;
+	const Diagram *drag_tee_diagram = nullptr;
+
+	void dropDragTee()
+	{
+		delete drag_tee;
+		drag_tee = nullptr;
+		drag_tee_diagram = nullptr;
+	}
+
+	/**
+		@return the route of the branch a release at @p scene_pos would
+		draw from @p nozzle to a tee on the pipe there (PidTee::branchFrom()),
+		empty when it would draw none
+	*/
+	QList<QPointF> teeRoute(Terminal *nozzle, const QPointF &scene_pos)
+	{
+		Diagram *diagram = nozzle->diagram();
+		if (!diagram || diagram->isReadOnly() || !PidTee::isSet(diagram)
+			|| nozzle->medium() != TerminalData::Pipe || !nozzle->parentElement()
+			|| !nozzle->hasRoomForWire()) {
+			return {};
+		}
+		const PidTee::Spot spot = PidTee::spotAt(diagram, scene_pos);
+		if (!spot.isValid()) return {};
+		if (drag_tee_diagram != diagram) {
+			dropDragTee();
+			drag_tee = PidTee::build(diagram, nullptr, false);
+			drag_tee_diagram = diagram;
+		}
+		if (!drag_tee) return {};
+		const Terminal *out = PidTee::fit(drag_tee, spot,
+										  PidTee::branchFacing(spot, nozzle->dockConductor()));
+		if (!out) return {};
+		return Conductor::defaultRoute(nozzle->dockConductor(), nozzle->orientation(),
+									   out->dockConductor(), out->orientation(),
+									   PipeConnection::pipeExit);
+	}
 }
 
 /**
@@ -821,7 +864,14 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 			//Not on a terminal: a pipe is caught by a free nozzle nearby,
 			//and the preview shows where it goes
 		other_terminal = magnetTarget(e->scenePos(), magnetSceneRadius(e));
-		if (!other_terminal) return;
+		if (!other_terminal) {
+				//A pipe over a pipe: the route to the tee a release would
+				//put there; elsewhere the straight line
+			if (medium() == TerminalData::Pipe) {
+				diag->setConductorRoute(teeRoute(this, e->scenePos()));
+			}
+			return;
+		}
 		diag->setConductorStop(other_terminal->dockConductor());
 	}
 	m_previous_terminal = other_terminal;
@@ -839,6 +889,17 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 
 	other_terminal -> m_hovered = true;
 	other_terminal -> update();
+
+		//A pipe shows the route a release would give it, bends included
+		//(Conductor::defaultRoute()); a wire keeps the straight line
+	if (medium() == TerminalData::Pipe) {
+		const bool linked = canBeLinkedTo(other_terminal) && !wiredAutomatically(other_terminal);
+		diag->setConductorRoute(linked ? Conductor::defaultRoute(dockConductor(), orientation(),
+																 other_terminal->dockConductor(),
+																 other_terminal->orientation(),
+																 PipeConnection::pipeExit)
+									   : QList<QPointF>());
+	}
 }
 
 
@@ -850,6 +911,7 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 {
 	m_previous_terminal = nullptr;
 	m_hovered_color     = neutralColor;
+	dropDragTee();
 
 	if (!diagram()) return;
 
