@@ -37,6 +37,11 @@
 
 #include <algorithm>
 
+namespace {
+		//Defined below, beside rejoinPipesOfRemovedElements()
+	void addFreeEndsLeftBySymbols(const DiagramContent &content, QList<Element *> &lonely);
+}
+
 /**
 	@brief DeleteQGraphicsItemCommand::DeleteQGraphicsItemCommand
 	@param diagram : diagram where this undo work
@@ -158,7 +163,8 @@ bool DeleteQGraphicsItemCommand::hasNonDeletableTerminal(const DiagramContent &c
 	@brief DeleteQGraphicsItemCommand::addLonelyFreeEnds
 	See the declaration. A pipe the user picked is never joined again by
 	rejoinPipesOfRemovedElements() to a symbol that stays: a free end it
-	leaves stays alone.
+	leaves stays alone. A pipe that goes with a symbol picked does too,
+	unless the line is joined again through that symbol (5l-1q, 13/11).
 */
 int DeleteQGraphicsItemCommand::addLonelyFreeEnds(DiagramContent &content)
 {
@@ -188,6 +194,7 @@ int DeleteQGraphicsItemCommand::addLonelyFreeEnds(DiagramContent &content)
 			}
 		}
 	}
+	addFreeEndsLeftBySymbols(content, lonely);
 	content.m_elements << lonely;
 	return int(lonely.size());
 }
@@ -386,51 +393,33 @@ namespace {
 		return found;
 	}
 
-} // namespace
-
-/**
-	@brief DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements
-	A symbol a line runs through (a valve, the run of a tee) taken away
-	leaves one pipe where it stood, as if it had never been dropped there
-	(the reverse of autoBreakConductors()): the two nozzles left on either
-	side are joined, with the data of the pipe on the N1 side. A pipe has
-	no potential, so setPotentialsOfRemovedElements() never does this.
-	- through two opposed nozzles of the run only: the branch of a tee
-	  goes with the tee, as before;
-	- one side touching another symbol with no pipe: the pipe left goes
-	  to the nozzle it touched; both sides touching: nothing, there is no
-	  line data to take;
-	- through symbols removed together, one after the other: one pipe;
-	- a pipe the user picked along with the symbol, which runs to a symbol
-	  that stays, goes as asked: that side is not joined;
-	- a reducer the same way, though it has no run (a change of DN stops
-	  there): a size that differs at the far end is marked on its nozzle,
-	  as anywhere else.
-	Pipes only: an electrical terminal is never in a run.
-*/
-void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
-{
-	const QList<Element *> &removed = m_removed_contents.m_elements;
-	if (removed.isEmpty()) {
-		return;
-	}
-		//The pipes this command takes away, and among them those the user
-		//picked themselves
-	const QList<Conductor *> gone = m_removed_contents.conductors(DiagramContent::AnyConductor);
-	QSet<const Conductor *> picked;
-	for (QGraphicsItem *item : std::as_const(m_removed_contents.m_selected_items)) {
-		if (auto *c = qgraphicsitem_cast<Conductor *>(item)) {
+	/**
+		@return the conductors the user picked themselves among those
+		@a content takes away
+	*/
+	QSet<const Conductor *> pickedConductors(const DiagramContent &content)
+	{
+		QSet<const Conductor *> picked;
+		for (QGraphicsItem *item : std::as_const(content.m_selected_items)) {
+			if (auto *c = qgraphicsitem_cast<Conductor *>(item)) {
+				picked << c;
+			}
+		}
+		for (Conductor *c : std::as_const(content.m_other_conductors)) {
 			picked << c;
 		}
-	}
-	for (Conductor *c : std::as_const(m_removed_contents.m_other_conductors)) {
-		picked << c;
+		return picked;
 	}
 
-	QSet<Terminal *> seen;
-		//From a nozzle of a removed symbol, out along the line, through the
-		//other removed symbols, to the first nozzle that stays
-	auto goOut = [&](Terminal *nozzle) {
+	/**
+		@return where the line goes on from @a nozzle of a removed symbol:
+		out along it, through the other @a removed symbols, to the first
+		nozzle that stays (see rejoinPipesOfRemovedElements())
+	*/
+	RunEnd goOut(Terminal *nozzle, const QList<Element *> &removed,
+				 const QList<Conductor *> &gone, const QSet<const Conductor *> &picked,
+				 QSet<Terminal *> &seen)
+	{
 		RunEnd end;
 		Terminal *t = nozzle;
 		for (int guard = 0 ; t && guard < 1000 ; ++guard)
@@ -479,6 +468,105 @@ void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
 			}
 		}
 		return RunEnd();
+	}
+
+	/**
+		Add to @a lonely the free ends (Element::isFreeEnd()) the symbols
+		removed by @a content leave alone: all their pipes go with them,
+		and the line is not joined again through the symbol (5l-1n), which
+		would leave them a pipe. A strainer or a vent stays.
+	*/
+	void addFreeEndsLeftBySymbols(const DiagramContent &content, QList<Element *> &lonely)
+	{
+		const QList<Element *> &removed = content.m_elements;
+		if (removed.isEmpty()) {
+			return;
+		}
+		const QList<Conductor *> gone = content.conductors(DiagramContent::AnyConductor);
+		const QSet<const Conductor *> picked = pickedConductors(content);
+		for (Element *element : removed)
+		{
+			for (Terminal *nozzle : element->terminals())
+			{
+				if (nozzle->medium() != TerminalData::Pipe) {
+					continue;
+				}
+				for (Conductor *pipe : nozzle->conductors())
+				{
+					if (pipe->medium() != TerminalData::Pipe || !gone.contains(pipe)) {
+						continue;
+					}
+					Terminal *far = pipe->terminal1 == nozzle ? pipe->terminal2 : pipe->terminal1;
+					Element *free_end = far ? far->parentElement() : nullptr;
+					if (!free_end || !free_end->isFreeEnd() || removed.contains(free_end)
+						|| lonely.contains(free_end)) {
+						continue;
+					}
+					bool alone = true;
+					for (Terminal *t : free_end->terminals()) {
+						for (Conductor *c : t->conductors()) {
+							alone = alone && gone.contains(c);
+						}
+					}
+					if (!alone) {
+						continue;
+					}
+						//Joined again to the other side of the symbol: it
+						//keeps a pipe
+					if (Terminal *opposed = opposedRunNozzle(nozzle))
+					{
+						QSet<Terminal *> seen;
+						const RunEnd one = goOut(nozzle, removed, gone, picked, seen);
+						const RunEnd two = goOut(opposed, removed, gone, picked, seen);
+						if (one.terminal == far && two.terminal && two.terminal != far
+							&& (one.pipe || two.pipe)) {
+							continue;
+						}
+					}
+					lonely << free_end;
+				}
+			}
+		}
+	}
+
+} // namespace
+
+/**
+	@brief DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements
+	A symbol a line runs through (a valve, the run of a tee) taken away
+	leaves one pipe where it stood, as if it had never been dropped there
+	(the reverse of autoBreakConductors()): the two nozzles left on either
+	side are joined, with the data of the pipe on the N1 side. A pipe has
+	no potential, so setPotentialsOfRemovedElements() never does this.
+	- through two opposed nozzles of the run only: the branch of a tee
+	  goes with the tee, as before;
+	- one side touching another symbol with no pipe: the pipe left goes
+	  to the nozzle it touched; both sides touching: nothing, there is no
+	  line data to take;
+	- through symbols removed together, one after the other: one pipe;
+	- a pipe the user picked along with the symbol, which runs to a symbol
+	  that stays, goes as asked: that side is not joined;
+	- a reducer the same way, though it has no run (a change of DN stops
+	  there): a size that differs at the far end is marked on its nozzle,
+	  as anywhere else.
+	Pipes only: an electrical terminal is never in a run.
+*/
+void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
+{
+	const QList<Element *> &removed = m_removed_contents.m_elements;
+	if (removed.isEmpty()) {
+		return;
+	}
+		//The pipes this command takes away, and among them those the user
+		//picked themselves
+	const QList<Conductor *> gone = m_removed_contents.conductors(DiagramContent::AnyConductor);
+	const QSet<const Conductor *> picked = pickedConductors(m_removed_contents);
+
+	QSet<Terminal *> seen;
+		//From a nozzle of a removed symbol, out along the line, through the
+		//other removed symbols, to the first nozzle that stays
+	auto goOut = [&](Terminal *nozzle) {
+		return ::goOut(nozzle, removed, gone, picked, seen);
 	};
 
 		//Left to right, then top to bottom, not in the order of the

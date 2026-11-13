@@ -445,15 +445,53 @@ class tst_pipedelete : public QObject
 			QCOMPARE(content.m_elements.size(), 2);
 		}
 
-			// Step 5l-1p: the symbol deleted, its pipe goes with it, not
-			// picked: the free end stays, as the user asked a pipe only
-		void aSymbolDeletedLeavesTheFreeEnd()
+			// Step 5l-1q (13/11, trial of the user; was kept in 5l-1p): the
+			// symbol deleted, its pipe goes with it and takes the free end
+			// left alone; one step to undo
+		void aSymbolDeletedTakesTheFreeEndLeftAlone()
 		{
 			const auto e = row({m_free_end, m_equipment});
 			Conductor *pipe = draw(nozzle(e[0], "N1"), nozzle(e[1], "N1"));
+			const int steps = m_folio->undoStack().index();
 			removeAsTheUser({e[1]});
 			QVERIFY(!pipe->scene());
+			QVERIFY(!e[0]->scene());
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+			m_folio->undoStack().undo();
 			QVERIFY(e[0]->scene() == m_folio);
+			QCOMPARE(pipeOn(nozzle(e[0], "N1")), pipe);
+		}
+
+			// The case of the user: a tee, N1 to a free end, N2 free, N3 to
+			// a nozzle: deleted, it takes its two pipes and the free end
+		void aTeeDeletedTakesTheFreeEndLeftAlone()
+		{
+			const auto e = row({m_free_end, m_tee});
+			Element *equipment = place(m_equipment, QPointF(200, m_next_y + 200));
+			Conductor *to_end = draw(nozzle(e[0], "N1"), nozzle(e[1], "N1"));
+			Conductor *branch = draw(nozzle(e[1], "N3"), nozzle(equipment, "N1"));
+			removeAsTheUser({e[1]});
+			QVERIFY(!to_end->scene() && !branch->scene());
+			QVERIFY(!e[0]->scene());
+			QVERIFY(equipment->scene() == m_folio);
+		}
+
+			// The line joined again through the symbol (5l-1n): the free
+			// end keeps a pipe, it stays; a strainer stays anyway
+		void aFreeEndJoinedAgainStays()
+		{
+			const auto e = row({m_free_end, m_valve, m_equipment});
+			Terminal *end = nozzle(e[0], "N1"), *b = nozzle(e[2], "N1");
+			draw(end, nozzle(e[1], "N1"));
+			draw(nozzle(e[1], "N2"), b);
+			removeAsTheUser({e[1]});
+			QVERIFY(e[0]->scene() == m_folio);
+			QVERIFY(joins(pipeOn(end), end, b));
+
+			const auto s = row({m_strainer, m_equipment});
+			draw(nozzle(s[0], "N1"), nozzle(s[1], "N1"));
+			removeAsTheUser({s[1]});
+			QVERIFY(s[0]->scene() == m_folio);
 		}
 
 			// Step 5l-1p: a pipe cut by a symbol dropped on it keeps its free
