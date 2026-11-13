@@ -4346,6 +4346,18 @@ Continuer ?</translation>
         <translation>Cliquez ou relâchez près d&apos;un autre piquage libre, ou cliquez sur une tuyauterie (Té) : finir la tuyauterie ; Ctrl : sans accroche à l&apos;axe ; clic droit ou Échap : annuler</translation>
     </message>
     <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="1100"/>
+        <source>Space: route in L</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Espace : tracé en L</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="1101"/>
+        <source>Space: route in S</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Espace : tracé en S</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="828"/>
         <source>Click near a free nozzle, on a pipe (tee) or in an empty place: start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>

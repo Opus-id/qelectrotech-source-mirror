@@ -62,6 +62,10 @@ class QGraphicsItem;
 	bends for a pipe meant straight. A start in an empty place moves onto
 	the axis of a nozzle nearly in front of it; a tee at the end goes right
 	in front of the start. Ctrl held: no snapping, the grid only.
+
+	The preview shows the route the pipe will take, bends included. Where
+	a free end decides it, the route is in L (one bend) or, after Space, in
+	S (two bends); the choice stays while the tool runs.
 */
 class DiagramEventAddPipe : public DiagramEventInterface
 {

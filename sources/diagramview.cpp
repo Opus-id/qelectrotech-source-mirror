@@ -2404,6 +2404,16 @@ bool DiagramView::event(QEvent *e) {
 		e -> accept();
 		return(true);
 	}
+		//While the pipe tool runs, Space turns the route of the pipe being
+		//drawn (L or S): it never rotates a selection made meanwhile
+	if (e->type() == QEvent::ShortcutOverride && m_diagram
+			&& qobject_cast<DiagramEventAddPipe *>(m_diagram->eventInterface())) {
+		const auto *key = static_cast<QKeyEvent *>(e);
+		if (key->key() == Qt::Key_Space && key->modifiers() == Qt::NoModifier) {
+			e->accept();
+			return true;
+		}
+	}
 	return(QGraphicsView::event(e));
 }
 

@@ -230,6 +230,10 @@ void DiagramEventAddPipe::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	const qreal radius = Terminal::magnetSceneRadius(event);
 	const QPointF pos = event->scenePos();
 	const bool snap = snaps(event);
+		//Where the preview is drawn again for Space, before any move
+	m_mouse_pos = pos;
+	m_mouse_snap = snap;
+	m_mouse_radius = radius;
 		//A click in an empty place starts or ends the pipe on a free end
 		//only when the project has a symbol for it
 	const bool free_end = hasFreeEndSymbol();
@@ -919,10 +923,23 @@ void DiagramEventAddPipe::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 /**
 	@brief DiagramEventAddPipe::keyPressEvent
 	Esc takes back the pipe being drawn, a second Esc leaves the tool.
+	Space, while a pipe is drawn, turns its route in S or back in L.
 	@param event
 */
 void DiagramEventAddPipe::keyPressEvent(QKeyEvent *event)
 {
+		//Space: the route in S rather than in L, or back; never a rotation
+		//of the selection while the tool runs (DiagramView::event())
+	if (event->key() == Qt::Key_Space && event->modifiers() == Qt::NoModifier)
+	{
+		if (hasStart()) {
+			m_s_shape = !m_s_shape;
+			updatePreview(m_mouse_pos, m_mouse_snap, m_mouse_radius);
+			showHint();
+		}
+		event->setAccepted(true);
+		return;
+	}
 	if (event->key() == Qt::Key_Escape && hasStart())
 	{
 		reset();
@@ -1049,43 +1066,50 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 
 	const bool free_end = hasFreeEndSymbol();
 	const bool tee = PidTee::isSet(m_diagram);
+	QString text;
 	if (!message.isEmpty()) {
-		editor->statusBar()->showMessage(message);
+		text = (message);
 	} else if (hasStart() && tee && free_end) {
-		editor->statusBar()->showMessage(tr(
+		text = (tr(
 			"Click or release near another free nozzle, click on a pipe (tee) or in an empty "
 			"place: end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel",
 			"pipe drawing tool"));
 	} else if (hasStart() && tee) {
-		editor->statusBar()->showMessage(tr(
+		text = (tr(
 			"Click or release near another free nozzle, or click on a pipe (tee): end the "
 			"pipe; Ctrl: no snapping to the axis; right click or Esc: cancel", "pipe drawing tool"));
 	} else if (!hasStart() && tee && free_end) {
-		editor->statusBar()->showMessage(tr(
+		text = (tr(
 			"Click near a free nozzle, on a pipe (tee) or in an empty place: start a pipe; "
 			"right click or Esc: quit the tool", "pipe drawing tool"));
 	} else if (!hasStart() && tee) {
-		editor->statusBar()->showMessage(tr(
+		text = (tr(
 			"Click near a free nozzle or on a pipe (tee): start a pipe; "
 			"right click or Esc: quit the tool", "pipe drawing tool"));
 	} else if (hasStart() && free_end) {
-		editor->statusBar()->showMessage(tr(
+		text = (tr(
 			"Click or release near another free nozzle, or click in an empty place: end "
 			"the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel",
 			"pipe drawing tool"));
 	} else if (hasStart()) {
-		editor->statusBar()->showMessage(tr(
+		text = (tr(
 			"Click or release near another free nozzle: end the pipe; "
 			"right click or Esc: cancel", "pipe drawing tool"));
 	} else if (free_end) {
-		editor->statusBar()->showMessage(tr(
+		text = (tr(
 			"Click near a free nozzle or in an empty place: start a pipe; "
 			"right click or Esc: quit the tool", "pipe drawing tool"));
 	} else {
-		editor->statusBar()->showMessage(tr(
+		text = (tr(
 			"Click near a free nozzle: start a pipe; "
 			"right click or Esc: quit the tool", "pipe drawing tool"));
 	}
+		//A free end may end the pipe: Space turns its route the other way
+	if (message.isEmpty() && hasStart() && free_end) {
+		text += QStringLiteral("; ") + (m_s_shape ? tr("Space: route in L", "pipe drawing tool")
+												  : tr("Space: route in S", "pipe drawing tool"));
+	}
+	editor->statusBar()->showMessage(text);
 }
 
 /**

@@ -3,6 +3,7 @@
 
 #include "diagram.h"
 #include "diagramevent/diagrameventaddpipe.h"
+#include "diagramview.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "qetgraphicsitem/conductor.h"
@@ -545,6 +546,54 @@ class tst_pipetool : public QObject
 			QVERIFY(!m_folio->conductorRoute().isEmpty());
 			key(Qt::Key_Escape);
 			QVERIFY(m_folio->conductorRoute().isEmpty());
+		}
+
+			// Step 5l-1p-ter: Space, while a pipe is drawn, turns its route
+			// in S and back in L; the preview follows at once
+		void spaceTurnsTheRouteInS()
+		{
+			setFreeEnd(freeEndPath());
+				// before the first click: nothing
+			key(Qt::Key_Space);
+			QVERIFY(!m_tool->sShape());
+
+			const auto ends = row(m_pipe, m_pipe);
+			Terminal *from = ends.first->terminals().at(1);
+			click(nearBelow(from));
+			const QPointF mouse_at(150, m_next_y + 100);
+			move(mouse_at);
+			const QPainterPath in_l = m_folio->conductorRoute();
+			QCOMPARE(in_l.elementCount(), 5);
+			key(Qt::Key_Space);
+			QVERIFY(m_tool->sShape());
+			QCOMPARE(m_folio->conductorRoute().elementCount(), 6);
+			key(Qt::Key_Space);
+			QVERIFY(!m_tool->sShape());
+			QCOMPARE(m_folio->conductorRoute(), in_l);
+			key(Qt::Key_Space);
+			click(mouse_at);
+			Element *free_end = freeEndAt(Diagram::snapToGrid(mouse_at));
+			QVERIFY(free_end);
+			QCOMPARE(free_end->terminals().first()->orientation(), Qet::West);
+
+				// right after the first click, before any move: the route
+				// there is drawn again
+			const auto ends2 = row(m_pipe, m_pipe);
+			Terminal *from2 = ends2.first->terminals().at(1);
+			click(nearBelow(from2));
+			key(Qt::Key_Space);
+			QVERIFY(!m_tool->sShape());
+		}
+
+			// Step 5l-1p-ter: while the tool runs, the view keeps Space for it:
+			// never the shortcut which rotates the selection
+		void theViewKeepsSpaceForTheTool()
+		{
+			DiagramView view(m_folio);
+			QKeyEvent space(QEvent::ShortcutOverride, Qt::Key_Space, Qt::NoModifier);
+			space.ignore();
+			QCoreApplication::sendEvent(&view, &space);
+			QVERIFY(space.isAccepted());
 		}
 
 			// Step 5l-1p-ter: a pipe in S to an empty place has two bends; the
