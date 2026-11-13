@@ -8,12 +8,16 @@
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
+#include "pidcodification.h"
 #include "qetproject.h"
+#include "ui/configpage/pidconfigpage.h"
 
 #include <QDomDocument>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
+#include <QLineEdit>
 #include <QPointer>
+#include <QUndoStack>
 
 // The tool which draws pipes: a click near a free nozzle starts a pipe, a
 // second click or the release of a drag near another one ends it, in one
@@ -43,6 +47,56 @@ class tst_pipetool : public QObject
 			"<terminal name=\"N2\" x=\"10\" y=\"0\" orientation=\"e\" type=\"Generic\"%2/>"
 			"</description></definition>").arg(uuid, attr));
 		return doc.documentElement();
+	}
+
+		// A free end: one nozzle N1 at its point of insertion, facing west
+	static QDomElement freeEndDefinition(QDomDocument &doc)
+	{
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"pid_family=\"pipe\" pid_role=\"free_end\" "
+			"width=\"20\" height=\"20\" hotspot_x=\"10\" hotspot_y=\"10\">"
+			"<uuid uuid=\"{93333333-3333-3333-3333-333333333333}\"/>"
+			"<names><name lang=\"en\">Free end</name></names>"
+			"<description>"
+			"<terminal name=\"N1\" x=\"0\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
+			"</description></definition>"));
+		return doc.documentElement();
+	}
+
+		// The symbol of free end of the project: @p path, none when empty
+	void setFreeEnd(const QString &path)
+	{
+		PidCodification codification = m_project->pidCodification();
+		if (path.isEmpty()) {
+			codification.tool_symbols.remove(PidCodification::freeEndRole());
+		} else {
+			codification.tool_symbols.insert(PidCodification::freeEndRole(), path);
+		}
+		m_project->setPidCodification(codification);
+	}
+
+	static QString freeEndPath() { return QStringLiteral("embed://import/pipetool/freeend.elmt"); }
+
+		// The free ends on the folio
+	QList<Element *> freeEnds() const
+	{
+		QList<Element *> found;
+		for (Element *element : m_folio->elements()) {
+			if (element->isFreeEnd()) found << element;
+		}
+		return found;
+	}
+
+		// The free end whose nozzle is at @p dock, nullptr for none
+	Element *freeEndAt(const QPointF &dock) const
+	{
+		for (Element *element : freeEnds()) {
+			if (QLineF(element->terminals().first()->dockConductor(), dock).length() < 0.5) {
+				return element;
+			}
+		}
+		return nullptr;
 	}
 
 	QETProject *m_project = nullptr;
@@ -124,12 +178,13 @@ class tst_pipetool : public QObject
 			m_project = new QETProject();
 			m_project->embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("pipetool"), NamesList());
-			QDomDocument a, b;
+			QDomDocument a, b, c;
 			m_electrical = add("electrical.elmt",
 					   definition(a, "91111111-1111-1111-1111-111111111111", ""));
 			m_pipe = add("pipe.elmt",
 				     definition(b, "92222222-2222-2222-2222-222222222222", "pipe"));
 			QVERIFY(m_electrical.exist() && m_pipe.exist());
+			QVERIFY(add("freeend.elmt", freeEndDefinition(c)).exist());
 			m_folio = m_project->addNewDiagram();
 		}
 
@@ -143,6 +198,7 @@ class tst_pipetool : public QObject
 		{
 			m_folio->clearEventInterface();
 			QVERIFY(!m_tool);
+			setFreeEnd(QString());
 		}
 
 		void twoClicksNearTwoNozzlesDrawAPipe()
@@ -151,7 +207,7 @@ class tst_pipetool : public QObject
 			QVERIFY(ends.first && ends.second);
 			Terminal *from = ends.first->terminals().at(1);
 			Terminal *to = ends.second->terminals().at(0);
-			const int steps = m_folio->undoStack().count();
+			const int steps = m_folio->undoStack().index();
 
 			click(nearBelow(from));
 			QCOMPARE(m_tool->startNozzle(), from);
@@ -163,7 +219,7 @@ class tst_pipetool : public QObject
 			QVERIFY(m_tool);
 			QCOMPARE(m_tool->startNozzle(), nullptr);
 				// one undo step
-			QCOMPARE(m_folio->undoStack().count(), steps + 1);
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
 			m_folio->undoStack().undo();
 			QCOMPARE(from->conductors().size(), 0);
 		}
@@ -319,6 +375,220 @@ class tst_pipetool : public QObject
 			QCOMPARE(m_tool->startNozzle(), nullptr);
 			m_folio->undoStack().undo();
 			QCOMPARE(m_tool->markCount(), marks);
+		}
+
+			// Step 5l-1p: the way the nozzle of a free end faces, the
+			// simplest way from where the pipe leaves
+		void theFreeEndFacesThePipe()
+		{
+			const QPointF o(0, 0);
+				// straight in front: back along it
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(100, 0)), Qet::West);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::North, QPointF(0, -100)), Qet::South);
+				// in front and aside: one bend, back to the axis
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(100, 50)), Qet::North);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(100, -50)), Qet::South);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::South, QPointF(50, 100)), Qet::West);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::West, QPointF(-100, 50)), Qet::North);
+				// beside or behind: out, aside, back
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(-100, 50)), Qet::East);
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(0, 50)), Qet::East);
+				// right behind: round
+			QCOMPARE(DiagramEventAddPipe::freeEndFacing(o, Qet::East, QPointF(-100, 0)), Qet::South);
+				// from an empty place: the longer way
+			QCOMPARE(DiagramEventAddPipe::dominantFacing(o, QPointF(100, 50)), Qet::East);
+			QCOMPARE(DiagramEventAddPipe::dominantFacing(o, QPointF(-100, 50)), Qet::West);
+			QCOMPARE(DiagramEventAddPipe::dominantFacing(o, QPointF(30, 50)), Qet::South);
+			QCOMPARE(DiagramEventAddPipe::dominantFacing(o, QPointF(30, -50)), Qet::North);
+		}
+
+			// Step 5l-1p: from a nozzle to an empty place, a free end there,
+			// facing the pipe; one undo step
+		void aPipeEndsInAnEmptyPlaceOnAFreeEnd()
+		{
+			setFreeEnd(freeEndPath());
+			const auto ends = row(m_pipe, m_pipe);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			const int elements = m_folio->elements().size();
+			const int steps = m_folio->undoStack().index();
+
+			click(nearBelow(from));
+			QCOMPARE(m_tool->startNozzle(), from);
+			const QPointF end = Diagram::snapToGrid(QPointF(150, m_next_y + 100));
+			click(QPointF(150, m_next_y + 100));
+			Element *free_end = freeEndAt(end);
+			QVERIFY(free_end);
+			Terminal *nozzle = free_end->terminals().first();
+				// in front and below the nozzle, east: one bend, from above
+			QCOMPARE(nozzle->orientation(), Qet::North);
+			QVERIFY(from->isLinkedTo(nozzle));
+			QCOMPARE(int(from->conductors().first()->medium()), int(TerminalData::Pipe));
+			QCOMPARE(m_folio->elements().size(), elements + 1);
+				// the tool waits for the next pipe
+			QVERIFY(!m_tool->startNozzle() && !m_tool->startsInEmptyPlace());
+				// the free end and the pipe: one step
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+			m_folio->undoStack().undo();
+			QCOMPARE(m_folio->elements().size(), elements);
+			QCOMPARE(from->conductors().size(), 0);
+			m_folio->undoStack().redo();
+			QVERIFY(from->isLinkedTo(nozzle));
+		}
+
+			// Step 5l-1p: from an empty place to a nozzle: nothing placed
+			// before the end
+		void aPipeStartsInAnEmptyPlaceOnAFreeEnd()
+		{
+			setFreeEnd(freeEndPath());
+			const auto ends = row(m_pipe, m_pipe);
+			QVERIFY(ends.first && ends.second);
+			Terminal *to = ends.first->terminals().at(0);
+			const int elements = m_folio->elements().size();
+			const int steps = m_folio->undoStack().index();
+
+			click(QPointF(-150, m_next_y));
+			QVERIFY(m_tool->startsInEmptyPlace());
+			QCOMPARE(m_tool->startPoint(), Diagram::snapToGrid(QPointF(-150, m_next_y)));
+			QCOMPARE(m_folio->elements().size(), elements);
+			QCOMPARE(m_folio->undoStack().index(), steps);
+
+			click(nearBelow(to));
+			Element *free_end = freeEndAt(Diagram::snapToGrid(QPointF(-150, m_next_y)));
+			QVERIFY(free_end);
+				// straight in front of the nozzle, west: back along it
+			QCOMPARE(free_end->terminals().first()->orientation(), Qet::East);
+			QVERIFY(free_end->terminals().first()->isLinkedTo(to));
+				// the pipe starts at the free end
+			QCOMPARE(to->conductors().first()->terminal1, free_end->terminals().first());
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+			m_folio->undoStack().undo();
+			QCOMPARE(m_folio->elements().size(), elements);
+		}
+
+			// Step 5l-1p: from an empty place to another: two free ends, the
+			// longer way first, then one bend
+		void aPipeBetweenTwoEmptyPlaces()
+		{
+			setFreeEnd(freeEndPath());
+			m_next_y += 200;
+			const QPointF a = Diagram::snapToGrid(QPointF(400, m_next_y));
+			const QPointF b = Diagram::snapToGrid(QPointF(600, m_next_y + 100));
+			const int elements = m_folio->elements().size();
+			const int steps = m_folio->undoStack().index();
+			click(a);
+			click(b);
+			Element *start = freeEndAt(a), *end = freeEndAt(b);
+			QVERIFY(start && end);
+			QCOMPARE(start->terminals().first()->orientation(), Qet::East);
+			QCOMPARE(end->terminals().first()->orientation(), Qet::North);
+			QVERIFY(start->terminals().first()->isLinkedTo(end->terminals().first()));
+			QCOMPARE(m_folio->elements().size(), elements + 2);
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+			m_folio->undoStack().undo();
+			QCOMPARE(m_folio->elements().size(), elements);
+		}
+
+			// Step 5l-1p: no symbol of free end, or one not found, or a click
+			// on a symbol: no empty place, nothing starts
+		void anEmptyPlaceNeedsTheSymbolOfTheProject()
+		{
+			const auto ends = row(m_pipe, m_pipe);
+			QVERIFY(ends.first && ends.second);
+			const QPointF empty(100, m_next_y + 100);
+			const int elements = m_folio->elements().size();
+
+			click(empty);
+			QVERIFY(!m_tool->startsInEmptyPlace());
+			setFreeEnd(QStringLiteral("embed://import/pipetool/missing.elmt"));
+			QVERIFY(DiagramEventAddPipe::freeEndSymbol(m_folio).isNull());
+			click(empty);
+			QVERIFY(!m_tool->startsInEmptyPlace());
+			setFreeEnd(freeEndPath());
+			QVERIFY(DiagramEventAddPipe::freeEndSymbol(m_folio).exist());
+				// on a symbol: no empty place (one without nozzles, which
+				// the magnet would catch)
+			Element *symbol = place(m_electrical, QPointF(400, m_next_y));
+			QVERIFY(symbol);
+			click(symbol->sceneBoundingRect().center());
+			QVERIFY(!m_tool->startsInEmptyPlace());
+			QVERIFY(!m_tool->startNozzle());
+				// started there, a click on the same point is too short
+			click(empty);
+			QVERIFY(m_tool->startsInEmptyPlace());
+			click(empty);
+			QVERIFY(m_tool->startsInEmptyPlace());
+			QCOMPARE(m_folio->elements().size(), elements + 1);
+			key(Qt::Key_Escape);
+			QVERIFY(!m_tool->startsInEmptyPlace());
+		}
+
+			// Step 5l-1p: the release of a drag in an empty place waits for a
+			// click, as before
+		void aDragReleasedInAnEmptyPlaceWaits()
+		{
+			setFreeEnd(freeEndPath());
+			const auto ends = row(m_pipe, m_pipe);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			const int elements = m_folio->elements().size();
+			drag(nearBelow(from), QPointF(100, m_next_y + 100));
+			QCOMPARE(m_tool->startNozzle(), from);
+			QCOMPARE(m_folio->elements().size(), elements);
+			click(QPointF(100, m_next_y + 100));
+			QCOMPARE(m_folio->elements().size(), elements + 1);
+			QCOMPARE(from->conductors().size(), 1);
+		}
+
+			// Step 5l-1p: the symbol of free end, a setting of the
+			// presentation of the project: file, CSV, page with undo
+		void theSymbolOfFreeEndIsASettingOfTheProject()
+		{
+			const QString rac_ext = QStringLiteral("custom://pid_essai/extremites/RAC-EXT Extrémité libre.elmt");
+			PidCodification codification;
+			QVERIFY(!codification.hasTextSettings());
+			codification.tool_symbols.insert(PidCodification::freeEndRole(), rac_ext);
+			QVERIFY(codification.hasTextSettings());
+				// the file
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			holder.appendChild(codification.toXml(doc));
+			const QDomElement written = holder.firstChildElement().firstChildElement(QStringLiteral("tool_symbol"));
+			QCOMPARE(written.attribute(QStringLiteral("role")), QStringLiteral("free_end"));
+			QCOMPARE(written.attribute(QStringLiteral("location")), rac_ext);
+			PidCodification read;
+			read.fromXml(holder);
+			QCOMPARE(read.toolSymbol(PidCodification::freeEndRole()), rac_ext);
+			QVERIFY(read == codification);
+				// the presentation, a role not known left out
+			QVERIFY(codification.presentationToCsv().contains(QStringLiteral("tool_symbol;free_end;") + rac_ext));
+			int skipped = 0;
+			const PidCodification csv = PidCodification::fromCsv(
+						QStringLiteral("symbole_outil;free_end;") + rac_ext
+						+ QStringLiteral("\ntool_symbol;cross;custom://x.elmt\n"), &skipped);
+			QCOMPARE(csv.toolSymbol(PidCodification::freeEndRole()), rac_ext);
+			QCOMPARE(skipped, 1);
+				// the default presentation brings it to a project without one
+			QCOMPARE(PidCodification().completedWith(codification).toolSymbol(PidCodification::freeEndRole()),
+					 rac_ext);
+
+				// the page: its name shown, given to the project with undo
+			PidConfigPage page(m_project);
+			auto *field = page.findChild<QLineEdit *>(QStringLiteral("tool_symbol_free_end"));
+			QVERIFY(field);
+			QVERIFY(field->text().isEmpty());
+			page.setToolSymbol(PidCodification::freeEndRole(), freeEndPath());
+			QCOMPARE(field->text(), QStringLiteral("Free end"));
+			page.applyProjectConf();
+			QCOMPARE(m_project->pidCodification().toolSymbol(PidCodification::freeEndRole()), freeEndPath());
+			m_project->undoStack()->undo();
+			QVERIFY(m_project->pidCodification().toolSymbol(PidCodification::freeEndRole()).isEmpty());
+				// one not found: its place, in orange
+			page.setToolSymbol(PidCodification::freeEndRole(), QStringLiteral("embed://nowhere.elmt"));
+			QCOMPARE(field->text(), QStringLiteral("embed://nowhere.elmt"));
+			QVERIFY(!field->styleSheet().isEmpty());
+			page.setToolSymbol(PidCodification::freeEndRole(), QString());
+			QVERIFY(field->text().isEmpty());
 		}
 };
 

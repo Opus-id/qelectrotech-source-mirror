@@ -4273,6 +4273,49 @@ Continuer ?</translation>
         <translation>Aucun piquage libre ici : cliquez plus près d&apos;un piquage.</translation>
     </message>
     <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="235"/>
+        <source>No free nozzle here: click nearer to a nozzle, or in an empty place.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Aucun piquage libre ici : cliquez plus près d&apos;un piquage, ou dans un endroit vide.</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="253"/>
+        <source>No free nozzle of another symbol here, nor an empty place: the pipe waits for its end. Right click or Esc: cancel.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Ni piquage libre d&apos;un autre symbole ni endroit vide ici : la tuyauterie attend sa fin. Clic droit ou Échap : annuler.</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="345"/>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="402"/>
+        <source>The symbol of free end of the project is not found: choose another one (properties of the project, P&amp;ID, Connections).</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Le symbole d&apos;extrémité libre du projet est introuvable : choisissez-en un autre (propriétés du projet, P&amp;ID, Raccords).</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="369"/>
+        <source>Too short: the pipe would end where it starts. Right click or Esc: cancel.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Trop court : la tuyauterie finirait là où elle commence. Clic droit ou Échap : annuler.</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="448"/>
+        <source>The symbol of free end of the project has no nozzle: choose another one (properties of the project, P&amp;ID, Connections).</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Le symbole d&apos;extrémité libre du projet n&apos;a pas de piquage : choisissez-en un autre (propriétés du projet, P&amp;ID, Raccords).</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="620"/>
+        <source>Click or release near another free nozzle, or click in an empty place: end the pipe; right click or Esc: cancel</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre, ou cliquez dans un endroit vide : finir la tuyauterie ; clic droit ou Échap : annuler</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="628"/>
+        <source>Click near a free nozzle or in an empty place: start a pipe; right click or Esc: quit the tool</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cliquez près d&apos;un piquage libre ou dans un endroit vide : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="183"/>
         <source>No free nozzle of another symbol here: the pipe waits for its end. Right click or Esc: cancel.</source>
         <comment>pipe drawing tool</comment>
@@ -13577,6 +13620,37 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="420"/>
         <source>Connections</source>
         <translation>Raccords</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="519"/>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="525"/>
+        <source>None</source>
+        <translation>Aucun</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="521"/>
+        <source>Choose...</source>
+        <translation>Choisir…</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="613"/>
+        <source>Symbols placed by the tools</source>
+        <translation>Symboles posés par les outils</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="615"/>
+        <source>A click in an empty place with the tool &quot;Draw a pipe&quot; starts or ends the pipe there, on this symbol, which is taken into the project. None: the tool asks for a nozzle.</source>
+        <translation>Avec l&apos;outil « Tracer une tuyauterie », un clic dans un endroit vide y commence ou y finit la tuyauterie, sur ce symbole, importé dans le projet. Aucun : l&apos;outil demande un piquage.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="621"/>
+        <source>Free end:</source>
+        <translation>Extrémité libre :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="790"/>
+        <source>This symbol is not found: the tool will place nothing. Choose another one.</source>
+        <translation>Ce symbole est introuvable : l&apos;outil ne posera rien. Choisissez-en un autre.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="414"/>
@@ -28823,6 +28897,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="100"/>
         <source>Reducer</source>
         <translation>Réduction</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="105"/>
+        <source>Free end</source>
+        <translation>Extrémité libre</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="35"/>

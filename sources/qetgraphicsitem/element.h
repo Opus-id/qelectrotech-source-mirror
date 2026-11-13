@@ -277,6 +277,11 @@ class Element : public QetGraphicsItem
 		bool isReducer() const {
 			return m_data.m_pid_role == QLatin1String("reducer");
 		}
+			/// True for the free end of a pipe (pid_role="free_end"), which
+			/// goes when its pipe is deleted, a strainer or a vent staying
+		bool isFreeEnd() const {
+			return m_data.m_pid_role == QLatin1String("free_end");
+		}
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// The colour of the label of this symbol when the project draws

@@ -102,6 +102,7 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 	m_role_cb->clear();
 	m_role_cb->addItem(tr("None"), QString());
 	m_role_cb->addItem(tr("Reducer"), QStringLiteral("reducer"));
+	m_role_cb->addItem(tr("Free end"), QStringLiteral("free_end"));
 		//A role the list does not know is kept as it is
 	if (!data.m_pid_role.isEmpty() && m_role_cb->findData(data.m_pid_role) < 0) {
 		m_role_cb->addItem(data.m_pid_role, data.m_pid_role);

@@ -38,6 +38,7 @@ namespace
 	const QString drawn_families_word = QStringLiteral("drawn_families");
 	const QString size_tag = QStringLiteral("size");
 	const QString equal_tag = QStringLiteral("equal_dn");
+	const QString tool_symbol_tag = QStringLiteral("tool_symbol");
 
 		/// @p connections as words separated by spaces: a list the CSV
 		/// separators (semicolon, tab, comma) never cut
@@ -1094,6 +1095,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.tag_models = other.tag_models;
 		result.drawn_connections = other.drawn_connections;
 		result.drawn_families = other.drawn_families;
+		result.tool_symbols = other.tool_symbols;
 	}
 	return result;
 }
@@ -1159,6 +1161,13 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	if (!drawsOnAllFamilies()) {
 		block.setAttribute(drawn_families_word, drawn_families.join(QLatin1Char(' ')));
 	}
+	for (auto it = tool_symbols.cbegin() ; it != tool_symbols.cend() ; ++it)
+	{
+		QDomElement e = document.createElement(tool_symbol_tag);
+		e.setAttribute(QStringLiteral("role"), it.key());
+		e.setAttribute(QStringLiteral("location"), it.value());
+		block.appendChild(e);
+	}
 	return block;
 }
 
@@ -1214,6 +1223,17 @@ void PidCodification::fromXml(const QDomElement &parent)
 		//None written: all of them
 	drawn_families = block.hasAttribute(drawn_families_word)
 			? familiesFromText(block.attribute(drawn_families_word)) : connectionFamilies();
+	tool_symbols.clear();
+	for (QDomElement e = block.firstChildElement(tool_symbol_tag) ; !e.isNull() ;
+		 e = e.nextSiblingElement(tool_symbol_tag))
+	{
+		const QString role = e.attribute(QStringLiteral("role")).trimmed();
+		const QString location = e.attribute(QStringLiteral("location")).trimmed();
+			//A role this version does not know is kept: a later one placed it
+		if (!role.isEmpty() && !location.isEmpty() && !tool_symbols.contains(role)) {
+			tool_symbols.insert(role, location);
+		}
+	}
 }
 
 /**
@@ -1262,6 +1282,10 @@ QString PidCodification::presentationToCsv() const
 	}
 	for (auto it = tag_models.cbegin() ; it != tag_models.cend() ; ++it) {
 		text += QStringLiteral("tag_model;") + it.key() + QLatin1Char(';') + it.value() + QLatin1Char('\n');
+	}
+	for (auto it = tool_symbols.cbegin() ; it != tool_symbols.cend() ; ++it) {
+		text += tool_symbol_tag + QLatin1Char(';') + it.key() + QLatin1Char(';')
+				+ csvField(it.value()) + QLatin1Char('\n');
 	}
 	return text;
 }
@@ -1499,6 +1523,18 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 			}
 			continue;
 		}
+		if (kind == tool_symbol_tag || kind == QLatin1String("symbole_outil"))
+		{
+			const QString role = fields.value(1).trimmed().toLower();
+			const QString location = fields.value(2).trimmed();
+			if (!toolSymbolRoles().contains(role) || location.isEmpty()
+				|| codification.tool_symbols.contains(role)) {
+				++left_out;
+			} else {
+				codification.tool_symbols.insert(role, location);
+			}
+			continue;
+		}
 		const bool is_fluid = kind == QLatin1String("fluid") || kind == QLatin1String("fluide");
 		const bool is_material = kind == QLatin1String("material") || kind == QStringLiteral("matériau")
 							   || kind == QLatin1String("materiau");
@@ -1587,5 +1623,6 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& nozzle_dn_prefix == other.nozzle_dn_prefix
 			&& decimal == other.decimal
 			&& drawn_connections == other.drawn_connections
-			&& drawn_families == other.drawn_families;
+			&& drawn_families == other.drawn_families
+			&& tool_symbols == other.tool_symbols;
 }

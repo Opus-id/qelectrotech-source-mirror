@@ -122,6 +122,10 @@ class PidConfigPage : public ProjectConfigPage
 		void addSize();
 			/// Remove the lines selected of the sizes shown
 		void removeSelectedSizes();
+			/// The symbol the tools place with the role @p role
+			/// (PidCodification::toolSymbolRoles()) is that at @p location,
+			/// a path of a collection; none when it is empty
+		void setToolSymbol(const QString &role, const QString &location);
 
 	protected:
 		void initWidgets() override;
@@ -137,6 +141,8 @@ class PidConfigPage : public ProjectConfigPage
 		QMap<QString, QColor> &colors(Group group);
 		void readTextWidgets();
 		void readConnectionWidgets();
+		void showToolSymbols();
+		void chooseToolSymbol(const QString &role);
 		void undoLastChange();
 		void redoLastChange();
 		void showCodification(bool fill_codes, bool codes_from_project);
@@ -200,6 +206,11 @@ class PidConfigPage : public ProjectConfigPage
 			/// Whether the connections are drawn on each family of symbols,
 			/// by key of PidCodification::connectionFamilies()
 		QMap<QString, QCheckBox *> m_drawn_families;
+			/// The name of the symbol of each role of the tools, and what
+			/// chooses it and takes it away
+		QMap<QString, QLineEdit *> m_tool_symbols;
+		QMap<QString, QPushButton *> m_choose_tool_symbols;
+		QMap<QString, QPushButton *> m_clear_tool_symbols;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
 		std::function<QColor(const QColor &)> m_ask_color;

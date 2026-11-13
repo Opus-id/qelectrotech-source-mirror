@@ -363,7 +363,9 @@ class ElementData : public PropertiesInterface
 		QStringList m_pipe_run;
 			/// What this P&ID symbol is to the lines (attribute pid_role):
 			/// "reducer", where the size of the line changes and a change
-			/// of DN stops (Element::isReducer()); none for any other
+			/// of DN stops (Element::isReducer()); "free_end", the free end
+			/// of a pipe the pipe tool places in an empty place, which goes
+			/// with its pipe (Element::isFreeEnd()); none for any other
 			/// symbol. A role this version does not know is kept as it is.
 		QString m_pid_role;
 			/// The identifier this symbol gives the label of a placed

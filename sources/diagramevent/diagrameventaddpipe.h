@@ -19,6 +19,8 @@
 #define DIAGRAMEVENTADDPIPE_H
 
 #include "diagrameventinterface.h"
+#include "../ElementsCollection/elementslocation.h"
+#include "../qet.h"
 #include "../qetgraphicsitem/terminal.h"
 
 #include <QColor>
@@ -41,6 +43,13 @@ class QGraphicsItem;
 	after each pipe. A right click or Esc takes back the pipe being drawn,
 	a second one leaves the tool. Wires are not drawn with it: it starts
 	at nozzles only.
+
+	When the project has a symbol of free end (PidCodification::tool_symbols),
+	a click in an empty place -- no free nozzle near, no symbol nor pipe
+	under it -- starts or ends the pipe there, on the grid: the symbol is
+	placed at the end, turned so that its nozzle faces the pipe, along the
+	simplest way (straight when aligned, else one bend). Nothing is placed
+	before the end: the free ends and the pipe are one undo step.
 */
 class DiagramEventAddPipe : public DiagramEventInterface
 {
@@ -70,9 +79,27 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// nothing when it is not a free nozzle of this folio
 		void startFrom(Terminal *nozzle);
 			/// Where the pipe being drawn starts, nullptr before the first click
+			/// and for a pipe started in an empty place
 		Terminal *startNozzle() const { return m_start; }
+			/// Whether the pipe being drawn starts in an empty place
+		bool startsInEmptyPlace() const { return m_start_free; }
+			/// Where it starts then, on the grid
+		QPointF startPoint() const { return m_start_point; }
 			/// How many free nozzles are marked
 		int markCount() const { return m_marks.size(); }
+
+			/// The symbol of free end of the project of @p diagram, a null
+			/// location when it has none or when it is not found
+		static ElementsLocation freeEndSymbol(const Diagram *diagram);
+			/// Which way the nozzle of a free end placed at @p end faces, for
+			/// a pipe from @p from, which leaves it facing @p from_facing:
+			/// straight in front, back along it; else the simplest way, one
+			/// bend in front, two beside or behind
+		static Qet::Orientation freeEndFacing(const QPointF &from, Qet::Orientation from_facing,
+											  const QPointF &end);
+			/// The way from @p from to @p to, horizontal or vertical, whichever
+			/// is longer
+		static Qet::Orientation dominantFacing(const QPointF &from, const QPointF &to);
 
 	private:
 		void reset();
@@ -80,11 +107,19 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		void clearMarks();
 		void hover(Terminal *terminal, const QColor &color);
 		void finishAt(Terminal *target);
+		void startAtPoint(const QPointF &scene_pos);
+		void finishAtPoint(const QPointF &scene_pos);
+		void drawPipe(Terminal *start, const QPointF &start_point, Terminal *target,
+					  const QPointF &end_point);
+		bool isEmptyPlace(const QPointF &scene_pos) const;
+		bool hasStart() const { return m_start || m_start_free; }
 		void showHint(const QString &message = QString()) const;
 		void clearHint() const;
 
 	private:
 		QPointer<Terminal> m_start;
+		bool m_start_free = false;
+		QPointF m_start_point;
 		QPointer<Terminal> m_hovered;
 		QList<QGraphicsEllipseItem *> m_marks;
 };

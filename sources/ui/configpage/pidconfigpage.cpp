@@ -17,6 +17,8 @@
 */
 #include "pidconfigpage.h"
 
+#include "../../ElementsCollection/elementslocation.h"
+#include "../../elementdialog.h"
 #include "../../pidtooltip.h"
 #include "../../pipediameter.h"
 #include "../../pipeproperties.h"
@@ -508,6 +510,23 @@ void PidConfigPage::initWidgets()
 		connect(family, &QCheckBox::toggled, this, &PidConfigPage::readConnectionWidgets);
 		m_drawn_families.insert(families.at(i), family);
 	}
+
+	for (const QString &role : PidCodification::toolSymbolRoles())
+	{
+		auto *symbol = new QLineEdit(this);
+		symbol->setObjectName(QStringLiteral("tool_symbol_") + role);
+		symbol->setReadOnly(true);
+		symbol->setPlaceholderText(tr("None"));
+		m_tool_symbols.insert(role, symbol);
+		auto *choose = new QPushButton(tr("Choose..."), this);
+		choose->setObjectName(QStringLiteral("choose_tool_symbol_") + role);
+		connect(choose, &QPushButton::clicked, this, [this, role]() { chooseToolSymbol(role); });
+		m_choose_tool_symbols.insert(role, choose);
+		auto *clear = new QPushButton(tr("None"), this);
+		clear->setObjectName(QStringLiteral("clear_tool_symbol_") + role);
+		connect(clear, &QPushButton::clicked, this, [this, role]() { setToolSymbol(role, QString()); });
+		m_clear_tool_symbols.insert(role, clear);
+	}
 }
 
 void PidConfigPage::initLayout()
@@ -590,6 +609,27 @@ void PidConfigPage::initLayout()
 	columns->addLayout(families_column);
 	columns->addStretch();
 	connections_layout->addLayout(columns);
+
+		//The symbols the tools place by themselves
+	auto *tools_box = new QGroupBox(tr("Symbols placed by the tools"), connections_tab);
+	auto *tools_layout = new QVBoxLayout(tools_box);
+	auto *tools_help = new QLabel(tr("A click in an empty place with the tool \"Draw a pipe\" starts or "
+									 "ends the pipe there, on this symbol, which is taken into the "
+									 "project. None: the tool asks for a nozzle."), tools_box);
+	tools_help->setWordWrap(true);
+	tools_layout->addWidget(tools_help);
+	auto *tools_form = new QFormLayout();
+	const QStringList role_names{tr("Free end:")};
+	const QStringList &roles = PidCodification::toolSymbolRoles();
+	for (int i = 0 ; i < roles.size() ; ++i) {
+		auto *row = new QHBoxLayout();
+		row->addWidget(m_tool_symbols.value(roles.at(i)), 1);
+		row->addWidget(m_choose_tool_symbols.value(roles.at(i)));
+		row->addWidget(m_clear_tool_symbols.value(roles.at(i)));
+		tools_form->addRow(role_names.value(i), row);
+	}
+	tools_layout->addLayout(tools_form);
+	connections_layout->addWidget(tools_box);
 
 		//The threads and their DN, fixed in the code: shown, not set
 	auto *threads_box = new QGroupBox(tr("Pipe threads and their DN (EN 10255)"), connections_tab);
@@ -724,6 +764,58 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 		const QSignalBlocker blocker(it.value());
 		it.value()->setChecked(codification.drawn_families.contains(it.key()));
 	}
+	showToolSymbols();
+}
+
+/**
+	@brief PidConfigPage::showToolSymbols
+	The name of the symbol of each role of the tools, its place in the tool
+	tip; in orange, with its place, a symbol not found
+*/
+void PidConfigPage::showToolSymbols()
+{
+	for (auto it = m_tool_symbols.cbegin() ; it != m_tool_symbols.cend() ; ++it)
+	{
+		QLineEdit *field = it.value();
+		const QString path = m_codification.toolSymbol(it.key());
+			//A project given turns any path into one of its own collection
+		const ElementsLocation location = path.startsWith(QLatin1String("embed://"))
+				? ElementsLocation(path, m_project) : ElementsLocation(path);
+		const bool found = !path.isEmpty() && location.isElement() && location.exist();
+		field->setText(path.isEmpty() ? QString() : found ? location.name() : path);
+		field->setToolTip(path.isEmpty() ? QString()
+										 : found ? path
+												 : wrapped(tr("This symbol is not found: the tool will "
+															  "place nothing. Choose another one.")));
+		field->setStyleSheet(path.isEmpty() || found ? QString()
+													 : QStringLiteral("background: rgb(255, 200, 120);"));
+	}
+}
+
+/**
+	@brief PidConfigPage::chooseToolSymbol
+	Ask the symbol of the role @p role in the collections
+*/
+void PidConfigPage::chooseToolSymbol(const QString &role)
+{
+	const ElementsLocation location = ElementDialog::getOpenElementLocation(this);
+	if (location.isElement()) {
+		setToolSymbol(role, location.collectionPath(true));
+	}
+}
+
+/**
+	@brief PidConfigPage::setToolSymbol
+	See the declaration
+*/
+void PidConfigPage::setToolSymbol(const QString &role, const QString &location)
+{
+	if (location.trimmed().isEmpty()) {
+		m_codification.tool_symbols.remove(role);
+	} else {
+		m_codification.tool_symbols.insert(role, location.trimmed());
+	}
+	showToolSymbols();
 }
 
 void PidConfigPage::adjustReadOnly()
@@ -763,6 +855,12 @@ void PidConfigPage::adjustReadOnly()
 	}
 	for (QCheckBox *family : std::as_const(m_drawn_families)) {
 		family->setEnabled(!read_only);
+	}
+	for (QPushButton *button : std::as_const(m_choose_tool_symbols)) {
+		button->setEnabled(!read_only);
+	}
+	for (QPushButton *button : std::as_const(m_clear_tool_symbols)) {
+		button->setEnabled(!read_only);
 	}
 }
 

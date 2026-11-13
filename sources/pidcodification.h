@@ -328,6 +328,19 @@ class PidCodification
 			return drawn_families.contains(connectionFamily(pid_family));
 		}
 		bool drawsOnAllFamilies() const { return drawn_families == connectionFamilies(); }
+			/// The symbol a tool places by itself, by its role (pid_role of
+			/// the .elmt, see toolSymbolRoles()): the place of the symbol in
+			/// a collection (ElementsLocation::toString()). Set by the
+			/// project, none in the code; written only when it is set.
+		QMap<QString, QString> tool_symbols;
+			/// The roles of the symbols a tool may place: the free end of a
+			/// pipe drawn from or to an empty place (DiagramEventAddPipe)
+		static const QStringList &toolSymbolRoles() {
+			static const QStringList roles{freeEndRole()};
+			return roles;
+		}
+		static QString freeEndRole() { return QStringLiteral("free_end"); }
+		QString toolSymbol(const QString &role) const { return tool_symbols.value(role); }
 			/// How the tenths of a size are written on the screen and on
 			/// paper; a file always has a point
 		enum class Decimal {
@@ -357,7 +370,7 @@ class PidCodification
 		bool hasTextSettings() const {
 			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
-					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies();
+					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty();
 		}
 		bool isEmpty() const { return !hasCodes() && !hasColors() && !hasTextSettings(); }
 
@@ -411,7 +424,9 @@ class PidCodification
 			/// "text_option;name;true" ("option_texte"), name being
 			/// "colored_labels" or "nozzle_texts_on_paper", or of the line
 			/// "text_option;drawn_connections;flange butt_weld" (the words
-			/// of PipeConnection, a word not known being left out); the separator
+			/// of PipeConnection, a word not known being left out), and of lines
+			/// "tool_symbol;free_end;custom://folder/symbol.elmt" ("symbole_outil",
+			/// a role of toolSymbolRoles() and the place of its symbol); the separator
 			/// may also be a tab or a comma, a first line naming the columns
 			/// is skipped, and so is a line that cannot be read, counted in
 			/// @p skipped. Returns the codification read, empty when none.
@@ -422,7 +437,8 @@ class PidCodification
 		static PidCodification fromCsv(const QString &text, int *skipped = nullptr,
 									   QMap<QString, QList<Size>> *loose_sizes = nullptr);
 			/// The presentation: colours, settings of texts, connections
-			/// drawn and models of tags, as lines fromCsv() reads; what is
+			/// drawn, models of tags and symbols of the tools, as lines
+			/// fromCsv() reads; what is
 			/// kept in the settings, for new projects. The codes stay out,
 			/// kept apart (codesToCsv())
 		QString presentationToCsv() const;
