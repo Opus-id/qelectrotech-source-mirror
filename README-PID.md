@@ -288,7 +288,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | not to be built |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
-| `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle | a symbol is chosen for the role |
+| `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end` or `tee`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee | a symbol is chosen for the role |
 
 A `medium` this version does not know is read as electrical and said in the
 log.
