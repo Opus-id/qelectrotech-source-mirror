@@ -270,7 +270,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<definition>` | `pid_family` | `equipment`, `valve`, `instrument`, `pipe` | none: not a P&ID symbol | the symbol has a family |
 | `.elmt`, `<definition>` | `pid_inline` | `true` | a line does not run through it | a line runs through its two nozzles (valve) |
 | `.elmt`, `<definition>` | `pid_run` | names of nozzles, space separated (`N1 N2 N3`) | the two nozzles of a `pid_inline` symbol | a tee or a three-way valve |
-| `.elmt`, `<definition>` | `pid_role` | `reducer` | none | the symbol plays that role for the lines |
+| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end` | none | the symbol plays that role for the lines |
 | `.elmt`, `<definition>` | `prefix` | identifier of the tag (`PC`) | that of the collection folder | the symbol gives one |
 | `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
 | `.elmt`, a part | `show_if` | `option=value,value`, conditions separated by `;` | always drawn | the part belongs to some values |
@@ -288,6 +288,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | not to be built |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
+| `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle | a symbol is chosen for the role |
 
 A `medium` this version does not know is read as electrical and said in the
 log.
