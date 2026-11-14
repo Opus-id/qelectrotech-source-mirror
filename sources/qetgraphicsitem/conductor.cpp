@@ -19,6 +19,7 @@
 #include <palettegraphicsview.h>
 #include <shownkinds.h>
 #include <lastusedstyle.h>
+#include <conductorcolorcodes.h>
 #include <qetproject.h>
 #include <QPropertyUndoCommand/qpropertyundocommand.h>
 #include <autoNum/numerotationcontextcommands.h>
@@ -183,6 +184,10 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 		if (m_properties.m_medium == TerminalData::Electrical
 			&& LastUsedStyle::hasConductorColor())
 			properties.color = LastUsedStyle::conductorColor();
+			//A colour code from the toolbar also gives the colour text
+			//and, for green-yellow, the stripes
+		if (const auto *code = ConductorColorCodes::find(LastUsedStyle::conductorColorCode()))
+			ConductorColorCodes::apply(*code, properties);
 		setProperties(properties);
 	}
 	takeNozzleDiameter();
