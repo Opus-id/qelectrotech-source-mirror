@@ -97,18 +97,40 @@ void ElementInfoWidget::setElement(Element *element)
 
 	if (formula_info_widget && label_info_widget)
 	{
-		if (formula_info_widget->text().isEmpty())
+		if (formula_info_widget->text().isEmpty() && !labelMadeByPidTag())
 			label_info_widget->setEnabled(true);
 		else
 			label_info_widget->setDisabled(true);
 
-		connect(formula_info_widget, &ElementInfoPartWidget::textChanged, this, [label_info_widget](const QString text)
+		connect(formula_info_widget, &ElementInfoPartWidget::textChanged, this, [this, label_info_widget](const QString text)
 		{
-			label_info_widget->setEnabled(text.isEmpty()? true : false);
+			label_info_widget->setEnabled(text.isEmpty() && !labelMadeByPidTag());
 		});
+	}
+		//P&ID: the label is made by the P&ID tab after the model of tag of
+		//the project; typed here, it would be made again over it
+	if (label_info_widget)
+	{
+		label_info_widget->setToolTip(labelMadeByPidTag()
+			? tr("Made by the P&ID tab after the model of tag of the project for this family: "
+				 "change its unit, train or order there.")
+			: QString());
+		if (labelMadeByPidTag())
+			label_info_widget->setDisabled(true);
 	}
 
 	connect(m_element.data(), &Element::elementInfoChange, this, &ElementInfoWidget::elementInfoChange);
+}
+
+/**
+	@brief ElementInfoWidget::labelMadeByPidTag
+	@return true when the label of the element is made by its P&ID tag
+	(ElementTagWidget): the project has a model of tag for its family. Never
+	for an electrical element, which has no family.
+*/
+bool ElementInfoWidget::labelMadeByPidTag() const
+{
+	return m_element && !m_element->pidTagModel().isEmpty();
 }
 
 /**

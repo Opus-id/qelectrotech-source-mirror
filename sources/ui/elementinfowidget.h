@@ -84,6 +84,8 @@ class ElementInfoWidget : public AbstractElementPropertiesEditorWidget
 		void openSchemePage();
 		QString chosenScheme() const;
 		QString followedScheme() const;
+			/// P&ID: the label is made by the P&ID tab, not typed here
+		bool labelMadeByPidTag() const;
 
 	private slots:
 		void firstActivated();

@@ -38,14 +38,13 @@
 #include "masterpropertieswidget.h"
 #include "plclinkwidget.h"
 #include "dockfit.h"
+#include "../pidsection.h"
 
 #include <dataBase/qetdbfile.h>
 
 #include <QCheckBox>
 #include <QDateTime>
 #include <QFileInfo>
-#include <QFrame>
-#include <QHBoxLayout>
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QLabel>
@@ -441,18 +440,7 @@ void ElementPropertiesWidget::updateUi()
 		{
 				//A title and a line, as the sections of a P&ID tab are
 				//never folded
-			auto *title = new QLabel(section->title(), m_pid_tab);
-			title->setObjectName(QStringLiteral("pid_section_title"));
-			QFont font = title->font();
-			font.setBold(true);
-			title->setFont(font);
-			auto *line = new QFrame(m_pid_tab);
-			line->setFrameShape(QFrame::HLine);
-			line->setFrameShadow(QFrame::Sunken);
-			auto *head = new QHBoxLayout();
-			head->addWidget(title);
-			head->addWidget(line, 1);
-			layout->addLayout(head);
+			layout->addWidget(PidSection::title(section->title(), m_pid_tab));
 			section->setParent(m_pid_tab);
 				//The margins of the tab only, not one more per section,
 				//which would widen the panel

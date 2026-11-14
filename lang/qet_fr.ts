@@ -6889,6 +6889,11 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>Formulaire</translation>
     </message>
     <message>
+        <location filename="../sources/ui/elementinfowidget.cpp" line="115"/>
+        <source>Made by the P&amp;ID tab after the model of tag of the project for this family: change its unit, train or order there.</source>
+        <translation>Composé par l&apos;onglet P&amp;ID d&apos;après le modèle de repère du projet pour cette famille : changez-y l&apos;unité, le train ou l&apos;ordre.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementinfowidget.ui" line="35"/>
         <source>Exclude from automatic numbering</source>
         <translation>Exclure de la numérotation auto</translation>
@@ -14132,6 +14137,24 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="100"/>
         <source>Status of works:</source>
         <translation>Statut de travaux :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="238"/>
+        <source>Designation</source>
+        <comment>section of the page of a pipe</comment>
+        <translation>Désignation</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="283"/>
+        <source>Drawing</source>
+        <comment>section of the page of a pipe</comment>
+        <translation>Dessin</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="336"/>
+        <source>Other data</source>
+        <comment>section of the page of a pipe</comment>
+        <translation>Autres données</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="94"/>

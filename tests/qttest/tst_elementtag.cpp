@@ -12,6 +12,7 @@
 #include "qetgraphicsitem/element.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "ui/elementinfopartwidget.h"
 #include "ui/elementpropertieswidget.h"
 #include "ui/elementtagwidget.h"
 #include "undocommand/changeelementlocationcommand.h"
@@ -618,6 +619,35 @@ class tst_elementtag : public QObject
 			QVERIFY(panel.findChild<ElementTagWidget *>());
 			ElementPropertiesWidget other(e);
 			QVERIFY(!other.findChild<ElementTagWidget *>());
+		}
+
+			// With a model of tag for its family, the label of the
+			// Information tab is made by the P&ID tab: not typed there
+			// (5l-1m); without a model it is typed there, as before
+		void theLabelOfTheInformationTabIsLockedByAModel()
+		{
+			const auto labelField = [](QWidget *panel) -> ElementInfoPartWidget * {
+				for (ElementInfoPartWidget *field : panel->findChildren<ElementInfoPartWidget *>()) {
+					if (field->key() == QStringLiteral("label")) return field;
+				}
+				return nullptr;
+			};
+			m_project->setPidCodification(PidCodification());
+			Element *a = place(m_folio, m_a);
+			QVERIFY(a && a->pidTagModel().isEmpty());
+			{
+				ElementPropertiesWidget panel(a);
+				ElementInfoPartWidget *label = labelField(&panel);
+				QVERIFY(label && label->findChild<QLineEdit *>());
+				QVERIFY(label->findChild<QLineEdit *>()->isEnabled());
+			}
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			QVERIFY(!a->pidTagModel().isEmpty());
+			ElementPropertiesWidget panel(a);
+			ElementInfoPartWidget *label = labelField(&panel);
+			QVERIFY(label && label->findChild<QLineEdit *>());
+			QVERIFY(!label->findChild<QLineEdit *>()->isEnabled());
+			QVERIFY(!label->toolTip().isEmpty());
 		}
 };
 

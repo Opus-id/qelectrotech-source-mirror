@@ -21,6 +21,7 @@
 #include "../conductorproperties.h"
 #include "../diagram.h"
 #include "../pidcodification.h"
+#include "../pidsection.h"
 #include "../pidstatus.h"
 #include "../pidtooltip.h"
 #include "../qetgraphicsitem/conductor.h"
@@ -224,7 +225,9 @@ QList<Conductor *> PipePropertiesWidget::pipes() const
 
 /**
 	@brief PipePropertiesWidget::buildUi
-	The fields, in the order of a line designation
+	The fields in three sections, as the P&ID tab of a symbol: the
+	designation of the line, in its order, then what is drawn, then the
+	other data. Titles, never folded: nothing is hidden.
 */
 void PipePropertiesWidget::buildUi()
 {
@@ -232,6 +235,7 @@ void PipePropertiesWidget::buildUi()
 	m_count = new QLabel(this);
 	layout->addRow(m_count);
 
+	layout->addRow(PidSection::title(tr("Designation", "section of the page of a pipe"), this));
 	addTextField(QStringLiteral("line_number"), tr("Line number:"),
 				 [](const PipeProperties &p) { return p.line_number; },
 				 [](PipeProperties &p, const QString &t) { p.line_number = t; });
@@ -269,22 +273,14 @@ void PipePropertiesWidget::buildUi()
 		//Picked in the list: as if typed
 	connect(m_diameter, &QComboBox::activated, this, &PipePropertiesWidget::diameterEdited);
 
-	addTextField(QStringLiteral("flow"), tr("Flow:"),
-				 [](const PipeProperties &p) { return p.flow; },
-				 [](PipeProperties &p, const QString &t) { p.flow = t; });
 	addTextField(QStringLiteral("piping_class"), tr("Piping class:"),
 				 [](const PipeProperties &p) { return p.piping_class; },
 				 [](PipeProperties &p, const QString &t) { p.piping_class = t; });
 	addTextField(QStringLiteral("nominal_pressure"), tr("Nominal pressure:"),
 				 [](const PipeProperties &p) { return p.nominal_pressure; },
 				 [](PipeProperties &p, const QString &t) { p.nominal_pressure = t; });
-	addTextField(QStringLiteral("spool"), tr("Spool number:"),
-				 [](const PipeProperties &p) { return p.spool; },
-				 [](PipeProperties &p, const QString &t) { p.spool = t; });
-	addTextField(QStringLiteral("external_finish"), tr("External finish:"),
-				 [](const PipeProperties &p) { return p.external_finish; },
-				 [](PipeProperties &p, const QString &t) { p.external_finish = t; });
 
+	layout->addRow(PidSection::title(tr("Drawing", "section of the page of a pipe"), this));
 	m_kind = new QComboBox(this);
 	m_kind->setObjectName(QStringLiteral("line_kind"));
 	m_kind->addItem(tr("Main flow line"), int(PipeProperties::Main));
@@ -336,6 +332,17 @@ void PipePropertiesWidget::buildUi()
 		}
 	});
 	connect(m_automatic_color, &QToolButton::clicked, this, [this]() { setManualColor(QColor()); });
+
+	layout->addRow(PidSection::title(tr("Other data", "section of the page of a pipe"), this));
+	addTextField(QStringLiteral("flow"), tr("Flow:"),
+				 [](const PipeProperties &p) { return p.flow; },
+				 [](PipeProperties &p, const QString &t) { p.flow = t; });
+	addTextField(QStringLiteral("spool"), tr("Spool number:"),
+				 [](const PipeProperties &p) { return p.spool; },
+				 [](PipeProperties &p, const QString &t) { p.spool = t; });
+	addTextField(QStringLiteral("external_finish"), tr("External finish:"),
+				 [](const PipeProperties &p) { return p.external_finish; },
+				 [](PipeProperties &p, const QString &t) { p.external_finish = t; });
 }
 
 /**

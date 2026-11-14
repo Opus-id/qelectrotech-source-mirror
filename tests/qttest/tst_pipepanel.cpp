@@ -12,10 +12,12 @@
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "pidsection.h"
 #include "ui/pipepropertieswidget.h"
 
 #include <QComboBox>
 #include <QDomDocument>
+#include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -173,6 +175,41 @@ class tst_pipepanel : public QObject
 			QVERIFY(line->text().isEmpty());
 			stack.redo();
 			QCOMPARE(line->text(), QStringLiteral("47121"));
+		}
+
+			// The fields in three sections, titles never folded (5l-1m):
+			// designation, drawing, other data
+		void theFieldsAreInThreeSections()
+		{
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(pipe);
+			PipePropertiesWidget page({pipe});
+			auto *form = qobject_cast<QFormLayout *>(page.layout());
+			QVERIFY(form);
+			QList<int> titles;
+			for (int row = 0 ; row < form->rowCount() ; ++row) {
+				QLayoutItem *item = form->itemAt(row, QFormLayout::SpanningRole);
+				if (item && item->widget()
+					&& item->widget()->findChild<QLabel *>(PidSection::titleName())) {
+					titles << row;
+				}
+			}
+			QCOMPARE(titles.size(), 3);
+			const auto rowOf = [form, &page](const char *name) {
+				int row = -1;
+				QFormLayout::ItemRole role;
+				form->getWidgetPosition(page.findChild<QWidget *>(QLatin1String(name)), &row, &role);
+				return row;
+			};
+			for (const char *name : {"line_number", "piping_class", "nominal_pressure"}) {
+				QVERIFY2(rowOf(name) > titles.at(0) && rowOf(name) < titles.at(1), name);
+			}
+			for (const char *name : {"line_kind", "status"}) {
+				QVERIFY2(rowOf(name) > titles.at(1) && rowOf(name) < titles.at(2), name);
+			}
+			for (const char *name : {"flow", "spool", "external_finish"}) {
+				QVERIFY2(rowOf(name) > titles.at(2), name);
+			}
 		}
 
 		void everyFieldReachesItsData()
