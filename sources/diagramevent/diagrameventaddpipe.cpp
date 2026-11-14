@@ -1212,39 +1212,42 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 	QString text;
 	if (!message.isEmpty()) {
 		text = (message);
+		//A free end holding a line may start or end the pipe in any case
+		//(PidFreeEnd): its line goes on
 	} else if (hasStart() && tee && free_end) {
 		text = (tr(
-			"Click or release near another free nozzle, click on a pipe (tee) or in an empty "
-			"place: end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel",
-			"pipe drawing tool"));
+			"Click or release near another free nozzle or a free end (its line goes on), click "
+			"on a pipe (tee) or in an empty place: end the pipe; Ctrl: no snapping to the axis; "
+			"right click or Esc: cancel", "pipe drawing tool"));
 	} else if (hasStart() && tee) {
 		text = (tr(
-			"Click or release near another free nozzle, or click on a pipe (tee): end the "
-			"pipe; Ctrl: no snapping to the axis; right click or Esc: cancel", "pipe drawing tool"));
+			"Click or release near another free nozzle or a free end (its line goes on), or "
+			"click on a pipe (tee): end the pipe; Ctrl: no snapping to the axis; right click or "
+			"Esc: cancel", "pipe drawing tool"));
 	} else if (!hasStart() && tee && free_end) {
 		text = (tr(
-			"Click near a free nozzle, on a pipe (tee) or in an empty place: start a pipe; "
-			"right click or Esc: quit the tool", "pipe drawing tool"));
+			"Click near a free nozzle or a free end (its line goes on), on a pipe (tee) or in "
+			"an empty place: start a pipe; right click or Esc: quit the tool", "pipe drawing tool"));
 	} else if (!hasStart() && tee) {
 		text = (tr(
-			"Click near a free nozzle or on a pipe (tee): start a pipe; "
-			"right click or Esc: quit the tool", "pipe drawing tool"));
+			"Click near a free nozzle or a free end (its line goes on), or on a pipe (tee): "
+			"start a pipe; right click or Esc: quit the tool", "pipe drawing tool"));
 	} else if (hasStart() && free_end) {
 		text = (tr(
-			"Click or release near another free nozzle, or click in an empty place: end "
-			"the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel",
-			"pipe drawing tool"));
+			"Click or release near another free nozzle or a free end (its line goes on), or "
+			"click in an empty place: end the pipe; Ctrl: no snapping to the axis; right click "
+			"or Esc: cancel", "pipe drawing tool"));
 	} else if (hasStart()) {
 		text = (tr(
-			"Click or release near another free nozzle: end the pipe; "
-			"right click or Esc: cancel", "pipe drawing tool"));
+			"Click or release near another free nozzle or a free end (its line goes on): end "
+			"the pipe; right click or Esc: cancel", "pipe drawing tool"));
 	} else if (free_end) {
 		text = (tr(
-			"Click near a free nozzle or in an empty place: start a pipe; "
-			"right click or Esc: quit the tool", "pipe drawing tool"));
+			"Click near a free nozzle or a free end (its line goes on), or in an empty place: "
+			"start a pipe; right click or Esc: quit the tool", "pipe drawing tool"));
 	} else {
 		text = (tr(
-			"Click near a free nozzle: start a pipe; "
+			"Click near a free nozzle or a free end (its line goes on): start a pipe; "
 			"right click or Esc: quit the tool", "pipe drawing tool"));
 	}
 		//A free end may end the pipe: Space turns its route the other way

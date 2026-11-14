@@ -4317,15 +4317,15 @@ Continuer ?</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="620"/>
-        <source>Click or release near another free nozzle, or click in an empty place: end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel</source>
+        <source>Click or release near another free nozzle or a free end (its line goes on), or click in an empty place: end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel</source>
         <comment>pipe drawing tool</comment>
-        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre, ou cliquez dans un endroit vide : finir la tuyauterie ; Ctrl : sans accroche à l&apos;axe ; clic droit ou Échap : annuler</translation>
+        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre ou d&apos;une extrémité libre (sa ligne continue), ou cliquez dans un endroit vide : finir la tuyauterie ; Ctrl : sans accroche à l&apos;axe ; clic droit ou Échap : annuler</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="628"/>
-        <source>Click near a free nozzle or in an empty place: start a pipe; right click or Esc: quit the tool</source>
+        <source>Click near a free nozzle or a free end (its line goes on), or in an empty place: start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>
-        <translation>Cliquez près d&apos;un piquage libre ou dans un endroit vide : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+        <translation>Cliquez près d&apos;un piquage libre ou d&apos;une extrémité libre (sa ligne continue), ou dans un endroit vide : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="183"/>
@@ -4335,27 +4335,27 @@ Continuer ?</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="340"/>
-        <source>Click or release near another free nozzle: end the pipe; right click or Esc: cancel</source>
+        <source>Click or release near another free nozzle or a free end (its line goes on): end the pipe; right click or Esc: cancel</source>
         <comment>pipe drawing tool</comment>
-        <translation>Clic ou relâcher près d&apos;un autre piquage libre : terminer la tuyauterie ; clic droit ou Échap : annuler</translation>
+        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre ou d&apos;une extrémité libre (sa ligne continue) : finir la tuyauterie ; clic droit ou Échap : annuler</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="344"/>
-        <source>Click near a free nozzle: start a pipe; right click or Esc: quit the tool</source>
+        <source>Click near a free nozzle or a free end (its line goes on): start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>
-        <translation>Clic près d&apos;un piquage libre : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+        <translation>Cliquez près d&apos;un piquage libre ou d&apos;une extrémité libre (sa ligne continue) : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="820"/>
-        <source>Click or release near another free nozzle, click on a pipe (tee) or in an empty place: end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel</source>
+        <source>Click or release near another free nozzle or a free end (its line goes on), click on a pipe (tee) or in an empty place: end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel</source>
         <comment>pipe drawing tool</comment>
-        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre, cliquez sur une tuyauterie (Té) ou dans un endroit vide : finir la tuyauterie ; Ctrl : sans accroche à l&apos;axe ; clic droit ou Échap : annuler</translation>
+        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre ou d&apos;une extrémité libre (sa ligne continue), cliquez sur une tuyauterie (Té) ou dans un endroit vide : finir la tuyauterie ; Ctrl : sans accroche à l&apos;axe ; clic droit ou Échap : annuler</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="824"/>
-        <source>Click or release near another free nozzle, or click on a pipe (tee): end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel</source>
+        <source>Click or release near another free nozzle or a free end (its line goes on), or click on a pipe (tee): end the pipe; Ctrl: no snapping to the axis; right click or Esc: cancel</source>
         <comment>pipe drawing tool</comment>
-        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre, ou cliquez sur une tuyauterie (Té) : finir la tuyauterie ; Ctrl : sans accroche à l&apos;axe ; clic droit ou Échap : annuler</translation>
+        <translation>Cliquez ou relâchez près d&apos;un autre piquage libre ou d&apos;une extrémité libre (sa ligne continue), ou cliquez sur une tuyauterie (Té) : finir la tuyauterie ; Ctrl : sans accroche à l&apos;axe ; clic droit ou Échap : annuler</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="1100"/>
@@ -4371,15 +4371,15 @@ Continuer ?</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="828"/>
-        <source>Click near a free nozzle, on a pipe (tee) or in an empty place: start a pipe; right click or Esc: quit the tool</source>
+        <source>Click near a free nozzle or a free end (its line goes on), on a pipe (tee) or in an empty place: start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>
-        <translation>Cliquez près d&apos;un piquage libre, sur une tuyauterie (Té) ou dans un endroit vide : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+        <translation>Cliquez près d&apos;un piquage libre ou d&apos;une extrémité libre (sa ligne continue), sur une tuyauterie (Té) ou dans un endroit vide : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
     </message>
     <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="832"/>
-        <source>Click near a free nozzle or on a pipe (tee): start a pipe; right click or Esc: quit the tool</source>
+        <source>Click near a free nozzle or a free end (its line goes on), or on a pipe (tee): start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>
-        <translation>Cliquez près d&apos;un piquage libre ou sur une tuyauterie (Té) : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+        <translation>Cliquez près d&apos;un piquage libre ou d&apos;une extrémité libre (sa ligne continue), ou sur une tuyauterie (Té) : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
     </message>
 </context>
 <context>
