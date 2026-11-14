@@ -324,6 +324,14 @@ class Element : public QetGraphicsItem
 			/// True for a fitting (a tee, the end of a pipe), drawn after
 			/// the pipe it is connected to
 		bool followsPipes() const;
+			/// Move this symbol back by the offset of its insertion point
+			/// when its definition moved as a whole (upstream #1896)
+		bool followMovedOrigin();
+			/// Whether updating the elements from the collections moves a
+			/// placed symbol whose insertion point moved, so that its
+			/// terminals stay where they are: off unless set
+		static bool updateFollowsMovedOrigin();
+		static void setUpdateFollowsMovedOrigin(bool follows);
 		virtual void setHighlighted(bool);
 		void showAsJumpTarget();
 		bool isShownAsJumpTarget() const { return m_jump_highlight > 0; }

@@ -92,6 +92,8 @@ namespace QetSettings
 	*/
 	bool stripWiresShown();
 	void setStripWiresShown(bool shown);
+	bool stripCableCoreTargetsShown();
+	void setStripCableCoreTargetsShown(bool shown);
 
 	/**
 		Whether a terminal strip is sorted by the label of its terminals

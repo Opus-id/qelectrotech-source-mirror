@@ -5097,6 +5097,8 @@ void projectDataBase::createElementNomenclatureView()
 					 "ei.depth AS depth,"
 					 "ei.unit_price AS unit_price,"
 					 "ei.labour_time AS labour_time,"
+						//The device type field (#1884): offered too
+					 "ei.device_type AS device_type,"
 						//The device type is offered by the export too
 					 "ei.device_type AS device_type,"
 					
