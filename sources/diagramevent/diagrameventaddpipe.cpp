@@ -80,6 +80,9 @@ DiagramEventAddPipe::DiagramEventAddPipe(Diagram *diagram) :
 */
 DiagramEventAddPipe::~DiagramEventAddPipe()
 {
+		//Asked before m_start_end is cleared: a pipe drawn from a free end
+		//leaves its preview too
+	const bool drawing = hasStart();
 	hover(nullptr, QColor());
 	m_start_end.clear();
 	concealFreeEnds(nullptr);
@@ -88,7 +91,7 @@ DiagramEventAddPipe::~DiagramEventAddPipe()
 	m_tee_model = nullptr;
 	if (m_diagram)
 	{
-		if (hasStart()) {
+		if (drawing) {
 			m_diagram->setConductor(false);
 		}
 		for (QGraphicsView *view : m_diagram->views()) {

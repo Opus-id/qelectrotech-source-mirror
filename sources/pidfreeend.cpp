@@ -282,13 +282,16 @@ Conductor *PidFreeEnd::join(Diagram *diagram, Terminal *from, Terminal *to, QUnd
 		//Straight, nothing to keep: the route of a new pipe
 	pipe->setPathPoints(points);
 
+		//The lines taken up, as found before the new pipe: a free end just
+		//placed holds it now, and must stay
 	DiagramContent content;
-	for (Terminal *end : {from, to})
-	{
-		if (Conductor *held = pipeOf(end)) {
-			content.m_elements << end->parentElement();
-			content.m_other_conductors << held;
-		}
+	if (first) {
+		content.m_elements << from->parentElement();
+		content.m_other_conductors << first;
+	}
+	if (second) {
+		content.m_elements << to->parentElement();
+		content.m_other_conductors << second;
 	}
 	new DeleteQGraphicsItemCommand(diagram, content, parent);
 	auto *add = new AddGraphicsObjectCommand(pipe, diagram, QPointF(), parent);

@@ -399,6 +399,82 @@ class tst_pipefreeend : public QObject
 			QVERIFY(!m_tool->startsOnFreeEnd());
 		}
 
+			// A line from the void to the void taken up at one free end and
+			// carried on into the void: a new free end there, one pipe, one
+			// undo step
+		void aLineGoesOnIntoTheVoid()
+		{
+			const QPointF one = Diagram::snapToGrid(QPointF(0, m_next_y));
+			const QPointF two = Diagram::snapToGrid(QPointF(200, m_next_y));
+			const QPointF three = Diagram::snapToGrid(QPointF(400, m_next_y + 200));
+			click(one);
+			click(two);
+			Element *first = freeEndAt(one), *second = freeEndAt(two);
+			QVERIFY(first && second);
+			QCOMPARE(nozzleOf(first)->conductors().size(), 1);
+			const int steps = m_folio->undoStack().count();
+
+			click(nearBelow(nozzleOf(second)));
+			QVERIFY(m_tool->startsOnFreeEnd());
+			click(three);
+			QVERIFY(!m_tool->startsOnFreeEnd());
+			QCOMPARE(m_folio->undoStack().count(), steps + 1);
+			QVERIFY(!freeEndAt(two));
+			Element *third = freeEndAt(three);
+			QVERIFY(third);
+			QCOMPARE(nozzleOf(first)->conductors().size(), 1);
+			QVERIFY(nozzleOf(first)->isLinkedTo(nozzleOf(third)));
+
+			m_folio->undoStack().undo();
+			QVERIFY(!freeEndAt(three));
+			QVERIFY(freeEndAt(two));
+			QVERIFY(nozzleOf(first)->isLinkedTo(nozzleOf(freeEndAt(two))));
+			m_folio->undoStack().redo();
+			QVERIFY(freeEndAt(three));
+			QVERIFY(!freeEndAt(two));
+		}
+
+			// From the void to the free end of a line: the free end placed at
+			// the start stays, the line goes on to it
+		void fromTheVoidToAFreeEnd()
+		{
+			Element *a = place(m_pipe, QPointF(0, m_next_y));
+			const QPointF end = Diagram::snapToGrid(QPointF(200, m_next_y));
+			Element *free_end = lineTo(a->terminals().at(1), end, data("L5", "EP", 0));
+			QVERIFY(free_end);
+			const QPointF start = Diagram::snapToGrid(QPointF(400, m_next_y + 200));
+			const int steps = m_folio->undoStack().count();
+			click(start);
+			click(nearBelow(nozzleOf(free_end)));
+			QCOMPARE(m_folio->undoStack().count(), steps + 1);
+			QVERIFY(!freeEndAt(end));
+			Element *placed = freeEndAt(start);
+			QVERIFY(placed);
+			QVERIFY(a->terminals().at(1)->isLinkedTo(nozzleOf(placed)));
+			QCOMPARE(nozzleOf(placed)->conductors().first()->properties().m_pipe.line_number,
+					 QStringLiteral("L5"));
+			m_folio->undoStack().undo();
+			QVERIFY(!freeEndAt(start));
+			QVERIFY(freeEndAt(end));
+		}
+
+			// Another tool chosen while drawing from a free end: the free
+			// end comes back and the preview goes
+		void anotherToolShowsTheFreeEndAgain()
+		{
+			Element *a = place(m_pipe, QPointF(0, m_next_y));
+			Element *free_end = lineTo(a->terminals().at(1),
+									   Diagram::snapToGrid(QPointF(200, m_next_y)), {});
+			QVERIFY(free_end);
+			click(nearBelow(nozzleOf(free_end)));
+			QCOMPARE(free_end->opacity(), 0.0);
+			move(QPointF(400, m_next_y + 300));
+			QVERIFY(!m_folio->conductorRoute().isEmpty());
+			stopTool();
+			QCOMPARE(free_end->opacity(), 1.0);
+			QVERIFY(m_folio->conductorRoute().isEmpty());
+		}
+
 			// Outside the tool: a drag from a free nozzle released on a free
 			// end takes it up; a drag from a free end draws nothing (5l-1h)
 		void aDragEndsOnAFreeEnd()
