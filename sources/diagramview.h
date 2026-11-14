@@ -73,6 +73,8 @@ class DiagramView : public PaletteGraphicsView
 		QPointF           m_menu_scene_pos;
 		QMenu            *m_folio_report_menu = nullptr;
 		QMenu            *m_change_type_menu = nullptr;
+			/// The options the selected symbols all offer, one submenu each
+		QMenu            *m_options_menu = nullptr;
 		QMenu            *m_status_menu = nullptr;
 		QPoint            m_paste_here_pos;
 		QPoint            m_press_pos;
@@ -266,6 +268,7 @@ class DiagramView : public PaletteGraphicsView
 		void handleElementDrop(QDropEvent *);
 		void updateFolioReportMenu();
 		void updateChangeTypeMenu();
+		void updateOptionsMenu();
 		void updateStatusMenu();
 		void changeSelectedElementsType(const ElementsLocation &location);
 			/**

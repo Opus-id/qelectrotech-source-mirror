@@ -30,8 +30,11 @@
 #include "qetresult.h"
 #include "ui/elementoptionswidget.h"
 
+#include <QAbstractItemView>
 #include <QComboBox>
 #include <QDomDocument>
+#include <QIcon>
+#include <QPalette>
 #include <QUndoStack>
 #include <QImage>
 #include <QPainter>
@@ -497,6 +500,93 @@ class tst_elementoptions : public QObject
 			QVERIFY(!tab.isLiveEdit());
 			QCOMPARE(pump->optionChoices(), both);
 			QVERIFY(!tab.associatedUndo());
+		}
+
+			// The "Options" submenu of the context menu (5l-1m): a value given
+			// to several symbols at once, in one undo step; a default is no
+			// choice; a value already chosen or not offered makes no step
+		void aValueIsGivenToSeveralSymbols()
+		{
+			QETProject project;
+			const ElementsLocation location = addPump(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			QVERIFY(a && b);
+			const int steps = folio->undoStack().count();
+
+			QUndoCommand *undo = ElementOptionsWidget::choose({a, b}, QStringLiteral("motor"),
+															  QStringLiteral("fixed"));
+			QVERIFY(undo);
+			folio->undoStack().push(undo);
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			QCOMPARE(a->resolvedOptions().value(QStringLiteral("motor")), QStringLiteral("fixed"));
+			QCOMPARE(b->resolvedOptions().value(QStringLiteral("motor")), QStringLiteral("fixed"));
+
+			QVERIFY(!ElementOptionsWidget::choose({a, b}, QStringLiteral("motor"), QStringLiteral("fixed")));
+			QVERIFY(!ElementOptionsWidget::choose({a}, QStringLiteral("motor"), QStringLiteral("diesel")));
+			QVERIFY(!ElementOptionsWidget::choose({a}, QStringLiteral("seal"), QStringLiteral("double")));
+
+				// back to the default: no choice left
+			undo = ElementOptionsWidget::choose({a}, QStringLiteral("motor"), QStringLiteral("none"));
+			QVERIFY(undo);
+			folio->undoStack().push(undo);
+			QVERIFY(!a->optionChoices().contains(QStringLiteral("motor")));
+			QCOMPARE(b->resolvedOptions().value(QStringLiteral("motor")), QStringLiteral("fixed"));
+
+			folio->undoStack().undo();
+			folio->undoStack().undo();
+			QVERIFY(a->optionChoices().isEmpty() && b->optionChoices().isEmpty());
+		}
+
+			// Each value of the list of an option shows the drawing it gives,
+			// large enough to be read in the list shown (5l-1m)
+		void eachValueShowsItsDrawing()
+		{
+			QETProject project;
+			Element *pump = place(project.addNewDiagram(), addPump(project));
+			QVERIFY(pump);
+			ElementOptionsWidget tab(pump);
+			QComboBox *motor = tab.comboFor(QStringLiteral("motor"));
+			QVERIFY(motor);
+			QCOMPARE(motor->view()->iconSize(), ElementOptionsWidget::listIconSize());
+			const QSize size = ElementOptionsWidget::listIconSize();
+			const int none = motor->findData(QStringLiteral("none"));
+			const int fixed = motor->findData(QStringLiteral("fixed"));
+			QVERIFY(none >= 0 && fixed >= 0);
+			QVERIFY(!motor->itemIcon(none).isNull() && !motor->itemIcon(fixed).isNull());
+			QVERIFY(motor->itemIcon(none).pixmap(size).toImage()
+					!= motor->itemIcon(fixed).pixmap(size).toImage());
+				// the type list draws the types with the options chosen
+			QVERIFY(tab.typeList());
+			QVERIFY(!tab.typeList()->itemIcon(tab.typeList()->currentIndex()).isNull());
+
+				// on a dark palette the black ink of the symbol is made
+				// light, as in the collections: never black on black
+			QPalette dark;
+			dark.setColor(QPalette::Window, QColor(30, 30, 30));
+			dark.setColor(QPalette::Base, QColor(30, 30, 30));
+			dark.setColor(QPalette::WindowText, QColor(230, 230, 230));
+			dark.setColor(QPalette::Text, QColor(230, 230, 230));
+			const auto darkestInk = [](const QImage &image) {
+				int darkest = 255;
+				for (int y = 0 ; y < image.height() ; ++y) {
+					for (int x = 0 ; x < image.width() ; ++x) {
+						const QRgb pixel = image.pixel(x, y);
+						if (qAlpha(pixel) > 128) {
+							darkest = qMin(darkest, qGray(pixel));
+						}
+					}
+				}
+				return darkest;
+			};
+			const ElementOptions::Choices fixed_motor{{QStringLiteral("motor"), QStringLiteral("fixed")}};
+			const QImage on_light = ElementOptionsWidget::drawingIcon(
+						pump->location(), fixed_motor, QPalette(Qt::white)).pixmap(size).toImage();
+			const QImage on_dark = ElementOptionsWidget::drawingIcon(
+						pump->location(), fixed_motor, dark).pixmap(size).toImage();
+			QVERIFY(darkestInk(on_light) < 100);
+			QVERIFY(darkestInk(on_dark) > 128);
 		}
 
 			// ---- the element editor ----

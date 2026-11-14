@@ -20,6 +20,7 @@
 #include "../diagram.h"
 #include "../factory/elementpicturefactory.h"
 #include "../pidstatus.h"
+#include "../qetpalette.h"
 #include "../qetgraphicsitem/element.h"
 #include "../undocommand/changeelementoptionscommand.h"
 
@@ -27,6 +28,8 @@
 #include <QComboBox>
 #include <QEvent>
 #include <QFormLayout>
+#include <QIcon>
+#include <QPalette>
 #include <QPointer>
 #include <QSignalBlocker>
 #include <QStyledItemDelegate>
@@ -99,6 +102,8 @@ void ElementOptionsWidget::buildLists()
 	for (const ElementOptions::Option &option : m_element->elementData().m_options.options())
 	{
 		auto *list = new QComboBox(this);
+			//Each value with the drawing it gives (updateUi())
+		showLargeDrawings(list);
 		for (const ElementOptions::Value &value : option.values) {
 			list->addItem(value.names.name(value.name), value.name);
 		}
@@ -144,20 +149,13 @@ void ElementOptionsWidget::buildTypeList()
 		//the list shown is as wide as its names
 	m_type->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
 	m_type->setMinimumContentsLength(12);
-		//The drawings large enough to be read in the list shown, the list
-		//closed keeps the height of the other fields: the delegate of an
-		//item view takes the size of the icons of the view, not of the list
-	m_type->setItemDelegate(new QStyledItemDelegate(m_type));
-	m_type->view()->setIconSize(QSize(64, 32));
+		//Each type with its drawing, with the options of the element
+		//(updateUi())
+	showLargeDrawings(m_type);
 	for (const ElementsLocation &location : std::as_const(m_types)) {
-			//Drawn at the size of the symbol, from the library as from the
-			//project: sharp once scaled to the list
-		m_type->addItem(QIcon(ElementPictureFactory::instance()->pixmap(location)),
-						location.name());
+		m_type->addItem(location.name());
 	}
 	m_type->setCurrentIndex(int(m_types.indexOf(current)));
-	m_type->view()->setMinimumWidth(m_type->view()->sizeHintForColumn(0)
-									+ 2 * m_type->view()->frameWidth() + 4);
 	m_type->setEnabled(others);
 	m_type->setToolTip(others
 		? tr("The type of the element: another symbol of its folder, of the same size and "
@@ -169,6 +167,94 @@ void ElementOptionsWidget::buildTypeList()
 	m_type->installEventFilter(this);
 	connect(m_type, &QComboBox::activated, this, &ElementOptionsWidget::typePicked);
 	m_layout->addRow(tr("Type:", "type of a placed element"), m_type);
+}
+
+/**
+	@brief ElementOptionsWidget::showLargeDrawings
+	The drawings of the list shown at listIconSize(), the list closed keeping
+	the height of the other fields: the delegate of an item view takes the
+	size of the icons of the view, not of the list.
+	@param list
+*/
+void ElementOptionsWidget::showLargeDrawings(QComboBox *list)
+{
+	list->setItemDelegate(new QStyledItemDelegate(list));
+	list->view()->setIconSize(listIconSize());
+}
+
+/**
+	@brief ElementOptionsWidget::drawingIcon
+	The symbol at @p location drawn with @p choices, at its own size (sharp
+	once scaled to a list or a menu), from the library as from the project;
+	black ink made light on a dark palette, as in the collections.
+	@param location
+	@param choices : the options chosen; the others at their defaults
+	@param palette : the palette of the list or menu which shows it
+	@return the icon, null when the symbol cannot be drawn
+*/
+QIcon ElementOptionsWidget::drawingIcon(const ElementsLocation &location,
+										const ElementOptions::Choices &choices,
+										const QPalette &palette)
+{
+		//Only the options of the symbol draw something: the others (the
+		//status of works, those of another symbol) would make as many
+		//drawings of the same thing
+	ElementOptions options;
+	options.fromXml(location.xml());
+	ElementOptions::Choices own;
+	for (const ElementOptions::Option &option : options.options()) {
+		if (choices.contains(option.name)) {
+			own.insert(option.name, choices.value(option.name));
+		}
+	}
+	const QPixmap pixmap = ElementPictureFactory::instance()->pixmap(location, own);
+	if (pixmap.isNull()) {
+		return QIcon();
+	}
+	return QIcon(QET::Palette::forPalette(pixmap, palette));
+}
+
+/**
+	@brief ElementOptionsWidget::choose
+	Give each of @p elements whose symbol offers the value @p value of the
+	option @p option that value, as the list of the option does: a default
+	is no choice. One undo step for them all.
+	@param elements
+	@param option : the name of an option
+	@param value : the name of one of its values
+	@return the undo command, nullptr when no element changes
+*/
+QUndoCommand *ElementOptionsWidget::choose(const QList<Element *> &elements,
+										   const QString &option, const QString &value)
+{
+	auto *undo = new QUndoCommand();
+	int changed = 0;
+	for (Element *element : elements)
+	{
+		if (!element) {
+			continue;
+		}
+		const ElementOptions::Option *offered = element->elementData().m_options.option(option);
+		if (!offered || !offered->hasValue(value)) {
+			continue;
+		}
+		ElementOptions::Choices choices = element->optionChoices();
+		if (value == offered->default_value) {
+			choices.remove(option);
+		} else {
+			choices.insert(option, value);
+		}
+		if (choices != element->optionChoices()) {
+			new ChangeElementOptionsCommand(element, choices, undo);
+			++changed;
+		}
+	}
+	if (!changed) {
+		delete undo;
+		return nullptr;
+	}
+	undo->setText(tr("Change an option of %n element(s)", "undo text", changed));
+	return undo;
 }
 
 /**
@@ -225,10 +311,31 @@ void ElementOptionsWidget::updateUi()
 		return;
 	}
 	const ElementOptions::Choices resolved = m_element->resolvedOptions();
+	const ElementsLocation location = m_element->location();
+		//The list shown is as wide as its drawings and names
+	const auto fitPopup = [](QComboBox *list) {
+		list->view()->setMinimumWidth(list->view()->sizeHintForColumn(0)
+									  + 2 * list->view()->frameWidth() + 4);
+	};
 	for (const auto &pair : std::as_const(m_lists))
 	{
 		const QSignalBlocker blocker(pair.second);
 		pair.second->setCurrentIndex(pair.second->findData(resolved.value(pair.first)));
+			//Each value drawn with the other options as they are chosen
+		for (int i = 0 ; i < pair.second->count() ; ++i) {
+			ElementOptions::Choices choices = resolved;
+			choices.insert(pair.first, pair.second->itemData(i).toString());
+			pair.second->setItemIcon(i, drawingIcon(location, choices, pair.second->palette()));
+		}
+		fitPopup(pair.second);
+	}
+		//Each type drawn with the options of the element, as it would be
+	if (m_type)
+	{
+		for (int i = 0 ; i < m_type->count() && i < m_types.size() ; ++i) {
+			m_type->setItemIcon(i, drawingIcon(m_types.at(i), resolved, m_type->palette()));
+		}
+		fitPopup(m_type);
 	}
 	if (m_status)
 	{

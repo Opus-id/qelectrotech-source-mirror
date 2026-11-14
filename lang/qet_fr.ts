@@ -6871,6 +6871,15 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <source>No other symbol of the folder of this one has its size and its terminals.</source>
         <translation>Aucun autre symbole du dossier de celui-ci n&apos;a sa taille et ses bornes.</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/elementoptionswidget.cpp" line="260"/>
+        <source>Change an option of %n element(s)</source>
+        <comment>undo text</comment>
+        <translation>
+            <numerusform>Changer une option de %n élément</numerusform>
+            <numerusform>Changer une option de %n éléments</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>ElementInfoWidget</name>

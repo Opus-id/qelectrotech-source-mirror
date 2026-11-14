@@ -101,7 +101,7 @@ class ElementPictureFactory
 		void getReadablePictures(const ElementsLocation &location, const QTransform &texts_transform,
 								 QPicture &picture, QPicture &low_picture,
 								 const Choices &choices = Choices());
-		QPixmap pixmap(const ElementsLocation &location);
+		QPixmap pixmap(const ElementsLocation &location, const Choices &choices = Choices());
 		ElementPictureFactory::primitives getPrimitives(const ElementsLocation &location,
 														const Choices &choices = Choices());
 		void dropCache(const ElementsLocation &location);

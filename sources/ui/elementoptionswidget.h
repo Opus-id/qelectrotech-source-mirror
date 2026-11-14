@@ -24,9 +24,13 @@
 
 #include <QList>
 #include <QPair>
+#include <QSize>
 
 class QComboBox;
 class QFormLayout;
+class QIcon;
+class QPalette;
+class QUndoCommand;
 
 /**
 	@brief The ElementOptionsWidget class
@@ -47,6 +51,18 @@ class ElementOptionsWidget : public AbstractElementPropertiesEditorWidget
 			/// Whether the symbol of @p element offers options, so that this
 			/// tab is worth showing
 		static bool hasOptions(const Element *element);
+			/// The drawing of the symbol at @p location with @p choices, for a
+			/// list or a menu, its ink fit for @p palette
+		static QIcon drawingIcon(const ElementsLocation &location,
+								 const ElementOptions::Choices &choices,
+								 const QPalette &palette);
+			/// One undo step giving each of @p elements the value @p value of
+			/// its option @p option; nullptr when none changes
+		static QUndoCommand *choose(const QList<Element *> &elements,
+									const QString &option, const QString &value);
+			/// The size of the drawings in the list shown of a type or of an
+			/// option
+		static QSize listIconSize() { return QSize(64, 32); }
 
 		void setElement(Element *element) override;
 		void apply() override;
@@ -73,6 +89,9 @@ class ElementOptionsWidget : public AbstractElementPropertiesEditorWidget
 	private:
 		void buildLists();
 		void buildTypeList();
+			/// Drawings large enough to be read in the list shown of @p list,
+			/// the list closed keeping the height of the other fields
+		static void showLargeDrawings(QComboBox *list);
 		void typePicked(int index);
 
 		QFormLayout *m_layout = nullptr;

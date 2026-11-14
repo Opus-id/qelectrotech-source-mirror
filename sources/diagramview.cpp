@@ -49,12 +49,14 @@
 #include "qeticons.h"
 #include "QetGraphicsItemModeler/qetgraphicshandleritem.h"
 #include "qetpalette.h"
+#include "qetstyle.h"
 #include <QScopeGuard>
 #include <QtMath>
 #include "titleblock/integrationmovetemplateshandler.h"
 #include "PropertiesEditor/propertieseditordialog.h"
 #include "ui/diagrampropertiesdialog.h"
 #include "ui/duplicateoffsetdialog.h"
+#include "ui/elementoptionswidget.h"
 #include "ui/multielementinfowidget.h"
 #include "ui/multipastedialog.h"
 #include "undocommand/changeelementlocationcommand.h"
@@ -86,6 +88,7 @@
 #include <QPointer>
 #include <QDir>
 #include <QSet>
+#include <QStyleFactory>
 #include <QToolTip>
 #include <QUuid>
 #include <algorithm>
@@ -113,6 +116,36 @@ static QUndoCommand *batchWith(QUndoCommand *first, QUndoCommand *second)
 	auto *batched = new BatchCommand(first, second);
 	if (!first->text().isEmpty()) batched->setText(first->text());
 	return batched;
+}
+
+/**
+	@brief largeMenuIconsStyle
+	The style of the menus which show symbols ("Change type", the values of
+	an option): their drawings 32 px high, enough to be read, where a menu
+	draws 16 px icons. A menu only draws square icons.
+	@return the style, the same for every menu; it lives as long as the
+	application, as a menu may still use it when it is deleted. A QETStyle,
+	as the application's: the drawing of a highlighted entry stays readable
+	on the highlight bar (QETStyle::drawControl())
+*/
+static QStyle *largeMenuIconsStyle()
+{
+	class LargeMenuIcons : public QETStyle
+	{
+		public:
+			using QETStyle::QETStyle;
+			int pixelMetric(PixelMetric metric, const QStyleOption *option,
+							const QWidget *widget) const override
+			{
+				if (metric == PM_SmallIconSize) {
+					return 32;
+				}
+				return QETStyle::pixelMetric(metric, option, widget);
+			}
+	};
+	static QStyle *style = new LargeMenuIcons(
+				QStyleFactory::create(QApplication::style()->objectName()));
+	return style;
 }
 
 /**
@@ -193,6 +226,9 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 
 		//Filled each time the context menu opens, see updateChangeTypeMenu()
 	m_change_type_menu = new QMenu(tr("Change type", "context menu action"), this);
+	m_change_type_menu->setStyle(largeMenuIconsStyle());
+		//Filled each time the context menu opens, see updateOptionsMenu()
+	m_options_menu = new QMenu(tr("Options", "context menu action"), this);
 		//Filled each time the context menu opens, see updateStatusMenu()
 	m_status_menu = new QMenu(tr("Status of works", "context menu action"), this);
 
@@ -3331,6 +3367,7 @@ QList<QAction *> DiagramView::contextMenuActions() const
 				list << m_draw_pipe_from_here;
 			}
 			list << m_change_type_menu->menuAction();
+			list << m_options_menu->menuAction();
 			list << m_status_menu->menuAction();
 			list << qde->m_conductor_reset;
 			list << qde->m_select_same_symbols;
@@ -3514,6 +3551,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 	else
 	{
 		updateChangeTypeMenu();
+		updateOptionsMenu();
 		updateStatusMenu();
 			//The selection may just have changed under the mouse
 		if (QETDiagramEditor *qde = diagramEditor()) {
@@ -3653,11 +3691,100 @@ void DiagramView::updateChangeTypeMenu()
 	}
 	for (const ElementsLocation &location : Element::otherTypes(elements))
 	{
-		QAction *action = m_change_type_menu->addAction(location.icon(), location.name());
+			//Drawn as the first element would be, with its options, as in
+			//the "Type" list of the P&ID tab
+		QAction *action = m_change_type_menu->addAction(
+					ElementOptionsWidget::drawingIcon(location, elements.first()->resolvedOptions(),
+													  m_change_type_menu->palette()),
+					location.name());
 		connect(action, &QAction::triggered, this, [this, location]() {
 			changeSelectedElementsType(location);
 		});
 	}
+}
+
+/**
+	@brief DiagramView::updateOptionsMenu
+	Fill the "Options" submenu of the context menu of the selection: one
+	submenu per option every selected symbol offers (same name), with the
+	values they all offer, each with its drawing; the value they all have is
+	checked. A value picked is given to them all, in one undo step, as by the
+	lists of the P&ID tab. Left empty, and so hidden, when they share no
+	option, or when the diagram is read-only.
+*/
+void DiagramView::updateOptionsMenu()
+{
+	m_options_menu->clear();
+		//clear() only deletes the actions: the submenus of the last time,
+		//children of this menu, go as well
+	qDeleteAll(m_options_menu->findChildren<QMenu *>(Qt::FindDirectChildrenOnly));
+	m_options_menu->menuAction()->setVisible(false);
+	if (m_diagram->isReadOnly()) {
+		return;
+	}
+
+	QList<Element *> elements;
+	for (QGraphicsItem *item : m_diagram->selectedItems()) {
+		if (auto *element = qgraphicsitem_cast<Element *>(item)) {
+			elements << element;
+		}
+	}
+	if (elements.isEmpty()) {
+		return;
+	}
+
+	Element *first = elements.first();
+	const ElementOptions::Choices first_resolved = first->resolvedOptions();
+	for (const ElementOptions::Option &option : first->elementData().m_options.options())
+	{
+			//The values every selected symbol offers for this option
+		QList<ElementOptions::Value> values;
+		for (const ElementOptions::Value &value : option.values) {
+			const bool everywhere = std::all_of(elements.cbegin(), elements.cend(),
+				[&option, &value](const Element *element) {
+					const ElementOptions::Option *offered =
+						element->elementData().m_options.option(option.name);
+					return offered && offered->hasValue(value.name);
+				});
+			if (everywhere) {
+				values << value;
+			}
+		}
+		if (values.size() < 2) {
+			continue;
+		}
+
+		auto *submenu = new QMenu(option.names.name(option.name), m_options_menu);
+		submenu->setStyle(largeMenuIconsStyle());
+		for (const ElementOptions::Value &value : std::as_const(values))
+		{
+			ElementOptions::Choices choices = first_resolved;
+			choices.insert(option.name, value.name);
+			QAction *action = submenu->addAction(
+						ElementOptionsWidget::drawingIcon(first->location(), choices, submenu->palette()),
+						value.names.name(value.name));
+			action->setCheckable(true);
+			action->setChecked(std::all_of(elements.cbegin(), elements.cend(),
+				[&option, &value](const Element *element) {
+					return element->resolvedOptions().value(option.name) == value.name;
+				}));
+			const QString option_name = option.name;
+			const QString value_name = value.name;
+			connect(action, &QAction::triggered, this, [this, option_name, value_name]() {
+				QList<Element *> selected;
+				for (QGraphicsItem *item : m_diagram->selectedItems()) {
+					if (auto *element = qgraphicsitem_cast<Element *>(item)) {
+						selected << element;
+					}
+				}
+				if (QUndoCommand *undo = ElementOptionsWidget::choose(selected, option_name, value_name)) {
+					m_diagram->undoStack().push(undo);
+				}
+			});
+		}
+		m_options_menu->addMenu(submenu);
+	}
+	m_options_menu->menuAction()->setVisible(!m_options_menu->isEmpty());
 }
 
 /**

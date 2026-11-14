@@ -198,18 +198,20 @@ void ElementPictureFactory::dropKey(const QUuid &uuid)
 /**
 	@brief ElementPictureFactory::pixmap
 	@param location
+	@param choices : the options chosen, see getPictures(); none for the
+	defaults
 	@return the pixmap of the element at location
 	Note pixmap can be null
 */
-QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location)
+QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Choices &choices)
 {
-	const QUuid uuid = cacheKey(location);
+	const QUuid uuid = cacheKey(location, choices);
 
 	if (m_pixmap_H.contains(uuid)) {
 		return m_pixmap_H.value(uuid);
 	}
 
-	if(build(location))
+	if(build(location, nullptr, nullptr, QTransform(), choices))
 	{
 		auto doc = location.pugiXml();
 			//size
