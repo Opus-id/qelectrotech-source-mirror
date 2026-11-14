@@ -18,6 +18,7 @@
 #ifndef ELEMENTOPTIONSWIDGET_H
 #define ELEMENTOPTIONSWIDGET_H
 
+#include "../ElementsCollection/elementslocation.h"
 #include "../properties/elementoptions.h"
 #include "abstractelementpropertieseditorwidget.h"
 
@@ -29,9 +30,13 @@ class QFormLayout;
 
 /**
 	@brief The ElementOptionsWidget class
-	The tab of the properties of a placed element where the options of its
-	symbol are chosen (ElementOptions): one list per option, such as the
-	motor of a pump. Live, a choice is applied at once, with undo.
+	The "Type and options" section of the P&ID tab of the properties of a
+	placed element: first the list of the types its symbol can be swapped
+	for ("Change type"), then the options of its symbol (ElementOptions),
+	one list per option, such as the motor of a pump, then its status of
+	works. A choice is applied at once, with undo, in the dialog of the
+	element as in the dock (the drawing follows it); a type picked as well,
+	as by the context menu.
 */
 class ElementOptionsWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -56,11 +61,24 @@ class ElementOptionsWidget : public AbstractElementPropertiesEditorWidget
 		ElementOptions::Choices chosen() const;
 			/// The list of the option @p name, or nullptr
 		QComboBox *comboFor(const QString &name) const;
+			/// The list of the types: the symbol of the element and those
+			/// it can be swapped for, by name
+		QComboBox *typeList() const { return m_type; }
+			/// The symbol of each line of typeList()
+		QList<ElementsLocation> types() const { return m_types; }
+
+	protected:
+		bool eventFilter(QObject *watched, QEvent *event) override;
 
 	private:
 		void buildLists();
+		void buildTypeList();
+		void typePicked(int index);
 
 		QFormLayout *m_layout = nullptr;
+			/// The type of the element, then the options
+		QComboBox *m_type = nullptr;
+		QList<ElementsLocation> m_types;
 			/// One list per option, with the name of its option
 		QList<QPair<QString, QComboBox *>> m_lists;
 			/// The status of works, for a symbol of a family of objects

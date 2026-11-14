@@ -18,13 +18,21 @@
 #include "elementoptionswidget.h"
 
 #include "../diagram.h"
+#include "../factory/elementpicturefactory.h"
 #include "../pidstatus.h"
 #include "../qetgraphicsitem/element.h"
 #include "../undocommand/changeelementoptionscommand.h"
 
+#include <QAbstractItemView>
 #include <QComboBox>
+#include <QEvent>
 #include <QFormLayout>
+#include <QPointer>
 #include <QSignalBlocker>
+#include <QStyledItemDelegate>
+#include <QTimer>
+
+#include <algorithm>
 
 /**
 	@brief ElementOptionsWidget::ElementOptionsWidget
@@ -80,9 +88,13 @@ void ElementOptionsWidget::buildLists()
 	}
 	m_lists.clear();
 	m_status = nullptr;
+	m_type = nullptr;
+	m_types.clear();
 	if (!m_element) {
 		return;
 	}
+
+	buildTypeList();
 
 	for (const ElementOptions::Option &option : m_element->elementData().m_options.options())
 	{
@@ -90,11 +102,9 @@ void ElementOptionsWidget::buildLists()
 		for (const ElementOptions::Value &value : option.values) {
 			list->addItem(value.names.name(value.name), value.name);
 		}
-		connect(list, &QComboBox::currentIndexChanged, this, [this]() {
-			if (m_live_edit) {
-				apply();
-			}
-		});
+			//Applied at once, in the dialog of the element as in the dock:
+			//the drawing follows the choice, as it follows the type
+		connect(list, &QComboBox::currentIndexChanged, this, &ElementOptionsWidget::apply);
 		m_layout->addRow(tr("%1:", "label of the list of an option").arg(option.names.name(option.name)), list);
 		m_lists.append({option.name, list});
 	}
@@ -106,13 +116,103 @@ void ElementOptionsWidget::buildLists()
 		for (const auto &status : PidStatus::statuses()) {
 			m_status->addItem(status.second, status.first);
 		}
-		connect(m_status, &QComboBox::currentIndexChanged, this, [this]() {
-			if (m_live_edit) {
-				apply();
-			}
-		});
+		connect(m_status, &QComboBox::currentIndexChanged, this, &ElementOptionsWidget::apply);
 		m_layout->addRow(tr("Status of works:"), m_status);
 	}
+}
+
+/**
+	@brief ElementOptionsWidget::buildTypeList
+	The first row: the symbol of the element and the others of its folder
+	which can replace it (Element::otherTypes(), as the "Change type" menu),
+	by name, the one of the element shown. Greyed when there is no other.
+*/
+void ElementOptionsWidget::buildTypeList()
+{
+	m_types = Element::otherTypes({m_element.data()});
+	const bool others = !m_types.isEmpty();
+	const ElementsLocation current = m_element->location();
+	m_types << current;
+	std::sort(m_types.begin(), m_types.end(),
+		  [](const ElementsLocation &a, const ElementsLocation &b) {
+		return a.name().localeAwareCompare(b.name()) < 0;
+	});
+
+	m_type = new QComboBox(this);
+	m_type->setObjectName(QStringLiteral("type_list"));
+		//A long name must not widen the panel, and the drawing with it:
+		//the list shown is as wide as its names
+	m_type->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+	m_type->setMinimumContentsLength(12);
+		//The drawings large enough to be read in the list shown, the list
+		//closed keeps the height of the other fields: the delegate of an
+		//item view takes the size of the icons of the view, not of the list
+	m_type->setItemDelegate(new QStyledItemDelegate(m_type));
+	m_type->view()->setIconSize(QSize(64, 32));
+	for (const ElementsLocation &location : std::as_const(m_types)) {
+			//Drawn at the size of the symbol, from the library as from the
+			//project: sharp once scaled to the list
+		m_type->addItem(QIcon(ElementPictureFactory::instance()->pixmap(location)),
+						location.name());
+	}
+	m_type->setCurrentIndex(int(m_types.indexOf(current)));
+	m_type->view()->setMinimumWidth(m_type->view()->sizeHintForColumn(0)
+									+ 2 * m_type->view()->frameWidth() + 4);
+	m_type->setEnabled(others);
+	m_type->setToolTip(others
+		? tr("The type of the element: another symbol of its folder, of the same size and "
+			 "with the same terminals, can replace it. Its place, its tag and what is connected "
+			 "to it stay. Undo: Ctrl+Z.")
+		: tr("No other symbol of the folder of this one has its size and its terminals."));
+		//The panel applies a type at once: the wheel must not swap the
+		//symbol while the panel is scrolled
+	m_type->installEventFilter(this);
+	connect(m_type, &QComboBox::activated, this, &ElementOptionsWidget::typePicked);
+	m_layout->addRow(tr("Type:", "type of a placed element"), m_type);
+}
+
+/**
+	@brief ElementOptionsWidget::typePicked
+	Swap the symbol of the element for the type picked, with undo. This
+	section is rebuilt with the new symbol: the swap waits for the list to
+	be left.
+	@param index : the line of the list
+*/
+void ElementOptionsWidget::typePicked(int index)
+{
+	if (!m_element || index < 0 || index >= m_types.size()) {
+		return;
+	}
+	const ElementsLocation location = m_types.at(index);
+	const ElementsLocation current = m_element->location();
+		//The list shows the type the element has, until it has another
+	{
+		const QSignalBlocker blocker(m_type);
+		m_type->setCurrentIndex(int(m_types.indexOf(current)));
+	}
+	if (location == current) {
+		return;
+	}
+	QPointer<Element> element = m_element;
+	QTimer::singleShot(0, element.data(), [element, location]() {
+		if (element) {
+			Element::changeType({element.data()}, location);
+		}
+	});
+}
+
+/**
+	@brief ElementOptionsWidget::eventFilter
+	The wheel never changes the type: the dock scrolls first when the list
+	is not being edited (PropertiesEditorDockWidget), and the wheel stops
+	here when it is.
+*/
+bool ElementOptionsWidget::eventFilter(QObject *watched, QEvent *event)
+{
+	if (watched == m_type && event->type() == QEvent::Wheel) {
+		return true;
+	}
+	return AbstractElementPropertiesEditorWidget::eventFilter(watched, event);
 }
 
 /**
@@ -222,7 +322,7 @@ void ElementOptionsWidget::apply()
 
 /**
 	@brief ElementOptionsWidget::setLiveEdit
-	Live, a value picked in a list is applied at once (apply())
+	A value picked is applied at once (apply()), live or not
 	@param live_edit
 	@return true: this tab can be live
 */
@@ -238,5 +338,5 @@ bool ElementOptionsWidget::setLiveEdit(bool live_edit)
 */
 QString ElementOptionsWidget::title() const
 {
-	return tr("Options");
+	return tr("Type and options");
 }

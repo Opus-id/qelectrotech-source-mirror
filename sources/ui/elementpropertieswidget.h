@@ -43,6 +43,9 @@ class ElementPropertiesWidget : public AbstractElementPropertiesEditorWidget
 		void reset() override;
 		bool setLiveEdit(bool live_edit) override;
 		QString title() const override {return tr("Element properties");}
+			/// The title of the tab of a P&ID symbol, first of the tabs: its
+			/// type and options, its tag, its nozzles, one under the other
+		static QString pidTabTitle();
 
 	public slots:
 		void findInPanel ();
@@ -62,6 +65,8 @@ class ElementPropertiesWidget : public AbstractElementPropertiesEditorWidget
 		QTabWidget *m_tab;
 		QList <AbstractElementPropertiesEditorWidget *> m_list_editor;
 		QWidget *m_general_widget;
+			/// The P&ID tab, which holds the editors of its sections
+		QWidget *m_pid_tab = nullptr;
 		bool m_text_tab_wanted = false;
 };
 

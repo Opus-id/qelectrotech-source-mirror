@@ -44,6 +44,8 @@
 #include <QCheckBox>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QFrame>
+#include <QHBoxLayout>
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QLabel>
@@ -356,6 +358,8 @@ void ElementPropertiesWidget::updateUi()
 	m_tab->clear();
 	qDeleteAll(m_list_editor);
 	m_list_editor.clear();
+	delete m_pid_tab;
+	m_pid_tab = nullptr;
 	if(m_general_widget) {
 		delete m_general_widget;
 		m_general_widget = nullptr;
@@ -408,25 +412,69 @@ void ElementPropertiesWidget::updateUi()
 		default:
 			break;
 	}
-		//The tag of a P&ID symbol, made of fields
-	if (ElementTagWidget::isWanted(m_element))
-		m_list_editor << new ElementTagWidget(m_element, this);
-		//The options of its symbol, such as the motor of a pump
+		//The sections of the P&ID tab, from the general to the detail: the
+		//type of the symbol and its options, such as the motor of a pump...
+	QList<AbstractElementPropertiesEditorWidget *> pid_sections;
 	if (ElementOptionsWidget::hasOptions(m_element))
-		m_list_editor << new ElementOptionsWidget(m_element, this);
-		//The nominal diameters of its nozzles
+		pid_sections << new ElementOptionsWidget(m_element, this);
+		//...the tag, made of fields, whose identifier follows the type...
+	if (ElementTagWidget::isWanted(m_element))
+		pid_sections << new ElementTagWidget(m_element, this);
+		//...the connections and sizes of its nozzles
 	if (ElementNozzlesWidget::hasNozzles(m_element))
-		m_list_editor << new ElementNozzlesWidget(m_element, this);
+		pid_sections << new ElementNozzlesWidget(m_element, this);
+	m_list_editor << pid_sections;
 		//The types its terminals give, in a project that takes them there
 	if (PotentialSourcesWidget::isWanted(m_element))
 		m_list_editor << new PotentialSourcesWidget(m_element, this);
 	m_list_editor << new DynamicElementTextItemEditor(m_element, this);
 
-		//Add each editors in tab widget
+		//One tab for the P&ID sections, first, then one tab for each other
+		//editor. No scroll area of its own: the dock of the selection
+		//properties scrolls when the tab is higher than it
+	if (!pid_sections.isEmpty())
+	{
+		m_pid_tab = new QWidget(this);
+		m_pid_tab->setObjectName(QStringLiteral("pid_tab"));
+		auto *layout = new QVBoxLayout(m_pid_tab);
+		for (AbstractElementPropertiesEditorWidget *section : std::as_const(pid_sections))
+		{
+				//A title and a line, as the sections of a P&ID tab are
+				//never folded
+			auto *title = new QLabel(section->title(), m_pid_tab);
+			title->setObjectName(QStringLiteral("pid_section_title"));
+			QFont font = title->font();
+			font.setBold(true);
+			title->setFont(font);
+			auto *line = new QFrame(m_pid_tab);
+			line->setFrameShape(QFrame::HLine);
+			line->setFrameShadow(QFrame::Sunken);
+			auto *head = new QHBoxLayout();
+			head->addWidget(title);
+			head->addWidget(line, 1);
+			layout->addLayout(head);
+			section->setParent(m_pid_tab);
+				//The margins of the tab only, not one more per section,
+				//which would widen the panel
+			if (section->layout())
+				section->layout()->setContentsMargins(0, 0, 0, 0);
+			layout->addWidget(section);
+		}
+		layout->addStretch();
+	}
+
 	for (AbstractElementPropertiesEditorWidget *aepew : m_list_editor)
 	{
 		aepew->setLiveEdit(m_live_edit);
-		m_tab->addTab(aepew, aepew->title());
+		if (!pid_sections.contains(aepew))
+			m_tab->addTab(aepew, aepew->title());
+	}
+		//The P&ID tab is the one shown, unless another was picked (below,
+		//and setLiveEdit()): inserted in front, it would leave the first
+		//tab added current
+	if (m_pid_tab) {
+		m_tab->insertTab(0, m_pid_tab, pidTabTitle());
+		m_tab->setCurrentIndex(0);
 	}
 	addGeneralWidget();
 
@@ -442,6 +490,16 @@ void ElementPropertiesWidget::updateUi()
 			}
 		}
 	}
+}
+
+/**
+	@brief ElementPropertiesWidget::pidTabTitle
+	@return the title of the P&ID tab: "&&" shows the "&" of P&ID, which
+	would else underline the I as a shortcut
+*/
+QString ElementPropertiesWidget::pidTabTitle()
+{
+	return tr("P&&ID", "title of the tab of a P&ID symbol");
 }
 
 /**

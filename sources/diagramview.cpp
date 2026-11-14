@@ -3651,67 +3651,7 @@ void DiagramView::updateChangeTypeMenu()
 			elements << element;
 		}
 	}
-	QETProject *project = m_diagram->project();
-	if (elements.isEmpty() || !project) {
-		return;
-	}
-
-		//The folder of the first element: its place in the embedded collection
-		//is the one it was taken from ("import/" in front of it)
-	QString folder = elements.first()->location().parent().collectionPath(false);
-	if (folder.startsWith(QLatin1String("import/"))) {
-		folder.remove(0, 7);
-	}
-	if (folder.isEmpty()) {
-		return;
-	}
-
-		//The library's own files first, then the project's copies: an element
-		//is listed once, by its uuid
-	QList<ElementsLocation> candidates;
-	const auto from_directory = [&candidates](const QString &protocol,
-						  const QString &base,
-						  const QString &dir) {
-		const QDir directory(base + dir);
-		const QStringList files = directory.entryList(
-					QStringList() << QStringLiteral("*.elmt"), QDir::Files);
-		for (const QString &file : files) {
-			candidates << ElementsLocation(protocol + dir + QLatin1Char('/') + file);
-		}
-	};
-	from_directory(QStringLiteral("custom://"), QETApp::customElementsDir(), folder);
-	from_directory(QStringLiteral("common://"), QETApp::commonElementsDir(), folder);
-	if (XmlElementCollection *collection = project->embeddedElementCollection())
-	{
-		const QDomElement dir = collection->directory(QStringLiteral("import/") + folder);
-		for (const QDomElement &dom : collection->elements(dir)) {
-			candidates << collection->domToLocation(dom);
-		}
-	}
-
-	QSet<QUuid> seen;
-	QList<ElementsLocation> usable;
-	for (const ElementsLocation &candidate : std::as_const(candidates))
-	{
-		if (!candidate.exist() || seen.contains(candidate.uuid())) {
-			continue;
-		}
-		seen.insert(candidate.uuid());
-		const bool all_accept = std::all_of(
-			elements.cbegin(), elements.cend(),
-			[&candidate](const Element *element) {
-				return element->canChangeLocationTo(candidate);
-			});
-		if (all_accept) {
-			usable << candidate;
-		}
-	}
-
-	std::sort(usable.begin(), usable.end(),
-		  [](const ElementsLocation &a, const ElementsLocation &b) {
-		return a.name().localeAwareCompare(b.name()) < 0;
-	});
-	for (const ElementsLocation &location : std::as_const(usable))
+	for (const ElementsLocation &location : Element::otherTypes(elements))
 	{
 		QAction *action = m_change_type_menu->addAction(location.icon(), location.name());
 		connect(action, &QAction::triggered, this, [this, location]() {
@@ -3728,35 +3668,13 @@ void DiagramView::updateChangeTypeMenu()
 */
 void DiagramView::changeSelectedElementsType(const ElementsLocation &location)
 {
-	QETProject *project = m_diagram->project();
-	if (!project) {
-		return;
-	}
-
-		//The project must hold the new definition, like for a placed element
-	ElementsLocation source = location;
-	const ElementsLocation imported = project->importElement(source);
-	if (imported.isNull()) {
-		return;
-	}
-
 	QList<Element *> elements;
 	for (QGraphicsItem *item : m_diagram->selectedItems()) {
-		auto *element = qgraphicsitem_cast<Element *>(item);
-		if (element && element->canChangeLocationTo(imported)) {
+		if (auto *element = qgraphicsitem_cast<Element *>(item)) {
 			elements << element;
 		}
 	}
-	if (elements.isEmpty()) {
-		return;
-	}
-
-	m_diagram->undoStack().beginMacro(
-		tr("Change the type of %n element(s)", "undo text", elements.size()));
-	for (Element *element : std::as_const(elements)) {
-		m_diagram->undoStack().push(new ChangeElementLocationCommand(element, imported));
-	}
-	m_diagram->undoStack().endMacro();
+	Element::changeType(elements, location);
 }
 
 /**

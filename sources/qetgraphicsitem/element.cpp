@@ -41,6 +41,8 @@
 #include <ui/elementarticleswidget.h>
 #include <ui/elementpropertieswidget.h>
 #include <undocommand/changeelementinformationcommand.h>
+#include <undocommand/changeelementlocationcommand.h>
+#include <ElementsCollection/xmlelementcollection.h>
 #include <undocommand/setautonumcontextcommand.h>
 #include <pidstatus.h>
 #include <pidtag.h>
@@ -57,7 +59,10 @@
 #include <QCursor>
 #include <QGuiApplication>
 #include <QCollator>
+#include <QDir>
 #include <QScreen>
+#include <QSet>
+#include <QUndoStack>
 #include <QTextDocument>
 #include <QTimer>
 #include <QPointer>
@@ -4319,6 +4324,139 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 			return false;
 		}
 	}
+	return true;
+}
+
+/**
+	@brief Element::otherTypes
+	The symbols which can replace @p elements as they stand, that is the
+	other symbols of the collection folder of the first one with the same
+	size and the same terminals (see canChangeLocationTo()), such as the
+	valves of one family. Shared by the "Change type" menu of the folio and
+	the "Type" list of the P&ID tab of the properties.
+	@param elements : elements of one folio
+	@return those symbols, sorted by name; none when the folio is read-only
+*/
+QList<ElementsLocation> Element::otherTypes(const QList<Element *> &elements)
+{
+	if (elements.isEmpty() || !elements.first() || !elements.first()->diagram()) {
+		return {};
+	}
+	Diagram *diagram = elements.first()->diagram();
+	QETProject *project = diagram->project();
+	if (diagram->isReadOnly() || !project) {
+		return {};
+	}
+
+		//The folder of the first element: its place in the embedded collection
+		//is the one it was taken from ("import/" in front of it)
+	QString folder = elements.first()->location().parent().collectionPath(false);
+	if (folder.startsWith(QLatin1String("import/"))) {
+		folder.remove(0, 7);
+	}
+	if (folder.isEmpty()) {
+		return {};
+	}
+
+		//The library's own files first, then the project's copies: an element
+		//is listed once, by its uuid
+	QList<ElementsLocation> candidates;
+	const auto from_directory = [&candidates](const QString &protocol,
+						  const QString &base,
+						  const QString &dir) {
+		const QDir directory(base + dir);
+		const QStringList files = directory.entryList(
+					QStringList() << QStringLiteral("*.elmt"), QDir::Files);
+		for (const QString &file : files) {
+			candidates << ElementsLocation(protocol + dir + QLatin1Char('/') + file);
+		}
+	};
+	from_directory(QStringLiteral("custom://"), QETApp::customElementsDir(), folder);
+	from_directory(QStringLiteral("common://"), QETApp::commonElementsDir(), folder);
+	if (XmlElementCollection *collection = project->embeddedElementCollection())
+	{
+		const QDomElement dir = collection->directory(QStringLiteral("import/") + folder);
+		for (const QDomElement &dom : collection->elements(dir)) {
+			candidates << collection->domToLocation(dom);
+		}
+	}
+
+		//The symbol the elements all have already is not another type,
+		//neither its copy in the project nor its file in the library
+	QSet<QUuid> seen;
+	const QUuid own = elements.first()->location().uuid();
+	if (!own.isNull()
+		&& std::all_of(elements.cbegin(), elements.cend(), [&own](const Element *element) {
+			return element && element->location().uuid() == own;
+		})) {
+		seen.insert(own);
+	}
+	QList<ElementsLocation> usable;
+	for (const ElementsLocation &candidate : std::as_const(candidates))
+	{
+		if (!candidate.exist() || seen.contains(candidate.uuid())) {
+			continue;
+		}
+		seen.insert(candidate.uuid());
+		const bool all_accept = std::all_of(
+			elements.cbegin(), elements.cend(),
+			[&candidate](const Element *element) {
+				return element && element->canChangeLocationTo(candidate);
+			});
+		if (all_accept) {
+			usable << candidate;
+		}
+	}
+
+	std::sort(usable.begin(), usable.end(),
+		  [](const ElementsLocation &a, const ElementsLocation &b) {
+		return a.name().localeAwareCompare(b.name()) < 0;
+	});
+	return usable;
+}
+
+/**
+	@brief Element::changeType
+	Swap the symbol of @p elements for the one at @p location, through the
+	undo stack of their folio: position, information and conductors stay.
+	The project takes a copy of the symbol first, like for a placed element.
+	@param elements : elements of one folio
+	@param location : the symbol to swap to (see otherTypes())
+	@return true when at least one element took it
+*/
+bool Element::changeType(const QList<Element *> &elements, const ElementsLocation &location)
+{
+	if (elements.isEmpty() || !elements.first() || !elements.first()->diagram()) {
+		return false;
+	}
+	Diagram *diagram = elements.first()->diagram();
+	QETProject *project = diagram->project();
+	if (!project || diagram->isReadOnly()) {
+		return false;
+	}
+
+	ElementsLocation source = location;
+	const ElementsLocation imported = project->importElement(source);
+	if (imported.isNull()) {
+		return false;
+	}
+
+	QList<Element *> changing;
+	for (Element *element : elements) {
+		if (element && element->canChangeLocationTo(imported)) {
+			changing << element;
+		}
+	}
+	if (changing.isEmpty()) {
+		return false;
+	}
+
+	diagram->undoStack().beginMacro(
+		tr("Change the type of %n element(s)", "undo text", changing.size()));
+	for (Element *element : std::as_const(changing)) {
+		diagram->undoStack().push(new ChangeElementLocationCommand(element, imported));
+	}
+	diagram->undoStack().endMacro();
 	return true;
 }
 

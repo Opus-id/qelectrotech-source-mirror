@@ -244,6 +244,13 @@ class Element : public QetGraphicsItem
 		ReloadPictureResult reloadPicture(bool adopt_frame = false);
 		bool canChangeLocationTo(const ElementsLocation &location) const;
 		bool changeLocation(const ElementsLocation &location);
+			/// The symbols which can replace each of @p elements as they
+			/// stand ("Change type"), sorted by name; none on a read-only
+			/// folio
+		static QList<ElementsLocation> otherTypes(const QList<Element *> &elements);
+			/// Swap the symbol of @p elements for the one at @p location,
+			/// with undo: one step for them all. False when none could
+		static bool changeType(const QList<Element *> &elements, const ElementsLocation &location);
 			/// The options of the symbol (ElementOptions) given a value on
 			/// this element; any other is at its default
 		ElementOptions::Choices optionChoices() const { return m_option_choices; }

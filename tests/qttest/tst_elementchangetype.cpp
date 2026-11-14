@@ -12,7 +12,11 @@
 #include "ui/elementpropertieswidget.h"
 #include "undocommand/changeelementlocationcommand.h"
 
+#include <QAbstractItemView>
+#include <QComboBox>
 #include <QDomDocument>
+#include <QTabWidget>
+#include <QWheelEvent>
 
 // The symbol of a placed element can be swapped for another one of its family
 // (same size, same terminals): the element stays where it is with its wires,
@@ -292,6 +296,157 @@ class tst_elementchangetype : public QObject
 
 			QVERIFY(element->changeLocation(m_a));
 			QVERIFY(!panel.findChild<ElementOptionsWidget *>());
+				// without options nor family: no P&ID tab (5l-1m)
+			auto *tabs = panel.findChild<QTabWidget *>();
+			QVERIFY(tabs);
+			for (int i = 0 ; i < tabs->count() ; ++i) {
+				QVERIFY(tabs->tabText(i) != ElementPropertiesWidget::pidTabTitle());
+			}
+		}
+
+			// The "Type" list of the P&ID tab (5l-1m) offers the types of the
+			// "Change type" menu and the one of the element; a type picked
+			// swaps the symbol in one undo step, and a choice of an option
+			// the new symbol offers too stays
+		void theTypeListSwapsTheSymbol()
+		{
+			QDomDocument k_doc, l_doc;
+			const ElementsLocation k = add("k.elmt", withOption(k_doc, "first",
+				definition(k_doc, "99999999-9999-9999-9999-999999999993", "K",
+					QStringLiteral("<ellipse x=\"-3\" y=\"-3\" width=\"6\" height=\"6\" "
+						"style=\"line-style:normal;line-weight:normal;filling:none;color:black\" "
+						"antialias=\"false\"/>"),
+					"92000000-0000-0000-0000-000000000001", "92000000-0000-0000-0000-000000000002")));
+			const ElementsLocation l = add("l.elmt", withOption(l_doc, "first",
+				definition(l_doc, "99999999-9999-9999-9999-999999999994", "L",
+					QStringLiteral("<ellipse x=\"-2\" y=\"-2\" width=\"4\" height=\"4\" "
+						"style=\"line-style:normal;line-weight:normal;filling:none;color:black\" "
+						"antialias=\"false\"/>"),
+					"93000000-0000-0000-0000-000000000001", "93000000-0000-0000-0000-000000000002")));
+			QVERIFY(k.exist() && l.exist());
+
+			int state = 0;
+			Element *element = ElementFactory::Instance()->createElement(k, nullptr, &state);
+			QVERIFY(element);
+			m_folio->addItem(element);
+
+			ElementPropertiesWidget panel(element);
+			auto *tabs = panel.findChild<QTabWidget *>();
+			QVERIFY(tabs);
+			QCOMPARE(tabs->tabText(0), ElementPropertiesWidget::pidTabTitle());
+				// and the one shown at first
+			QCOMPARE(tabs->currentIndex(), 0);
+			auto *options = panel.findChild<ElementOptionsWidget *>();
+			QVERIFY(options && options->typeList());
+
+				// the types of the menu, and the one of the element
+			const QList<ElementsLocation> menu = Element::otherTypes({element});
+			QVERIFY(!menu.isEmpty());
+			QCOMPARE(options->types().size(), menu.size() + 1);
+			QVERIFY(options->types().contains(element->location()));
+			for (const ElementsLocation &location : menu) {
+				QVERIFY(options->types().contains(location));
+			}
+			QVERIFY(options->typeList()->isEnabled());
+			QCOMPARE(options->typeList()->currentText(), QStringLiteral("K"));
+
+				// the option "first" set to "two": applied at once, even out
+				// of the dock (the dialog of the element), as the type
+			QVERIFY(!options->isLiveEdit());
+			QComboBox *first = options->comboFor(QStringLiteral("first"));
+			QVERIFY(first);
+			first->setCurrentIndex(first->findData(QStringLiteral("two")));
+			QCOMPARE(element->optionChoices().value(QStringLiteral("first")), QStringLiteral("two"));
+
+				// L picked: the symbol changes once the list is left
+			const int steps = m_folio->undoStack().count();
+			const int index = options->typeList()->findText(QStringLiteral("L"));
+			QVERIFY(index >= 0);
+			options->typeList()->setCurrentIndex(index);
+			emit options->typeList()->activated(index);
+			QTRY_COMPARE(element->name(), QStringLiteral("L"));
+			QCOMPARE(m_folio->undoStack().count(), steps + 1);
+			QCOMPARE(element->resolvedOptions().value(QStringLiteral("first")), QStringLiteral("two"));
+				// the section is made again for the new symbol
+			options = panel.findChild<ElementOptionsWidget *>();
+			QVERIFY(options && options->typeList());
+			QCOMPARE(options->typeList()->currentText(), QStringLiteral("L"));
+
+			m_folio->undoStack().undo();
+			QCOMPARE(element->name(), QStringLiteral("K"));
+			options = panel.findChild<ElementOptionsWidget *>();
+			QVERIFY(options && options->typeList());
+			QCOMPARE(options->typeList()->currentText(), QStringLiteral("K"));
+
+				// the wheel over the list changes nothing
+			const int current = options->typeList()->currentIndex();
+			QWheelEvent wheel(QPointF(5, 5), QPointF(5, 5), QPoint(), QPoint(0, -120),
+							  Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+			QCoreApplication::sendEvent(options->typeList(), &wheel);
+			QCoreApplication::processEvents();
+			QCOMPARE(options->typeList()->currentIndex(), current);
+			QCOMPARE(element->name(), QStringLiteral("K"));
+			QCOMPARE(m_folio->undoStack().count(), steps + 1);
+		}
+
+			// A symbol no other of its folder can replace: the list shows its
+			// type, greyed
+		void aTypeAloneIsGreyed()
+		{
+			QDomDocument doc;
+			const ElementsLocation m = add("m.elmt", withOption(doc, "first",
+				definition(doc, "99999999-9999-9999-9999-999999999995", "M",
+					QStringLiteral("<line x1=\"-10\" y1=\"0\" x2=\"70\" y2=\"0\" end1=\"none\" "
+						"end2=\"none\" length1=\"1.5\" length2=\"1.5\" style=\"line-style:normal;"
+						"line-weight:normal;filling:none;color:black\" antialias=\"false\"/>"),
+					"94000000-0000-0000-0000-000000000001", "94000000-0000-0000-0000-000000000002",
+					70, 100)));
+			QVERIFY(m.exist());
+			int state = 0;
+			Element *element = ElementFactory::Instance()->createElement(m, nullptr, &state);
+			QVERIFY(element);
+			m_folio->addItem(element);
+
+			QVERIFY(Element::otherTypes({element}).isEmpty());
+			ElementPropertiesWidget panel(element);
+			auto *options = panel.findChild<ElementOptionsWidget *>();
+			QVERIFY(options && options->typeList());
+			QCOMPARE(options->typeList()->count(), 1);
+			QCOMPARE(options->typeList()->currentText(), QStringLiteral("M"));
+			QVERIFY(!options->typeList()->isEnabled());
+				// drawings large enough to be read in the list shown
+			QCOMPARE(options->typeList()->view()->iconSize(), QSize(64, 32));
+		}
+
+			// Another file of the symbol the element has (same uuid: its copy
+			// in the project and its file in the library) is not another
+			// type, in the list as in the menu
+		void theSameSymbolIsNotAnotherType()
+		{
+			const auto symbol = [](QDomDocument &doc) {
+				return withOption(doc, "first",
+					definition(doc, "99999999-9999-9999-9999-999999999996", "N",
+						QStringLiteral("<line x1=\"-10\" y1=\"0\" x2=\"90\" y2=\"0\" end1=\"none\" "
+							"end2=\"none\" length1=\"1.5\" length2=\"1.5\" style=\"line-style:normal;"
+							"line-weight:normal;filling:none;color:black\" antialias=\"false\"/>"),
+						"95000000-0000-0000-0000-000000000001", "95000000-0000-0000-0000-000000000002",
+						90, 120));
+			};
+			QDomDocument doc, copy_doc;
+			const ElementsLocation n = add("n.elmt", symbol(doc));
+			const ElementsLocation n_copy = add("n_copy.elmt", symbol(copy_doc));
+			QVERIFY(n.exist() && n_copy.exist());
+			int state = 0;
+			Element *element = ElementFactory::Instance()->createElement(n, nullptr, &state);
+			QVERIFY(element);
+			m_folio->addItem(element);
+
+			QVERIFY(Element::otherTypes({element}).isEmpty());
+			ElementPropertiesWidget panel(element);
+			auto *options = panel.findChild<ElementOptionsWidget *>();
+			QVERIFY(options && options->typeList());
+			QCOMPARE(options->typeList()->count(), 1);
+			QVERIFY(!options->typeList()->isEnabled());
 		}
 };
 

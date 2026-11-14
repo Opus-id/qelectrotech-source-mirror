@@ -491,12 +491,12 @@ class tst_elementoptions : public QObject
 			const ElementOptions::Choices both{{QStringLiteral("motor"), QStringLiteral("fixed")},
 											   {QStringLiteral("seal"), QStringLiteral("double")}};
 			QCOMPARE(tab.chosen(), both);
-				// not live: the panel's own apply pushes the step
-			QVERIFY(pump->optionChoices() != both);
-			QUndoCommand *undo = tab.associatedUndo();
-			QVERIFY(undo);
-			pump->diagram()->undoStack().push(undo);
+				// not live (the dialog of the element) as well: applied at
+				// once, the drawing follows (5l-1m), and OK has nothing more
+				// to push
+			QVERIFY(!tab.isLiveEdit());
 			QCOMPARE(pump->optionChoices(), both);
+			QVERIFY(!tab.associatedUndo());
 		}
 
 			// ---- the element editor ----

@@ -6383,6 +6383,15 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <comment>undo caption</comment>
         <translation>Numéroter automatiquement un élément</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../sources/qetgraphicsitem/element.cpp" line="4425"/>
+        <source>Change the type of %n element(s)</source>
+        <comment>undo text</comment>
+        <translation>
+            <numerusform>Changer le type de %n élément</numerusform>
+            <numerusform>Changer le type de %n éléments</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>ElementAutoNumSchemeCommand</name>
@@ -6843,8 +6852,24 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
     <message>
         <location filename="../sources/ui/elementoptionswidget.cpp" line="187"/>
-        <source>Options</source>
-        <translation>Options</translation>
+        <source>Type and options</source>
+        <translation>Type et options</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementoptionswidget.cpp" line="160"/>
+        <source>Type:</source>
+        <comment>type of a placed element</comment>
+        <translation>Type :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementoptionswidget.cpp" line="152"/>
+        <source>The type of the element: another symbol of its folder, of the same size and with the same terminals, can replace it. Its place, its tag and what is connected to it stay. Undo: Ctrl+Z.</source>
+        <translation>Le type de l&apos;élément : un autre symbole de son dossier, de même taille et aux mêmes bornes, peut le remplacer. Sa place, son repère et ce qui y est raccordé restent. Annuler : Ctrl+Z.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementoptionswidget.cpp" line="155"/>
+        <source>No other symbol of the folder of this one has its size and its terminals.</source>
+        <translation>Aucun autre symbole du dossier de celui-ci n&apos;a sa taille et ses bornes.</translation>
     </message>
 </context>
 <context>

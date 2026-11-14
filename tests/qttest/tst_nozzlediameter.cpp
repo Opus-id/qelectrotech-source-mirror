@@ -34,8 +34,11 @@
 #include "qetresult.h"
 #include "properties/elementdata.h"
 #include "ui/configpage/pidconfigpage.h"
+#include "ui/elementinfowidget.h"
 #include "ui/elementnozzleswidget.h"
+#include "ui/elementoptionswidget.h"
 #include "ui/elementpropertieswidget.h"
+#include "ui/elementtagwidget.h"
 #include "ui/pipepropertieswidget.h"
 #include "undocommand/changeelementlocationcommand.h"
 #include "undocommand/changenozzlediameterscommand.h"
@@ -52,6 +55,7 @@
 #include <QPainter>
 #include <QScopeGuard>
 #include <QStyleOptionGraphicsItem>
+#include <QLabel>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QToolButton>
@@ -2031,10 +2035,11 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(folio->undoStack().count(), steps + 2);
 		}
 
-			// The Nozzles tab is never wider than the Information tab of the
-			// properties of an element, which sets the width of the panel:
-			// it would narrow the drawing (icon for "Follow the pipe", short
-			// list of drawings, boxes one under the other; j4c)
+			// The P&ID tab, the Nozzles section with the others, is never
+			// wider than the Information tab of the properties of an
+			// element, which sets the width of the panel: it would narrow
+			// the drawing (icon for "Follow the pipe", short list of
+			// drawings, boxes one under the other; j4c; one tab, 5l-1m)
 		void theNozzlesTabDoesNotWidenThePanel()
 		{
 			QETProject project;
@@ -2044,21 +2049,44 @@ class tst_nozzlediameter : public QObject
 						project, QStringLiteral("reducer.elmt"),
 						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
 						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
-			QVERIFY(tank && reducer);
+				// an equipment: type and options, tag and nozzles
+			Element *pump = place(folio, addSymbol(
+						project, QStringLiteral("pump.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555559}"), 80,
+						QStringLiteral("pid_family=\"equipment\" ")));
+			QVERIFY(tank && reducer && pump);
 			tank->setPos(200, 600);
+			pump->setPos(600, 600);
 			tank->setNozzleDiameters(dns({{QStringLiteral("N2"), 50}}));
 			reducer->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 80}}));
-			for (Element *element : {tank, reducer})
+			for (Element *element : {tank, reducer, pump})
 			{
 				ElementPropertiesWidget properties(element);
 				auto *tabs = properties.findChild<QTabWidget *>();
 				QVERIFY(tabs);
-				QWidget *information = tabs->widget(0);
+				QWidget *information = properties.findChild<ElementInfoWidget *>();
 				ElementNozzlesWidget *nozzles = properties.findChild<ElementNozzlesWidget *>();
 				QVERIFY(information && nozzles);
-				QVERIFY2(nozzles->minimumSizeHint().width() <= information->minimumSizeHint().width(),
-						 qPrintable(QStringLiteral("%1 > %2").arg(nozzles->minimumSizeHint().width())
+				QCOMPARE(tabs->tabText(0), ElementPropertiesWidget::pidTabTitle());
+				QWidget *pid = tabs->widget(0);
+				QVERIFY(pid->isAncestorOf(nozzles));
+				QVERIFY2(pid->minimumSizeHint().width() <= information->minimumSizeHint().width(),
+						 qPrintable(QStringLiteral("%1 > %2").arg(pid->minimumSizeHint().width())
 									.arg(information->minimumSizeHint().width())));
+					// its sections, from the general to the detail
+				if (element == pump)
+				{
+					const QList<QLabel *> titles = pid->findChildren<QLabel *>(
+								QStringLiteral("pid_section_title"));
+					auto *options = properties.findChild<ElementOptionsWidget *>();
+					auto *tag = properties.findChild<ElementTagWidget *>();
+					QVERIFY(options && tag);
+					QCOMPARE(titles.size(), 3);
+					QCOMPARE(titles.at(0)->text(), options->title());
+					QCOMPARE(titles.at(1)->text(), tag->title());
+					QCOMPARE(titles.at(2)->text(), nozzles->title());
+					QVERIFY(pid->isAncestorOf(options) && pid->isAncestorOf(tag));
+				}
 			}
 		}
 
