@@ -18,6 +18,7 @@
 #ifndef QET_PROJECT_H
 #define QET_PROJECT_H
 
+#include "devicetype/devicetype.h"
 #include <functional>
 #include "ElementsCollection/elementslocation.h"
 #include "NameList/nameslist.h"
@@ -357,6 +358,8 @@ class QETProject : public QObject
 		void setUprightSymbolTexts(bool upright);
 		bool plantAndLocationInherited() const;
 		void setPlantAndLocationInherited(bool inherited);
+		bool followDeviceTypes() const;
+		void setFollowDeviceTypes(bool follow);
 		const ProjectLanguages &languages() const {return m_languages;}
 		void setLanguages(const ProjectLanguages &languages);
 		const PotentialTypes &potentialTypes() const {return m_potential_types;}
@@ -376,6 +379,11 @@ class QETProject : public QObject
 		void setConductorPlantCounter(const QString &scheme, const QString &plant,
 									  const QStringList &values);
 		void renameConductorPlantCounters(const QString &from, const QString &to);
+			/// The device types this project keeps (<devicetypes>), by name
+		QList<DeviceType> deviceTypes() const {return m_device_types.values();}
+		DeviceType deviceType(const QString &name) const {return m_device_types.value(name);}
+		void setDeviceType(const DeviceType &type);
+		void removeDeviceType(const QString &name);
 		bool chainedReports() const;
 		void setChainedReports(bool enable);
 		bool hasChainedReportsAttribute() const;
@@ -545,10 +553,12 @@ class QETProject : public QObject
 		void readOriginXml(QDomDocument& xml_project);
 		void readSymbolTextsXml(QDomDocument &xml_project);
 		void readPlantLocationXml(QDomDocument &xml_project);
+		void readDeviceTypeRulesXml(QDomDocument &xml_project);
 		void readLanguagesXml(QDomDocument &xml_project);
 		void readPotentialTypesXml(QDomDocument &xml_project);
 		void readChainedReportsXml(QDomDocument &xml_project);
 		void readConductorPlantCountersXml(QDomDocument &xml_project);
+		void readDeviceTypesXml(QDomDocument &xml_project);
 		void readTerminalLabelSplitXml(QDomDocument &xml_project);
 		void readWiringRulesXml(QDomDocument &xml_project);
 		void readPidCodificationXml(QDomDocument &xml_project);
@@ -566,10 +576,12 @@ class QETProject : public QObject
 		void writeOriginXml(QDomElement&);
 		void writeSymbolTextsXml(QDomElement &);
 		void writePlantLocationXml(QDomElement &);
+		void writeDeviceTypeRulesXml(QDomElement &);
 		void writeLanguagesXml(QDomElement &);
 		void writePotentialTypesXml(QDomElement &);
 		void writeChainedReportsXml(QDomElement &);
 		void writeConductorPlantCountersXml(QDomElement &);
+		void writeDeviceTypesXml(QDomElement &);
 		void writeTerminalLabelSplitXml(QDomElement &);
 		void writeWiringRulesXml(QDomElement &);
 		void addDiagram(Diagram *diagram, int pos = -1);
@@ -696,6 +708,9 @@ class QETProject : public QObject
 			/// %{plant} and %{location} give the place a symbol takes, see
 			/// plantAndLocationInherited()
 		bool m_plant_location_inherited = false;
+			/// Placing and linking follow the device types, see
+			/// followDeviceTypes()
+		bool m_follow_device_types = false;
 			/// The texts in other languages, see ProjectLanguages
 		ProjectLanguages m_languages;
 			/// The potential types and whether conductors are drawn from them
@@ -709,6 +724,8 @@ class QETProject : public QObject
 			/// Conductor numbering scheme -> plant -> the values its plant
 			/// counters last gave there (conductorPlantCounter())
 		QHash<QString, QHash<QString, QStringList>> m_conductor_plant_counters;
+			/// The project's device types, by name (deviceTypes())
+		QMap<QString, DeviceType> m_device_types;
 		bool m_pending_auto_link = false;
 			/// Terminals draw their label split: the label ("X1") and the
 			/// terminal number ("1") each in their own text field (off for
