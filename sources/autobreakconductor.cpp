@@ -67,6 +67,9 @@ qreal distanceToSegment(const QPointF &point, const QLineF &segment)
 	the element's terminal.  Broken conductors from the same circuit
 	(sharing the same far-end endpoint) are broken together; independent
 	crossing conductors are left untouched.
+	A pipe is broken whatever the project says (a pipe line never goes
+	through a symbol unbroken); a wire or a signal line only when the
+	project asks for it (QETProject::autoBreakConductor()).
 */
 QSet<Terminal *> autoBreakConductors(
 	Diagram *diagram,
@@ -77,12 +80,15 @@ QSet<Terminal *> autoBreakConductors(
 {
 	QSet<Terminal *> broken_endpoints;
 
-	if (!diagram->project()->autoBreakConductor())
-		return broken_endpoints;
+		//A pipe is always broken by a symbol dropped or moved on it: the
+		//project's switch only rules the other media (a wire, a signal)
+	const bool all_media = diagram->project()->autoBreakConductor();
 
 	foreach (Terminal *t, element->terminals())
 	{
 		if (used_terminals.contains(t))
+			continue;
+		if (!all_media && t->medium() != TerminalData::Pipe)
 			continue;
 
 		QPointF t_dock = t->dockConductor();
@@ -99,6 +105,8 @@ QSet<Terminal *> autoBreakConductors(
 			if (conductors_handled.contains(c) ||
 			    c->terminal1->parentElement() == element ||
 			    c->terminal2->parentElement() == element)
+				continue;
+			if (!all_media && c->medium() != TerminalData::Pipe)
 				continue;
 
 			QPointF local_dock = c->mapFromScene(t_dock);

@@ -491,7 +491,7 @@ void ElementsMover::endMovement()
 		//Auto-break conductors: for each moved element, break any conductor
 		//whose path passes through a terminal dock point, and reconnect through
 		//the element.  The element is already at its final position on screen.
-	if (m_diagram->project()->autoBreakConductor())
+		//A pipe always, a wire when the project asks for it (in the function)
 	{
 		QList<Conductor *> conductors_handled;
 		QSet<Terminal *> used_terminals;

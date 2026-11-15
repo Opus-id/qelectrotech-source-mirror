@@ -6,6 +6,7 @@
 #include "conductorproperties.h"
 #include "dataBase/projectdatabase.h"
 #include "diagram.h"
+#include "elementsmover.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "qetgraphicsitem/conductor.h"
@@ -528,6 +529,105 @@ class tst_conductormedium : public QObject
 				// undone, the pipe is back without a DN
 			m_folio->undoStack().undo();
 			QVERIFY(!a->terminals().at(1)->conductors().first()->properties().m_pipe.hasSize());
+		}
+
+			// ---- a pipe is always broken (5l-1y) ----
+			// A symbol dropped on a pipe breaks it even when the project's
+			// switch is off: the two halves keep the data of the line
+		void aPipeIsBrokenWhateverTheSwitch()
+		{
+			m_next_y += 600;
+			const qreal y = m_next_y;
+			Element *a = place(m_pipe, QPointF(0, y));
+			Element *b = place(m_pipe, QPointF(200, y));
+			QVERIFY(a && b);
+			Conductor *pipe = draw(a->terminals().at(1), b->terminals().at(0));
+			ConductorProperties data = pipe->properties();
+			data.m_pipe.fluid = QStringLiteral("W01");
+			data.m_pipe.nominal = PipeDiameter::nominal(80);
+			pipe->setProperties(data);
+
+			Element *valve = place(m_pipe, QPointF(100, y));
+			QVERIFY(valve);
+			const bool was = m_project.autoBreakConductor();
+			m_project.setAutoBreakConductor(false);
+			QList<Conductor *> handled;
+			QSet<Terminal *> used;
+			auto *undo = new QUndoCommand();
+			autoBreakConductors(m_folio, valve, undo, handled, used);
+			m_folio->undoStack().push(undo);
+			m_project.setAutoBreakConductor(was);
+
+			for (Terminal *nozzle : valve->terminals()) {
+				QCOMPARE(nozzle->conductors().size(), 1);
+				QVERIFY(nozzle->conductors().first()->properties().m_pipe == data.m_pipe);
+			}
+
+			m_folio->undoStack().undo();
+			QVERIFY(valve->terminals().at(0)->conductors().isEmpty());
+			QCOMPARE(a->terminals().at(1)->conductors().size(), 1);
+		}
+
+			// A wire follows the switch, as always: left whole when it is
+			// off, broken when it is on
+		void aWireFollowsTheSwitch()
+		{
+			for (const bool on : {false, true}) {
+				m_next_y += 200;
+				const qreal y = m_next_y;
+				Element *a = place(m_electrical, QPointF(0, y));
+				Element *b = place(m_electrical, QPointF(200, y));
+				QVERIFY(a && b);
+				draw(a->terminals().at(1), b->terminals().at(0));
+				Element *middle = place(m_electrical, QPointF(100, y));
+				QVERIFY(middle);
+
+				const bool was = m_project.autoBreakConductor();
+				m_project.setAutoBreakConductor(on);
+				QList<Conductor *> handled;
+				QSet<Terminal *> used;
+				auto *undo = new QUndoCommand();
+				autoBreakConductors(m_folio, middle, undo, handled, used);
+				m_folio->undoStack().push(undo);
+				m_project.setAutoBreakConductor(was);
+
+				QCOMPARE(middle->terminals().at(0)->conductors().size(), on ? 1 : 0);
+				QCOMPARE(middle->terminals().at(1)->conductors().size(), on ? 1 : 0);
+			}
+		}
+
+			// A symbol moved onto a pipe breaks it too, the switch off; one
+			// undo brings the symbol back and the pipe whole
+		void aSymbolMovedOnAPipeBreaksIt()
+		{
+			m_next_y += 400;
+			const qreal y = m_next_y;
+			Element *a = place(m_pipe, QPointF(0, y));
+			Element *b = place(m_pipe, QPointF(200, y));
+			QVERIFY(a && b);
+			draw(a->terminals().at(1), b->terminals().at(0));
+			Element *valve = place(m_pipe, QPointF(100, y + 100));
+			QVERIFY(valve);
+
+			const bool was = m_project.autoBreakConductor();
+			m_project.setAutoBreakConductor(false);
+			m_folio->clearSelection();
+			valve->setSelected(true);
+			ElementsMover &mover = m_folio->elementsMover();
+			mover.beginMovement(m_folio);
+			mover.continueMovement(QPointF(0, -100));
+			mover.endMovement();
+			m_folio->clearSelection();
+			m_project.setAutoBreakConductor(was);
+
+			QCOMPARE(valve->pos(), QPointF(100, y));
+			QCOMPARE(valve->terminals().at(0)->conductors().size(), 1);
+			QCOMPARE(valve->terminals().at(1)->conductors().size(), 1);
+
+			m_folio->undoStack().undo();
+			QCOMPARE(valve->pos(), QPointF(100, y + 100));
+			QVERIFY(valve->terminals().at(0)->conductors().isEmpty());
+			QCOMPARE(a->terminals().at(1)->conductors().size(), 1);
 		}
 
 			// ---- the defaults and the number of a new conductor ----

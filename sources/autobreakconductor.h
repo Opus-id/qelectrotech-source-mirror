@@ -33,8 +33,10 @@ class QUndoCommand;
 	existing conductor. If so, break the conductor and reconnect through the
 	element's terminal.  Broken conductors from the same circuit (sharing the
 	same far-end endpoint) are broken together; independent crossing
-	conductors are left untouched.
-	@param diagram            the diagram containing the conductors
+	conductors are left untouched. A pipe is always broken; a wire or a
+	signal line only when the project asks for it
+	(QETProject::autoBreakConductor()).
+	@param diagram           the diagram containing the conductors
 	@param element            the element whose terminals trigger breaks
 	@param parent             undo command under which break/reconnect
 	                          sub-commands are created
