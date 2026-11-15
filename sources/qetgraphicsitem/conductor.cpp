@@ -933,6 +933,16 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		drawOffSeries(painter, painted_path, line_width, detail);
 	}
 	painter -> drawPath(painted_path);
+		//On to the middle of a spec break between two pipes, with the same
+		//pen: its own width, colour and kind of line on each side
+	if (m_properties.m_medium == TerminalData::Pipe) {
+		for (const Terminal *end : {terminal1, terminal2}) {
+			const QLineF into = lineIntoSpecBreak(end);
+			if (!into.isNull()) {
+				painter->drawLine(into);
+			}
+		}
+	}
 		//Draw the second color
 	if(m_properties.m_bicolor && !typed)
 	{
@@ -1054,9 +1064,10 @@ bool Conductor::drawsPipePart(const Terminal *terminal) const
 		|| (terminal != terminal1 && terminal != terminal2) || endsTouch()) {
 		return false;
 	}
+	PipeConnection::Type type;
+	qreal at = 0, shift = 0;
 		//Never lost: the route leaves room for it (exitRoom())
-	return PipeConnection::bringsPart(terminal->connection())
-			&& terminal->drawsConnectionMark();
+	return metConnection(terminal, &type, &at, &shift) && PipeConnection::bringsPart(type);
 }
 
 /**
@@ -1065,13 +1076,75 @@ bool Conductor::drawsPipePart(const Terminal *terminal) const
 */
 qreal Conductor::pipeStartAt(const Terminal *terminal) const
 {
+	PipeConnection::Type type;
+	qreal at = 0, shift = 0;
 	if (m_properties.m_medium != TerminalData::Pipe || !terminal
 		|| (terminal != terminal1 && terminal != terminal2) || endsTouch()
-		|| !terminal->drawsConnectionMark()) {
+		|| !metConnection(terminal, &type, &at, &shift)) {
 		return 0;
 	}
-	return PipeConnection::pipeStart(terminal->connection(), terminal->markDistance(),
-									 drawsPipePart(terminal));
+	return PipeConnection::pipeStart(type, at, drawsPipePart(terminal)) + shift;
+}
+
+/**
+	@brief Conductor::metConnection
+	See the declaration
+*/
+bool Conductor::metConnection(const Terminal *terminal, PipeConnection::Type *type,
+							  qreal *at, qreal *shift) const
+{
+	if (!terminal) {
+		return false;
+	}
+	if (const Terminal *across = terminal->acrossSpecBreak())
+	{
+		if (!across->drawsConnectionMark()) {
+			return false;
+		}
+		*type = across->connection();
+		*at = 0;
+			//The counter-flange on the nozzle of the mark, the same space
+			//either side of its line (sketch of 15/11/2026)
+		*shift = *type == PipeConnection::Flange ? -PipeConnection::pipeFlangeDistance : 0;
+		return true;
+	}
+	if (!terminal->drawsConnectionMark()) {
+		return false;
+	}
+	*type = terminal->connection();
+	*at = terminal->markDistance();
+	*shift = 0;
+	return true;
+}
+
+/**
+	@brief Conductor::lineIntoSpecBreak
+	See the declaration
+*/
+QLineF Conductor::lineIntoSpecBreak(const Terminal *terminal) const
+{
+	if (m_properties.m_medium != TerminalData::Pipe || !terminal
+		|| (terminal != terminal1 && terminal != terminal2) || endsTouch()) {
+		return QLineF();
+	}
+	const Element *mark = terminal->parentElement();
+	if (!mark || !mark->isSpecBreak()) {
+		return QLineF();
+	}
+	const QList<Terminal *> siblings = terminal->runSiblings();
+	if (siblings.size() != 1) {
+		return QLineF();
+	}
+	const Terminal *other = siblings.first();
+	bool piped = false;
+	for (const Conductor *pipe : other->conductors()) {
+		piped = piped || (pipe->medium() == TerminalData::Pipe && !pipe->endsTouch());
+	}
+	if (!piped) {
+		return QLineF();
+	}
+	return QLineF(mapFromScene(terminal->dockConductor()),
+				  mapFromScene((terminal->dockConductor() + other->dockConductor()) / 2));
 }
 
 /**
@@ -1120,15 +1193,17 @@ void Conductor::drawPipeParts(QPainter *painter, const QColor &color, qreal deta
 			&& painter->device()->devType() == QInternal::Widget;
 	for (const Terminal *terminal : {terminal1, terminal2})
 	{
-		if (!drawsPipePart(terminal)) {
+		PipeConnection::Type type;
+		qreal at = 0, shift = 0;
+		if (!drawsPipePart(terminal) || !metConnection(terminal, &type, &at, &shift)) {
 			continue;
 		}
 		QPainterPath strokes;
-		PipeConnection::pipePartShapes(terminal->connection(), terminal->markDistance(), &strokes);
+		PipeConnection::pipePartShapes(type, at, &strokes);
 			//The frame of the mark of the nozzle, turned and mirrored as its
 			//element: the two halves of a quick coupling face each other
-		const QTransform frame = terminal->markTransform() * terminal->sceneTransform()
-								 * sceneTransform().inverted();
+		const QTransform frame = QTransform::fromTranslate(shift, 0) * terminal->markTransform()
+								 * terminal->sceneTransform() * sceneTransform().inverted();
 		painter->save();
 		painter->setRenderHint(QPainter::Antialiasing, true);
 		QPen pen(color, 1.0, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
@@ -3161,6 +3236,15 @@ void Conductor::updateFittings() const
 		if (terminal) {
 			terminal->refreshContact();
 			terminal->refreshSizes();
+		}
+			//The pipe on the other side of a spec break goes into it, or
+			//no more (lineIntoSpecBreak())
+		if (element && element->isSpecBreak() && terminal) {
+			for (Terminal *sibling : terminal->runSiblings()) {
+				for (Conductor *pipe : sibling->conductors()) {
+					pipe->update();
+				}
+			}
 		}
 	}
 }

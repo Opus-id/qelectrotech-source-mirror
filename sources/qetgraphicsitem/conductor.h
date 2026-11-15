@@ -21,6 +21,7 @@
 #include <conductorproperties.h>
 #include <dataBase/conductorlayout.h>
 #include <dataBase/conductorpath.h>
+#include <pipeconnection.h>
 #include <properties/potentialtypes.h>
 
 #include <QElapsedTimer>
@@ -121,6 +122,19 @@ class Conductor : public QGraphicsObject
 			/// nozzle: after the part it brings, at the mark of a connection
 			/// drawn beyond the nozzle of a valve, else 0
 		qreal pipeStartAt(const Terminal *terminal) const;
+			/// The connection this pipe meets at its end on @p terminal, and
+			/// where its mark is (@p at, as for PipeConnection::markShapes()):
+			/// that of the nozzle; on a spec break, that of the nozzle against
+			/// its other side (Terminal::acrossSpecBreak()), at the nozzle of
+			/// the mark, a flange right on it (@p shift, along the pipe).
+			/// False when none is drawn there (step 5l-1l)
+		bool metConnection(const Terminal *terminal, PipeConnection::Type *type,
+						   qreal *at, qreal *shift) const;
+			/// The piece of line this pipe draws into the spec break it
+			/// arrives on at @p terminal, to the middle of its two nozzles, in
+			/// its own frame: when a pipe arrives on its other nozzle too, so
+			/// that the mark touches no symbol; a null line otherwise
+		QLineF lineIntoSpecBreak(const Terminal *terminal) const;
 			/// The points of the path a conductor takes by itself from the
 			/// terminal at @p p1 facing @p o1 to the terminal at @p p2 facing
 			/// @p o2, leaving each straight for @p exit_room at least (see

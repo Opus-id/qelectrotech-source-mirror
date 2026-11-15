@@ -76,30 +76,71 @@ class tst_connectionmark : public QObject
 			"</description></definition>");
 	}
 
-	static Element *place(QETProject &project, Diagram *folio, const QPointF &pos,
-						  bool in_line = false)
+		// A spec break (step 5l-1l): N1 west at x -10, N2 east at x +10, a
+		// short line above, nothing between its nozzles
+	static QString specBreakSymbol()
+	{
+		return QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"pid_inline=\"true\" pid_family=\"pipe\" pid_role=\"spec_break\" "
+			"width=\"40\" height=\"60\" hotspot_x=\"20\" hotspot_y=\"30\">"
+			"<uuid uuid=\"{7d111113-1111-1111-1111-111111111111}\"/>"
+			"<names><name lang=\"en\">Spec break</name></names><description>"
+			"<line x1=\"0\" y1=\"-20\" x2=\"0\" y2=\"-14\" end1=\"none\" end2=\"none\" "
+			"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
+			"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
+			"<terminal uuid=\"{7d000000-0000-0000-0000-000000000011}\" name=\"N1\" x=\"-10\" y=\"0\" "
+			"orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
+			"<terminal uuid=\"{7d000000-0000-0000-0000-000000000012}\" name=\"N2\" x=\"10\" y=\"0\" "
+			"orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>"
+			"</description></definition>");
+	}
+
+		// The symbols of these tests in the project: an equipment, a valve,
+		// a spec break
+	static void ensureSymbols(QETProject &project)
 	{
 		const QString dir = QStringLiteral("import/marks");
-		if (!project.embeddedElementCollection()->exist(dir)) {
-			project.embeddedElementCollection()->createDir(
-						QStringLiteral("import"), QStringLiteral("marks"), NamesList());
-			for (bool valve : {false, true}) {
-				QDomDocument doc;
-				doc.setContent(symbol(valve));
-				project.embeddedElementCollection()->addElementDefinition(
-							dir, valve ? QStringLiteral("valve.elmt") : QStringLiteral("tank.elmt"),
-							doc.documentElement());
-			}
+		if (project.embeddedElementCollection()->exist(dir)) {
+			return;
 		}
-		const ElementsLocation location(in_line ? QStringLiteral("embed://import/marks/valve.elmt")
-												: QStringLiteral("embed://import/marks/tank.elmt"),
-										&project);
+		project.embeddedElementCollection()->createDir(
+					QStringLiteral("import"), QStringLiteral("marks"), NamesList());
+		const QList<QPair<QString, QString>> files{
+			{QStringLiteral("tank.elmt"), symbol(false)},
+			{QStringLiteral("valve.elmt"), symbol(true)},
+			{QStringLiteral("specbreak.elmt"), specBreakSymbol()}};
+		for (const auto &file : files) {
+			QDomDocument doc;
+			doc.setContent(file.second);
+			project.embeddedElementCollection()->addElementDefinition(dir, file.first,
+																	  doc.documentElement());
+		}
+	}
+
+	static Element *placeFile(QETProject &project, Diagram *folio, const QPointF &pos,
+							  const QString &file)
+	{
+		ensureSymbols(project);
+		const ElementsLocation location(QStringLiteral("embed://import/marks/") + file, &project);
 		int state = 0;
 		Element *element = ElementFactory::Instance()->createElement(location, nullptr, &state);
 		if (!element || state) return nullptr;
 		folio->addItem(element);
 		element->setPos(pos);
 		return element;
+	}
+
+	static Element *placeSpecBreak(QETProject &project, Diagram *folio, const QPointF &pos)
+	{
+		return placeFile(project, folio, pos, QStringLiteral("specbreak.elmt"));
+	}
+
+	static Element *place(QETProject &project, Diagram *folio, const QPointF &pos,
+						  bool in_line = false)
+	{
+		return placeFile(project, folio, pos, in_line ? QStringLiteral("valve.elmt")
+													  : QStringLiteral("tank.elmt"));
 	}
 
 	static Terminal *terminal(const Element *element, const QString &name)
@@ -847,6 +888,101 @@ class tst_connectionmark : public QObject
 			b->setPos(400, 200);
 			QVERIFY(a2->drawsConnectionMark());
 			QVERIFY(b1->drawsConnectionMark());
+		}
+
+			// ---- a spec break (step 5l-1l, l4) ----
+			// Between two pipes it draws no connection, its nozzles never
+			// mark one; each pipe goes on to its middle
+		void aSpecBreakBetweenTwoPipesDrawsTheLineThrough()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			drawFlanges(project);
+			folio->setDrawTerminals(false);
+			folio->setDisplayGrid(false);
+				// N1 of the mark at x 290, N2 at x 310
+			Element *mark = placeSpecBreak(project, folio, QPointF(300, 200));
+			Element *left = place(project, folio, QPointF(100, 200));
+			Element *right = place(project, folio, QPointF(500, 200));
+			QVERIFY(mark && left && right && mark->isSpecBreak());
+			Terminal *m1 = terminal(mark, QStringLiteral("N1"));
+			Terminal *m2 = terminal(mark, QStringLiteral("N2"));
+			auto *before = new Conductor(terminal(left, QStringLiteral("N2")), m1);
+			folio->addItem(before);
+				// one pipe: nothing into the mark
+			QVERIFY(before->lineIntoSpecBreak(m1).isNull());
+			QVERIFY(!dark(render(folio, QPointF(300, 200)), 40, 40));
+			auto *after = new Conductor(m2, terminal(right, QStringLiteral("N1")));
+			folio->addItem(after);
+				// no connection: neither the mark's, even asked, nor a part of
+				// the pipes
+			mark->setNozzleMarks({{QStringLiteral("N1"), PipeConnection::MarkChoice::Always}});
+			QVERIFY(!m1->drawsConnectionMark() && !m2->drawsConnectionMark());
+			QVERIFY(!before->drawsPipePart(m1) && !after->drawsPipePart(m2));
+			QCOMPARE(before->pipeStartAt(m1), 0.0);
+				// each pipe to the middle
+			const QLineF into = before->lineIntoSpecBreak(m1);
+			QCOMPARE(into.length(), 10.0);
+			QCOMPARE(before->mapToScene(into.p2()), QPointF(300, 200));
+			QCOMPARE(after->lineIntoSpecBreak(m2).length(), 10.0);
+			QVERIFY(dark(render(folio, QPointF(300, 200)), 40, 40));
+		}
+
+			// A pipe on a spec break placed against a symbol meets the
+			// connection of that symbol, as if the mark were not there: its
+			// counter-flange on the nozzle of the mark, no line between them;
+			// the symbol keeps its own mark
+		void aPipeOnASpecBreakMeetsTheSymbolBeyond()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			drawFlanges(project);
+			folio->setDrawTerminals(false);
+			folio->setDisplayGrid(false);
+			Element *mark = placeSpecBreak(project, folio, QPointF(300, 200));
+				// N1 of the valve, x 310, on N2 of the mark
+			Element *valve = place(project, folio, QPointF(330, 200), true);
+			Element *left = place(project, folio, QPointF(100, 200));
+			QVERIFY(mark && valve && left);
+			Terminal *m1 = terminal(mark, QStringLiteral("N1"));
+			Terminal *v1 = terminal(valve, QStringLiteral("N1"));
+			QCOMPARE(terminal(mark, QStringLiteral("N2"))->contactNozzle(), v1);
+			QCOMPARE(m1->acrossSpecBreak(), v1);
+			auto *pipe = new Conductor(terminal(left, QStringLiteral("N2")), m1);
+			folio->addItem(pipe);
+				// the side of the valve stands for its flange, the mark
+				// counts for no symbol
+			QVERIFY(v1->drawsConnectionMark());
+			QVERIFY(!v1->drawsOwnMark());
+			QVERIFY(pipe->drawsPipePart(m1));
+			QCOMPARE(pipe->pipeStartAt(m1), 0.0);
+			QVERIFY(pipe->lineIntoSpecBreak(m1).isNull());
+				// the counter-flange on N1 of the mark, x 290, from y 190 to
+				// 210; nothing between it and the valve
+			const QImage drawn = render(folio, QPointF(290, 200));
+			QVERIFY(dark(drawn, 40, 33));
+			QVERIFY(qGray(drawn.pixel(50, 40)) >= 192);
+				// the valve says never, or the project draws no flange: nothing
+			valve->setNozzleMarks({{QStringLiteral("N1"), PipeConnection::MarkChoice::Never}});
+			QVERIFY(!pipe->drawsPipePart(m1));
+			valve->setNozzleMarks({});
+			QVERIFY(pipe->drawsPipePart(m1));
+			project.setPidCodification(PidCodification());
+			QVERIFY(!pipe->drawsPipePart(m1));
+				// an equipment against the mark keeps its flange
+			drawFlanges(project);
+			valve->setPos(1000, 1000);
+			QVERIFY(!m1->acrossSpecBreak());
+			Element *tank = place(project, folio, QPointF(330, 200));
+			QVERIFY(tank);
+			Terminal *t1 = terminal(tank, QStringLiteral("N1"));
+			QCOMPARE(m1->acrossSpecBreak(), t1);
+			QVERIFY(t1->drawsOwnMark());
+			QVERIFY(pipe->drawsPipePart(m1));
+				// a wire never goes into a mark
+			auto *wire = new Conductor(terminal(left, QStringLiteral("E1")), terminal(tank, QStringLiteral("E1")));
+			folio->addItem(wire);
+			QVERIFY(wire->lineIntoSpecBreak(wire->terminal1).isNull());
 		}
 
 			// ---- on paper ----

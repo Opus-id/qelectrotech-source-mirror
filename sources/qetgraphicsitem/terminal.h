@@ -111,6 +111,11 @@ class Terminal : public QGraphicsObject
 			/// the sizes, both are the same: a pipe of no length, which
 			/// has the size of its line when it was given none.
 		Terminal *contactNozzle() const;
+			/// For a nozzle of a spec break (Element::isSpecBreak()): the
+			/// nozzle of another symbol placed against its other nozzle,
+			/// whose connection a pipe on this one meets as if the mark were
+			/// not there; nullptr otherwise (step 5l-1l)
+		const Terminal *acrossSpecBreak() const;
 			/// The nozzles which have their size from each other around
 			/// this one, itself first: those of its run, the nozzles
 			/// placed against them, the runs of those, and so on. Never
@@ -183,7 +188,8 @@ class Terminal : public QGraphicsObject
 			/// the side of the pipe (PipeConnection::markShapes()): its
 			/// project or its element asks it (the sockets of the project
 			/// for a plain end, whose pipe brings a socket), and no nozzle of
-			/// another symbol touches it. Never for another medium.
+			/// another symbol touches it. Never for another medium, nor on a
+			/// spec break (Element::isSpecBreak()), a mark and no piece.
 		bool drawsConnectionMark() const;
 			/// Where the mark of this nozzle is drawn, from its point: beyond
 			/// it on a symbol a line runs through, whose nozzle is on the
@@ -196,7 +202,8 @@ class Terminal : public QGraphicsObject
 		bool drawsOwnMark() const;
 			/// A nozzle of another symbol is on the same point as this one,
 			/// joined by a pipe of no length or not: two symbols placed
-			/// against each other, which draw nothing between them
+			/// against each other, which draw nothing between them. A spec
+			/// break counts for no symbol: what is against it keeps its mark
 		bool touchesNozzle() const;
 			/// What draws again the mark of this nozzle and the counter-flange
 			/// of its pipe

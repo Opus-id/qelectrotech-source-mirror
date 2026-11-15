@@ -1596,6 +1596,11 @@ bool Terminal::drawsConnectionMark() const
 	if (d->m_medium != TerminalData::Pipe) {
 		return false;
 	}
+		//A spec break is a mark on the line, no piece: it never draws a
+		//connection, whatever is chosen for its nozzles
+	if (parent_element_ && parent_element_->isSpecBreak()) {
+		return false;
+	}
 	const Diagram *folio = diagram();
 	if (!folio || !folio->project()) {
 		return false;
@@ -1639,8 +1644,13 @@ bool Terminal::drawsOwnMark() const
 
 bool Terminal::touchesNozzle() const
 {
+		//Against a spec break: as if the mark were not there (step 5l-1l)
+	auto on_spec_break = [](const Terminal *other) {
+		return other && other->parent_element_ && other->parent_element_->isSpecBreak();
+	};
 	for (const Conductor *conductor : m_conductors_list) {
-		if (conductor->endsTouch()) {
+		const Terminal *other = conductor->terminal1 == this ? conductor->terminal2 : conductor->terminal1;
+		if (conductor->endsTouch() && !on_spec_break(other)) {
 			return true;
 		}
 	}
@@ -1653,11 +1663,25 @@ bool Terminal::touchesNozzle() const
 	for (QGraphicsItem *item : folio->items(dock)) {
 		const Terminal *other = qgraphicsitem_cast<Terminal *>(item);
 		if (other && other != this && other->parent_element_ != parent_element_
-			&& other->d->m_medium == TerminalData::Pipe && other->dockConductor() == dock) {
+			&& other->d->m_medium == TerminalData::Pipe && other->dockConductor() == dock
+			&& !on_spec_break(other)) {
 			return true;
 		}
 	}
 	return false;
+}
+
+const Terminal *Terminal::acrossSpecBreak() const
+{
+	if (d->m_medium != TerminalData::Pipe || !parent_element_ || !parent_element_->isSpecBreak()) {
+		return nullptr;
+	}
+	for (const Terminal *sibling : runSiblings()) {
+		if (const Terminal *against = sibling->contactNozzle()) {
+			return against;
+		}
+	}
+	return nullptr;
 }
 
 void Terminal::updateConnectionMark()
@@ -1985,6 +2009,22 @@ void Terminal::refreshContact()
 	refreshSizes();
 	if (before) {
 		before->refreshSizes();
+	}
+		//On a spec break, the pipe on its other nozzle meets another
+		//connection now (acrossSpecBreak()): drawn again, the symbol which
+		//came or went too
+	for (Terminal *terminal : {this, now, before}) {
+		if (!terminal || !terminal->parent_element_ || !terminal->parent_element_->isSpecBreak()) {
+			continue;
+		}
+		for (Terminal *sibling : terminal->runSiblings()) {
+			sibling->updateConnectionMark();
+		}
+		for (Terminal *other : {this, now, before}) {
+			if (other && other != terminal) {
+				other->updateConnectionMark();
+			}
+		}
 	}
 }
 
