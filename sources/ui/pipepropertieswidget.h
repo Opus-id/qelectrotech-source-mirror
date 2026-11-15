@@ -43,10 +43,13 @@ class QToolButton;
 	It stands for the page of a wire, whose fields mean nothing for a pipe.
 	Each change is applied at once, with undo, to every pipe selected and to
 	that field only: a field whose value differs from one pipe to another
-	shows none and changes nothing until it is edited. Nothing is passed on
-	to the pipes connected to them, but the size: the DN goes on through the
-	valves, whatever the material, each pipe reached getting the outside
-	diameter of its own material (resizeLine()).
+	shows none and changes nothing until it is edited. Two things go on to
+	the pipes connected to them. The size: the DN goes on through the valves,
+	whatever the material, each pipe reached getting the outside diameter of
+	its own material (resizeLine()); reducers stop it. The spec: the
+	material, piping class and nominal pressure go on through the valves,
+	tees and reducers; spec breaks and equipment stop it (step 5l-1l). The
+	other fields stay on the pipes selected.
 */
 class PipePropertiesWidget : public PropertiesEditorWidget
 {
@@ -68,24 +71,35 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		static void editInDialog(Conductor *pipe, QWidget *parent = nullptr);
 
 	private:
+			/// Which pipes a change reaches: those selected; with them, those
+			/// their size passes to; or those their spec (material, piping
+			/// class, nominal pressure) passes to, see Conductor::inlineRun()
+		enum class Reach { Selection, Size, Spec };
+
 		void buildUi();
 		QLineEdit *addTextField(const QString &name, const QString &label,
 								const std::function<QString(const PipeProperties &)> &get,
-								const std::function<void(PipeProperties &, const QString &)> &set);
+								const std::function<void(PipeProperties &, const QString &)> &set,
+								Reach reach = Reach::Selection);
 		void bindTextField(QLineEdit *edit,
 						   const std::function<QString(const PipeProperties &)> &get,
 						   const std::function<void(PipeProperties &, const QString &)> &set,
-						   bool through_valves = false);
+						   Reach reach = Reach::Selection);
 		QComboBox *addListField(const QString &name, const QString &label,
 								const std::function<void(PipeProperties &, const QString &)> &set,
 								const std::function<void(const QString &)> &apply_code = nullptr);
 			/// With @p parent, the commands are added to it and nothing is
 			/// pushed: the change is part of a step made elsewhere
 		void applyChange(const std::function<void(PipeProperties &)> &change,
-						 bool through_valves = false, QUndoCommand *parent = nullptr);
-			/// The pipes edited, and with @p through_valves those they
-			/// continue through valves, see Conductor::inlineRun()
-		QList<Conductor *> changedPipes(bool through_valves) const;
+						 Reach reach = Reach::Selection, QUndoCommand *parent = nullptr);
+			/// The pipes edited, and those @p reach adds to them
+		QList<Conductor *> changedPipes(Reach reach) const;
+			/// What is said when a change of the spec went beyond the pipes
+			/// selected: how many other pipes of the line it changed, and the
+			/// values @p get gave those it replaced; empty when it changed
+			/// none. To compute before the change, with the new @p value.
+		QString lineNote(const std::function<QString(const PipeProperties &)> &get,
+						 const QString &value) const;
 			/// Give the line of the pipes edited the DN @p nominal, in one
 			/// step: the pipes of the material @p material, when
 			/// @p one_material says the pipes edited have this one, take
@@ -124,11 +138,12 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// the line, in the step @p parent, or in one of its own without;
 			/// false when refused or cancelled, said in m_refused
 		bool sizeLine(const QString &text, QUndoCommand *parent);
-			/// The material of code @p code given to the pipes, in one step:
-			/// their DN stays, their outside diameter is the one the sizes
-			/// of the new material join to it: among several, its default
-			/// one, or without one the one the user chooses, once for a
-			/// DN; none for a material named by its DN
+			/// The material of code @p code given to the pipes and to the
+			/// rest of their line (Reach::Spec), in one step: their DN
+			/// stays, their outside diameter is the one the sizes of the new
+			/// material join to it: among several, its default one, or
+			/// without one the one the user chooses, once for a DN; none for
+			/// a material named by its DN
 		void materialEdited(const QString &code);
 			/// The answer to @p question among @p items, -1 for none, which
 			/// the dialog offers last as @p none. With @p remember, the

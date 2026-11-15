@@ -2079,6 +2079,159 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(after->inlineRun(Reach::Spec), QList<Conductor *>{after});
 		}
 
+			// The material, piping class and nominal pressure changed in the
+			// panel go on through valves, tees and reducers, up to a spec
+			// break, in one step, and it is said (step 5l-1l, l2); the DN
+			// stays, the outside diameter follows the new material
+		void theSpecChangedInThePanelGoesOnUpToASpecBreak()
+		{
+			QETProject project;
+			PidCodification codification;
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.addSize(0, 80);
+			steel.addSize(0, 100);
+			PidCodification::Entry iron;
+			iron.code = QStringLiteral("M03");
+			iron.addSize(0, 80);
+			iron.addSize(0, 100);
+				// one outside diameter by DN: nothing asked
+			const PidCodification::Entry plastic = plasticOf(
+						QStringLiteral("M01"), {{900, 80}, {1100, 100}});
+			codification.materials = {steel, iron, plastic};
+			project.setPidCodification(codification);
+
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			const ElementsLocation valve = addValve(project);
+			Element *left = place(folio, tank);
+			Element *v = place(folio, valve);
+			Element *tee = place(folio, addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" ")));
+			Element *below = place(folio, tank);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *spec_break = place(folio, addSymbol(
+						project, QStringLiteral("specbreak.elmt"),
+						QStringLiteral("{7b777777-7777-7777-7777-777777777771}"), 0,
+						QStringLiteral("pid_inline=\"true\" pid_family=\"pipe\" pid_role=\"spec_break\" ")));
+			Element *w = place(folio, valve);
+			Element *right = place(folio, tank);
+			QVERIFY(left && v && tee && below && reducer && spec_break && w && right);
+			left->setPos(0, 200);
+			v->setPos(200, 200);
+			tee->setPos(400, 200);
+			below->setPos(400, 600);
+			reducer->setPos(600, 200);
+			spec_break->setPos(800, 200);
+			w->setPos(1000, 200);
+			right->setPos(1200, 200);
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), v, QStringLiteral("N1"));
+			Conductor *p2 = connect(folio, v, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+			Conductor *branch = connect(folio, tee, QStringLiteral("N3"), below, QStringLiteral("N1"));
+			Conductor *p3 = connect(folio, tee, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *p4 = connect(folio, reducer, QStringLiteral("N2"), spec_break, QStringLiteral("N1"));
+			Conductor *p5 = connect(folio, spec_break, QStringLiteral("N2"), w, QStringLiteral("N1"));
+			Conductor *p6 = connect(folio, w, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(p1 && p2 && branch && p3 && p4 && p5 && p6);
+				// steel DN 100, the branch in cast iron; DN 80 after the reducer;
+				// cast iron after the spec break
+			auto give = [](Conductor *pipe, const QString &material, int dn, const QString &piping_class) {
+				ConductorProperties properties = pipe->properties();
+				properties.m_pipe.material = material;
+				properties.m_pipe.nominal = PipeDiameter::nominal(dn);
+				properties.m_pipe.outside = PipeDiameter();
+				properties.m_pipe.piping_class = piping_class;
+				pipe->setProperties(properties);
+			};
+			for (Conductor *pipe : {p1, p2, p3}) {
+				give(pipe, QStringLiteral("M02"), 100, QStringLiteral("A1"));
+			}
+			give(branch, QStringLiteral("M03"), 100, QStringLiteral("A1"));
+			give(p4, QStringLiteral("M02"), 80, QStringLiteral("A1"));
+			give(p5, QStringLiteral("M03"), 80, QStringLiteral("P3"));
+			give(p6, QStringLiteral("M03"), 80, QStringLiteral("P3"));
+			const QList<Conductor *> before_break{p1, p2, branch, p3, p4};
+			auto material = [](const Conductor *pipe) { return pipe->properties().m_pipe.material; };
+			auto piping_class = [](const Conductor *pipe) { return pipe->properties().m_pipe.piping_class; };
+
+			PipePropertiesWidget page({p1});
+			QStringList questions;
+			page.setChooser([&questions](const QString &question, const QStringList &) {
+				questions << question;
+				return 0;
+			});
+			auto type = [](QLineEdit *edit, const QString &text) {
+				edit->setText(text);
+				edit->setModified(true);
+				emit edit->editingFinished();
+			};
+			auto *material_list = page.findChild<QComboBox *>(QStringLiteral("material"));
+			auto *class_field = page.findChild<QLineEdit *>(QStringLiteral("piping_class"));
+			auto *line_number = page.findChild<QLineEdit *>(QStringLiteral("line_number"));
+			QVERIFY(material_list && class_field && line_number);
+
+				// the plastic on the first pipe: up to the spec break, the
+				// branch and the small side of the reducer too
+			QUndoStack &stack = folio->undoStack();
+			const int steps = stack.count();
+			type(material_list->lineEdit(), QStringLiteral("M01"));
+			QCOMPARE(stack.count(), steps + 1);
+			for (Conductor *pipe : before_break) {
+				QCOMPARE(material(pipe), QStringLiteral("M01"));
+			}
+			QCOMPARE(material(p5), QStringLiteral("M03"));
+			QCOMPARE(material(p6), QStringLiteral("M03"));
+				// the DN stays, the outside diameter is the one of the plastic
+			QCOMPARE(dn(p1), 100);
+			QCOMPARE(dn(p4), 80);
+			QCOMPARE(p1->properties().m_pipe.outside, PipeDiameter::outside(110));
+			QCOMPARE(p4->properties().m_pipe.outside, PipeDiameter::outside(90));
+			QCOMPARE(dn(p5), 80);
+			QVERIFY(!p5->properties().m_pipe.outside.isSet());
+			QVERIFY(questions.isEmpty());
+				// said: four others, two materials replaced
+			QVERIFY2(page.diameterMessage().contains(QStringLiteral("4 other pipe line(s)")),
+					 qPrintable(page.diameterMessage()));
+			QVERIFY2(page.diameterMessage().contains(QStringLiteral("(M02, M03)")),
+					 qPrintable(page.diameterMessage()));
+				// one step undoes it all
+			stack.undo();
+			for (Conductor *pipe : {p1, p2, p3, p4}) {
+				QCOMPARE(material(pipe), QStringLiteral("M02"));
+			}
+			QCOMPARE(material(branch), QStringLiteral("M03"));
+			QVERIFY(!p1->properties().m_pipe.outside.isSet());
+
+				// the piping class: the same reach
+			type(class_field, QStringLiteral("B2"));
+			for (Conductor *pipe : before_break) {
+				QCOMPARE(piping_class(pipe), QStringLiteral("B2"));
+			}
+			QCOMPARE(piping_class(p5), QStringLiteral("P3"));
+			QVERIFY(page.diameterMessage().contains(QStringLiteral("(A1)")));
+				// from the other side of the spec break: that side only
+			PipePropertiesWidget other_side({p6});
+			type(other_side.findChild<QLineEdit *>(QStringLiteral("piping_class")), QStringLiteral("P9"));
+			QCOMPARE(piping_class(p5), QStringLiteral("P9"));
+			QCOMPARE(piping_class(p6), QStringLiteral("P9"));
+			QCOMPARE(piping_class(p4), QStringLiteral("B2"));
+			QVERIFY(other_side.diameterMessage().contains(QStringLiteral("1 other pipe line(s)")));
+				// the nominal pressure too
+			type(other_side.findChild<QLineEdit *>(QStringLiteral("nominal_pressure")), QStringLiteral("PN10"));
+			QCOMPARE(p5->properties().m_pipe.nominal_pressure, QStringLiteral("PN10"));
+			QVERIFY(p4->properties().m_pipe.nominal_pressure.isEmpty());
+
+				// the line number stays on the pipe selected
+			type(line_number, QStringLiteral("47121"));
+			QCOMPARE(p1->properties().m_pipe.line_number, QStringLiteral("47121"));
+			QVERIFY(p2->properties().m_pipe.line_number.isEmpty());
+		}
+
 			// A reducing tee is an equal tee with a reducer against its N3
 			// (step 5l-1j, j1): each side of the reducer sizes its own line,
 			// and a change of the main line does not go into the branch

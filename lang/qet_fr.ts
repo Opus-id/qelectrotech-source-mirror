@@ -14392,6 +14392,22 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
             <numerusform>%n tuyauteries sélectionnées</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="1215"/>
+        <source>%n other pipe line(s) of the line changed too.</source>
+        <translation>
+            <numerusform>%n autre tuyauterie de la ligne changée aussi.</numerusform>
+            <numerusform>%n autres tuyauteries de la ligne changées aussi.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="1218"/>
+        <source>%n of them had another value (%1): a spec break keeps a part of a line from such a change.</source>
+        <translation>
+            <numerusform>Dont %n qui avait une autre valeur (%1) : une rupture de spécification protège un tronçon d&apos;un tel changement.</numerusform>
+            <numerusform>Dont %n qui avaient une autre valeur (%1) : une rupture de spécification protège un tronçon d&apos;un tel changement.</numerusform>
+        </translation>
+    </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="306"/>
         <source>Pipe line</source>

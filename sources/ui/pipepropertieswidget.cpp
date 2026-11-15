@@ -273,12 +273,14 @@ void PipePropertiesWidget::buildUi()
 		//Picked in the list: as if typed
 	connect(m_diameter, &QComboBox::activated, this, &PipePropertiesWidget::diameterEdited);
 
+		//The spec of the line: on through valves, tees and reducers, up to
+		//the spec breaks, as the material
 	addTextField(QStringLiteral("piping_class"), tr("Piping class:"),
 				 [](const PipeProperties &p) { return p.piping_class; },
-				 [](PipeProperties &p, const QString &t) { p.piping_class = t; });
+				 [](PipeProperties &p, const QString &t) { p.piping_class = t; }, Reach::Spec);
 	addTextField(QStringLiteral("nominal_pressure"), tr("Nominal pressure:"),
 				 [](const PipeProperties &p) { return p.nominal_pressure; },
-				 [](PipeProperties &p, const QString &t) { p.nominal_pressure = t; });
+				 [](PipeProperties &p, const QString &t) { p.nominal_pressure = t; }, Reach::Spec);
 
 	layout->addRow(PidSection::title(tr("Drawing", "section of the page of a pipe"), this));
 	m_kind = new QComboBox(this);
@@ -746,7 +748,7 @@ void PipePropertiesWidget::resizeLine(const PipeDiameter &nominal, const PipeDia
 {
 	const PidCodification codes = codification();
 	const QLocale locale = codes.locale();
-	const QList<Conductor *> line = changedPipes(true);
+	const QList<Conductor *> line = changedPipes(Reach::Size);
 		//The pipes of the material of those edited take the sizes chosen
 		//for them as they are
 	auto as_edited = [one_material, material](const PipeProperties &p) {
@@ -820,7 +822,7 @@ void PipePropertiesWidget::resizeLine(const PipeDiameter &nominal, const PipeDia
 			}
 		}
 	}
-	applyChange(resize, true, parent);
+	applyChange(resize, Reach::Size, parent);
 }
 
 /**
@@ -840,7 +842,12 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 		//What is said of it: a default outside diameter remembered, a DN
 		//found, an outside diameter replaced
 	QStringList notes;
-	for (Conductor *pipe : pipes())
+		//The rest of their line too, up to the spec breaks: its sizes are
+		//asked for as those of the pipes selected
+	const QList<Conductor *> line = changedPipes(Reach::Spec);
+		//Said last, of the line as it is before the change
+	const QString line_note = lineNote([](const PipeProperties &p) { return p.material; }, code);
+	for (Conductor *pipe : line)
 	{
 		const PipeProperties p = pipe->properties().m_pipe;
 		if (!p.nominal.isSet() && p.outside.isSet() && !nominal_of.contains(p.outside.tenths())) {
@@ -863,7 +870,7 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 			outside_of.insert(sizeKey(code, dn), chooseOutside(dn, code, outsides, notes));
 		}
 	}
-	for (Conductor *pipe : pipes())
+	for (Conductor *pipe : line)
 	{
 		const PipeProperties before = pipe->properties().m_pipe;
 		PipeProperties after = before;
@@ -890,7 +897,10 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 	}
 	applyChange([code, codes, nominal_of, outside_of](PipeProperties &p) {
 		giveMaterial(p, code, codes, nominal_of, outside_of);
-	});
+	}, Reach::Spec);
+	if (!line_note.isEmpty()) {
+		notes << line_note;
+	}
 		//Said after the change, which clears what was said
 	m_refused = notes.join(QLatin1Char('\n'));
 	updateUi();
@@ -1089,12 +1099,13 @@ void PipePropertiesWidget::fillLists()
 QLineEdit *PipePropertiesWidget::addTextField(
 		const QString &name, const QString &label,
 		const std::function<QString(const PipeProperties &)> &get,
-		const std::function<void(PipeProperties &, const QString &)> &set)
+		const std::function<void(PipeProperties &, const QString &)> &set,
+		Reach reach)
 {
 	auto *edit = new QLineEdit(this);
 	edit->setObjectName(name);
 	static_cast<QFormLayout *>(layout())->addRow(label, edit);
-	bindTextField(edit, get, set);
+	bindTextField(edit, get, set, reach);
 	return edit;
 }
 
@@ -1107,18 +1118,24 @@ void PipePropertiesWidget::bindTextField(
 		QLineEdit *edit,
 		const std::function<QString(const PipeProperties &)> &get,
 		const std::function<void(PipeProperties &, const QString &)> &set,
-		bool through_valves)
+		Reach reach)
 {
 	m_text_fields.append({edit, get});
 		//Only once the user changed it: leaving a field which shows
 		//nothing, for several values, changes nothing
-	connect(edit, &QLineEdit::editingFinished, this, [this, edit, set, through_valves]() {
+	connect(edit, &QLineEdit::editingFinished, this, [this, edit, get, set, reach]() {
 		if (!edit->isModified()) {
 			return;
 		}
 		edit->setModified(false);
 		const QString text = edit->text().trimmed();
-		applyChange([set, text](PipeProperties &p) { set(p, text); }, through_valves);
+			//Said after the change, which clears what was said
+		const QString note = reach == Reach::Spec ? lineNote(get, text) : QString();
+		applyChange([set, text](PipeProperties &p) { set(p, text); }, reach);
+		if (!note.isEmpty()) {
+			m_refused = note;
+			updateUi();
+		}
 	});
 }
 
@@ -1126,12 +1143,14 @@ void PipePropertiesWidget::bindTextField(
 	@brief PipePropertiesWidget::changedPipes
 	See the declaration
 */
-QList<Conductor *> PipePropertiesWidget::changedPipes(bool through_valves) const
+QList<Conductor *> PipePropertiesWidget::changedPipes(Reach reach) const
 {
 	QList<Conductor *> changed = pipes();
-	if (through_valves) {
+	if (reach != Reach::Selection) {
+		const Conductor::LineReach line_reach = reach == Reach::Spec ? Conductor::LineReach::Spec
+																	 : Conductor::LineReach::Size;
 		for (Conductor *pipe : pipes()) {
-			for (Conductor *next : pipe->inlineRun()) {
+			for (Conductor *next : pipe->inlineRun(line_reach)) {
 				if (!changed.contains(next)) {
 					changed << next;
 				}
@@ -1142,19 +1161,63 @@ QList<Conductor *> PipePropertiesWidget::changedPipes(bool through_valves) const
 }
 
 /**
+	@brief PipePropertiesWidget::lineNote
+	See the declaration
+*/
+QString PipePropertiesWidget::lineNote(const std::function<QString(const PipeProperties &)> &get,
+									   const QString &value) const
+{
+	const QList<Conductor *> selected = pipes();
+	int changed = 0;
+	int replaced = 0;
+	QStringList values;
+	for (Conductor *pipe : changedPipes(Reach::Spec))
+	{
+		if (selected.contains(pipe)) {
+			continue;
+		}
+		const QString before = get(pipe->properties().m_pipe);
+		if (before == value) {
+			continue;
+		}
+		++changed;
+			//An empty field filled replaces nothing
+		if (before.isEmpty()) {
+			continue;
+		}
+		++replaced;
+		if (!values.contains(before)) {
+			values << before;
+		}
+	}
+	if (!changed) {
+		return QString();
+	}
+	values.sort();
+	QString note = tr("%n other pipe line(s) of the line changed too.", "", changed);
+	if (replaced) {
+		note += QLatin1Char(' ')
+				+ tr("%n of them had another value (%1): a spec break keeps a part of a line "
+					 "from such a change.", "", replaced)
+				  .arg(values.join(QStringLiteral(", ")));
+	}
+	return note;
+}
+
+/**
 	@brief PipePropertiesWidget::applyChange
 	Do @p change to the data of every pipe edited, in one undo step, if it
 	changes anything
 	@param change
-	@param through_valves : also to the pipes they continue through valves,
-	see Conductor::inlineRun()
+	@param reach : also to the pipes their size or their spec passes to,
+	see changedPipes()
 	@param parent : the step the commands are added to, which is not pushed;
 	without one, a step of its own, pushed
 */
 void PipePropertiesWidget::applyChange(const std::function<void(PipeProperties &)> &change,
-									   bool through_valves, QUndoCommand *parent)
+									   Reach reach, QUndoCommand *parent)
 {
-	const QList<Conductor *> changed = changedPipes(through_valves);
+	const QList<Conductor *> changed = changedPipes(reach);
 	auto *undo = parent ? parent : new QUndoCommand(tr("Change the properties of a pipe line"));
 	Diagram *diagram = nullptr;
 		//The outside diameters the user chose to remember become the
