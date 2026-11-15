@@ -131,8 +131,9 @@ class Element : public QetGraphicsItem
 			/// (setOptionChoices())
 		void optionChoicesChanged();
 			/// Its nozzles were given other diameters (setNozzleDiameters()),
-			/// other connections (setNozzleConnections()) or other choices of
-			/// their marks (setNozzleMarks())
+			/// other connections (setNozzleConnections()), other choices of
+			/// their marks (setNozzleMarks()) or other links
+			/// (setUnlinkedNozzles())
 		void nozzleDiametersChanged();
 			/// The element took another symbol (changeLocation())
 		void symbolChanged();
@@ -276,6 +277,13 @@ class Element : public QetGraphicsItem
 		void setNozzleMarks(const NozzleMarks &marks);
 			/// Those of the <pid_nozzles> block of @p element
 		static NozzleMarks nozzleMarksFromXml(const QDomElement &element);
+			/// The links of the tab of its nozzles the user undid
+			/// (NozzleLinks): none for an element whose links follow its
+			/// nozzles, linked when they are alike
+		NozzleLinks unlinkedNozzles() const { return m_unlinked_nozzles; }
+		void setUnlinkedNozzles(NozzleLinks unlinked);
+			/// Those of the <pid_nozzles> block of @p element
+		static NozzleLinks unlinkedNozzlesFromXml(const QDomElement &element);
 			/// Its P&ID family (ElementData::m_pid_family), without copying
 			/// all its data: none for any other symbol
 		const QString &pidFamily() const { return m_data.m_pid_family; }
@@ -547,6 +555,8 @@ class Element : public QetGraphicsItem
 	NozzleConnections m_nozzle_connections;
 		/// See nozzleMarks()
 	NozzleMarks m_nozzle_marks;
+		/// See unlinkedNozzles()
+	NozzleLinks m_unlinked_nozzles;
 	QList<QPointF> m_plc_table_positions;  // Positions of plc_table parts in the element definition
 
 	void drawPlcTable(QPainter *painter);

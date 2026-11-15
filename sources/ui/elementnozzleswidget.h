@@ -29,10 +29,11 @@
 #include <QString>
 #include <functional>
 
-class QCheckBox;
 class QComboBox;
-class QFormLayout;
+class QGridLayout;
+class QIcon;
 class QLabel;
+class QPalette;
 class QLineEdit;
 class QToolButton;
 class Terminal;
@@ -51,14 +52,18 @@ class Terminal;
 	valve, of a tee, a free end) has no size of its own: its field is greyed
 	and shows the size of its line; its connection and its drawing stay free.
 
-	Above them, for an element of two nozzles or more, one box: one
-	connection (and drawing) for all; and for two nozzles or more with a size
-	of their own, another: one size for all. A thread tells its DN in a tool
-	tip (EN 10255, PipeDiameter::threadTable()). Checked, the first nozzle gives
-	its value to the others, whose lists are greyed. Nothing of them is
-	written: they are checked when the nozzles are alike, at the opening of
-	the tab, and unchecked when they no longer are (an undo).
-	A reducer has no box for one size: its sides differ by nature.
+	Above them, a row of headers names the columns: Connection, Size,
+	Drawing. For an element of two nozzles or more, a link (a toggled button)
+	stands beside the header of the connection and beside the one of the
+	drawing; for two nozzles or more with a size of their own, beside the one
+	of the size too. A reducer has no link of the size: its sides differ by
+	nature. Linked (blue), the first nozzle gives its value to the others,
+	whose lists are greyed; linking gives it them, in one step. A link is
+	linked when the nozzles are alike, unless the user undid it: that is kept
+	(Element::unlinkedNozzles(), written same_connection="false"...), even
+	once the nozzles are alike again; only linking it again undoes it. Undone
+	or linked is one step of undo. A thread tells its DN in a tool tip
+	(EN 10255, PipeDiameter::threadTable()).
 
 	A side of a reducer given a size of its own gives it to its line: the
 	pipes of that side (Terminal::nearestPipes()) and those they continue,
@@ -116,13 +121,23 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// shows of a thread: "G 1"1/2 = DN 40 (EN 10255)"; nothing for
 			/// another size
 		QString threadToolTip(const QString &name) const;
-			/// The box giving all the nozzles the connection and the drawing
-			/// of the first, nullptr for an element of one nozzle
-		QCheckBox *sameConnectionBox() const { return m_same_connection; }
-			/// The box giving all the nozzles the size of the first, nullptr
+			/// The link giving all the nozzles the connection of the first,
+			/// nullptr for an element of one nozzle
+		QToolButton *sameConnectionLink() const { return m_same_connection; }
+			/// The link giving all the nozzles the size of the first, nullptr
 			/// for an element with fewer than two nozzles with a size of
-			/// their own: a valve, a tee
-		QCheckBox *sameSizeBox() const { return m_same_size; }
+			/// their own (a valve, a tee) and for a reducer
+		QToolButton *sameSizeLink() const { return m_same_size; }
+			/// The link giving all the nozzles the drawing of the connection
+			/// of the first, nullptr for an element of one nozzle
+		QToolButton *sameMarkLink() const { return m_same_mark; }
+			/// The links the user undid: those the element has, then each
+			/// one unlinked by a click, less each one linked by a click. A
+			/// link unlinked only because the nozzles differ is not one
+		NozzleLinks chosenUnlinked() const;
+			/// The two rings of a chain, joined in the colour of the
+			/// selection of @p palette (On, linked), apart in grey (Off)
+		static QIcon linkIcon(const QPalette &palette);
 			/// What asks which size goes with another when a line is given
 			/// the size of a reducer (PipePropertiesWidget::setChooser()), a
 			/// list in a dialog unless a test says otherwise
@@ -169,16 +184,26 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// others when their box is checked; nullptr if none
 		const Field *firstSized() const;
 		bool isFirstSized(const Field &field) const;
-			/// The nozzles of the element have one connection and drawing;
+			/// The nozzles of the element have one connection, one drawing;
 			/// those with a size of their own have one size
 		bool allSameConnection() const;
+		bool allSameMark() const;
 		bool allSameSize() const;
-			/// Give the others the connection and the drawing, the size of
-			/// the first nozzle, in the lists
+			/// Give the others the connection, the drawing, the size of the
+			/// first nozzle, in the lists
 		void copyConnectionOfFirst();
+		void copyMarkOfFirst();
 		void copySizeOfFirst();
-			/// A box checked or unchecked
+			/// A link linked or unlinked
 		void sameToggled();
+			/// Each link linked when the nozzles are alike and the user did
+			/// not undo it
+		void showLinks();
+			/// The header @p text of the column @p column, with the link
+			/// @p link beside it if @p tip is not empty: the link, else
+			/// nullptr
+		QToolButton *addHeader(int column, const QString &text, NozzleLink link,
+							   const QString &tip);
 			/// Grey the lists the first nozzle fills
 		void updateLinkedFields();
 			/// The sides of a reducer which @p diameters give a size of
@@ -190,15 +215,18 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// gives its size to when the box for one size is checked
 		void followPipe(const Field &field);
 
-		QFormLayout *m_layout = nullptr;
+		QGridLayout *m_layout = nullptr;
 			/// The fields given a value by the user since the last one
 			/// applied: typed, chosen in the list or validated by Enter;
 			/// not a field only entered and left
 		mutable QSet<QString> m_typed;
 		std::function<int(const QString &, const QStringList &)> m_chooser;
 		QLabel *m_message = nullptr;
-		QCheckBox *m_same_connection = nullptr;
-		QCheckBox *m_same_size = nullptr;
+		QToolButton *m_same_connection = nullptr;
+		QToolButton *m_same_size = nullptr;
+		QToolButton *m_same_mark = nullptr;
+			/// See chosenUnlinked()
+		NozzleLinks m_unlinked;
 		QList<Field> m_fields;
 };
 

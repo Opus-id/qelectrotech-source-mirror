@@ -88,6 +88,9 @@ class DiagramEventAddElement : public DiagramEventInterface
 		NozzleConnections m_like_connections;
 			/// Choices of the marks of nozzles every copy takes, see setLike()
 		NozzleMarks m_like_marks;
+			/// Links of the tab of the nozzles undone in every copy, see
+			/// setLike()
+		NozzleLinks m_like_unlinked;
 			/// Functional unit and train of the P&ID tag every copy takes,
 			/// with the next order (see setLike()); none when m_like_unit
 			/// is empty

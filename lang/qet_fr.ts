@@ -6674,18 +6674,31 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="110"/>
-        <source>One connection for all the nozzles</source>
-        <translation>Même raccord pour tous les piquages</translation>
+        <source>Connection</source>
+        <comment>header of a column of the nozzles</comment>
+        <translation>Raccord</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="112"/>
-        <source>Checked, the first nozzle gives its connection and its drawing to the others.</source>
-        <translation>Cochée : le premier piquage donne son raccord et son dessin aux autres.</translation>
+        <source>Same connection for all the nozzles: linked, in blue, the first nozzle gives its connection to the others.</source>
+        <translation>Même raccord pour tous les piquages : lié (en bleu), le premier piquage donne son raccord aux autres.</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="114"/>
-        <source>One size for all the nozzles</source>
-        <translation>Même taille pour tous les piquages</translation>
+        <source>Size</source>
+        <comment>header of a column of the nozzles</comment>
+        <translation>Taille</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="115"/>
+        <source>Drawing</source>
+        <comment>header of a column of the nozzles</comment>
+        <translation>Dessin</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementnozzleswidget.cpp" line="117"/>
+        <source>Same drawing of the connection for all the nozzles: linked, in blue, the first nozzle gives its drawing to the others.</source>
+        <translation>Même dessin du raccord pour tous les piquages : lié (en bleu), le premier piquage donne son dessin aux autres.</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="150"/>
@@ -6704,8 +6717,8 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="116"/>
-        <source>Checked, the first nozzle gives its size to the others.</source>
-        <translation>Cochée : le premier piquage donne sa taille aux autres.</translation>
+        <source>Same size for all the nozzles: linked, in blue, the first nozzle gives its size to the others.</source>
+        <translation>Même taille pour tous les piquages : lié (en bleu), le premier piquage donne sa taille aux autres.</translation>
     </message>
     <message>
         <location filename="../sources/ui/elementnozzleswidget.cpp" line="158"/>
@@ -23142,6 +23155,11 @@ Voulez-vous la remplacer ?</translation>
         <location filename="../sources/undocommand/changenozzlediameterscommand.cpp" line="57"/>
         <source>Change the drawing of the connection of a nozzle</source>
         <translation>Modifier le dessin du raccord d&apos;un piquage</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/changenozzlediameterscommand.cpp" line="80"/>
+        <source>Link or unlink the nozzles</source>
+        <translation>Lier ou délier les piquages</translation>
     </message>
     <message>
         <location filename="../sources/undocommand/changepidcodificationcommand.cpp" line="32"/>

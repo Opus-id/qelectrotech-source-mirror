@@ -34,8 +34,12 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDomDocument>
+#include <QIcon>
+#include <QLabel>
 #include <QLineEdit>
+#include <QPalette>
 #include <QTableWidget>
+#include <QToolButton>
 #include <QUndoStack>
 
 /**
@@ -359,9 +363,9 @@ class tst_nozzleconnection : public QObject
 					// a flange of DN 100 and a plain end without size: unlike,
 					// both boxes unchecked, every list free
 				ElementNozzlesWidget tab(tank);
-				QVERIFY(tab.sameConnectionBox() && tab.sameSizeBox());
-				QVERIFY(!tab.sameConnectionBox()->isChecked());
-				QVERIFY(!tab.sameSizeBox()->isChecked());
+				QVERIFY(tab.sameConnectionLink() && tab.sameSizeLink());
+				QVERIFY(!tab.sameConnectionLink()->isChecked());
+				QVERIFY(!tab.sameSizeLink()->isChecked());
 				QVERIFY(tab.connectionFor(n2)->isEnabled());
 			}
 				// alike: both checked, the lists of N2 greyed
@@ -369,8 +373,8 @@ class tst_nozzleconnection : public QObject
 			tank->setNozzleDiameters({{n2, PipeDiameter::nominal(100)}});
 			ElementNozzlesWidget tab(tank);
 			tab.setLiveEdit(true);
-			QVERIFY(tab.sameConnectionBox()->isChecked());
-			QVERIFY(tab.sameSizeBox()->isChecked());
+			QVERIFY(tab.sameConnectionLink()->isChecked());
+			QVERIFY(tab.sameSizeLink()->isChecked());
 			QVERIFY(!tab.connectionFor(n2)->isEnabled());
 			QVERIFY(!tab.markFor(n2)->isEnabled());
 			QVERIFY(!tab.fieldFor(n2)->parentWidget()->isEnabled());
@@ -391,24 +395,132 @@ class tst_nozzleconnection : public QObject
 			tab.fieldFor(n1)->setText(QStringLiteral("DN 80"));
 			emit tab.fieldFor(n1)->editingFinished();
 			QCOMPARE(terminal(tank, n2)->diameter(), PipeDiameter::nominal(80));
-			QVERIFY(tab.sameSizeBox()->isChecked());
+			QVERIFY(tab.sameSizeLink()->isChecked());
 
 				// unchecked: N2 has a connection of its own
-			tab.sameConnectionBox()->setChecked(false);
+			tab.sameConnectionLink()->setChecked(false);
 			QVERIFY(tab.connectionFor(n2)->isEnabled());
 			pick(tab.connectionFor(n2), PipeConnection::Thread);
 			QCOMPARE(terminal(tank, n1)->connection(), PipeConnection::Socket);
 			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Thread);
 				// checked again: N2 takes the one of N1, in one undo step...
 			const int before = folio->undoStack().count();
-			tab.sameConnectionBox()->setChecked(true);
+			tab.sameConnectionLink()->setChecked(true);
 			QCOMPARE(folio->undoStack().count(), before + 1);
 			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Socket);
 				// ...undone: unlike again, the box unchecks itself
 			folio->undoStack().undo();
 			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Thread);
-			QVERIFY(!tab.sameConnectionBox()->isChecked());
+			QVERIFY(!tab.sameConnectionLink()->isChecked());
 			QVERIFY(tab.connectionFor(n2)->isEnabled());
+		}
+
+			// A link undone by the user is kept (step 5l-1b-bis): written
+			// same_...="false", read back, kept when the nozzles are alike
+			// again; only linking it again undoes it, in one step
+		void anUnlinkedLinkIsKept()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = placeTank(project, folio);
+			QVERIFY(tank);
+			const QString n1 = QStringLiteral("N1");
+			const QString n2 = QStringLiteral("N2");
+			tank->setNozzleConnections({{n2, PipeConnection::Flange}});
+			tank->setNozzleDiameters({{n2, PipeDiameter::nominal(100)}});
+			QVERIFY(!tank->unlinkedNozzles());
+			{
+				ElementNozzlesWidget tab(tank);
+				tab.setLiveEdit(true);
+					// three links, all linked: the nozzles are alike
+				QVERIFY(tab.sameConnectionLink() && tab.sameSizeLink() && tab.sameMarkLink());
+				QVERIFY(tab.sameConnectionLink()->isChecked());
+				QVERIFY(tab.sameMarkLink()->isChecked());
+				QVERIFY(tab.sameSizeLink()->isChecked());
+				QVERIFY(!tab.sameConnectionLink()->icon().isNull());
+
+					// the connection unlinked, nothing else changed: one step
+				const int steps = folio->undoStack().count();
+				tab.sameConnectionLink()->setChecked(false);
+				QCOMPARE(folio->undoStack().count(), steps + 1);
+				QVERIFY(tank->unlinkedNozzles() == NozzleLinks(NozzleLink::Connection));
+				QVERIFY(!tab.sameConnectionLink()->isChecked());
+				QVERIFY(tab.connectionFor(n2)->isEnabled());
+					// the drawing stays linked: its own link
+				QVERIFY(tab.sameMarkLink()->isChecked());
+				QVERIFY(!tab.markFor(n2)->isEnabled());
+					// undone, redone
+				folio->undoStack().undo();
+				QVERIFY(!tank->unlinkedNozzles());
+				QVERIFY(tab.sameConnectionLink()->isChecked());
+				folio->undoStack().redo();
+				QVERIFY(!tab.sameConnectionLink()->isChecked());
+			}
+				// opened again: unlinked, though the nozzles are alike
+			{
+				ElementNozzlesWidget again(tank);
+				QVERIFY(!again.sameConnectionLink()->isChecked());
+				QVERIFY(again.sameMarkLink()->isChecked());
+			}
+				// written undone only, read back
+			QDomDocument doc;
+			QHash<Terminal *, int> table;
+			const QDomElement written = tank->toXml(doc, table);
+			const QDomElement nozzles = written.firstChildElement(QStringLiteral("pid_nozzles"));
+			QCOMPARE(nozzles.attribute(QStringLiteral("same_connection")), QStringLiteral("false"));
+			QVERIFY(!nozzles.hasAttribute(QStringLiteral("same_size")));
+			QVERIFY(!nozzles.hasAttribute(QStringLiteral("same_mark")));
+			QVERIFY(Element::unlinkedNozzlesFromXml(written) == NozzleLinks(NozzleLink::Connection));
+				// a folio with such a choice is no .qetdb
+			QVERIFY(folio->hasSymbolChoices());
+
+				// N2 made unlike, then alike again by hand: still unlinked
+			ElementNozzlesWidget tab(tank);
+			tab.setLiveEdit(true);
+			pick(tab.connectionFor(n2), PipeConnection::Thread);
+			pick(tab.connectionFor(n2), PipeConnection::Flange);
+			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Flange);
+			QVERIFY(tank->unlinkedNozzles().testFlag(NozzleLink::Connection));
+			QVERIFY(!tab.sameConnectionLink()->isChecked());
+
+				// linked again: N2 takes the connection of N1, nothing written
+			pick(tab.connectionFor(n2), PipeConnection::Thread);
+			const int before = folio->undoStack().count();
+			tab.sameConnectionLink()->setChecked(true);
+			QCOMPARE(folio->undoStack().count(), before + 1);
+			QCOMPARE(terminal(tank, n2)->connection(), PipeConnection::Flange);
+			QVERIFY(!tank->unlinkedNozzles());
+			QVERIFY(tab.sameConnectionLink()->isChecked());
+			QDomDocument doc2;
+			QVERIFY(!tank->toXml(doc2, table).firstChildElement(QStringLiteral("pid_nozzles"))
+					.hasAttribute(QStringLiteral("same_connection")));
+		}
+
+			// The headers name the columns even for one nozzle, without a link
+		void theHeadersNameTheColumns()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = placeTank(project, folio);
+			QVERIFY(tank);
+			ElementNozzlesWidget tab(tank);
+			QStringList headers;
+			for (const QLabel *label : tab.findChildren<QLabel *>()) {
+				headers << label->text();
+			}
+			QVERIFY(headers.contains(QStringLiteral("Connection")));
+			QVERIFY(headers.contains(QStringLiteral("Size")));
+			QVERIFY(headers.contains(QStringLiteral("Drawing")));
+				// the link of the drawing is apart from the one of the
+				// connection: unlike nozzles of one drawing, linked
+			QVERIFY(!tab.sameConnectionLink()->isChecked());
+			QVERIFY(tab.sameMarkLink()->isChecked());
+				// in light and dark, the icon has both states
+			const QIcon icon = ElementNozzlesWidget::linkIcon(QPalette());
+			QVERIFY(!icon.pixmap(16, QIcon::Normal, QIcon::On).isNull());
+			QVERIFY(!icon.pixmap(16, QIcon::Normal, QIcon::Off).isNull());
 		}
 
 			// A valve has the size of its line (step 5l-1j): no box "one size
@@ -442,8 +554,8 @@ class tst_nozzleconnection : public QObject
 			folio->addItem(valve);
 			ElementNozzlesWidget tab(valve);
 			tab.setLiveEdit(true);
-			QVERIFY(tab.sameConnectionBox());
-			QVERIFY(!tab.sameSizeBox());
+			QVERIFY(tab.sameConnectionLink());
+			QVERIFY(!tab.sameSizeLink());
 			QVERIFY(!tab.fieldFor(QStringLiteral("N1"))->parentWidget()->isEnabled());
 			tab.fieldFor(QStringLiteral("N1"))->setText(QStringLiteral("DN 80"));
 			emit tab.fieldFor(QStringLiteral("N1"))->editingFinished();
@@ -451,7 +563,7 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(!terminal(valve, QStringLiteral("N2"))->diameter().isSet());
 			QVERIFY(valve->nozzleDiameters().isEmpty());
 				// one connection for all still goes from N1 to N2
-			QVERIFY(tab.sameConnectionBox()->isChecked());
+			QVERIFY(tab.sameConnectionLink()->isChecked());
 			pick(tab.connectionFor(QStringLiteral("N1")), PipeConnection::Socket);
 			QCOMPARE(terminal(valve, QStringLiteral("N2"))->connection(), PipeConnection::Socket);
 			QVERIFY(valve->nozzleDiameters().isEmpty());

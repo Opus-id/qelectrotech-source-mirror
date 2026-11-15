@@ -33,7 +33,9 @@ class Element;
 	Give the nozzles of a placed element other diameters
 	(Element::setNozzleDiameters()), other connections
 	(Element::setNozzleConnections()) and other choices of their marks
-	(Element::setNozzleMarks()), and give them back on undo.
+	(Element::setNozzleMarks()), other links of the tab of its nozzles
+	(Element::setUnlinkedNozzles(), setUnlinked()), and give them back on
+	undo.
 */
 class ChangeNozzleDiametersCommand : public QUndoCommand
 {
@@ -52,14 +54,20 @@ class ChangeNozzleDiametersCommand : public QUndoCommand
 									 const NozzleConnections &new_connections,
 									 const NozzleMarks &new_marks,
 									 QUndoCommand *parent = nullptr);
+			/// The links undone it gives the element: else those it has
+		void setUnlinked(NozzleLinks unlinked);
+			/// It changes nothing
+		bool isNull() const;
 		void undo() override;
 		void redo() override;
 
 	private:
+		void updateText();
 		QPointer<Element> m_element;
 		NozzleDiameters m_old_diameters, m_new_diameters;
 		NozzleConnections m_old_connections, m_new_connections;
 		NozzleMarks m_old_marks, m_new_marks;
+		NozzleLinks m_old_unlinked, m_new_unlinked;
 };
 
 #endif // CHANGENOZZLEDIAMETERSCOMMAND_H

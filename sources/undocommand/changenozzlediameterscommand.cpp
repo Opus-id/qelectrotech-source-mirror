@@ -49,12 +49,33 @@ ChangeNozzleDiametersCommand::ChangeNozzleDiametersCommand(
 	m_old_connections(element->nozzleConnections()),
 	m_new_connections(new_connections),
 	m_old_marks(element->nozzleMarks()),
-	m_new_marks(new_marks)
+	m_new_marks(new_marks),
+	m_old_unlinked(element->unlinkedNozzles()),
+	m_new_unlinked(element->unlinkedNozzles())
+{
+	updateText();
+}
+
+void ChangeNozzleDiametersCommand::setUnlinked(NozzleLinks unlinked)
+{
+	m_new_unlinked = unlinked;
+	updateText();
+}
+
+bool ChangeNozzleDiametersCommand::isNull() const
+{
+	return m_new_diameters == m_old_diameters && m_new_connections == m_old_connections
+			&& m_new_marks == m_old_marks && m_new_unlinked == m_old_unlinked;
+}
+
+void ChangeNozzleDiametersCommand::updateText()
 {
 	if (m_new_connections != m_old_connections) {
 		setText(QObject::tr("Change the connection of a nozzle"));
 	} else if (m_new_marks != m_old_marks) {
 		setText(QObject::tr("Change the drawing of the connection of a nozzle"));
+	} else if (m_new_diameters == m_old_diameters && m_new_unlinked != m_old_unlinked) {
+		setText(QObject::tr("Link or unlink the nozzles"));
 	} else {
 		setText(QObject::tr("Change the diameter of a nozzle"));
 	}
@@ -63,6 +84,7 @@ ChangeNozzleDiametersCommand::ChangeNozzleDiametersCommand(
 void ChangeNozzleDiametersCommand::undo()
 {
 	if (m_element) {
+		m_element->setUnlinkedNozzles(m_old_unlinked);
 		m_element->setNozzleMarks(m_old_marks);
 		m_element->setNozzleConnections(m_old_connections);
 		m_element->setNozzleDiameters(m_old_diameters);
@@ -75,5 +97,6 @@ void ChangeNozzleDiametersCommand::redo()
 		m_element->setNozzleMarks(m_new_marks);
 		m_element->setNozzleConnections(m_new_connections);
 		m_element->setNozzleDiameters(m_new_diameters);
+		m_element->setUnlinkedNozzles(m_new_unlinked);
 	}
 }

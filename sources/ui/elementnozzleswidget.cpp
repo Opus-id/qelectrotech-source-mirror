@@ -31,16 +31,59 @@
 
 #include <algorithm>
 
-#include <QCheckBox>
 #include <QComboBox>
-#include <QFormLayout>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHelpEvent>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
+#include <QPalette>
+#include <QPixmap>
 #include <QSignalBlocker>
 #include <QToolButton>
 #include <QToolTip>
+
+namespace {
+	/// @p link exists and is linked
+bool linked(const QToolButton *link)
+{
+	return link && link->isChecked();
+}
+}
+
+/**
+	@brief ElementNozzlesWidget::linkIcon
+	See the declaration. Drawn here: QET has no such icon, and the colour of
+	the selection reads on a light palette as on a dark one.
+*/
+QIcon ElementNozzlesWidget::linkIcon(const QPalette &palette)
+{
+	QIcon icon;
+	const qreal ratio = 2;
+	for (const bool joined : {true, false})
+	{
+		QPixmap pixmap(QSize(16, 16) * ratio);
+		pixmap.setDevicePixelRatio(ratio);
+		pixmap.fill(Qt::transparent);
+		QPainter painter(&pixmap);
+		painter.setRenderHint(QPainter::Antialiasing);
+		const QColor ink = joined ? palette.color(QPalette::Highlight)
+								  : palette.color(QPalette::Disabled, QPalette::WindowText);
+		painter.setPen(QPen(ink, 1.6));
+		painter.setBrush(Qt::NoBrush);
+		painter.translate(8, 8);
+		painter.rotate(-45);
+			//Two rings: one into the other, else a gap between them
+		const qreal apart = joined ? 0 : 2;
+		painter.drawRoundedRect(QRectF(-7 - apart, -2.5, 8, 5), 2.5, 2.5);
+		painter.drawRoundedRect(QRectF(-1 + apart, -2.5, 8, 5), 2.5, 2.5);
+		painter.end();
+		icon.addPixmap(pixmap, QIcon::Normal, joined ? QIcon::On : QIcon::Off);
+	}
+	return icon;
+}
 
 /**
 	@brief ElementNozzlesWidget::ElementNozzlesWidget
@@ -50,7 +93,9 @@
 ElementNozzlesWidget::ElementNozzlesWidget(Element *element, QWidget *parent) :
 	AbstractElementPropertiesEditorWidget(parent)
 {
-	m_layout = new QFormLayout(this);
+	m_layout = new QGridLayout(this);
+		//The size takes the room left
+	m_layout->setColumnStretch(2, 1);
 	setElement(element);
 }
 
@@ -96,19 +141,25 @@ void ElementNozzlesWidget::setElement(Element *element)
 */
 void ElementNozzlesWidget::buildFields()
 {
-	while (m_layout->rowCount()) {
-		m_layout->removeRow(0);
+		//Every item of the grid is a widget (a header is one, with its
+		//layout inside)
+	while (QLayoutItem *item = m_layout->takeAt(0)) {
+		delete item->widget();
+		delete item;
 	}
 	m_fields.clear();
 	m_same_connection = nullptr;
 	m_same_size = nullptr;
+	m_same_mark = nullptr;
+	m_message = nullptr;
 	if (!m_element) {
 		return;
 	}
 
-		//Two nozzles or more: one connection for all; two or more with a
-		//size of their own: one size for all. A valve, a tee have none: their
-		//nozzles have the size of the line
+		//Two nozzles or more: links of the connection and the drawing; two
+		//or more with a size of their own: of the size. A valve, a tee have
+		//none of the size: their nozzles have the size of the line; the two
+		//sides of a reducer differ by nature
 	int nozzles = 0, sized = 0;
 	for (const Terminal *terminal : m_element->terminals()) {
 		if (terminal->medium() != TerminalData::Pipe || terminal->baseName().isEmpty()) {
@@ -119,25 +170,31 @@ void ElementNozzlesWidget::buildFields()
 			++sized;
 		}
 	}
-	if (nozzles >= 2) {
-		m_same_connection = new QCheckBox(tr("One connection for all the nozzles"), this);
-		m_same_connection->setObjectName(QStringLiteral("same_connection"));
-		m_same_connection->setToolTip(PidToolTip::wrapped(tr("Checked, the first nozzle gives its connection and its "
-										 "drawing to the others.")));
-		connect(m_same_connection, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
-			//One under the other: side by side, they would widen the panel
-		m_layout->addRow(m_same_connection);
-			//The two sides of a reducer differ by nature
-		if (sized >= 2 && !m_element->isReducer()) {
-			m_same_size = new QCheckBox(tr("One size for all the nozzles"), this);
-			m_same_size->setObjectName(QStringLiteral("same_size"));
-			m_same_size->setToolTip(PidToolTip::wrapped(tr("Checked, the first nozzle gives its size to the others.")));
-			connect(m_same_size, &QCheckBox::toggled, this, &ElementNozzlesWidget::sameToggled);
-			m_layout->addRow(m_same_size);
-		}
-	}
+	const bool links = nozzles >= 2;
+	const bool size_link = sized >= 2 && !m_element->isReducer();
+		//The headers, even without a link: the columns are named alike
+	m_same_connection = addHeader(1, tr("Connection", "header of a column of the nozzles"),
+								  NozzleLink::Connection,
+								  links ? tr("Same connection for all the nozzles: linked, in blue, "
+											 "the first nozzle gives its connection to the others.")
+										: QString());
+	m_same_size = addHeader(2, tr("Size", "header of a column of the nozzles"), NozzleLink::Size,
+							size_link ? tr("Same size for all the nozzles: linked, in blue, the "
+										   "first nozzle gives its size to the others.")
+									  : QString());
+	m_same_mark = addHeader(3, tr("Drawing", "header of a column of the nozzles"), NozzleLink::Mark,
+							links ? tr("Same drawing of the connection for all the nozzles: "
+									   "linked, in blue, the first nozzle gives its drawing to "
+									   "the others.")
+								  : QString());
+	if (m_same_connection) m_same_connection->setObjectName(QStringLiteral("same_connection"));
+	if (m_same_size) m_same_size->setObjectName(QStringLiteral("same_size"));
+	if (m_same_mark) m_same_mark->setObjectName(QStringLiteral("same_mark"));
 
 	const PidCodification codification = projectCodification();
+		//Counted here: the row count of a grid never goes down once its
+		//items are taken away
+	int row = 1;
 	for (const Terminal *terminal : m_element->terminals())
 	{
 		const QString name = terminal->baseName();
@@ -198,7 +255,7 @@ void ElementNozzlesWidget::buildFields()
 			if (field.follows || !checkField(field)) {
 				return;
 			}
-			if (m_same_size && m_same_size->isChecked() && isFirstSized(field)) {
+			if (linked(m_same_size) && isFirstSized(field)) {
 				copySizeOfFirst();
 			}
 			if (m_live_edit) {
@@ -209,12 +266,12 @@ void ElementNozzlesWidget::buildFields()
 		connect(list, &QComboBox::activated, this, applied);
 		connect(connection, &QComboBox::activated, this, [this, field]() {
 			connectionPicked(field);
-			const bool copies = m_same_connection && m_same_connection->isChecked() && isFirst(field);
+			const bool copies = linked(m_same_connection) && isFirst(field);
 			if (copies) {
 				copyConnectionOfFirst();
 			}
 				//Its size may have become the one its connection takes
-			if (m_same_size && m_same_size->isChecked() && (copies || isFirstSized(field))) {
+			if (linked(m_same_size) && (copies || isFirstSized(field))) {
 				copySizeOfFirst();
 			}
 			if (m_live_edit) {
@@ -222,8 +279,8 @@ void ElementNozzlesWidget::buildFields()
 			}
 		});
 		connect(mark, &QComboBox::activated, this, [this, field]() {
-			if (m_same_connection && m_same_connection->isChecked() && isFirst(field)) {
-				copyConnectionOfFirst();
+			if (linked(m_same_mark) && isFirst(field)) {
+				copyMarkOfFirst();
 			}
 			if (m_live_edit) {
 				apply();
@@ -232,32 +289,99 @@ void ElementNozzlesWidget::buildFields()
 			//Its thread tells its DN when the mouse rests on it
 		list->installEventFilter(this);
 		edit->installEventFilter(this);
-		auto *row = new QHBoxLayout();
-		row->addWidget(connection);
-		row->addWidget(list, 1);
-		row->addWidget(mark);
+			//In columns under the headers
+		m_layout->addWidget(new QLabel(tr("%1:", "label of the DN of a nozzle").arg(name), this),
+							row, 0);
+		m_layout->addWidget(connection, row, 1);
+		m_layout->addWidget(list, row, 2);
+		m_layout->addWidget(mark, row, 3);
 		if (follow) {
 			connect(follow, &QToolButton::clicked, this, [this, field]() { followPipe(field); });
-			row->addWidget(follow);
+			m_layout->addWidget(follow, row, 4);
 		}
-		m_layout->addRow(tr("%1:", "label of the DN of a nozzle").arg(name), row);
+		++row;
 		m_fields.append(field);
 	}
 	m_message = new QLabel(this);
 	m_message->setObjectName(QStringLiteral("nozzle_message"));
 	m_message->setWordWrap(true);
-	m_layout->addRow(m_message);
+	m_layout->addWidget(m_message, row, 0, 1, 5);
 
-		//Checked when the nozzles are alike: nothing of them is written
-	if (m_same_connection) {
-		const QSignalBlocker blocker(m_same_connection);
-		m_same_connection->setChecked(allSameConnection());
+	showLinks();
+}
+
+/**
+	@brief ElementNozzlesWidget::addHeader
+	See the declaration
+*/
+QToolButton *ElementNozzlesWidget::addHeader(int column, const QString &text, NozzleLink which,
+											 const QString &tip)
+{
+	auto *cell = new QWidget(this);
+	auto *row = new QHBoxLayout(cell);
+	row->setContentsMargins(0, 0, 0, 0);
+	row->setSpacing(2);
+	row->addWidget(new QLabel(text, cell));
+	QToolButton *link = nullptr;
+	if (!tip.isEmpty())
+	{
+		link = new QToolButton(cell);
+		link->setCheckable(true);
+		link->setAutoRaise(true);
+		link->setIcon(linkIcon(palette()));
+			//Read by a screen reader; an icon only, not to widen the panel
+		link->setText(tip);
+		link->setToolButtonStyle(Qt::ToolButtonIconOnly);
+		link->setToolTip(PidToolTip::wrapped(tip));
+			//A click is the user's: unlinked, it stays so (chosenUnlinked())
+		connect(link, &QToolButton::toggled, this, [this, which](bool on) {
+			m_unlinked.setFlag(which, !on);
+			sameToggled();
+		});
+		row->addWidget(link);
 	}
-	if (m_same_size) {
-		const QSignalBlocker blocker(m_same_size);
-		m_same_size->setChecked(allSameSize());
-	}
+	row->addStretch(1);
+	m_layout->addWidget(cell, 0, column);
+	return link;
+}
+
+/**
+	@brief ElementNozzlesWidget::showLinks
+	See the declaration
+*/
+void ElementNozzlesWidget::showLinks()
+{
+	const NozzleLinks unlinked = m_element ? m_element->unlinkedNozzles() : NozzleLinks();
+	m_unlinked = unlinked;
+	const auto show = [&unlinked](QToolButton *link, NozzleLink which, bool alike) {
+		if (!link) {
+			return;
+		}
+		const QSignalBlocker blocker(link);
+		link->setChecked(alike && !unlinked.testFlag(which));
+	};
+	show(m_same_connection, NozzleLink::Connection, m_same_connection && allSameConnection());
+	show(m_same_size, NozzleLink::Size, m_same_size && allSameSize());
+	show(m_same_mark, NozzleLink::Mark, m_same_mark && allSameMark());
 	updateLinkedFields();
+}
+
+/**
+	@brief ElementNozzlesWidget::chosenUnlinked
+	See the declaration
+*/
+NozzleLinks ElementNozzlesWidget::chosenUnlinked() const
+{
+		//Only the links the element shows: a symbol of another type may
+		//have kept one it has not
+	NozzleLinks unlinked;
+	if (m_same_connection && m_unlinked.testFlag(NozzleLink::Connection))
+		unlinked |= NozzleLink::Connection;
+	if (m_same_size && m_unlinked.testFlag(NozzleLink::Size))
+		unlinked |= NozzleLink::Size;
+	if (m_same_mark && m_unlinked.testFlag(NozzleLink::Mark))
+		unlinked |= NozzleLink::Mark;
+	return unlinked;
 }
 
 /**
@@ -300,9 +424,21 @@ bool ElementNozzlesWidget::isFirstSized(const Field &field) const
 bool ElementNozzlesWidget::allSameConnection() const
 {
 	for (const Field &field : m_fields) {
-		const Terminal *first = m_fields.constFirst().terminal;
-		if (field.terminal->connection() != first->connection()
-			|| field.terminal->markChoice() != first->markChoice()) {
+		if (field.terminal->connection() != m_fields.constFirst().terminal->connection()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+	@brief ElementNozzlesWidget::allSameMark
+	See the declaration
+*/
+bool ElementNozzlesWidget::allSameMark() const
+{
+	for (const Field &field : m_fields) {
+		if (field.terminal->markChoice() != m_fields.constFirst().terminal->markChoice()) {
 			return false;
 		}
 	}
@@ -342,8 +478,23 @@ void ElementNozzlesWidget::copyConnectionOfFirst()
 			field.connection->setCurrentIndex(first.connection->currentIndex());
 		}
 		connectionPicked(field);
-		const QSignalBlocker blocker(field.mark);
-		field.mark->setCurrentIndex(first.mark->currentIndex());
+	}
+}
+
+/**
+	@brief ElementNozzlesWidget::copyMarkOfFirst
+	See the declaration
+*/
+void ElementNozzlesWidget::copyMarkOfFirst()
+{
+	if (m_fields.size() < 2) {
+		return;
+	}
+	const Field &first = m_fields.constFirst();
+	for (int i = 1 ; i < m_fields.size() ; ++i)
+	{
+		const QSignalBlocker blocker(m_fields.at(i).mark);
+		m_fields.at(i).mark->setCurrentIndex(first.mark->currentIndex());
 	}
 }
 
@@ -382,15 +533,19 @@ void ElementNozzlesWidget::copySizeOfFirst()
 */
 void ElementNozzlesWidget::sameToggled()
 {
-	const bool same_size = m_same_size && m_same_size->isChecked();
-	if (m_same_connection->isChecked()) {
+	if (linked(m_same_connection)) {
 		copyConnectionOfFirst();
 	}
-	if (same_size) {
+	if (linked(m_same_mark)) {
+		copyMarkOfFirst();
+	}
+		//After the connection, which may have changed the sizes
+	if (linked(m_same_size)) {
 		copySizeOfFirst();
 	}
 	updateLinkedFields();
-	if (m_live_edit && (m_same_connection->isChecked() || same_size)) {
+		//Unlinked too: the element keeps it (chosenUnlinked())
+	if (m_live_edit) {
 		apply();
 	}
 }
@@ -401,15 +556,16 @@ void ElementNozzlesWidget::sameToggled()
 */
 void ElementNozzlesWidget::updateLinkedFields()
 {
-	const bool same_connection = m_same_connection && m_same_connection->isChecked();
-	const bool same_size = m_same_size && m_same_size->isChecked();
+	const bool same_connection = linked(m_same_connection);
+	const bool same_mark = linked(m_same_mark);
+	const bool same_size = linked(m_same_size);
 	const Field *sized = firstSized();
 	for (int i = 0 ; i < m_fields.size() ; ++i)
 	{
 		const Field &field = m_fields.at(i);
 		if (i > 0) {
 			field.connection->setEnabled(!same_connection);
-			field.mark->setEnabled(!same_connection);
+			field.mark->setEnabled(!same_mark);
 		}
 			//Never the size of a nozzle which follows its pipe
 		field.list->setEnabled(!field.follows && !(same_size && sized->name != field.name));
@@ -584,16 +740,8 @@ void ElementNozzlesWidget::updateUi()
 	for (const Field &field : std::as_const(m_fields)) {
 		showField(field);
 	}
-		//Undone: nozzles no longer alike uncheck their box
-	if (m_same_connection && m_same_connection->isChecked() && !allSameConnection()) {
-		const QSignalBlocker blocker(m_same_connection);
-		m_same_connection->setChecked(false);
-	}
-	if (m_same_size && m_same_size->isChecked() && !allSameSize()) {
-		const QSignalBlocker blocker(m_same_size);
-		m_same_size->setChecked(false);
-	}
-	updateLinkedFields();
+		//Undone, redone: the links as the element has them now
+	showLinks();
 }
 
 /**
@@ -829,9 +977,11 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 	const NozzleDiameters diameters = chosen();
 	const NozzleConnections connections = chosenConnections();
 	const NozzleMarks marks = chosenMarks();
+	const NozzleLinks unlinked = chosenUnlinked();
 	const bool unchanged = diameters == m_element->nozzleDiameters()
 			&& connections == m_element->nozzleConnections()
-			&& marks == m_element->nozzleMarks();
+			&& marks == m_element->nozzleMarks()
+			&& unlinked == m_element->unlinkedNozzles();
 	const QList<const Field *> sides = resizedSides(diameters);
 	m_typed.clear();
 	if (unchanged && sides.isEmpty()) {
@@ -841,6 +991,9 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 	auto *change = unchanged ? nullptr
 							 : new ChangeNozzleDiametersCommand(m_element, diameters, connections,
 																marks, step);
+	if (change) {
+		change->setUnlinked(unlinked);
+	}
 	if (!step) {
 		return change;
 	}
@@ -884,7 +1037,7 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 */
 void ElementNozzlesWidget::followPipe(const Field &field)
 {
-	const bool all = m_same_size && m_same_size->isChecked() && isFirstSized(field);
+	const bool all = linked(m_same_size) && isFirstSized(field);
 	for (const Field &emptied : std::as_const(m_fields))
 	{
 		if (emptied.follows || (emptied.name != field.name && !all)) {

@@ -1085,7 +1085,8 @@ QDomElement Diagram::deferredXmlWithHeader(QDomDocument &document)
 /**
 	@brief Diagram::hasSymbolChoices
 	@return true if a symbol of this folio was given a value of one of its
-	options or a nominal diameter of one of its nozzles: among its elements,
+	options or a nominal diameter of one of its nozzles, or a link of the tab of
+	its nozzles undone: among its elements,
 	or in the <options> and <pid_nozzles> blocks of an element of its XML while it
 	is not built (lazy folios)
 */
@@ -1098,7 +1099,8 @@ bool Diagram::hasSymbolChoices() const
 			if (!ElementOptions::choicesFromXml(element).isEmpty()
 				|| !Element::nozzleDiametersFromXml(element).isEmpty()
 				|| !Element::nozzleConnectionsFromXml(element).isEmpty()
-				|| !Element::nozzleMarksFromXml(element).isEmpty())
+				|| !Element::nozzleMarksFromXml(element).isEmpty()
+				|| Element::unlinkedNozzlesFromXml(element))
 				return true;
 		}
 		return false;
@@ -1109,7 +1111,8 @@ bool Diagram::hasSymbolChoices() const
 		return element && (!element->optionChoices().isEmpty()
 						   || !element->nozzleDiameters().isEmpty()
 						   || !element->nozzleConnections().isEmpty()
-						   || !element->nozzleMarks().isEmpty());
+						   || !element->nozzleMarks().isEmpty()
+						   || element->unlinkedNozzles());
 	});
 }
 

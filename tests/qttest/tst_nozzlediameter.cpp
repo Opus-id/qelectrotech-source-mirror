@@ -887,8 +887,8 @@ class tst_nozzlediameter : public QObject
 
 				// its tab: one greyed field showing it, and no box
 			ElementNozzlesWidget tab(end);
-			QVERIFY(!tab.sameConnectionBox());
-			QVERIFY(!tab.sameSizeBox());
+			QVERIFY(!tab.sameConnectionLink());
+			QVERIFY(!tab.sameSizeLink());
 			QVERIFY(!tab.fieldFor(QStringLiteral("N1"))->parentWidget()->isEnabled());
 			QCOMPARE(tab.fieldFor(QStringLiteral("N1"))->placeholderText(), QStringLiteral("DN 80"));
 			QVERIFY(tab.connectionFor(QStringLiteral("N1"))->isEnabled());
@@ -926,8 +926,8 @@ class tst_nozzlediameter : public QObject
 				ElementNozzlesWidget tab(valve);
 				tab.setLiveEdit(true);
 					// one connection for all, but no "one size for all"
-				QVERIFY(tab.sameConnectionBox());
-				QVERIFY(!tab.sameSizeBox());
+				QVERIFY(tab.sameConnectionLink());
+				QVERIFY(!tab.sameSizeLink());
 				QVERIFY(!tab.fieldFor(n1)->parentWidget()->isEnabled());
 				QVERIFY(!tab.fieldFor(n2)->parentWidget()->isEnabled());
 				QVERIFY(tab.fieldFor(n1)->text().isEmpty());
@@ -949,7 +949,7 @@ class tst_nozzlediameter : public QObject
 				QComboBox *connection = tab.connectionFor(n1);
 				const int flange = connection->findData(int(PipeConnection::Flange));
 				QVERIFY(flange >= 0);
-				tab.sameConnectionBox()->setChecked(false);
+				tab.sameConnectionLink()->setChecked(false);
 				connection->setCurrentIndex(flange);
 				emit connection->activated(flange);
 				QCOMPARE(terminal(valve, n1)->connection(), PipeConnection::Flange);
@@ -1701,7 +1701,7 @@ class tst_nozzlediameter : public QObject
 			ElementNozzlesWidget tab(reducer);
 			tab.setLiveEdit(true);
 				// the sides of a reducer differ by nature: no box for one size
-			QVERIFY(!tab.sameSizeBox());
+			QVERIFY(!tab.sameSizeLink());
 			QLineEdit *field = tab.fieldFor(QStringLiteral("N2"));
 			QVERIFY(field);
 			const int steps = folio->undoStack().count();
@@ -2113,6 +2113,8 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(reducer);
 			const NozzleDiameters given = dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 80}});
 			reducer->setNozzleDiameters(given);
+				// a link undone goes with them (5l-1b-bis)
+			reducer->setUnlinkedNozzles(NozzleLink::Mark);
 
 				// a copy dropped far from it, alone
 			{
@@ -2139,12 +2141,14 @@ class tst_nozzlediameter : public QObject
 				}
 				QVERIFY(copy);
 				QCOMPARE(copy->nozzleDiameters(), given);
+				QVERIFY(copy->unlinkedNozzles() == NozzleLinks(NozzleLink::Mark));
 			}
 
-				// another type: the sizes stay
+				// another type: the sizes stay, and the link undone
 			folio->undoStack().push(new ChangeElementLocationCommand(reducer, eccentric));
 			QVERIFY(reducer->isReducer());
 			QCOMPARE(reducer->nozzleDiameters(), given);
+			QVERIFY(reducer->unlinkedNozzles() == NozzleLinks(NozzleLink::Mark));
 			QCOMPARE(terminal(reducer, QStringLiteral("N2"))->diameter().value(), 80.0);
 		}
 

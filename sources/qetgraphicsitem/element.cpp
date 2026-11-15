@@ -664,6 +664,21 @@ void Element::setNozzleMarks(const NozzleMarks &marks)
 }
 
 /**
+	@brief Element::setUnlinkedNozzles
+	Say which links of the tab of its nozzles the user undid: kept undone
+	even when its nozzles are alike. Nothing drawn changes.
+	@param unlinked
+*/
+void Element::setUnlinkedNozzles(NozzleLinks unlinked)
+{
+	if (unlinked == m_unlinked_nozzles) {
+		return;
+	}
+	m_unlinked_nozzles = unlinked;
+	emit nozzleDiametersChanged();
+}
+
+/**
 	@brief Element::isPipeInline
 	@return true if a line runs through this symbol, as through a valve: the
 	symbol says so and has two nozzles. A three-way valve joins lines, as a tee.
@@ -768,6 +783,28 @@ NozzleMarks Element::nozzleMarksFromXml(const QDomElement &element)
 		}
 	}
 	return marks;
+}
+
+/**
+	@brief Element::unlinkedNozzlesFromXml
+	@param element : an <element> of a project
+	@return the links its <pid_nozzles> block says are undone: same_connection,
+	same_size, same_mark written "false"; any other value is linked
+*/
+NozzleLinks Element::unlinkedNozzlesFromXml(const QDomElement &element)
+{
+	NozzleLinks unlinked;
+	const QDomElement nozzles = element.firstChildElement(QStringLiteral("pid_nozzles"));
+	if (nozzles.isNull()) {
+		return unlinked;
+	}
+	const auto undone = [&nozzles](const char *name) {
+		return nozzles.attribute(QLatin1String(name)) == QLatin1String("false");
+	};
+	if (undone("same_connection")) unlinked |= NozzleLink::Connection;
+	if (undone("same_size")) unlinked |= NozzleLink::Size;
+	if (undone("same_mark")) unlinked |= NozzleLink::Mark;
+	return unlinked;
 }
 
 /**
@@ -2223,6 +2260,7 @@ bool Element::fromXml(QDomElement &e,
 	setNozzleDiameters(nozzleDiametersFromXml(e));
 	setNozzleConnections(nozzleConnectionsFromXml(e));
 	setNozzleMarks(nozzleMarksFromXml(e));
+	setUnlinkedNozzles(unlinkedNozzlesFromXml(e));
 
 		//Last, so that the texts and groups loaded above are kept readable
 	const QString mirror = e.attribute(QStringLiteral("mirror"));
@@ -2368,16 +2406,24 @@ QDomElement Element::toXml(
 		element.appendChild(options);
 
 		//The diameters, connections and choices of marks given to its
-		//nozzles; none written for an element that keeps those of its
-		//symbol and its project, which saves as before
+		//nozzles, and the links of their tab undone; none written for an
+		//element that keeps those of its symbol and its project, which
+		//saves as before
 	if (!m_nozzle_diameters.isEmpty() || !m_nozzle_connections.isEmpty()
-		|| !m_nozzle_marks.isEmpty())
+		|| !m_nozzle_marks.isEmpty() || m_unlinked_nozzles)
 	{
 		QStringList names = m_nozzle_diameters.keys() + m_nozzle_connections.keys()
 							+ m_nozzle_marks.keys();
 		names.sort();
 		names.removeDuplicates();
 		QDomElement nozzles = document.createElement(QStringLiteral("pid_nozzles"));
+			//Written only undone: linked is what an element says nothing of
+		if (m_unlinked_nozzles.testFlag(NozzleLink::Connection))
+			nozzles.setAttribute(QStringLiteral("same_connection"), QStringLiteral("false"));
+		if (m_unlinked_nozzles.testFlag(NozzleLink::Size))
+			nozzles.setAttribute(QStringLiteral("same_size"), QStringLiteral("false"));
+		if (m_unlinked_nozzles.testFlag(NozzleLink::Mark))
+			nozzles.setAttribute(QStringLiteral("same_mark"), QStringLiteral("false"));
 		for (const QString &name : std::as_const(names))
 		{
 			QDomElement nozzle = document.createElement(QStringLiteral("nozzle"));

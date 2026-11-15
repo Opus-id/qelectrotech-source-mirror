@@ -21,6 +21,7 @@
 #include "pipediameter.h"
 
 #include <QCoreApplication>
+#include <QFlags>
 #include <QList>
 #include <QMap>
 #include <QPainterPath>
@@ -341,5 +342,15 @@ using NozzleConnections = QMap<QString, PipeConnection::Type>;
 	/// Whether the nozzles of a placed element draw the mark of their
 	/// connection, by name of nozzle; none means as the project says
 using NozzleMarks = QMap<QString, PipeConnection::MarkChoice>;
+
+	/// What the first nozzle of a placed element gives the others in the
+	/// tab of its nozzles, each a link of the tab: its connection, its size,
+	/// the drawing of its connection
+enum class NozzleLink { Connection = 0x1, Size = 0x2, Mark = 0x4 };
+	/// The links of the tab of the nozzles of a placed element the user
+	/// undid (<pid_nozzles same_connection="false">...): kept undone even
+	/// when the nozzles are alike; one not set is linked when they are
+Q_DECLARE_FLAGS(NozzleLinks, NozzleLink)
+Q_DECLARE_OPERATORS_FOR_FLAGS(NozzleLinks)
 
 #endif
