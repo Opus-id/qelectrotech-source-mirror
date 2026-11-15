@@ -300,6 +300,12 @@ class Element : public QetGraphicsItem
 		bool isFreeEnd() const {
 			return m_data.m_pid_role == QLatin1String("free_end");
 		}
+			/// True for a spec break (pid_role="spec_break"): the mark where
+			/// the material, piping class and nominal pressure of a line
+			/// change; its size goes on through it
+		bool isSpecBreak() const {
+			return m_data.m_pid_role == QLatin1String("spec_break");
+		}
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// The colour of the label of this symbol when the project draws

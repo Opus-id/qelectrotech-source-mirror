@@ -1583,6 +1583,12 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(none != scene.elementData());
 			scene.setElementData(none);
 			QVERIFY(!scene.toXml().documentElement().hasAttribute(QStringLiteral("pid_role")));
+				// the list offers the spec break (step 5l-1l), written as such
+			QVERIFY(role->findData(QStringLiteral("spec_break")) >= 0);
+			role->setCurrentIndex(role->findData(QStringLiteral("spec_break")));
+			scene.setElementData(block.applyTo(scene.elementData()));
+			QCOMPARE(scene.toXml().documentElement().attribute(QStringLiteral("pid_role")),
+					 QStringLiteral("spec_break"));
 
 				// another symbol has none
 			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666670}"), 0));
@@ -1972,6 +1978,105 @@ class tst_nozzlediameter : public QObject
 			ElementNozzlesWidget tank_tab(tank);
 			QVERIFY(tank_tab.followButtonFor(QStringLiteral("N1"))->isHidden());
 			QVERIFY(!tank_tab.followButtonFor(QStringLiteral("N2"))->isHidden());
+		}
+
+			// The two reaches of a line (step 5l-1l, l1): its size goes through
+			// valves, tees and spec breaks, and stops at reducers; its material,
+			// piping class and nominal pressure go through valves, tees and
+			// reducers, and stop at spec breaks. Equipment stops both.
+		void theSpecOfALineStopsAtSpecBreaksNotAtReducers()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			const ElementsLocation valve = addValve(project);
+			Element *left = place(folio, tank);
+			Element *v = place(folio, valve);
+			Element *tee = place(folio, addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" ")));
+			Element *below = place(folio, tank);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *spec_break = place(folio, addSymbol(
+						project, QStringLiteral("specbreak.elmt"),
+						QStringLiteral("{7b777777-7777-7777-7777-777777777771}"), 0,
+						QStringLiteral("pid_inline=\"true\" pid_family=\"pipe\" pid_role=\"spec_break\" ")));
+			Element *w = place(folio, valve);
+			Element *right = place(folio, tank);
+			QVERIFY(left && v && tee && below && reducer && spec_break && w && right);
+			QVERIFY(spec_break->isSpecBreak());
+			QVERIFY(!spec_break->isReducer() && !reducer->isSpecBreak() && !v->isSpecBreak());
+				// apart: no nozzle against another
+			left->setPos(0, 200);
+			v->setPos(200, 200);
+			tee->setPos(400, 200);
+			below->setPos(400, 600);
+			reducer->setPos(600, 200);
+			spec_break->setPos(800, 200);
+			w->setPos(1000, 200);
+			right->setPos(1200, 200);
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), v, QStringLiteral("N1"));
+			Conductor *p2 = connect(folio, v, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+			Conductor *branch = connect(folio, tee, QStringLiteral("N3"), below, QStringLiteral("N1"));
+			Conductor *p3 = connect(folio, tee, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *p4 = connect(folio, reducer, QStringLiteral("N2"), spec_break, QStringLiteral("N1"));
+			Conductor *p5 = connect(folio, spec_break, QStringLiteral("N2"), w, QStringLiteral("N1"));
+			Conductor *p6 = connect(folio, w, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(p1 && p2 && branch && p3 && p4 && p5 && p6);
+			auto set = [](const QList<Conductor *> &run) {
+				return QSet<Conductor *>(run.cbegin(), run.cend());
+			};
+			using Reach = Conductor::LineReach;
+
+				// the size: through the valve and the tee, stopped by the reducer
+			QVERIFY(set(p1->inlineRun()) == (QSet<Conductor *>{p1, p2, branch, p3}));
+			QVERIFY(set(p1->inlineRun(Reach::Size)) == set(p1->inlineRun()));
+				// through the spec break, stopped by the reducer and the tank
+			QVERIFY(set(p5->inlineRun(Reach::Size)) == (QSet<Conductor *>{p4, p5, p6}));
+				// the spec: through the reducer too, stopped by the spec break
+			QVERIFY(set(p1->inlineRun(Reach::Spec)) == (QSet<Conductor *>{p1, p2, branch, p3, p4}));
+			QVERIFY(set(p4->inlineRun(Reach::Spec)) == (QSet<Conductor *>{p1, p2, branch, p3, p4}));
+			QVERIFY(set(branch->inlineRun(Reach::Spec)) == set(p1->inlineRun(Reach::Spec)));
+				// the other side of the spec break: stopped by it and by the tank
+			QVERIFY(set(p5->inlineRun(Reach::Spec)) == (QSet<Conductor *>{p5, p6}));
+			QCOMPARE(p6->inlineRun(Reach::Spec).first(), p6);
+		}
+
+			// A spec break placed against a valve, without a pipe between them
+			// (step 5l-1j, j3): the size goes on through the contact, the spec
+			// does not
+		void aSpecBreakAgainstAValveStopsTheSpec()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *left = place(folio, tank);
+			Element *spec_break = place(folio, addSymbol(
+						project, QStringLiteral("specbreak.elmt"),
+						QStringLiteral("{7b777777-7777-7777-7777-777777777771}"), 0,
+						QStringLiteral("pid_inline=\"true\" pid_family=\"pipe\" pid_role=\"spec_break\" ")));
+			Element *valve = place(folio, addValve(project));
+			Element *right = place(folio, tank);
+			QVERIFY(left && spec_break && valve && right);
+			left->setPos(0, 200);
+			right->setPos(800, 200);
+				// the N1 of the valve on the N2 of the spec break
+			Terminal *n2 = terminal(spec_break, QStringLiteral("N2"));
+			Terminal *n1 = terminal(valve, QStringLiteral("N1"));
+			valve->setPos(valve->pos() + n2->dockConductor() - n1->dockConductor());
+			QCOMPARE(n1->contactNozzle(), n2);
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), spec_break, QStringLiteral("N1"));
+			Conductor *after = connect(folio, valve, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(before && after);
+			using Reach = Conductor::LineReach;
+			QCOMPARE(before->inlineRun(Reach::Size).size(), 2);
+			QVERIFY(before->inlineRun(Reach::Size).contains(after));
+			QCOMPARE(before->inlineRun(Reach::Spec), QList<Conductor *>{before});
+			QCOMPARE(after->inlineRun(Reach::Spec), QList<Conductor *>{after});
 		}
 
 			// A reducing tee is an equal tee with a reducer against its N3

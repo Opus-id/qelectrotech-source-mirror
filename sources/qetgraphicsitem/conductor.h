@@ -224,7 +224,11 @@ class Conductor : public QGraphicsObject
 			/// See the definition; to call again on a new pipe after giving
 			/// it other properties
 		void takeNozzleDiameter();
-		QList<Conductor *> inlineRun();
+			/// How far a line goes on through its symbols, see inlineRun():
+			/// what its size passes through, or what its material, piping
+			/// class and nominal pressure pass through
+		enum class LineReach { Size, Spec };
+		QList<Conductor *> inlineRun(LineReach reach = LineReach::Size);
 		void drawDiameterGaps(QPainter *painter) const;
 			/// What is wrong with the size of this pipe: a DN, or an outside
 			/// diameter, which is not one of the sizes of its material (a DN

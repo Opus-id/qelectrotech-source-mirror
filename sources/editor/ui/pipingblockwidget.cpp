@@ -52,7 +52,10 @@ PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 	m_role_cb = new QComboBox(this);
 	m_role_cb->setToolTip(PidToolTip::wrapped(tr("\"Reducer\": the size of the line changes at this symbol. Each of "
 							 "its nozzles takes the size of its pipe or a size of its own, and a "
-							 "change of size stops there. Tick no nozzle of the run of the line.")));
+							 "change of size stops there. Tick no nozzle of the run of the line. "
+							 "\"Spec break\": the material, piping class and nominal pressure of the "
+							 "line change at this symbol, its size goes on through it. Make it an "
+							 "in-line symbol.")));
 	grid->addWidget(m_role_cb, 3, 1);
 
 	for (QComboBox *list : {m_family_cb, m_role_cb}) {
@@ -103,6 +106,7 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 	m_role_cb->addItem(tr("None"), QString());
 	m_role_cb->addItem(tr("Reducer"), QStringLiteral("reducer"));
 	m_role_cb->addItem(tr("Free end"), QStringLiteral("free_end"));
+	m_role_cb->addItem(tr("Spec break"), QStringLiteral("spec_break"));
 		//A role the list does not know is kept as it is
 	if (!data.m_pid_role.isEmpty() && m_role_cb->findData(data.m_pid_role) < 0) {
 		m_role_cb->addItem(data.m_pid_role, data.m_pid_role);

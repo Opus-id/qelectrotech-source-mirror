@@ -3115,9 +3115,14 @@ void Conductor::updateFittings() const
 	a tee, which have no size of their own (Terminal::followsPipe()).
 	A nozzle of a run placed against the nozzle of another symbol, without a
 	pipe, continues through the run of that one (Terminal::contactNozzle()).
-	Reducers and equipment stop it.
+	@param reach : LineReach::Size, the pipes the size of this one passes
+	to: reducers and equipment stop it, a spec break (Element::isSpecBreak())
+	does not. LineReach::Spec, the pipes its material, piping class and
+	nominal pressure pass to: on through reducers too, from one side to the
+	other (Terminal::reducerOtherSide()); spec breaks and equipment stop it.
+	Pipes only: a signal line or a wire never goes on.
 */
-QList<Conductor *> Conductor::inlineRun()
+QList<Conductor *> Conductor::inlineRun(LineReach reach)
 {
 	QList<Conductor *> run{this};
 	QList<Terminal *> seen;
@@ -3129,7 +3134,22 @@ QList<Conductor *> Conductor::inlineRun()
 			continue;
 		}
 		seen << terminal;
-		for (Terminal *sibling : terminal->runSiblings())
+		QList<Terminal *> siblings = terminal->runSiblings();
+		if (reach == LineReach::Spec)
+		{
+			const Element *element = terminal->parentElement();
+				//The material of the line changes there
+			if (element && element->isSpecBreak()) {
+				continue;
+			}
+				//Only its size changes there
+			if (Terminal *other = terminal->reducerOtherSide()) {
+				if (!siblings.contains(other)) {
+					siblings << other;
+				}
+			}
+		}
+		for (Terminal *sibling : std::as_const(siblings))
 		{
 			if (seen.contains(sibling)) {
 				continue;
