@@ -143,6 +143,22 @@ class tst_nozzlediameter : public QObject
 						 QStringLiteral("pid_inline=\"true\" "));
 	}
 
+		// An injection lance: a line runs through N1 and N2, the reagent
+		// comes in by N3, left out of its run
+	static ElementsLocation addLance(QETProject &project)
+	{
+		return addSymbol(project, QStringLiteral("lance.elmt"),
+						 QStringLiteral("{7b888888-8888-8888-8888-888888888881}"), 0,
+						 QStringLiteral("pid_run=\"N1 N2\" three=\"true\" "));
+	}
+
+	static ElementsLocation addSpecBreak(QETProject &project)
+	{
+		return addSymbol(project, QStringLiteral("specbreak.elmt"),
+						 QStringLiteral("{7b777777-7777-7777-7777-777777777771}"), 0,
+						 QStringLiteral("pid_inline=\"true\" pid_family=\"pipe\" pid_role=\"spec_break\" "));
+	}
+
 	static Element *place(Diagram *folio, const ElementsLocation &location)
 	{
 		int state = 0;
@@ -2346,6 +2362,228 @@ class tst_nozzlediameter : public QObject
 			if (wire) {
 				QCOMPARE(wire->medium(), TerminalData::Electrical);
 				QVERIFY(data(wire).material.isEmpty());
+			}
+		}
+
+			// The fluid of a line (step 5l-1z): as its spec, through valves,
+			// tees (their branch too) and reducers, and through spec breaks
+			// too; equipment stops it, and an injection lance, whose reagent
+			// nozzle is out of its run
+		void theFluidGoesThroughSpecBreaksUpToEquipment()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			const ElementsLocation valve = addValve(project);
+			Element *left = place(folio, tank);
+			Element *v = place(folio, valve);
+			Element *tee = place(folio, addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" ")));
+			Element *below = place(folio, tank);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *spec_break = place(folio, addSpecBreak(project));
+			Element *lance = place(folio, addLance(project));
+			Element *dosing = place(folio, tank);
+			Element *right = place(folio, tank);
+			QVERIFY(left && v && tee && below && reducer && spec_break && lance && dosing && right);
+			QCOMPARE(lance->pipeRun().size(), 2);
+			left->setPos(0, 200);
+			v->setPos(200, 200);
+			tee->setPos(400, 200);
+			below->setPos(400, 600);
+			reducer->setPos(600, 200);
+			spec_break->setPos(800, 200);
+			lance->setPos(1000, 200);
+			dosing->setPos(1000, 600);
+			right->setPos(1200, 200);
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), v, QStringLiteral("N1"));
+			Conductor *p2 = connect(folio, v, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+			Conductor *branch = connect(folio, tee, QStringLiteral("N3"), below, QStringLiteral("N1"));
+			Conductor *p3 = connect(folio, tee, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *p4 = connect(folio, reducer, QStringLiteral("N2"), spec_break, QStringLiteral("N1"));
+			Conductor *p5 = connect(folio, spec_break, QStringLiteral("N2"), lance, QStringLiteral("N1"));
+			Conductor *reagent = connect(folio, dosing, QStringLiteral("N1"), lance, QStringLiteral("N3"));
+			Conductor *p6 = connect(folio, lance, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(p1 && p2 && branch && p3 && p4 && p5 && reagent && p6);
+			auto set = [](const QList<Conductor *> &run) {
+				return QSet<Conductor *>(run.cbegin(), run.cend());
+			};
+			using Reach = Conductor::LineReach;
+			const QSet<Conductor *> line{p1, p2, branch, p3, p4, p5, p6};
+
+				// the whole line, from anywhere on it, the branch included
+			for (Conductor *pipe : line) {
+				QVERIFY2(set(pipe->inlineRun(Reach::Fluid)) == line,
+						 qPrintable(QString::number(pipe->inlineRun(Reach::Fluid).size())));
+			}
+				// the reagent: stopped by the lance and the tank
+			QCOMPARE(reagent->inlineRun(Reach::Fluid), QList<Conductor *>{reagent});
+				// the spec is still stopped by the spec break
+			QVERIFY(set(p1->inlineRun(Reach::Spec)) == (QSet<Conductor *>{p1, p2, branch, p3, p4}));
+		}
+
+			// The fluid changed in the panel goes on along the whole line, in
+			// one step, and it is said; emptied, it is emptied on the whole
+			// line; the reagent of a lance keeps its own
+		void theFluidChangedInThePanelGoesOnTheWholeLine()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *left = place(folio, tank);
+			Element *v = place(folio, addValve(project));
+			Element *spec_break = place(folio, addSpecBreak(project));
+			Element *lance = place(folio, addLance(project));
+			Element *dosing = place(folio, tank);
+			Element *right = place(folio, tank);
+			QVERIFY(left && v && spec_break && lance && dosing && right);
+			left->setPos(0, 200);
+			v->setPos(200, 200);
+			spec_break->setPos(400, 200);
+			lance->setPos(600, 200);
+			dosing->setPos(600, 600);
+			right->setPos(800, 200);
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), v, QStringLiteral("N1"));
+			Conductor *p2 = connect(folio, v, QStringLiteral("N2"), spec_break, QStringLiteral("N1"));
+			Conductor *p3 = connect(folio, spec_break, QStringLiteral("N2"), lance, QStringLiteral("N1"));
+			Conductor *p4 = connect(folio, lance, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			Conductor *reagent = connect(folio, dosing, QStringLiteral("N1"), lance, QStringLiteral("N3"));
+			QVERIFY(p1 && p2 && p3 && p4 && reagent);
+			auto give = [](Conductor *pipe, const QString &fluid) {
+				ConductorProperties properties = pipe->properties();
+				properties.m_pipe.fluid = fluid;
+				pipe->setProperties(properties);
+			};
+			auto fluid = [](const Conductor *pipe) { return pipe->properties().m_pipe.fluid; };
+			give(p1, QStringLiteral("W01"));
+			give(p2, QStringLiteral("W01"));
+			give(p3, QStringLiteral("W02"));
+			give(reagent, QStringLiteral("R05"));
+
+			PipePropertiesWidget page({p1});
+			auto *fluid_list = page.findChild<QComboBox *>(QStringLiteral("fluid"));
+			QVERIFY(fluid_list);
+			auto type = [](QLineEdit *edit, const QString &text) {
+				edit->setText(text);
+				edit->setModified(true);
+				emit edit->editingFinished();
+			};
+			QUndoStack &stack = folio->undoStack();
+			const int steps = stack.count();
+			type(fluid_list->lineEdit(), QStringLiteral("W03"));
+			QCOMPARE(stack.count(), steps + 1);
+			for (Conductor *pipe : {p1, p2, p3, p4}) {
+				QCOMPARE(fluid(pipe), QStringLiteral("W03"));
+			}
+			QCOMPARE(fluid(reagent), QStringLiteral("R05"));
+				// said: three others, one fluid replaced, and what parts fluids
+			QVERIFY2(page.diameterMessage().contains(QStringLiteral("3 other pipe line(s)")),
+					 qPrintable(page.diameterMessage()));
+			QVERIFY2(page.diameterMessage().contains(QStringLiteral("another fluid (W01, W02)")),
+					 qPrintable(page.diameterMessage()));
+			QVERIFY(!page.diameterMessage().contains(QStringLiteral("spec break")));
+				// the material is not changed by it
+			QVERIFY(p1->properties().m_pipe.material.isEmpty());
+
+				// one step undoes it all
+			stack.undo();
+			QCOMPARE(fluid(p1), QStringLiteral("W01"));
+			QCOMPARE(fluid(p2), QStringLiteral("W01"));
+			QCOMPARE(fluid(p3), QStringLiteral("W02"));
+			QVERIFY(fluid(p4).isEmpty());
+			stack.redo();
+			QCOMPARE(fluid(p4), QStringLiteral("W03"));
+
+				// emptied: on the whole line too
+			type(fluid_list->lineEdit(), QString());
+			for (Conductor *pipe : {p1, p2, p3, p4}) {
+				QVERIFY(fluid(pipe).isEmpty());
+			}
+			QCOMPARE(fluid(reagent), QStringLiteral("R05"));
+
+				// from the reagent: that pipe only
+			PipePropertiesWidget reagent_page({reagent});
+			type(reagent_page.findChild<QComboBox *>(QStringLiteral("fluid"))->lineEdit(),
+				 QStringLiteral("R06"));
+			QCOMPARE(fluid(reagent), QStringLiteral("R06"));
+			QVERIFY(fluid(p4).isEmpty());
+			QVERIFY(reagent_page.diameterMessage().isEmpty());
+		}
+
+			// A new pipe takes the fluid of its line, through a spec break
+			// too; not through the reagent nozzle of a lance, nor across
+			// equipment; a pipe read from a file keeps its own; never a wire
+		void aNewPipeTakesTheFluidOfItsLine()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *left = place(folio, tank);
+			Element *spec_break = place(folio, addSpecBreak(project));
+			Element *lance = place(folio, addLance(project));
+			Element *dosing = place(folio, tank);
+			Element *right = place(folio, tank);
+			QVERIFY(left && spec_break && lance && dosing && right);
+			left->setPos(0, 200);
+			spec_break->setPos(200, 200);
+			lance->setPos(400, 200);
+			dosing->setPos(400, 600);
+			right->setPos(600, 200);
+			auto give = [](Conductor *pipe, const QString &fluid, const QString &material) {
+				ConductorProperties properties = pipe->properties();
+				properties.m_pipe.fluid = fluid;
+				properties.m_pipe.material = material;
+				pipe->setProperties(properties);
+			};
+			auto data = [](const Conductor *pipe) { return pipe->properties().m_pipe; };
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), spec_break, QStringLiteral("N1"));
+			QVERIFY(p1);
+			give(p1, QStringLiteral("W01"), QStringLiteral("M01"));
+
+				// across the spec break: the fluid, not the material
+			Conductor *p2 = connect(folio, spec_break, QStringLiteral("N2"), lance, QStringLiteral("N1"));
+			QVERIFY(p2);
+			QCOMPARE(data(p2).fluid, QStringLiteral("W01"));
+			QVERIFY(data(p2).material.isEmpty());
+				// through the lance
+			Conductor *p3 = connect(folio, lance, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(p3);
+			QCOMPARE(data(p3).fluid, QStringLiteral("W01"));
+				// the reagent: none
+			Conductor *reagent = connect(folio, lance, QStringLiteral("N3"), dosing, QStringLiteral("N1"));
+			QVERIFY(reagent);
+			QVERIFY(data(reagent).fluid.isEmpty());
+				// across the tank: none
+			Element *beyond_tank = place(folio, tank);
+			QVERIFY(beyond_tank);
+			beyond_tank->setPos(1000, 200);
+			Conductor *after_tank = connect(folio, right, QStringLiteral("N2"), beyond_tank, QStringLiteral("N1"));
+			QVERIFY(after_tank);
+			QVERIFY(data(after_tank).fluid.isEmpty());
+
+				// read from a file: its own data, an empty fluid too
+			give(p3, QString(), QString());
+			QHash<Terminal *, int> ids;
+			QDomDocument doc;
+			QDomElement saved = p3->toXml(doc, ids, {});
+			folio->removeItem(p3);
+			delete p3;
+			auto *again = new Conductor(terminal(lance, QStringLiteral("N2")), terminal(right, QStringLiteral("N1")));
+			QCOMPARE(again->properties().m_pipe.fluid, QStringLiteral("W01"));
+			again->fromXml(saved);
+			QVERIFY(again->properties().m_pipe.fluid.isEmpty());
+			delete again;
+
+				// a wire between two electrical terminals: nothing
+			Conductor *wire = connect(folio, dosing, QStringLiteral("E1"), right, QStringLiteral("E1"));
+			if (wire) {
+				QCOMPARE(wire->medium(), TerminalData::Electrical);
+				QVERIFY(data(wire).fluid.isEmpty());
 			}
 		}
 

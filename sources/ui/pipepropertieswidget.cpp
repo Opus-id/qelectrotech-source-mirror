@@ -240,8 +240,17 @@ void PipePropertiesWidget::buildUi()
 				 [](const PipeProperties &p) { return p.line_number; },
 				 [](PipeProperties &p, const QString &t) { p.line_number = t; });
 
+		//The same fluid on the whole line: on through spec breaks too, up to
+		//equipment and injection lances (step 5l-1z)
 	m_fluid = addListField(QStringLiteral("fluid"), tr("Fluid:"),
-						   [](PipeProperties &p, const QString &code) { p.fluid = code; });
+						   [](PipeProperties &p, const QString &code) { p.fluid = code; },
+						   [this](const QString &code) {
+		const QString note = lineNote([](const PipeProperties &p) { return p.fluid; },
+									  code, Reach::Fluid);
+		applyChange([code](PipeProperties &p) { p.fluid = code; }, Reach::Fluid);
+			//Said after the change, which clears what was said
+		m_refused = note;
+	});
 
 		//The material first: it gives the sizes
 	m_material = addListField(QStringLiteral("material"), tr("Material:"),
@@ -1147,8 +1156,9 @@ QList<Conductor *> PipePropertiesWidget::changedPipes(Reach reach) const
 {
 	QList<Conductor *> changed = pipes();
 	if (reach != Reach::Selection) {
-		const Conductor::LineReach line_reach = reach == Reach::Spec ? Conductor::LineReach::Spec
-																	 : Conductor::LineReach::Size;
+		const Conductor::LineReach line_reach = reach == Reach::Spec  ? Conductor::LineReach::Spec
+											  : reach == Reach::Fluid ? Conductor::LineReach::Fluid
+																	  : Conductor::LineReach::Size;
 		for (Conductor *pipe : pipes()) {
 			for (Conductor *next : pipe->inlineRun(line_reach)) {
 				if (!changed.contains(next)) {
@@ -1165,13 +1175,13 @@ QList<Conductor *> PipePropertiesWidget::changedPipes(Reach reach) const
 	See the declaration
 */
 QString PipePropertiesWidget::lineNote(const std::function<QString(const PipeProperties &)> &get,
-									   const QString &value) const
+									   const QString &value, Reach reach) const
 {
 	const QList<Conductor *> selected = pipes();
 	int changed = 0;
 	int replaced = 0;
 	QStringList values;
-	for (Conductor *pipe : changedPipes(Reach::Spec))
+	for (Conductor *pipe : changedPipes(reach))
 	{
 		if (selected.contains(pipe)) {
 			continue;
@@ -1195,7 +1205,12 @@ QString PipePropertiesWidget::lineNote(const std::function<QString(const PipePro
 	}
 	values.sort();
 	QString note = tr("%n other pipe line(s) of the line changed too.", "", changed);
-	if (replaced) {
+	if (replaced && reach == Reach::Fluid) {
+		note += QLatin1Char(' ')
+				+ tr("%n of them had another fluid (%1): only equipment or an injection lance "
+					 "keeps two fluids apart.", "", replaced)
+				  .arg(values.join(QStringLiteral(", ")));
+	} else if (replaced) {
 		note += QLatin1Char(' ')
 				+ tr("%n of them had another value (%1): a spec break keeps a part of a line "
 					 "from such a change.", "", replaced)

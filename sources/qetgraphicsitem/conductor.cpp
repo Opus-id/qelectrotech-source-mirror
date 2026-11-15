@@ -204,9 +204,10 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	line (step 5l-1l): each one it has not, from the nearest pipe which has
 	it, on the side of the nozzle it starts from first, then on the other,
 	as far as the spec of a line goes (LineReach::Spec: through valves, tees
-	and reducers, up to a spec break or equipment). Done once, when it is
-	connected: a pipe given data of its own afterwards (the halves of a pipe
-	cut, a pipe read from a file) keeps them, empty fields included.
+	and reducers, up to a spec break or equipment); its fluid the same way,
+	through spec breaks too (LineReach::Fluid, step 5l-1z). Done once, when
+	it is connected: a pipe given data of its own afterwards (the halves of a
+	pipe cut, a pipe read from a file) keeps them, empty fields included.
 */
 void Conductor::takeLineSpec()
 {
@@ -215,38 +216,41 @@ void Conductor::takeLineSpec()
 	}
 	ConductorProperties pipe = properties();
 	PipeProperties &data = pipe.m_pipe;
-	const QList<QString PipeProperties::*> fields{&PipeProperties::material,
-												 &PipeProperties::piping_class,
-												 &PipeProperties::nominal_pressure};
-	auto missing = [&data, &fields]() {
-		for (QString PipeProperties::*field : fields) {
-			if ((data.*field).isEmpty()) {
-				return true;
+		//Each field it has not, from the nearest pipe of the reach which has it
+	auto take = [this, &data](const QList<QString PipeProperties::*> &fields, LineReach reach) {
+		auto missing = [&data, &fields]() {
+			for (QString PipeProperties::*field : fields) {
+				if ((data.*field).isEmpty()) {
+					return true;
+				}
 			}
-		}
-		return false;
-	};
-	for (Terminal *end : {terminal1, terminal2})
-	{
-		if (!end || !missing()) {
-			continue;
-		}
-		const QList<Conductor *> side = runFrom({end}, LineReach::Spec);
-		for (QString PipeProperties::*field : fields)
+			return false;
+		};
+		for (Terminal *end : {terminal1, terminal2})
 		{
-			if (!(data.*field).isEmpty()) {
+			if (!end || !missing()) {
 				continue;
 			}
-			for (const Conductor *other : side) {
-				const QString &value = other->m_properties.m_pipe.*field;
-				if (other != this && other->m_properties.m_medium == TerminalData::Pipe
-					&& !value.isEmpty()) {
-					data.*field = value;
-					break;
+			const QList<Conductor *> side = runFrom({end}, reach);
+			for (QString PipeProperties::*field : fields)
+			{
+				if (!(data.*field).isEmpty()) {
+					continue;
+				}
+				for (const Conductor *other : side) {
+					const QString &value = other->m_properties.m_pipe.*field;
+					if (other != this && other->m_properties.m_medium == TerminalData::Pipe
+						&& !value.isEmpty()) {
+						data.*field = value;
+						break;
+					}
 				}
 			}
 		}
-	}
+	};
+	take({&PipeProperties::material, &PipeProperties::piping_class,
+		  &PipeProperties::nominal_pressure}, LineReach::Spec);
+	take({&PipeProperties::fluid}, LineReach::Fluid);
 	if (!(pipe == properties())) {
 		setProperties(pipe);
 	}
@@ -3265,6 +3269,9 @@ void Conductor::updateFittings() const
 	does not. LineReach::Spec, the pipes its material, piping class and
 	nominal pressure pass to: on through reducers too, from one side to the
 	other (Terminal::reducerOtherSide()); spec breaks and equipment stop it.
+	LineReach::Fluid, the pipes its fluid passes to: as the spec, on through
+	spec breaks too (step 5l-1z); equipment stops it, and so does a nozzle
+	left out of the run of its symbol (the reagent of an injection lance).
 	Pipes only: a signal line or a wire never goes on.
 */
 QList<Conductor *> Conductor::inlineRun(LineReach reach)
@@ -3290,11 +3297,11 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 		}
 		seen << terminal;
 		QList<Terminal *> siblings = terminal->runSiblings();
-		if (reach == LineReach::Spec)
+		if (reach != LineReach::Size)
 		{
 			const Element *element = terminal->parentElement();
-				//The material of the line changes there
-			if (element && element->isSpecBreak()) {
+				//The material of the line changes there, not its fluid
+			if (reach == LineReach::Spec && element && element->isSpecBreak()) {
 				continue;
 			}
 				//Only its size changes there

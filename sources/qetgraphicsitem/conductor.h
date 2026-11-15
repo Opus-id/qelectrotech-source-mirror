@@ -244,9 +244,10 @@ class Conductor : public QGraphicsObject
 			/// the material taken
 		void takeLineSpec();
 			/// How far a line goes on through its symbols, see inlineRun():
-			/// what its size passes through, or what its material, piping
-			/// class and nominal pressure pass through
-		enum class LineReach { Size, Spec };
+			/// what its size passes through, what its material, piping
+			/// class and nominal pressure pass through, or what its fluid
+			/// passes through
+		enum class LineReach { Size, Spec, Fluid };
 		QList<Conductor *> inlineRun(LineReach reach = LineReach::Size);
 		void drawDiameterGaps(QPainter *painter) const;
 			/// What is wrong with the size of this pipe: a DN, or an outside

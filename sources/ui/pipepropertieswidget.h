@@ -72,9 +72,10 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 
 	private:
 			/// Which pipes a change reaches: those selected; with them, those
-			/// their size passes to; or those their spec (material, piping
-			/// class, nominal pressure) passes to, see Conductor::inlineRun()
-		enum class Reach { Selection, Size, Spec };
+			/// their size passes to; those their spec (material, piping
+			/// class, nominal pressure) passes to; or those their fluid
+			/// passes to, see Conductor::inlineRun()
+		enum class Reach { Selection, Size, Spec, Fluid };
 
 		void buildUi();
 		QLineEdit *addTextField(const QString &name, const QString &label,
@@ -94,12 +95,13 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 						 Reach reach = Reach::Selection, QUndoCommand *parent = nullptr);
 			/// The pipes edited, and those @p reach adds to them
 		QList<Conductor *> changedPipes(Reach reach) const;
-			/// What is said when a change of the spec went beyond the pipes
-			/// selected: how many other pipes of the line it changed, and the
-			/// values @p get gave those it replaced; empty when it changed
-			/// none. To compute before the change, with the new @p value.
+			/// What is said when a change of the spec, or of the fluid with
+			/// @p reach Reach::Fluid, went beyond the pipes selected: how
+			/// many other pipes of the line it changed, and the values @p get
+			/// gave those it replaced; empty when it changed none. To compute
+			/// before the change, with the new @p value.
 		QString lineNote(const std::function<QString(const PipeProperties &)> &get,
-						 const QString &value) const;
+						 const QString &value, Reach reach = Reach::Spec) const;
 			/// Give the line of the pipes edited the DN @p nominal, in one
 			/// step: the pipes of the material @p material, when
 			/// @p one_material says the pipes edited have this one, take

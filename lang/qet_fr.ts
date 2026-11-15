@@ -14408,6 +14408,14 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
             <numerusform>Dont %n qui avaient une autre valeur (%1) : une rupture de spécification protège un tronçon d&apos;un tel changement.</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="1213"/>
+        <source>%n of them had another fluid (%1): only equipment or an injection lance keeps two fluids apart.</source>
+        <translation>
+            <numerusform>Dont %n qui avait un autre fluide (%1) : seuls un équipement ou une canne d&apos;injection séparent deux fluides.</numerusform>
+            <numerusform>Dont %n qui avaient un autre fluide (%1) : seuls un équipement ou une canne d&apos;injection séparent deux fluides.</numerusform>
+        </translation>
+    </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="306"/>
         <source>Pipe line</source>
