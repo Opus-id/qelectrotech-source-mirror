@@ -2232,6 +2232,123 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(p2->properties().m_pipe.line_number.isEmpty());
 		}
 
+			// A new pipe takes the material, piping class and nominal pressure
+			// of its line, the side it starts from first, before its size:
+			// the outside diameter is the one of that material (step 5l-1l,
+			// l5); not across a spec break; a pipe read from a file keeps its
+			// own data
+		void aNewPipeTakesTheSpecOfItsLine()
+		{
+			QETProject project;
+			PidCodification codification;
+				// DN 100 is a Ø 110 only
+			codification.materials = {plasticOf(QStringLiteral("M01"), {{1100, 100}})};
+			project.setPidCodification(codification);
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			const ElementsLocation valve = addValve(project);
+			const ElementsLocation break_symbol = addSymbol(
+						project, QStringLiteral("specbreak.elmt"),
+						QStringLiteral("{7b777777-7777-7777-7777-777777777771}"), 0,
+						QStringLiteral("pid_inline=\"true\" pid_family=\"pipe\" pid_role=\"spec_break\" "));
+			Element *left = place(folio, tank);
+			Element *v = place(folio, valve);
+			Element *right = place(folio, tank);
+			Element *v2 = place(folio, valve);
+			Element *far = place(folio, tank);
+			QVERIFY(left && v && right && v2 && far);
+			left->setPos(0, 200);
+			v->setPos(200, 200);
+			right->setPos(400, 200);
+			v2->setPos(600, 400);
+			far->setPos(800, 400);
+			auto give = [](Conductor *pipe, const QString &material, const QString &piping_class,
+						   const QString &pressure) {
+				ConductorProperties properties = pipe->properties();
+				properties.m_pipe.material = material;
+				properties.m_pipe.piping_class = piping_class;
+				properties.m_pipe.nominal_pressure = pressure;
+				pipe->setProperties(properties);
+			};
+			auto data = [](const Conductor *pipe) { return pipe->properties().m_pipe; };
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), v, QStringLiteral("N1"));
+			QVERIFY(p1);
+			give(p1, QStringLiteral("M01"), QStringLiteral("A1"), QString());
+			ConductorProperties sized = p1->properties();
+			sized.m_pipe.nominal = PipeDiameter::nominal(100);
+			sized.m_pipe.outside = PipeDiameter::outside(110);
+			p1->setProperties(sized);
+
+				// from the valve: the spec of the line, then its size
+			Conductor *fresh = connect(folio, v, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(fresh);
+			QCOMPARE(data(fresh).material, QStringLiteral("M01"));
+			QCOMPARE(data(fresh).piping_class, QStringLiteral("A1"));
+			QVERIFY(data(fresh).nominal_pressure.isEmpty());
+			QCOMPARE(dn(fresh), 100);
+			QCOMPARE(data(fresh).outside, PipeDiameter::outside(110));
+
+				// read from a file: its own data, an empty material too
+			give(fresh, QString(), QStringLiteral("A1"), QString());
+			QHash<Terminal *, int> ids;
+			QDomDocument doc;
+			QDomElement saved = fresh->toXml(doc, ids, {});
+			folio->removeItem(fresh);
+			delete fresh;
+			auto *again = new Conductor(terminal(v, QStringLiteral("N2")), terminal(right, QStringLiteral("N1")));
+			QCOMPARE(again->properties().m_pipe.material, QStringLiteral("M01"));
+			again->fromXml(saved);
+			QVERIFY(again->properties().m_pipe.material.isEmpty());
+			delete again;
+
+				// between two lines: the side it starts from first, the other
+				// for what that one has not
+			Conductor *q = connect(folio, v2, QStringLiteral("N2"), far, QStringLiteral("N1"));
+			QVERIFY(q);
+			give(q, QStringLiteral("M02"), QString(), QStringLiteral("PN16"));
+			Conductor *joined = connect(folio, v, QStringLiteral("N2"), v2, QStringLiteral("N1"));
+			QVERIFY(joined);
+			QCOMPARE(data(joined).material, QStringLiteral("M01"));
+			QCOMPARE(data(joined).piping_class, QStringLiteral("A1"));
+			QCOMPARE(data(joined).nominal_pressure, QStringLiteral("PN16"));
+
+				// from a spec break: none of the spec, but the size goes through
+			Element *other_left = place(folio, tank);
+			Element *mark = place(folio, break_symbol);
+			Element *other_right = place(folio, tank);
+			QVERIFY(other_left && mark && other_right);
+			other_left->setPos(0, 800);
+			mark->setPos(200, 800);
+			other_right->setPos(400, 800);
+			Conductor *r = connect(folio, other_left, QStringLiteral("N2"), mark, QStringLiteral("N1"));
+			QVERIFY(r);
+			give(r, QStringLiteral("M01"), QStringLiteral("A1"), QStringLiteral("PN10"));
+			setDn(r, 100);
+			Conductor *beyond = connect(folio, mark, QStringLiteral("N2"), other_right, QStringLiteral("N1"));
+			QVERIFY(beyond);
+			QVERIFY(data(beyond).material.isEmpty());
+			QVERIFY(data(beyond).piping_class.isEmpty());
+			QVERIFY(data(beyond).nominal_pressure.isEmpty());
+			QCOMPARE(dn(beyond), 100);
+
+				// between two tanks: nothing
+			Element *a = place(folio, tank);
+			Element *b = place(folio, tank);
+			QVERIFY(a && b);
+			a->setPos(0, 1200);
+			b->setPos(400, 1200);
+			Conductor *alone = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			QVERIFY(alone);
+			QVERIFY(data(alone).material.isEmpty());
+
+				// a wire between two electrical terminals: nothing
+			Conductor *wire = connect(folio, a, QStringLiteral("E1"), b, QStringLiteral("E1"));
+			if (wire) {
+				QCOMPARE(wire->medium(), TerminalData::Electrical);
+				QVERIFY(data(wire).material.isEmpty());
+			}
+		}
+
 			// A reducing tee is an equal tee with a reducer against its N3
 			// (step 5l-1j, j1): each side of the reducer sizes its own line,
 			// and a change of the main line does not go into the branch

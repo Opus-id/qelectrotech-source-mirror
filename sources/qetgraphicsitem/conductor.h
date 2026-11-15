@@ -224,6 +224,10 @@ class Conductor : public QGraphicsObject
 			/// See the definition; to call again on a new pipe after giving
 			/// it other properties
 		void takeNozzleDiameter();
+			/// See the definition; called by the constructor, before
+			/// takeNozzleDiameter(): the outside diameter is then the one of
+			/// the material taken
+		void takeLineSpec();
 			/// How far a line goes on through its symbols, see inlineRun():
 			/// what its size passes through, or what its material, piping
 			/// class and nominal pressure pass through
@@ -246,6 +250,9 @@ class Conductor : public QGraphicsObject
 	private:
 		void setUpConnectionForFormula(
 				QString old_formula, QString new_formula);
+			/// See inlineRun(): the pipes reached from @p starts only,
+			/// this one first, then the nearest first
+		QList<Conductor *> runFrom(const QList<Terminal *> &starts, LineReach reach);
 		autonum::sequentialNumbers m_autoNum_seq;
 
 	public:

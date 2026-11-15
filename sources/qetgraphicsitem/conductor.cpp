@@ -190,7 +190,64 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 			ConductorColorCodes::apply(*code, properties);
 		setProperties(properties);
 	}
+		//The spec of its line first: the outside diameter taken with the
+		//size is the one of its material
+	takeLineSpec();
 	takeNozzleDiameter();
+}
+
+/**
+	@brief Conductor::takeLineSpec
+	A new pipe takes the material, piping class and nominal pressure of its
+	line (step 5l-1l): each one it has not, from the nearest pipe which has
+	it, on the side of the nozzle it starts from first, then on the other,
+	as far as the spec of a line goes (LineReach::Spec: through valves, tees
+	and reducers, up to a spec break or equipment). Done once, when it is
+	connected: a pipe given data of its own afterwards (the halves of a pipe
+	cut, a pipe read from a file) keeps them, empty fields included.
+*/
+void Conductor::takeLineSpec()
+{
+	if (m_properties.m_medium != TerminalData::Pipe) {
+		return;
+	}
+	ConductorProperties pipe = properties();
+	PipeProperties &data = pipe.m_pipe;
+	const QList<QString PipeProperties::*> fields{&PipeProperties::material,
+												 &PipeProperties::piping_class,
+												 &PipeProperties::nominal_pressure};
+	auto missing = [&data, &fields]() {
+		for (QString PipeProperties::*field : fields) {
+			if ((data.*field).isEmpty()) {
+				return true;
+			}
+		}
+		return false;
+	};
+	for (Terminal *end : {terminal1, terminal2})
+	{
+		if (!end || !missing()) {
+			continue;
+		}
+		const QList<Conductor *> side = runFrom({end}, LineReach::Spec);
+		for (QString PipeProperties::*field : fields)
+		{
+			if (!(data.*field).isEmpty()) {
+				continue;
+			}
+			for (const Conductor *other : side) {
+				const QString &value = other->m_properties.m_pipe.*field;
+				if (other != this && other->m_properties.m_medium == TerminalData::Pipe
+					&& !value.isEmpty()) {
+					data.*field = value;
+					break;
+				}
+			}
+		}
+	}
+	if (!(pipe == properties())) {
+		setProperties(pipe);
+	}
 }
 
 /**
@@ -3124,9 +3181,19 @@ void Conductor::updateFittings() const
 */
 QList<Conductor *> Conductor::inlineRun(LineReach reach)
 {
+	return runFrom({terminal1, terminal2}, reach);
+}
+
+/**
+	@brief Conductor::runFrom
+	See the declaration: the walk of inlineRun(), breadth first, so that the
+	pipes come nearest first (takeLineSpec() relies on it)
+*/
+QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach reach)
+{
 	QList<Conductor *> run{this};
 	QList<Terminal *> seen;
-	QList<Terminal *> todo{terminal1, terminal2};
+	QList<Terminal *> todo = starts;
 	for (int i = 0 ; i < todo.size() ; ++i)
 	{
 		Terminal *terminal = todo.at(i);
