@@ -794,6 +794,9 @@ qet_add_app_test(tst_replacesymbols tst_replacesymbols.cpp)
 # Edit > Select the same symbols: the folio's symbols drawn from the
 # definition of a selected one, the rest deselected.
 qet_add_app_test(tst_selectsamesymbols tst_selectsamesymbols.cpp)
+# Edit > Selection > Select by criteria: a tree of categories (pipe lines
+# by size, fluid..., symbols by family), crossed branches, whole folio.
+qet_add_app_test(tst_selectbycriteria tst_selectbycriteria.cpp)
 # Duplicate repeating the move of the copy (a setting), and Ctrl+Shift+D
 qet_add_app_test(tst_duplicaterepeatmove tst_duplicaterepeatmove.cpp)
 qet_add_app_test(tst_terminalcolor tst_terminalcolor.cpp)

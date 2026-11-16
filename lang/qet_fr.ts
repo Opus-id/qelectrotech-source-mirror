@@ -14051,6 +14051,95 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
 </context>
 <context>
+    <name>SelectionCategories</name>
+    <message><source>Signal lines</source><translation>Lignes de signal</translation></message>
+    <message><source>Drive lines</source><translation>Lignes d&apos;entraînement</translation></message>
+    <message><source>Conductors</source><translation>Conducteurs</translation></message>
+    <message><source>Free texts</source><translation>Textes libres</translation></message>
+    <message><source>Symbol texts</source><translation>Textes de symboles</translation></message>
+    <message><source>Texts of lines and conductors</source><translation>Textes des lignes et conducteurs</translation></message>
+    <message><source>Images</source><translation>Images</translation></message>
+    <message><source>Shapes</source><translation>Formes</translation></message>
+    <message><source>Dimensions</source><translation>Cotes</translation></message>
+    <message><source>Tables</source><translation>Tableaux</translation></message>
+    <message><source>Terminal strips</source><translation>Borniers</translation></message>
+    <message><source>Other objects</source><translation>Autres objets</translation></message>
+    <message><source>Texts</source><translation>Textes</translation></message>
+    <message><source>Main flow line</source><translation>Ligne principale</translation></message>
+    <message><source>Secondary flow line</source><translation>Ligne secondaire</translation></message>
+    <message><source>Auxiliary system line</source><translation>Ligne auxiliaire</translation></message>
+    <message><source>By size</source><translation>Par taille</translation></message>
+    <message><source>No size</source><translation>Sans taille</translation></message>
+    <message><source>By fluid</source><translation>Par fluide</translation></message>
+    <message><source>No fluid</source><translation>Sans fluide</translation></message>
+    <message><source>By material</source><translation>Par matériau</translation></message>
+    <message><source>No material</source><translation>Sans matériau</translation></message>
+    <message><source>By line number</source><translation>Par numéro de ligne</translation></message>
+    <message><source>No line number</source><translation>Sans numéro de ligne</translation></message>
+    <message><source>By piping class</source><translation>Par classe de tuyauterie</translation></message>
+    <message><source>No piping class</source><translation>Sans classe de tuyauterie</translation></message>
+    <message><source>By nominal pressure</source><translation>Par pression nominale</translation></message>
+    <message><source>No nominal pressure</source><translation>Sans pression nominale</translation></message>
+    <message><source>By kind of line</source><translation>Par type de ligne</translation></message>
+    <message><source>By status of works</source><translation>Par statut de travaux</translation></message>
+    <message><source>By flow</source><translation>Par débit</translation></message>
+    <message><source>No flow</source><translation>Sans débit</translation></message>
+    <message><source>By spool</source><translation>Par numéro de tronçon</translation></message>
+    <message><source>No spool</source><translation>Sans numéro de tronçon</translation></message>
+    <message><source>By external finish</source><translation>Par finition extérieure</translation></message>
+    <message><source>No external finish</source><translation>Sans finition extérieure</translation></message>
+    <message><source>Pipe lines</source><translation>Tuyauteries</translation></message>
+    <message><source>Equipment</source><translation>Équipements</translation></message>
+    <message><source>Valves</source><translation>Robinetterie</translation></message>
+    <message><source>Instruments</source><translation>Instruments</translation></message>
+    <message><source>Pipe fittings (tee, reducer…)</source><translation>Accessoires de tuyauterie (Té, réduction…)</translation></message>
+    <message><source>Other symbols</source><translation>Autres symboles</translation></message>
+    <message><source>Symbols</source><translation>Symboles</translation></message>
+    <message><source>By functional unit</source><translation>Par unité fonctionnelle</translation></message>
+    <message><source>No functional unit</source><translation>Sans unité fonctionnelle</translation></message>
+</context>
+<context>
+    <name>SelectByCriteriaDialog</name>
+    <message><source>Select by criteria</source><translation>Sélection par critères</translation></message>
+    <message><source>What is checked is found; the action says what the selection becomes. A pipe line or a symbol is found when it is checked in every branch &quot;By…&quot; where something is checked.</source><translation>Ce qui est coché est trouvé ; l&apos;action dit ce que devient la sélection. Une tuyauterie ou un symbole est trouvé s&apos;il est coché dans chaque branche « Par… » où quelque chose est coché.</translation></message>
+    <message numerus="yes">
+        <source>the selection (%n)</source>
+        <translation>
+            <numerusform>la sélection (%n)</numerusform>
+            <numerusform>la sélection (%n)</numerusform>
+        </translation>
+    </message>
+    <message><source>the whole folio</source><translation>tout le folio</translation></message>
+    <message><source>Search in:</source><translation>Chercher dans :</translation></message>
+    <message><source>Replace</source><translation>Remplacer</translation></message>
+    <message><source>Add</source><translation>Ajouter</translation></message>
+    <message><source>Remove</source><translation>Retirer</translation></message>
+    <message><source>The selection becomes what is found</source><translation>La sélection devient ce qui est trouvé</translation></message>
+    <message><source>What is found is added to the selection</source><translation>Ce qui est trouvé est ajouté à la sélection</translation></message>
+    <message><source>What is found is taken out of the selection</source><translation>Ce qui est trouvé est retiré de la sélection</translation></message>
+    <message><source>Action:</source><translation>Action :</translation></message>
+    <message numerus="yes">
+        <source>%n found</source>
+        <translation>
+            <numerusform>%n trouvé</numerusform>
+            <numerusform>%n trouvés</numerusform>
+        </translation>
+    </message>
+    <message><source>Preview on the folio</source><translation>Aperçu sur le folio</translation></message>
+    <message><source>The selection of the folio follows the boxes as they are checked</source><translation>La sélection du folio suit les cases à mesure qu&apos;elles sont cochées</translation></message>
+    <message><source>Zoom on the selection</source><translation>Zoomer sur la sélection</translation></message>
+    <message><source>The view frames the objects kept each time they are selected</source><translation>La vue se cadre sur les objets gardés chaque fois qu&apos;ils sont sélectionnés</translation></message>
+    <message><source>Check all</source><translation>Tout cocher</translation></message>
+    <message><source>Uncheck all</source><translation>Tout décocher</translation></message>
+    <message numerus="yes">
+        <source>%n object(s) will be selected</source>
+        <translation>
+            <numerusform>%n objet sera sélectionné</numerusform>
+            <numerusform>%n objets seront sélectionnés</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>PidStatus</name>
     <message>
         <location filename="../sources/pidstatus.cpp" line="36"/>
@@ -18099,6 +18188,15 @@ Maintenir Ctrl pendant le déplacement pour placer librement.</translation>
         <location filename="../sources/qetdiagrameditor.cpp" line="1816"/>
         <source>Select the same symbols</source>
         <translation>Sélectionner les mêmes symboles</translation>
+    </message>
+    <message>
+        <source>Select by criteria…</source>
+        <translation>Sélection par critères…</translation>
+    </message>
+    <message>
+        <source>Keeps in the selection the categories checked in a list (pipe lines by size, symbols by family…); with nothing selected, lists the whole sheet</source>
+        <comment>status bar tip</comment>
+        <translation>Garde dans la sélection les catégories cochées dans une liste (tuyauteries par taille, symboles par famille…) ; sans sélection, liste tout le folio</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="1827"/>

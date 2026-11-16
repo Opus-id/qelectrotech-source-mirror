@@ -3386,6 +3386,21 @@ void Diagram::selectSameSymbols()
 }
 
 /**
+	@brief Diagram::selectExactly
+	Select @p items, and nothing else (Edit > Selection > Select by
+	criteria). An item of the list no longer on this diagram is left out:
+	only the items found on it once nothing is selected are selected.
+	@param items
+*/
+void Diagram::selectExactly(const QList<QGraphicsItem *> &items)
+{
+	const QSet<QGraphicsItem *> wanted(items.cbegin(), items.cend());
+	selectOnly([&wanted](QGraphicsItem *item) {
+		return wanted.contains(item);
+	});
+}
+
+/**
 	@brief Diagram::selectOnly
 	Select the items of this diagram @p wanted accepts, and nothing else,
 	then emit selectionChanged() once.

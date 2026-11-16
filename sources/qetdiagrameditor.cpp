@@ -86,6 +86,9 @@
 #include "ui/projectpropertiesdialog.h"
 #include "projectview.h"
 #include "qetproject.h"
+#include "pidcodification.h"
+#include "selectioncategories.h"
+#include "ui/selectbycriteriadialog.h"
 #include "qetgraphicsitem/ViewItem/qetgraphicstableitem.h"
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/dynamicelementtextitem.h"
@@ -1951,6 +1954,7 @@ void QETDiagramEditor::setUpActions()
 	QAction *select_all_conductors  = m_select_actions_group.addAction( QET::Icons::Conductor,      tr("Select all conductors") );
 	QAction *select_all_text_fields = m_select_actions_group.addAction( QET::Icons::PartTextField,  tr("Select all text fields") );
 	m_select_same_symbols = m_select_actions_group.addAction( QET::Icons::Element, tr("Select the same symbols") );
+	m_select_by_criteria = m_select_actions_group.addAction( QET::Icons::EditSelectAll, tr("Select by criteria…") );
 
 	ShortcutManager::instance().registerAction(select_all, "diagrameditor.select_all", tr("Diagram editors"), QKeySequence::SelectAll);
 	ShortcutManager::instance().registerAction(select_nothing, "diagrameditor.select_nothing", tr("Diagram editors"), QKeySequence::Deselect);
@@ -1960,6 +1964,7 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(select_all_conductors, "diagrameditor.select_all_conductors", tr("Diagram editors"), QKeySequence());
 	ShortcutManager::instance().registerAction(select_all_text_fields, "diagrameditor.select_all_text_fields", tr("Diagram editors"), QKeySequence());
 	ShortcutManager::instance().registerAction(m_select_same_symbols, "diagrameditor.select_same_symbols", tr("Diagram editors"), QKeySequence());
+	ShortcutManager::instance().registerAction(m_select_by_criteria, "diagrameditor.select_by_criteria", tr("Diagram editors"), QKeySequence());
 
 	select_all    ->setStatusTip( tr("Selects all elements on the sheet", "status bar tip") );
 	select_nothing->setStatusTip( tr("Deselect all elements on the sheet", "status bar tip") );
@@ -1967,6 +1972,7 @@ void QETDiagramEditor::setUpActions()
 	select_all_conductors ->setStatusTip( tr("Selects all conductors on the sheet, deselects the rest", "status bar tip") );
 	select_all_text_fields->setStatusTip( tr("Selects all text fields on the sheet, deselects the rest", "status bar tip") );
 	m_select_same_symbols ->setStatusTip( tr("Selects every symbol on the sheet of the same kind as a selected one, deselects the rest", "status bar tip") );
+	m_select_by_criteria    ->setStatusTip( tr("Keeps in the selection the categories checked in a list (pipe lines by size, symbols by family…); with nothing selected, lists the whole sheet", "status bar tip") );
 
 	select_all    ->setData("select_all");
 	select_nothing->setData("deselect");
@@ -1974,6 +1980,7 @@ void QETDiagramEditor::setUpActions()
 	select_all_conductors ->setData("select_all_conductors");
 	select_all_text_fields->setData("select_all_text_fields");
 	m_select_same_symbols ->setData("select_same_symbols");
+	m_select_by_criteria    ->setData("select_by_criteria");
 
 	connect(&m_select_actions_group, &QActionGroup::triggered, this, &QETDiagramEditor::selectGroupTriggered);
 
@@ -3530,6 +3537,97 @@ void QETDiagramEditor::selectGroupTriggered(QAction *action)
 		diagram->selectAllTextFields();
 	else if (value == "select_same_symbols")
 		diagram->selectSameSymbols();
+	else if (value == "select_by_criteria")
+		selectByCriteria(diagram);
+}
+
+/**
+	@brief QETDiagramEditor::selectByCriteria
+	Edit > Selection > Select by criteria: the categories of the
+	selection of @p diagram, or of the whole folio, in a tree of check
+	boxes (SelectByCriteriaDialog); what is found replaces the selection,
+	is added to it or taken out of it, and is framed in the view if asked,
+	by Apply, by the preview and by OK. Cancel puts back the selection and
+	the view of before.
+
+	The dialog is not modal: the folio can be zoomed and scrolled while it
+	is open. It closes, leaving the selection as it is, as soon as the
+	project changes (any step of its undo stack: the items listed may be
+	gone) or the folio or its view is closed. One at a time: the command
+	brings back the one open.
+*/
+void QETDiagramEditor::selectByCriteria(Diagram *diagram)
+{
+	if (m_criteria_dialog && m_criteria_dialog->isVisible()) {
+		m_criteria_dialog->raise();
+		m_criteria_dialog->activateWindow();
+		return;
+	}
+	DiagramView *view = currentDiagramView();
+	const QList<QGraphicsItem *> before = diagram->selectedItems();
+	const QList<QGraphicsItem *> all = SelectionCategories::folioItems(diagram);
+	if (all.isEmpty() || !view) {
+		return;
+	}
+	const QTransform transform = view->transform();
+	const QPointF center = view->mapToScene(view->viewport()->rect().center());
+
+	auto *dialog = new SelectByCriteriaDialog(
+		before, all,
+		diagram->project() ? diagram->project()->pidCodification() : PidCodification(),
+		this);
+	dialog->setAttribute(Qt::WA_DeleteOnClose);
+	m_criteria_dialog = dialog;
+	const QPointer<Diagram> folio(diagram);
+	const QPointer<DiagramView> shown(view);
+
+		//Only the items still on the folio are selected, and framed
+	const auto apply = [folio, shown](const QList<QGraphicsItem *> &items, bool zoom) {
+		if (!folio) {
+			return;
+		}
+		folio->selectExactly(items);
+		const QList<QGraphicsItem *> selected = folio->selectedItems();
+		if (!zoom || !shown || selected.isEmpty()) {
+			return;
+		}
+		QRectF frame;
+		for (QGraphicsItem *item : selected) {
+			frame |= item->sceneBoundingRect();
+		}
+			//Some room around, and not closer than a symbol fills the view
+		const QPointF middle = frame.center();
+		frame.setSize(frame.size().expandedTo(QSizeF(300, 200)) * 1.2);
+		frame.moveCenter(middle);
+		shown->zoomToRect(frame);
+	};
+	connect(dialog, &SelectByCriteriaDialog::applied, this, apply);
+	connect(dialog, &QDialog::accepted, this, [dialog, apply]() {
+		apply(dialog->resultItems(), dialog->zooms());
+	});
+	const QMetaObject::Connection restore =
+			connect(dialog, &QDialog::rejected, this, [folio, shown, before, transform, center]() {
+		if (folio) {
+			folio->selectExactly(before);
+		}
+		if (shown && shown->transform() != transform) {
+			shown->setTransform(transform);
+			shown->centerOn(center);
+			QMetaObject::invokeMethod(shown, [shown, center]() {
+				if (shown) shown->centerOn(center);
+			}, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(shown, "adjustGridToZoom", Qt::QueuedConnection);
+		}
+	});
+		//The folio changed or went: the list is no longer right
+	const auto give_up = [dialog, restore]() {
+		QObject::disconnect(restore);
+		dialog->close();
+	};
+	connect(&diagram->undoStack(), &QUndoStack::indexChanged, dialog, give_up);
+	connect(diagram, &QObject::destroyed, dialog, give_up);
+	connect(view, &QObject::destroyed, dialog, give_up);
+	dialog->show();
 }
 
 /**

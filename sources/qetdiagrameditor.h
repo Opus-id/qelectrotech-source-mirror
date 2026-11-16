@@ -162,6 +162,7 @@ class QETDiagramEditor : public QETMainWindow
 		bool closeProject(QETProject *);
 		void zoomGroupTriggered      (QAction *action);
 		void selectGroupTriggered    (QAction *action);
+		void selectByCriteria(Diagram *diagram);
 		void addItemGroupTriggered   (QAction *action);
 		void selectionGroupTriggered (QAction *action);
 		void alignGroupTriggered     (QAction *action);
@@ -266,6 +267,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_show_as_dot = nullptr,	///< Draw the selected T-junctions as a dot
 		*m_replace_symbols = nullptr,	///< Replace the selected symbols by one from a collection
 		*m_select_same_symbols = nullptr,	///< Select the symbols of the same kind as a selected one
+		*m_select_by_criteria = nullptr,	///< Keep in the selection the categories checked in a tree
 		*m_add_pipe = nullptr;		///< Draw pipes from nozzle to nozzle (P&ID)
 		
 		QActionGroup
@@ -454,6 +456,8 @@ class QETDiagramEditor : public QETMainWindow
 		QList<QAction *> m_script_actions;	///< One per stored script, rebuilt when the folder changes
 		bool m_had_scripts = false;
 		QPointer<QDialog> m_script_manager;
+			/// Select by criteria, open beside the folio (not modal)
+		QPointer<QDialog> m_criteria_dialog;
 #endif
 		
 		QUndoGroup undo_group;

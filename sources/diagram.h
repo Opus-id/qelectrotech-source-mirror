@@ -486,6 +486,7 @@ class Diagram : public QGraphicsScene
 		void selectAllConductors();
 		void selectAllTextFields();
 		void selectSameSymbols();
+		void selectExactly(const QList<QGraphicsItem *> &items);
 		void completeGroupSelection();
 
 	signals:

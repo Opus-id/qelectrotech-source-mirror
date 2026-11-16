@@ -3354,6 +3354,8 @@ QList<QAction *> DiagramView::contextMenuActions() const
 			list << m_separators.at(1);
 			list << qde->m_edit_diagram_properties;
 			list << qde->m_row_column_menu->menuAction();
+				//Nothing selected: the filter lists the whole folio
+			list << qde->m_select_by_criteria;
 		}
 		else
 		{
@@ -3385,6 +3387,9 @@ QList<QAction *> DiagramView::contextMenuActions() const
 			list << m_status_menu->menuAction();
 			list << qde->m_conductor_reset;
 			list << qde->m_select_same_symbols;
+			if (selected_items.size() > 1) {
+				list << qde->m_select_by_criteria;
+			}
 			list << qde->m_show_as_dot;
 			list << qde->m_replace_symbols;
 			list << m_separators.at(1);

@@ -241,6 +241,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidtag.h
   ${QET_DIR}/sources/pidstatus.cpp
   ${QET_DIR}/sources/pidstatus.h
+  ${QET_DIR}/sources/selectioncategories.cpp
+  ${QET_DIR}/sources/selectioncategories.h
   ${QET_DIR}/sources/pidtee.cpp
   ${QET_DIR}/sources/pidtee.h
   ${QET_DIR}/sources/pidfreeend.cpp
@@ -985,6 +987,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/multielementinfowidget.h
   ${QET_DIR}/sources/ui/pipepropertieswidget.cpp
   ${QET_DIR}/sources/ui/pipepropertieswidget.h
+  ${QET_DIR}/sources/ui/selectbycriteriadialog.cpp
+  ${QET_DIR}/sources/ui/selectbycriteriadialog.h
   ${QET_DIR}/sources/ui/configpage/pidconfigpage.cpp
   ${QET_DIR}/sources/ui/configpage/pidconfigpage.h
   ${QET_DIR}/sources/ui/terminalnumberingdialog.cpp
