@@ -2773,11 +2773,7 @@ QList <QPair <Terminal *, Terminal *> > Element::AlignedFreeTerminals() const
 			if (other_terminal
 				&& terminal->hasRoomForWire()
 				&& other_terminal->hasRoomForWire()
-				&& terminal->sameMediumAs(other_terminal)
-					//Two nozzles against each other touch: no pipe of no
-					//length between them (P&ID, 5l-1c)
-				&& !(terminal->medium() == TerminalData::Pipe
-					 && terminal->dockConductor() == other_terminal->dockConductor()))
+				&& terminal->sameMediumAs(other_terminal))
 				list << qMakePair(terminal, other_terminal);
 		}
 	}

@@ -75,6 +75,12 @@ PidNozzleMagnet::Snap PidNozzleMagnet::find(const QList<Element *> &moved, qreal
 					|| !own->sameMediumAs(other) || !faces(own, other)) {
 					continue;
 				}
+					//Against a nozzle of a symbol left in place, it is taken:
+					//two symbols against each other are joined, with no pipe
+				const Terminal *contact = other->contactNozzle();
+				if (contact && !moved.contains(contact->parentElement())) {
+					continue;
+				}
 				const qreal distance = QLineF(dock, other->dockConductor()).length();
 				if (distance > radius) {
 					continue;

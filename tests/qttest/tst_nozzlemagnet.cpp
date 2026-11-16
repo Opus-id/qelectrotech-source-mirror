@@ -217,6 +217,29 @@ class tst_nozzlemagnet : public QObject
 			QVERIFY(PidNozzleMagnet::find({wire2}, 20).isNull());
 		}
 
+			// Two symbols against each other are joined, with no pipe: a
+			// third one is not drawn to their nozzles in contact (essai 5 of
+			// the user, 16/11); the one dragged away from its partner is
+			// still drawn back to it within the radius
+		void aNozzleAgainstAnotherDoesNotCatch()
+		{
+			const qreal y = nextRow();
+			Element *a = place(m_pipe, QPointF(0, y));
+			Element *b = place(m_pipe, QPointF(20, y));
+			QVERIFY(a && b);
+			QVERIFY(east(a)->touchesNozzle());
+				// N2 of c, at (6, y + 15), faces N1 of b, at (10, y), 15.5
+				// away: taken, it touches N2 of a; N1 of a is 21.9 away
+			Element *c = place(m_pipe, QPointF(-4, y + 15));
+			QVERIFY(c);
+			QVERIFY(PidNozzleMagnet::find({c}, 20).isNull());
+				// b moved: N2 of a is free again, b comes back against it
+			b->QGraphicsItem::setPos(QPointF(26, y + 2));
+			const PidNozzleMagnet::Snap back = PidNozzleMagnet::find({b}, 20);
+			QVERIFY(!back.isNull());
+			QCOMPARE(back.target, east(a));
+		}
+
 			// The whole gesture: a symbol placed with the mouse
 		void aSymbolPlacedNearANozzleComesAgainstIt()
 		{
@@ -232,8 +255,11 @@ class tst_nozzlemagnet : public QObject
 			QVERIFY(east(a)->touchesNozzle());
 				// the marked nozzle is shown no more
 			QVERIFY(!PidNozzleMagnet::marked());
-				// no pipe of no length between them
-			QCOMPARE(west(b)->conductors().size(), 0);
+				// nothing drawn between them: no pipe, or the hidden one of no
+				// length of the automatic connection
+			for (const Conductor *pipe : west(b)->conductors()) {
+				QVERIFY(pipe->endsTouch());
+			}
 				// Shift held: where the mouse is, on the grid
 			const qreal y2 = nextRow();
 			Element *c = place(m_pipe, QPointF(3, y2));
@@ -243,10 +269,12 @@ class tst_nozzlemagnet : public QObject
 			QVERIFY(!west(d)->touchesNozzle());
 		}
 
-			// The automatic connection, both kinds: two nozzles against each
-			// other touch, no pipe of no length between them; a nozzle
-			// farther in line still gets its pipe
-		void twoNozzlesAgainstEachOtherGetNoPipe()
+			// The automatic connection, both kinds, as before the magnet: two
+			// nozzles brought against each other are joined by a hidden pipe
+			// of no length (Conductor::endsTouch()), which keeps the line
+			// whole when one of them is dragged away; a nozzle farther in
+			// line still gets its pipe
+		void theAutomaticConnectionJoinsNozzlesAgainstEachOther()
 		{
 			const bool auto_conductor = m_project->autoConductor();
 			const bool live = m_project->liveAutoConnect();
@@ -261,10 +289,19 @@ class tst_nozzlemagnet : public QObject
 				Element *b = placeWithMouse(m_pipe, QPointF(31, y + 2));
 				QVERIFY(b);
 				QVERIFY(west(b)->touchesNozzle());
-				QCOMPARE(west(b)->conductors().size(), 0);
-				QCOMPARE(east(a)->conductors().size(), 0);
+				QCOMPARE(west(b)->conductors().size(), 1);
+				QVERIFY(west(b)->conductors().first()->endsTouch());
+				QCOMPARE(east(a)->conductors().size(), 1);
 				QCOMPARE(east(b)->conductors().size(), 1);
 				QCOMPARE(west(far)->conductors().size(), 1);
+					// dragged away, Shift held: the pipe of the classic automatic
+					// connection stays and the line stays whole (the live one
+					// takes away a wire whose ends no longer face each other)
+				if (!live_mode) {
+					drag(b, QPointF(0, 60), Qt::ShiftModifier);
+					QCOMPARE(west(b)->conductors().size(), 1);
+					QVERIFY(!west(b)->conductors().first()->endsTouch());
+				}
 			}
 			m_project->setAutoConductor(auto_conductor);
 			m_project->setLiveAutoConnect(live);
