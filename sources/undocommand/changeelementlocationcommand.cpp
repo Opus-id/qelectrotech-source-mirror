@@ -18,6 +18,7 @@
 #include "changeelementlocationcommand.h"
 
 #include "../qetgraphicsitem/element.h"
+#include "fillunsizedpipescommand.h"
 
 ChangeElementLocationCommand::ChangeElementLocationCommand(
 		Element *element,
@@ -31,10 +32,15 @@ ChangeElementLocationCommand::ChangeElementLocationCommand(
 	m_old_nozzle_diameters(element->nozzleDiameters())
 {
 	setText(QObject::tr("Change the type of an element"));
+		//A size the new symbol gives a nozzle of equipment goes to the
+		//pipes without a size of its line, in the same step (step 5l-1aa)
+	new FillUnsizedPipesCommand(element, this);
 }
 
 void ChangeElementLocationCommand::undo()
 {
+		//The pipes filled first, then the symbol
+	QUndoCommand::undo();
 	if (m_element) {
 		m_element->changeLocation(m_old_location);
 		m_element->setNozzleDiameters(m_old_nozzle_diameters);
@@ -50,4 +56,6 @@ void ChangeElementLocationCommand::redo()
 	if (m_element) {
 		m_element->changeLocation(m_new_location);
 	}
+		//Then the pipes, from the sizes of the new symbol
+	QUndoCommand::redo();
 }

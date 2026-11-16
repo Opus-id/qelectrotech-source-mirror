@@ -41,6 +41,7 @@ class ConductorDefinitionMark;
 class Element;
 class QETDiagramEditor;
 class NumerotationContext;
+class PidCodification;
 class QetGraphicsHandlerItem;
 
 typedef QPair<QPointF, Qt::Corner> ConductorBend;
@@ -239,6 +240,13 @@ class Conductor : public QGraphicsObject
 			/// See the definition; to call again on a new pipe after giving
 			/// it other properties
 		void takeNozzleDiameter();
+			/// Give @p data the size @p taken of a nozzle, as a new pipe
+			/// takes it (takeNozzleDiameter()): a DN as the material of the
+			/// pipe has it (DN 65 → DN 60), with its only outside diameter or
+			/// the default one; an outside diameter with its DN; a thread as
+			/// its DN of the fixed table. Never a question. Nothing for none.
+		static void giveNozzleSize(PipeProperties &data, PipeDiameter taken,
+								   const PidCodification &codes);
 			/// See the definition; called by the constructor, before
 			/// takeNozzleDiameter(): the outside diameter is then the one of
 			/// the material taken
@@ -249,6 +257,11 @@ class Conductor : public QGraphicsObject
 			/// passes through, its line number, or its flow
 		enum class LineReach { Size, Spec, Fluid, LineNumber, Flow };
 		QList<Conductor *> inlineRun(LineReach reach = LineReach::Size);
+			/// This pipe, when it has no size, and the pipes without a size
+			/// its size would pass to (inlineRun(), LineReach::Size): a pipe
+			/// which has a size stops the walk as a reducer or equipment do.
+			/// None when this pipe has a size or is not a pipe (step 5l-1aa)
+		QList<Conductor *> unsizedRun();
 		void drawDiameterGaps(QPainter *painter) const;
 			/// What is wrong with the size of this pipe: a DN, or an outside
 			/// diameter, which is not one of the sizes of its material (a DN
@@ -275,8 +288,10 @@ class Conductor : public QGraphicsObject
 		void setUpConnectionForFormula(
 				QString old_formula, QString new_formula);
 			/// See inlineRun(): the pipes reached from @p starts only,
-			/// this one first, then the nearest first
-		QList<Conductor *> runFrom(const QList<Terminal *> &starts, LineReach reach);
+			/// this one first, then the nearest first; with @p unsized_only,
+			/// never through a pipe which has a size (unsizedRun())
+		QList<Conductor *> runFrom(const QList<Terminal *> &starts, LineReach reach,
+								   bool unsized_only = false);
 		autonum::sequentialNumbers m_autoNum_seq;
 
 	public:

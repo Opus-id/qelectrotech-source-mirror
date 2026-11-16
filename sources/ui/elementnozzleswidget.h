@@ -22,6 +22,7 @@
 #include "../pidcodification.h"
 #include "../pipeconnection.h"
 #include "../pipediameter.h"
+#include "../undocommand/fillunsizedpipescommand.h"
 
 #include <QList>
 #include <QMap>
@@ -73,6 +74,11 @@ class Terminal;
 	the reducer (the gap is marked). The size it has, typed again, chosen
 	again in the list or validated by Enter, gives the line this size back;
 	a field only entered and left changes nothing.
+
+	Any other nozzle with a size of its own (equipment) given a size, or the
+	same one typed again, gives it to the pipes without a size of its line,
+	in the same step, never replacing a size (FillUnsizedPipesCommand,
+	step 5l-1aa); the message says what their materials made of it.
 
 	At the end of the row of a nozzle given a size of its own, the button
 	"Follow the pipe" (an icon, so that the panel is not widened) empties it, with undo: the nozzle has the size of its
@@ -212,6 +218,12 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// typed again (m_typed), and which have a line to give it to;
 			/// none for any other element
 		QList<const Field *> resizedSides(const NozzleDiameters &diameters) const;
+			/// The nozzles, out of a reducer, which @p diameters give a
+			/// size of their own other than the one they have, or the one
+			/// they have typed again (m_typed), with this size: what they
+			/// give the pipes without a size of their lines (step 5l-1aa)
+		QList<FillUnsizedPipesCommand::NozzleSize> filledSizes(
+				const NozzleDiameters &diameters) const;
 			/// "Follow the pipe" clicked: @p field emptied, and those it
 			/// gives its size to when the box for one size is checked
 		void followPipe(const Field &field);

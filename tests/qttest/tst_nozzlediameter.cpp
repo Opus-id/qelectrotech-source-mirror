@@ -3730,6 +3730,284 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(tab.chosen().isEmpty());
 			QVERIFY(!tab.associatedUndo());
 		}
+
+			// ---- a size given to a nozzle of equipment once its pipes are drawn ----
+			// (step 5l-1aa) It goes to the pipes without a size of its line,
+			// through valves, up to equipment or a pipe which has a size,
+			// never replacing one, in the step which gives the nozzle its size
+		void aSizeTypedOnEquipmentFillsThePipesWithoutASize()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			const ElementsLocation valve_symbol = addValve(project);
+				// pump (N1 of DN 80, N2 without a size: not linked), valve,
+				// valve, equipment, end
+			Element *pump = place(folio, addTank(project));
+			Element *first = place(folio, valve_symbol);
+			Element *second = place(folio, valve_symbol);
+			Element *equipment = place(folio, plain);
+			Element *end = place(folio, plain);
+			QVERIFY(pump && first && second && equipment && end);
+			first->setPos(400, 200);
+			second->setPos(600, 200);
+			equipment->setPos(800, 200);
+			end->setPos(1000, 200);
+			Conductor *a = connect(folio, pump, QStringLiteral("N2"), first, QStringLiteral("N1"));
+			Conductor *b = connect(folio, first, QStringLiteral("N2"), second, QStringLiteral("N1"));
+			Conductor *c = connect(folio, second, QStringLiteral("N2"), equipment, QStringLiteral("N1"));
+			Conductor *d = connect(folio, equipment, QStringLiteral("N2"), end, QStringLiteral("N1"));
+				// on N2 of another pump: a pipe without a size, valve, a pipe
+				// of DN 65, valve, a pipe without a size, end
+			Element *other_pump = place(folio, addTank(project));
+			Element *third = place(folio, valve_symbol);
+			Element *fourth = place(folio, valve_symbol);
+			Element *other_end = place(folio, plain);
+			QVERIFY(other_pump && third && fourth && other_end);
+			other_pump->setPos(0, 600);
+			third->setPos(200, 600);
+			fourth->setPos(400, 600);
+			other_end->setPos(600, 600);
+			Conductor *e = connect(folio, other_pump, QStringLiteral("N2"), third, QStringLiteral("N1"));
+			Conductor *f = connect(folio, third, QStringLiteral("N2"), fourth, QStringLiteral("N1"));
+			Conductor *g = connect(folio, fourth, QStringLiteral("N2"), other_end, QStringLiteral("N1"));
+			QVERIFY(a && b && c && d && e && f && g);
+			setDn(f, 65);
+			for (Conductor *pipe : {a, b, c, d, e, g}) {
+				QVERIFY(!pipe->properties().m_pipe.hasSize());
+			}
+
+			ElementNozzlesWidget tab(pump);
+			tab.setLiveEdit(true);
+			const int steps = folio->undoStack().count();
+			QLineEdit *n2 = tab.fieldFor(QStringLiteral("N2"));
+			n2->setText(QStringLiteral("50"));
+			emit n2->textEdited(n2->text());
+			emit n2->editingFinished();
+			QCOMPARE(pump->nozzleDiameters().value(QStringLiteral("N2")), PipeDiameter::nominal(50));
+			QCOMPARE(dn(a), 50);
+			QCOMPARE(dn(b), 50);
+			QCOMPARE(dn(c), 50);
+				// stopped by the equipment
+			QCOMPARE(dn(d), 0);
+			QVERIFY(tab.message().contains(QStringLiteral("3")));
+			QCOMPARE(terminal(first, QStringLiteral("N1"))->diameter().value(), 50.0);
+			QVERIFY(!terminal(pump, QStringLiteral("N2"))->hasDiameterGap());
+				// one step, undone at once
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			QVERIFY(pump->nozzleDiameters().isEmpty());
+			for (Conductor *pipe : {a, b, c}) {
+				QVERIFY(!pipe->properties().m_pipe.hasSize());
+			}
+			folio->undoStack().redo();
+			QCOMPARE(dn(c), 50);
+
+				// the other pump: its pipe takes it, the pipe of DN 65 keeps
+				// its size and stops it; the gap is marked as before
+			ElementNozzlesWidget other_tab(other_pump);
+			other_tab.setLiveEdit(true);
+			QLineEdit *other_n2 = other_tab.fieldFor(QStringLiteral("N2"));
+			other_n2->setText(QStringLiteral("80"));
+			emit other_n2->textEdited(other_n2->text());
+			emit other_n2->editingFinished();
+			QCOMPARE(dn(e), 80);
+			QCOMPARE(dn(f), 65);
+			QCOMPARE(dn(g), 0);
+			QVERIFY(terminal(third, QStringLiteral("N1"))->hasDiameterGap()
+					|| terminal(third, QStringLiteral("N2"))->hasDiameterGap());
+
+				// another size on a nozzle whose pipes have one: none replaced
+			n2->setText(QStringLiteral("100"));
+			emit n2->textEdited(n2->text());
+			emit n2->editingFinished();
+			QCOMPARE(pump->nozzleDiameters().value(QStringLiteral("N2")), PipeDiameter::nominal(100));
+			QCOMPARE(dn(a), 50);
+			QCOMPARE(dn(c), 50);
+			QVERIFY(terminal(pump, QStringLiteral("N2"))->hasDiameterGap());
+
+				// a pipe emptied since, and the size typed again: filled again
+			setDn(a, 0);
+			setDn(b, 0);
+			setDn(c, 0);
+			n2->setText(QStringLiteral("100"));
+			emit n2->textEdited(n2->text());
+			emit n2->editingFinished();
+			QCOMPARE(dn(a), 100);
+			QCOMPARE(dn(c), 100);
+		}
+
+			// The case of the essay 6 of step 5l-1c: a valve placed against a
+			// pump, a pipe without a size on its other nozzle; DN 50 typed on
+			// the pump then: the pipe takes it
+		void aSizeTypedOnEquipmentGoesThroughAValveAgainstIt()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			Element *pump = place(folio, plain);
+			Element *valve = place(folio, addValve(project));
+			Element *far = place(folio, plain);
+			QVERIFY(pump && valve && far);
+			far->setPos(0, 200);
+			valve->setPos(160, 200);
+			QCOMPARE(terminal(valve, QStringLiteral("N2"))->contactNozzle(),
+					 terminal(pump, QStringLiteral("N1")));
+			Conductor *pipe = connect(folio, far, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			QVERIFY(pipe);
+			QCOMPARE(dn(pipe), 0);
+
+			ElementNozzlesWidget tab(pump);
+			tab.setLiveEdit(true);
+			const int steps = folio->undoStack().count();
+			QLineEdit *n1 = tab.fieldFor(QStringLiteral("N1"));
+			n1->setText(QStringLiteral("50"));
+			emit n1->textEdited(n1->text());
+			emit n1->editingFinished();
+			QCOMPARE(dn(pipe), 50);
+			QVERIFY(!terminal(pump, QStringLiteral("N1"))->hasDiameterGap());
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			QCOMPARE(dn(pipe), 0);
+			QVERIFY(pump->nozzleDiameters().isEmpty());
+		}
+
+			// Each pipe takes the size as a new pipe takes the size of its
+			// nozzle: a DN as its material has it, the only outside diameter
+			// of a plastic or its default one, none else; never a question,
+			// and said
+		void aSizeTypedOnEquipmentFillsPipesAsNewOnes()
+		{
+			QETProject project;
+			PidCodification codification;
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("M02");
+			steel.addSize(0, 65);
+			steel.addSize(0, 80);
+			steel.addSize(0, 100);
+				// DN 100 is a Ø 110 or a Ø 125, none by default
+			const PidCodification::Entry plastic = plasticOf(
+						QStringLiteral("M01"), {{900, 80}, {1100, 100}, {1250, 100}});
+				// the same, Ø 125 by default
+			PidCodification::Entry other = plasticOf(
+						QStringLiteral("M03"), {{900, 80}, {1100, 100}});
+			other.addSize(1250, 100, true);
+				// DN 60 where the others have DN 65
+			PidCodification::Entry iron;
+			iron.code = QStringLiteral("M04");
+			iron.addSize(0, 60);
+			iron.addSize(0, 80);
+			iron.addSize(0, 100);
+			codification.materials = {steel, plastic, other, iron};
+			codification.addEqualNominals(60, 65);
+			project.setPidCodification(codification);
+
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+			const ElementsLocation valve_symbol = addValve(project);
+			Diagram *folio = project.addNewDiagram();
+				// N2 of the tank has no size, and is not linked to N1
+			QList<Element *> symbols{place(folio, addTank(project))};
+			for (int i = 0 ; i < 3 ; ++i) {
+				symbols << place(folio, valve_symbol);
+			}
+			symbols << place(folio, plain);
+			QList<Conductor *> line;
+			const QStringList materials{QStringLiteral("M02"), QStringLiteral("M01"),
+										QStringLiteral("M03"), QStringLiteral("M04")};
+			for (int i = 0 ; i < symbols.size() ; ++i) {
+				QVERIFY(symbols.at(i));
+				symbols.at(i)->setPos(200 + 200 * i, 200);
+				if (i) {
+					Conductor *pipe = connect(folio, symbols.at(i - 1), QStringLiteral("N2"),
+											  symbols.at(i), QStringLiteral("N1"));
+					QVERIFY(pipe);
+					ConductorProperties properties = pipe->properties();
+					properties.m_pipe.material = materials.at(i - 1);
+					pipe->setProperties(properties);
+					line << pipe;
+				}
+			}
+			auto od = [](const Conductor *pipe) { return pipe->properties().m_pipe.outside; };
+
+			ElementNozzlesWidget tab(symbols.first());
+			tab.setLiveEdit(true);
+			QLineEdit *n2 = tab.fieldFor(QStringLiteral("N2"));
+			auto type = [n2](const QString &text) {
+				n2->setText(text);
+				emit n2->textEdited(n2->text());
+				emit n2->editingFinished();
+			};
+			type(QStringLiteral("100"));
+			for (Conductor *pipe : std::as_const(line)) {
+				QCOMPARE(dn(pipe), 100);
+			}
+			QVERIFY(!od(line.at(0)).isSet());
+				// several outside diameters, none by default: left empty, said
+			QVERIFY(!od(line.at(1)).isSet());
+			QVERIFY(tab.message().contains(QStringLiteral("M01")));
+				// the default one, said
+			QCOMPARE(od(line.at(2)), PipeDiameter::outside(125));
+			QVERIFY(tab.message().contains(QStringLiteral("M03")));
+			QVERIFY(!od(line.at(3)).isSet());
+
+				// DN 65 on a line without sizes: DN 60 on the cast iron, said
+			folio->undoStack().undo();
+			for (Conductor *pipe : std::as_const(line)) {
+				QVERIFY(!pipe->properties().m_pipe.hasSize());
+			}
+			type(QStringLiteral("65"));
+			QCOMPARE(dn(line.at(0)), 65);
+			QCOMPARE(dn(line.at(3)), 60);
+			QVERIFY(tab.message().contains(QStringLiteral("M04")));
+		}
+
+			// "Change type": a size the new symbol gives a nozzle of
+			// equipment goes to the pipes without a size of its line, in the
+			// step of the change
+		void aSizeBroughtByChangeTypeFillsThePipesWithoutASize()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(
+						project, QStringLiteral("plain.elmt"),
+						QStringLiteral("{7b444444-4444-4444-4444-444444444444}"), 0);
+				// the same nozzles, N1 of DN 80
+			const ElementsLocation tank = addTank(project);
+			Element *pump = place(folio, plain);
+			Element *left = place(folio, plain);
+			Element *right = place(folio, plain);
+			QVERIFY(pump && left && right);
+			left->setPos(0, 200);
+			right->setPos(400, 200);
+			Conductor *in = connect(folio, left, QStringLiteral("N2"), pump, QStringLiteral("N1"));
+			Conductor *out = connect(folio, pump, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(in && out);
+			QCOMPARE(dn(in), 0);
+			setDn(out, 65);
+
+			const int steps = folio->undoStack().count();
+			folio->undoStack().push(new ChangeElementLocationCommand(pump, tank));
+			QCOMPARE(terminal(pump, QStringLiteral("N1"))->diameter().value(), 80.0);
+			QCOMPARE(dn(in), 80);
+				// N2 has no size in either symbol: its pipe keeps its own
+			QCOMPARE(dn(out), 65);
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			folio->undoStack().undo();
+			QVERIFY(!terminal(pump, QStringLiteral("N1"))->ownDiameter().isSet());
+			QCOMPARE(dn(in), 0);
+			folio->undoStack().redo();
+			QCOMPARE(dn(in), 80);
+
+				// back to a symbol without a size: the pipe keeps its own
+			folio->undoStack().push(new ChangeElementLocationCommand(pump, plain));
+			QCOMPARE(dn(in), 80);
+		}
 };
 
 QET_APP_TEST_MAIN(tst_nozzlediameter)

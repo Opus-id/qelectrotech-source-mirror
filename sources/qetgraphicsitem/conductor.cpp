@@ -303,7 +303,23 @@ void Conductor::takeNozzleDiameter()
 															 : (terminal2 ? terminal2->diagram() : nullptr);
 	const PidCodification codes = folio && folio->project() ? folio->project()->pidCodification()
 															: PidCodification();
-	PipeProperties &data = pipe.m_pipe;
+	giveNozzleSize(pipe.m_pipe, taken, codes);
+	setProperties(pipe);
+}
+
+/**
+	@brief Conductor::giveNozzleSize
+	See the declaration
+*/
+void Conductor::giveNozzleSize(PipeProperties &data, PipeDiameter taken,
+							   const PidCodification &codes)
+{
+	if (taken.isThread()) {
+		taken = taken.threadNominal();
+	}
+	if (!taken.isSet()) {
+		return;
+	}
 	if (taken.isOutside())
 	{
 		data.nominal = codes.nominalOf(taken, data.material);
@@ -320,7 +336,6 @@ void Conductor::takeNozzleDiameter()
 			//The only outside diameter of this DN, or the default one
 		data.outside = codes.outsideOf(data.nominal, data.material);
 	}
-	setProperties(pipe);
 }
 
 /**
@@ -3330,11 +3345,24 @@ QList<Conductor *> Conductor::inlineRun(LineReach reach)
 }
 
 /**
+	@brief Conductor::unsizedRun
+	See the declaration
+*/
+QList<Conductor *> Conductor::unsizedRun()
+{
+	if (m_properties.m_medium != TerminalData::Pipe || m_properties.m_pipe.hasSize()) {
+		return {};
+	}
+	return runFrom({terminal1, terminal2}, LineReach::Size, true);
+}
+
+/**
 	@brief Conductor::runFrom
 	See the declaration: the walk of inlineRun(), breadth first, so that the
 	pipes come nearest first (takeLineSpec() relies on it)
 */
-QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach reach)
+QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach reach,
+									  bool unsized_only)
 {
 	QList<Conductor *> run{this};
 	QList<Terminal *> seen;
@@ -3386,6 +3414,10 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 			}
 			seen << sibling;
 			for (Conductor *next : sibling->conductors()) {
+					//A pipe which has a size stops the walk of unsizedRun()
+				if (unsized_only && next->properties().m_pipe.hasSize()) {
+					continue;
+				}
 				if (next->medium() == TerminalData::Pipe && !run.contains(next)) {
 					run << next;
 					todo << next->terminal1 << next->terminal2;

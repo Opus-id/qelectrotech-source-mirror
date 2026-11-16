@@ -939,6 +939,34 @@ QList<const ElementNozzlesWidget::Field *> ElementNozzlesWidget::resizedSides(
 }
 
 /**
+	@brief ElementNozzlesWidget::filledSizes
+	See the declaration
+*/
+QList<FillUnsizedPipesCommand::NozzleSize> ElementNozzlesWidget::filledSizes(
+		const NozzleDiameters &diameters) const
+{
+	QList<FillUnsizedPipesCommand::NozzleSize> sizes;
+		//A side of a reducer gives its size to its whole line (resizedSides())
+	if (!m_element || m_element->isReducer()) {
+		return sizes;
+	}
+	const NozzleDiameters before = m_element->nozzleDiameters();
+	for (const Field &field : m_fields)
+	{
+		if (field.follows || !field.terminal) {
+			continue;
+		}
+		const PipeDiameter now = diameters.value(field.name, field.symbol_diameter);
+		const PipeDiameter was = before.value(field.name, field.symbol_diameter);
+		if (!now.isSet() || (now == was && !m_typed.contains(field.name))) {
+			continue;
+		}
+		sizes << qMakePair(field.terminal, now);
+	}
+	return sizes;
+}
+
+/**
 	@brief ElementNozzlesWidget::associatedUndo
 	@return the undo command giving the element the diameters of the fields,
 	or nullptr when they are those it has. A side of a reducer given a size
@@ -961,11 +989,16 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 			&& marks == m_element->nozzleMarks()
 			&& unlinked == m_element->unlinkedNozzles();
 	const QList<const Field *> sides = resizedSides(diameters);
+		//The pipes without a size of the lines of the nozzles of equipment
+		//given a size (step 5l-1aa)
+	QStringList filled_notes;
+	const QList<FillUnsizedPipesCommand::Fill> fills
+			= FillUnsizedPipesCommand::plan(filledSizes(diameters), &filled_notes);
 	m_typed.clear();
-	if (unchanged && sides.isEmpty()) {
+	if (unchanged && sides.isEmpty() && fills.isEmpty()) {
 		return nullptr;
 	}
-	QUndoCommand *step = sides.isEmpty() ? nullptr : new QUndoCommand();
+	QUndoCommand *step = sides.isEmpty() && fills.isEmpty() ? nullptr : new QUndoCommand();
 	auto *change = unchanged ? nullptr
 							 : new ChangeNozzleDiametersCommand(m_element, diameters, connections,
 																marks, step);
@@ -974,6 +1007,14 @@ QUndoCommand *ElementNozzlesWidget::associatedUndo() const
 	}
 	if (!step) {
 		return change;
+	}
+	if (!fills.isEmpty()) {
+		auto *fill = new FillUnsizedPipesCommand(fills, step);
+		step->setText(change ? change->text() : fill->text());
+		if (m_message) {
+			m_message->setText(filled_notes.join(QLatin1Char('\n')));
+		}
+		return step;
 	}
 	step->setText(change ? change->text() : tr("Give the size of a reducer to its line"));
 	const QLocale locale = projectCodification().locale();

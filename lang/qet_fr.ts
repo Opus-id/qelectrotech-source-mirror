@@ -8963,6 +8963,37 @@ En important ce fichier, vous confirmez que :
     </message>
 </context>
 <context>
+    <name>FillUnsizedPipesCommand</name>
+    <message>
+        <location filename="../sources/undocommand/fillunsizedpipescommand.cpp" line="102"/>
+        <source>%1 → %2: the same size of line, as the material %3 has it.</source>
+        <translation>%1 → %2 : la même taille de ligne, telle que le matériau %3 la propose.</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/fillunsizedpipescommand.cpp" line="109"/>
+        <source>%1: the material %2 has several outside diameters and no default one for it; give it on the pipe line.</source>
+        <translation>%1 : le matériau %2 a plusieurs diamètres extérieurs pour cette taille et aucun par défaut ; à indiquer sur la tuyauterie.</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/fillunsizedpipescommand.cpp" line="114"/>
+        <source>%1 → %2: the default outside diameter of the material %3.</source>
+        <translation>%1 → %2 : le diamètre extérieur par défaut du matériau %3.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/undocommand/fillunsizedpipescommand.cpp" line="120"/>
+        <source>%n pipe line(s) without a size took the size of %1.</source>
+        <translation>
+            <numerusform>%n tuyauterie sans taille a pris la taille de %1.</numerusform>
+            <numerusform>%n tuyauteries sans taille ont pris la taille de %1.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/fillunsizedpipescommand.cpp" line="128"/>
+        <source>Give the size of a nozzle to its line</source>
+        <translation>Donner la taille d&apos;un piquage à sa ligne</translation>
+    </message>
+</context>
+<context>
     <name>FolioAutonumberingW</name>
     <message>
         <location filename="../sources/autoNum/ui/folioautonumbering.ui" line="26"/>
