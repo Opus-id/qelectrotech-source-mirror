@@ -962,6 +962,9 @@ class tst_connectionmark : public QObject
 			const QImage drawn = render(folio, QPointF(290, 200));
 			QVERIFY(dark(drawn, 40, 33));
 			QVERIFY(qGray(drawn.pixel(50, 40)) >= 192);
+				// the pipe stops at its counter-flange: its square end does
+				// not show beyond it, from x 291 to 292 (defect of the l4)
+			QVERIFY2(qGray(drawn.pixel(41, 40)) >= 192, "the pipe shows beyond its counter-flange");
 				// the valve says never, or the project draws no flange: nothing
 			valve->setNozzleMarks({{QStringLiteral("N1"), PipeConnection::MarkChoice::Never}});
 			QVERIFY(!pipe->drawsPipePart(m1));

@@ -1163,17 +1163,27 @@ QLineF Conductor::lineIntoSpecBreak(const Terminal *terminal) const
 	@brief Conductor::trimmedEnds
 	@param half_width : half the width of the pen the pipe is drawn with
 	@return what of this pipe is not drawn: at each end, from the nozzle to
-	where it begins (pipeStartAt()); an empty path for most pipes and for
-	any other medium
+	where it begins (pipeStartAt()); on a spec break where the line goes no
+	further (lineIntoSpecBreak() null), the square end of a thick pipe
+	beyond the nozzle too; an empty path for most pipes and for any other
+	medium
 */
 QPainterPath Conductor::trimmedEnds(qreal half_width) const
 {
 	QPainterPath trimmed;
 	for (const Terminal *terminal : {terminal1, terminal2})
 	{
-		const qreal start = pipeStartAt(terminal);
+		qreal start = pipeStartAt(terminal);
 		if (start <= 0) {
-			continue;
+				//Its counter-flange on the nozzle of a spec break: the pipe
+				//stops there, its square end would show beyond it
+			const Element *mark = terminal ? terminal->parentElement() : nullptr;
+			if (m_properties.m_medium != TerminalData::Pipe || endsTouch()
+				|| !mark || !mark->isSpecBreak()
+				|| !lineIntoSpecBreak(terminal).isNull()) {
+				continue;
+			}
+			start = 0;
 		}
 		const QPointF outward = outwardOf(terminal);
 		const QPointF across(-outward.y(), outward.x());
