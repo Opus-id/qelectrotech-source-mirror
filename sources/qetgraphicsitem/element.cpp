@@ -4312,6 +4312,7 @@ Element::ReloadPictureResult Element::reloadPicture(bool adopt_frame)
 	m_data.m_pipe_inline = definition.attribute(QStringLiteral("pid_inline")) == QLatin1String("true");
 	m_data.m_pipe_run = definition.attribute(QStringLiteral("pid_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	m_data.m_pid_role = definition.attribute(QStringLiteral("pid_role")).trimmed();
+	m_data.m_pid_large = definition.attribute(QStringLiteral("pid_large")).trimmed();
 	if (adopt_frame) {
 		setSize(definition.attribute(QStringLiteral("width")).toInt(),
 				definition.attribute(QStringLiteral("height")).toInt());
@@ -4576,6 +4577,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 	m_data.m_pipe_inline = location.xml().attribute(QStringLiteral("pid_inline")) == QLatin1String("true");
 	m_data.m_pipe_run = location.xml().attribute(QStringLiteral("pid_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	m_data.m_pid_role = location.xml().attribute(QStringLiteral("pid_role")).trimmed();
+	m_data.m_pid_large = location.xml().attribute(QStringLiteral("pid_large")).trimmed();
 
 		//A saved conductor names the uuid of the terminal it ends on, and the
 		//project is read back from the new definition: the terminals take its

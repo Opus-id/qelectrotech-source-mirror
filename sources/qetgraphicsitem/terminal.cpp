@@ -2062,7 +2062,7 @@ bool Terminal::hasDiameterGap() const
 		return true;
 	}
 		//A reducer which keeps the size
-	if (reducesNothing()) {
+	if (reducesNothing() || reducerReversed()) {
 		return true;
 	}
 	return compareDiameters(ownDiameter(), comparedDiameter()) != PidCodification::DiameterMatch::Same;
@@ -2100,6 +2100,42 @@ bool Terminal::reducesNothing() const
 			&& compareDiameters(mine, theirs) == PidCodification::DiameterMatch::Same;
 }
 
+const Terminal *Terminal::reducerLargeSide() const
+{
+	const Terminal *other = reducerOtherSide();
+	if (!other) {
+		return nullptr;
+	}
+	const QString &large = parent_element_->largeNozzle();
+	if (large.isEmpty()) {
+		return nullptr;
+	}
+	if (baseName() == large) {
+		return this;
+	}
+	return other->baseName() == large ? other : nullptr;
+}
+
+bool Terminal::reducerReversed() const
+{
+	const Terminal *large = reducerLargeSide();
+	if (!large) {
+		return false;
+	}
+	const Terminal *small = large == this ? reducerOtherSide() : this;
+	static const PidCodification without_project;
+	const Diagram *folio = diagram();
+	const PidCodification &codification = folio && folio->project() ? folio->project()->pidCodification()
+																	 : without_project;
+	const PipeDiameter dn_large = codification.lineNominal(large->diameter());
+	const PipeDiameter dn_small = codification.lineNominal(small->diameter());
+	if (!dn_large.isSet() || !dn_small.isSet()
+		|| codification.compare(dn_large, dn_small) == PidCodification::DiameterMatch::Same) {
+		return false;
+	}
+	return dn_large.tenths() < dn_small.tenths();
+}
+
 /**
 	@brief Terminal::updateDiameterToolTip
 	Say how a pipe is joined to a nozzle, and what differs on a nozzle
@@ -2123,6 +2159,13 @@ void Terminal::updateDiameterToolTip()
 	const PipeDiameter own = ownDiameter();
 	const QLocale locale = sizeLocale();
 	const auto unknown = tr("The materials of the project give %1 no DN, or not the same.");
+		//The sizes of both sides, the large one first (step 5l-1ab)
+	const auto reversedText = [this]() {
+		const Terminal *large = reducerLargeSide();
+		const Terminal *small = large == this ? reducerOtherSide() : this;
+		return QLatin1Char('\n') + tr("Reducer laid the wrong way: large side %1, small side %2")
+								   .arg(large->diameterText(), small->diameterText());
+	};
 	QString tip = PipeConnection::name(connection());
 	const auto match = compareDiameters(pipe, other);
 	if (!hasDiameterGap()) {
@@ -2134,10 +2177,14 @@ void Terminal::updateDiameterToolTip()
 			tip += QLatin1Char('\n') + unknown.arg((pipe.isOutside() ? pipe : other).text(locale));
 		}
 	} else if (compareDiameters(own, comparedDiameter()) == PidCodification::DiameterMatch::Same
-			   && reducesNothing()) {
-			//The size of this side on both
-		tip += QLatin1Char('\n') + tr("Reducer without a change of size: %1 on both sides")
-								   .arg(diameterText());
+			   && (reducesNothing() || reducerReversed())) {
+		if (reducesNothing()) {
+				//The size of this side on both
+			tip += QLatin1Char('\n') + tr("Reducer without a change of size: %1 on both sides")
+									   .arg(diameterText());
+		} else {
+			tip += reversedText();
+		}
 	} else {
 			//An outside diameter against that of the pipe, when it has one
 		const PipeDiameter compared = comparedDiameter();
@@ -2147,6 +2194,9 @@ void Terminal::updateDiameterToolTip()
 												sizeText(compared, compared == pipe ? line : nullptr));
 		if (compareDiameters(own, compared) == PidCodification::DiameterMatch::Unknown) {
 			tip += QLatin1Char('\n') + unknown.arg((compared.isOutside() ? compared : own).text(locale));
+		}
+		if (reducerReversed()) {
+			tip += reversedText();
 		}
 	}
 	setToolTip(PidToolTip::wrapped(tip));

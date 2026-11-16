@@ -802,6 +802,21 @@ PipeDiameter PidCodification::nominalOf(const PipeDiameter &outside,
 }
 
 /**
+	@brief PidCodification::lineNominal
+	See the declaration
+*/
+PipeDiameter PidCodification::lineNominal(const PipeDiameter &diameter) const
+{
+	if (diameter.isNominal()) {
+		return diameter;
+	}
+	if (diameter.isThread()) {
+		return diameter.threadNominal();
+	}
+	return nominalOf(diameter);
+}
+
+/**
 	@brief PidCodification::nominalsOf
 	See the declaration
 */

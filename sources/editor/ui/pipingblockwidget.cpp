@@ -58,7 +58,17 @@ PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 							 "in-line symbol.")));
 	grid->addWidget(m_role_cb, 3, 1);
 
-	for (QComboBox *list : {m_family_cb, m_role_cb}) {
+	m_large_label = new QLabel(tr("Large side:"), this);
+	grid->addWidget(m_large_label, 4, 0);
+	m_large_cb = new QComboBox(this);
+	m_large_cb->setToolTip(PidToolTip::wrapped(tr("The nozzle of the large side of the reducer, as it is drawn. When "
+							  "its size is smaller than that of the other side, both nozzles are "
+							  "marked: a reducer laid the wrong way. \"Not said\": nothing is checked.")));
+	grid->addWidget(m_large_cb, 4, 1);
+
+		//The role first: the list "Large side" shows or hides with it
+	connect(m_role_cb, QOverload<int>::of(&QComboBox::activated), this, &PipingBlockWidget::updateLargeSide);
+	for (QComboBox *list : {m_family_cb, m_role_cb, m_large_cb}) {
 		connect(list, QOverload<int>::of(&QComboBox::activated), this, [this]() {
 			if (!m_locked) {
 				emit edited();
@@ -113,6 +123,18 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 	}
 	m_role_cb->setCurrentIndex(m_role_cb->findData(data.m_pid_role));
 
+	m_large_cb->clear();
+	m_large_cb->addItem(tr("Not said"), QString());
+	for (const QString &name : nozzles) {
+		m_large_cb->addItem(name, name);
+	}
+		//A nozzle the symbol has not (renamed since) is kept as it is
+	if (!data.m_pid_large.isEmpty() && m_large_cb->findData(data.m_pid_large) < 0) {
+		m_large_cb->addItem(data.m_pid_large, data.m_pid_large);
+	}
+	m_large_cb->setCurrentIndex(m_large_cb->findData(data.m_pid_large));
+	updateLargeSide();
+
 	m_inline_cb->setChecked(data.m_pipe_inline);
 
 	qDeleteAll(m_run_cbs);
@@ -159,5 +181,16 @@ ElementData PipingBlockWidget::applyTo(ElementData data) const
 	data.m_pipe_inline = m_inline_cb->isChecked();
 	data.m_pid_family = m_family_cb->currentData().toString();
 	data.m_pid_role = m_role_cb->currentData().toString();
+		//A large side for a reducer only
+	data.m_pid_large = data.m_pid_role == QLatin1String("reducer") ? m_large_cb->currentData().toString()
+																   : QString();
 	return data;
+}
+
+void PipingBlockWidget::updateLargeSide()
+{
+	const bool reducer = m_role_cb->currentData().toString() == QLatin1String("reducer");
+		//Not hidden: the block may not be shown yet
+	m_large_label->setVisible(reducer);
+	m_large_cb->setVisible(reducer);
 }

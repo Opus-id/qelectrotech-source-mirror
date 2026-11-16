@@ -29218,6 +29218,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <source>Reducer without a change of size: %1 on both sides</source>
         <translation>Réduction sans changement de taille : %1 des deux côtés</translation>
     </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="2132"/>
+        <source>Reducer laid the wrong way: large side %1, small side %2</source>
+        <translation>Réduction posée à l&apos;envers : grand côté %1, petit côté %2</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="722"/>
         <source>This terminal already has %n conductors, the project&apos;s limit. Add a terminal to connect one more conductor.</source>
@@ -29286,6 +29291,21 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="52"/>
         <source>&quot;Reducer&quot;: the size of the line changes at this symbol. Each of its nozzles takes the size of its pipe or a size of its own, and a change of size stops there. Tick no nozzle of the run of the line. &quot;Spec break&quot;: the material, piping class and nominal pressure of the line change at this symbol, its size goes on through it. Make it an in-line symbol.</source>
         <translation>« Réduction » : la taille de la ligne change sur ce symbole. Chaque piquage prend la taille de sa tuyauterie ou une taille propre, et un changement de taille s&apos;y arrête. Ne cocher aucun piquage du groupe de la ligne. « Rupture de spécification » : le matériau, la classe de tuyauterie et le PN de la ligne changent sur ce symbole, sa taille le traverse. En faire un symbole en ligne.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="61"/>
+        <source>Large side:</source>
+        <translation>Grand côté :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="63"/>
+        <source>The nozzle of the large side of the reducer, as it is drawn. When its size is smaller than that of the other side, both nozzles are marked: a reducer laid the wrong way. &quot;Not said&quot;: nothing is checked.</source>
+        <translation>Le piquage du grand côté de la réduction, tel qu&apos;il est dessiné. Si sa taille est plus petite que celle de l&apos;autre côté, les deux piquages sont marqués : réduction posée à l&apos;envers. « Non précisé » : rien n&apos;est vérifié.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="123"/>
+        <source>Not said</source>
+        <translation>Non précisé</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="100"/>

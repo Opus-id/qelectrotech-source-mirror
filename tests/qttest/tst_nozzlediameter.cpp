@@ -1687,6 +1687,163 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!terminal(plain, QStringLiteral("N1"))->hasDiameterGap());
 		}
 
+			// pid_large="N1" is read, written back by the editor, given by the
+			// list "Large side" of the block, shown and kept for a reducer
+			// only; nothing is written without it (step 5l-1ab)
+		void theEditorKeepsTheLargeSideOfAReducer()
+		{
+			QDomDocument doc;
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666671}"), 0,
+								  QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" pid_large=\"N1\" ")));
+			ElementData data;
+			data.fromXml(doc.documentElement());
+			QCOMPARE(data.m_pid_large, QStringLiteral("N1"));
+			ElementScene scene(nullptr);
+			scene.fromXml(doc, QPointF(), true);
+			QCOMPARE(scene.toXml().documentElement().attribute(QStringLiteral("pid_large")),
+					 QStringLiteral("N1"));
+
+			PipingBlockWidget block;
+			block.setData(scene.elementData(), scene.pipeNozzleNames());
+			QVERIFY(block.applyTo(scene.elementData()) == scene.elementData());
+			QComboBox *role = nullptr;
+			QComboBox *large = nullptr;
+			for (QComboBox *list : block.findChildren<QComboBox *>()) {
+				if (list->findData(QStringLiteral("reducer")) >= 0) {
+					role = list;
+				} else if (list->findData(QStringLiteral("N2")) >= 0) {
+					large = list;
+				}
+			}
+			QVERIFY(role && large);
+			QCOMPARE(large->currentData().toString(), QStringLiteral("N1"));
+			QVERIFY(!large->isHidden());
+
+				// the other side, then none: nothing written
+			large->setCurrentIndex(large->findData(QStringLiteral("N2")));
+			QCOMPARE(block.applyTo(scene.elementData()).m_pid_large, QStringLiteral("N2"));
+			large->setCurrentIndex(large->findData(QString()));
+			const ElementData none = block.applyTo(scene.elementData());
+			QVERIFY(none.m_pid_large.isEmpty());
+			QVERIFY(none != scene.elementData());
+			scene.setElementData(none);
+			QVERIFY(!scene.toXml().documentElement().hasAttribute(QStringLiteral("pid_large")));
+
+				// another role: the list is hidden, and no large side kept
+			large->setCurrentIndex(large->findData(QStringLiteral("N1")));
+			role->setCurrentIndex(role->findData(QStringLiteral("spec_break")));
+			emit role->activated(role->currentIndex());
+			QVERIFY(large->isHidden());
+			QVERIFY(block.applyTo(scene.elementData()).m_pid_large.isEmpty());
+
+				// a reducer which says nothing of it has none
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666672}"), 0,
+								  QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			ElementData other;
+			other.fromXml(doc.documentElement());
+			QVERIFY(other.m_pid_large.isEmpty());
+		}
+
+			// A reducer whose large side has a smaller size than the other side
+			// is marked on both sides, and said; sizes compared by the DN of
+			// their line: a thread by the fixed table, an outside diameter by
+			// the materials of the project, nothing said when it is not known.
+			// Without a large side named, nothing is checked (step 5l-1ab).
+		void aReducerLaidTheWrongWayIsMarked()
+		{
+			QETProject project;
+			PidCodification codification;
+			codification.materials = {plasticOf(QStringLiteral("M01"), {{900, 80}, {1100, 100}})};
+			project.setPidCodification(codification);
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer_large.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555558}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" pid_large=\"N1\" ")));
+			Element *a = place(folio, tank);
+			Element *b = place(folio, tank);
+			QVERIFY(reducer && a && b);
+			QCOMPARE(reducer->largeNozzle(), QStringLiteral("N1"));
+			a->setPos(0, 200);
+			b->setPos(400, 200);
+			Conductor *big = connect(folio, a, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *small = connect(folio, reducer, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			QVERIFY(big && small);
+			Terminal *n1 = terminal(reducer, QStringLiteral("N1"));
+			Terminal *n2 = terminal(reducer, QStringLiteral("N2"));
+			QCOMPARE(n1->reducerLargeSide(), n1);
+			QCOMPARE(n2->reducerLargeSide(), n1);
+			const QString wrong_way = QStringLiteral("Reducer laid the wrong way");
+
+				// laid the right way: nothing
+			setDn(big, 100);
+			setDn(small, 80);
+			QVERIFY(!n1->reducerReversed() && !n2->reducerReversed());
+			QVERIFY(!n1->hasDiameterGap() && !n2->hasDiameterGap());
+
+				// the large side smaller: both sides marked and said, the side
+				// which did not change too
+			setDn(big, 50);
+			QVERIFY(n1->reducerReversed() && n2->reducerReversed());
+			QVERIFY(n1->hasDiameterGap() && n2->hasDiameterGap());
+			QVERIFY(n1->toolTip().contains(wrong_way));
+			QVERIFY(n2->toolTip().contains(wrong_way));
+			QVERIFY(!n1->toolTip().contains(QStringLiteral("Reducer without a change of size")));
+				// the same size: the reducer reduces nothing, said as such
+			setDn(big, 80);
+			QVERIFY(!n1->reducerReversed() && n1->reducesNothing());
+			QVERIFY(!n1->toolTip().contains(wrong_way));
+			setDn(big, 100);
+			QVERIFY(!n1->hasDiameterGap() && !n2->hasDiameterGap());
+			QVERIFY(!n2->toolTip().contains(wrong_way));
+
+				// a thread of its own on the large side: its DN of the fixed
+				// table (1" = DN 25), smaller than DN 80; said with the gap
+				// between the nozzle and its pipe
+			NozzleDiameters thread;
+			thread.insert(QStringLiteral("N1"), PipeDiameter::thread(8));
+			reducer->setNozzleDiameters(thread);
+			QVERIFY(n1->reducerReversed() && n2->reducerReversed());
+			QVERIFY(n1->toolTip().contains(wrong_way));
+
+				// an outside diameter of its own: the DN the material gives it
+			NozzleDiameters outside;
+			outside.insert(QStringLiteral("N1"), PipeDiameter::outside(90));
+			reducer->setNozzleDiameters(outside);
+			setDn(small, 100);
+			QVERIFY(n1->reducerReversed());
+			setDn(small, 80);
+			QVERIFY(!n1->reducerReversed());
+				// one no material has: not known, nothing said of the way
+			outside.insert(QStringLiteral("N1"), PipeDiameter::outside(63));
+			reducer->setNozzleDiameters(outside);
+			setDn(small, 100);
+			QVERIFY(!n1->reducerReversed() && !n2->reducerReversed());
+			reducer->setNozzleDiameters(NozzleDiameters());
+
+				// a reducer which names no large side: nothing checked
+			Element *plain = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *c = place(folio, tank);
+			Element *d = place(folio, tank);
+			QVERIFY(plain && c && d);
+			plain->setPos(200, 600);
+			c->setPos(0, 600);
+			d->setPos(400, 600);
+			Conductor *left = connect(folio, c, QStringLiteral("N2"), plain, QStringLiteral("N1"));
+			Conductor *right = connect(folio, plain, QStringLiteral("N2"), d, QStringLiteral("N1"));
+			QVERIFY(left && right);
+			setDn(left, 50);
+			setDn(right, 80);
+			Terminal *p1 = terminal(plain, QStringLiteral("N1"));
+			QVERIFY(p1->reducerOtherSide());
+			QVERIFY(!p1->reducerLargeSide());
+			QVERIFY(!p1->reducerReversed() && !p1->hasDiameterGap());
+		}
+
 			// A size typed on a side of a reducer is given to the line of that
 			// side, through the valves, in one step with the size of the
 			// nozzle; the other side, a line changed later and a size emptied

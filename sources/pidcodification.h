@@ -229,6 +229,11 @@ class PidCodification
 			/// several
 		PipeDiameter nominalOf(const PipeDiameter &outside,
 							   const QString &material_code = QString()) const;
+			/// The DN of the line of @p diameter, to tell the larger of two
+			/// sizes: itself for a DN, that of the fixed table for a thread,
+			/// the one DN the materials give an outside diameter
+			/// (nominalOf()). None when it is not known.
+		PipeDiameter lineNominal(const PipeDiameter &diameter) const;
 			/// The DN a pipe without material may have, the DN being the
 			/// size of a line whatever its material: those of the sizes of
 			/// all the materials, in order, each once, equal ones as one

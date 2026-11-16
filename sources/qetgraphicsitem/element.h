@@ -295,6 +295,9 @@ class Element : public QetGraphicsItem
 		bool isReducer() const {
 			return m_data.m_pid_role == QLatin1String("reducer");
 		}
+			/// The name of the nozzle on the large side of a reducer
+			/// (pid_large); none when the symbol says nothing of it
+		const QString &largeNozzle() const { return m_data.m_pid_large; }
 			/// True for the free end of a pipe (pid_role="free_end"), which
 			/// goes when its pipe is deleted, a strainer or a vent staying
 		bool isFreeEnd() const {

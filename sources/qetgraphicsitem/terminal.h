@@ -158,7 +158,9 @@ class Terminal : public QGraphicsObject
 			/// The diameter of this nozzle: its own, else that of its pipe
 		PipeDiameter diameter() const;
 			/// The nozzle has a diameter of its own, its pipe another one; or
-			/// the pipes of its run have two diameters, with no reducer.
+			/// the pipes of its run have two diameters, with no reducer; or
+			/// it is one of a reducer which reduces nothing or is laid the
+			/// wrong way.
 			/// A nozzle placed against it counts as a pipe.
 			/// A DN and an outside diameter are compared with the
 			/// table of the project (PidCodification::compare()): one it does
@@ -171,6 +173,16 @@ class Terminal : public QGraphicsObject
 			/// size, their own or that of their line: a reducer which
 			/// reduces nothing, said as a gap (hasDiameterGap())
 		bool reducesNothing() const;
+			/// The nozzle on the large side of the reducer of this nozzle,
+			/// itself or its other side (Element::largeNozzle()); nullptr
+			/// when its symbol names none of the two
+		const Terminal *reducerLargeSide() const;
+			/// This nozzle is one of a reducer laid the wrong way: the size
+			/// of its large side is smaller than that of the other side,
+			/// both compared by the DN of their line
+			/// (PidCodification::lineNominal()). False when the symbol names
+			/// no large side, or a size is missing or not known (step 5l-1ab).
+		bool reducerReversed() const;
 		void updateDiameterToolTip();
 			/// The one its symbol gives this nozzle
 		PipeDiameter symbolDiameter() const { return d->m_diameter; }

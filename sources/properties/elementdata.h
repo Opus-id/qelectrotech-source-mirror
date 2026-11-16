@@ -368,6 +368,13 @@ class ElementData : public PropertiesInterface
 			/// with its pipe (Element::isFreeEnd()); none for any other
 			/// symbol. A role this version does not know is kept as it is.
 		QString m_pid_role;
+			/// The large side of a reducer, by the name of its nozzle
+			/// (attribute pid_large="N1", Element::largeNozzle()): a large
+			/// side whose size is smaller than the other one is marked as a
+			/// reducer laid the wrong way (Terminal::reducerReversed()).
+			/// None for any other symbol, and for a reducer which says
+			/// nothing of it: then nothing is checked (step 5l-1ab).
+		QString m_pid_large;
 			/// The identifier this symbol gives the label of a placed
 			/// element (Element::getPrefix()), such as "PC" for a pump:
 			/// when it has one, it is taken before the one of its folder

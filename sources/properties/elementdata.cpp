@@ -60,6 +60,7 @@ bool ElementData::fromXml(const QDomElement &xml_element)
 	m_pipe_inline = xml_element.attribute(QStringLiteral("pid_inline")) == QLatin1String("true");
 	m_pipe_run = xml_element.attribute(QStringLiteral("pid_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	m_pid_role = xml_element.attribute(QStringLiteral("pid_role")).trimmed();
+	m_pid_large = xml_element.attribute(QStringLiteral("pid_large")).trimmed();
 	m_prefix =xml_element.attribute(QStringLiteral("prefix")).trimmed();
 
 	m_custom_info_keys.clear();
@@ -763,7 +764,7 @@ bool ElementData::operator==(const ElementData &data) const
 	}
 
 	if (data.m_pipe_inline != m_pipe_inline || data.m_pipe_run != m_pipe_run
-		|| data.m_pid_role != m_pid_role) {
+		|| data.m_pid_role != m_pid_role || data.m_pid_large != m_pid_large) {
 		return false;
 	}
 
