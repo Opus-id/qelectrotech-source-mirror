@@ -18,6 +18,7 @@
 #include <QDir>
 #include <QDomDocument>
 #include <QFile>
+#include <QGraphicsSceneHoverEvent>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QRegularExpression>
@@ -887,6 +888,57 @@ class tst_conductormedium : public QObject
 			pipe.m_pipe.line_kind = PipeProperties::Auxiliary;
 			QCOMPARE(pipe.lineWidth(), 2.0);
 			QCOMPARE(pipe.lineStyle(), Qt::DashLine);
+		}
+
+			// The width of the click area of a straight horizontal conductor,
+			// hovered or not
+		qreal clickWidth(Conductor *conductor, bool hovered)
+		{
+			QGraphicsSceneHoverEvent event(hovered ? QEvent::GraphicsSceneHoverEnter
+												   : QEvent::GraphicsSceneHoverLeave);
+			m_folio->sendEvent(conductor, &event);
+			return conductor->shape().boundingRect().height();
+		}
+
+			// The click area of a pipe or a signal line follows the width it
+			// is drawn with (5l-1k-bis): a little wider, never thinner than
+			// Conductor::min_click_width, and hovered as wide as then drawn.
+			// A wire keeps its own: 1, 5 hovered, whatever its width.
+		void theClickAreaFollowsTheWidthOfAPipe()
+		{
+			const auto ends = pair(m_pipe, m_pipe);
+			Conductor *pipe = draw(ends.first, ends.second);
+			ConductorProperties properties = pipe->properties();
+			properties.m_pipe.line_kind = PipeProperties::Main;
+			pipe->setProperties(properties);
+			QCOMPARE(pipe->medium(), TerminalData::Pipe);
+			QCOMPARE(clickWidth(pipe, false), 6.0);
+			QCOMPARE(clickWidth(pipe, true), 8.0);
+				// its width changed: its area too
+			properties.m_pipe.line_kind = PipeProperties::Secondary;
+			pipe->setProperties(properties);
+			QCOMPARE(clickWidth(pipe, false), 4.0);
+			QCOMPARE(clickWidth(pipe, true), 6.0);
+			QVERIFY(clickWidth(pipe, false) >= pipe->properties().lineWidth());
+
+				// a thin signal line: the narrowest area
+			const auto line_ends = pair(m_pipe, m_pipe);
+			Conductor *signal = draw(line_ends.first, line_ends.second);
+			signal->setMedium(TerminalData::Signal);
+			ConductorProperties thin = signal->properties();
+			thin.cond_size = 1;
+			signal->setProperties(thin);
+			QCOMPARE(clickWidth(signal, false), Conductor::min_click_width);
+			QCOMPARE(clickWidth(signal, true), 5.0);
+
+				// a wide wire: as before
+			const auto wire_ends = pair(m_electrical, m_electrical);
+			Conductor *wire = draw(wire_ends.first, wire_ends.second);
+			ConductorProperties wide = wire->properties();
+			wide.cond_size = 4;
+			wire->setProperties(wide);
+			QCOMPARE(clickWidth(wire, false), 1.0);
+			QCOMPARE(clickWidth(wire, true), 5.0);
 		}
 
 			// An electrical conductor is saved exactly as before: no medium

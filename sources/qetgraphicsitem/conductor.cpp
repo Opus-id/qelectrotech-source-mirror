@@ -205,7 +205,9 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	it, on the side of the nozzle it starts from first, then on the other,
 	as far as the spec of a line goes (LineReach::Spec: through valves, tees
 	and reducers, up to a spec break or equipment); its fluid the same way,
-	through spec breaks too (LineReach::Fluid, step 5l-1z). Done once, when
+	through spec breaks too (LineReach::Fluid, step 5l-1z); its line number
+	and its flow as far as they go (LineReach::LineNumber, LineReach::Flow,
+	step 5l-1k). Done once, when
 	it is connected: a pipe given data of its own afterwards (the halves of a
 	pipe cut, a pipe read from a file) keeps them, empty fields included.
 */
@@ -251,6 +253,8 @@ void Conductor::takeLineSpec()
 	take({&PipeProperties::material, &PipeProperties::piping_class,
 		  &PipeProperties::nominal_pressure}, LineReach::Spec);
 	take({&PipeProperties::fluid}, LineReach::Fluid);
+	take({&PipeProperties::line_number}, LineReach::LineNumber);
+	take({&PipeProperties::flow}, LineReach::Flow);
 	if (!(pipe == properties())) {
 		setProperties(pipe);
 	}
@@ -878,7 +882,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 
 		//Draw the conductor bigger when is hovered
 		//(lineWidth(): a wire's own width, or for a pipe its kind of line)
-	const qreal line_width = typed ? potential_type.width : m_properties.lineWidth();
+	const qreal line_width = drawnWidth(typed ? &potential_type : nullptr);
 	conductor_pen.setWidthF(m_mouse_over? line_width + 4 : line_width);
 
 		//Set the QPen and QBrush to the QPainter
@@ -1424,6 +1428,10 @@ void Conductor::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 */
 void Conductor::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
 	Q_UNUSED(event);
+		//The click area of a pipe widens (shape()): the folio is told
+	if (m_properties.m_medium != TerminalData::Electrical) {
+		prepareGeometryChange();
+	}
 	m_mouse_over = true;
 		//What its orange band says (drawOffSeries()); a wire has no tip
 	if (m_properties.m_medium == TerminalData::Pipe) {
@@ -1440,6 +1448,9 @@ void Conductor::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
 void Conductor::hoverLeaveEvent(QGraphicsSceneHoverEvent *event) {
 	Q_UNUSED(event);
 	update();
+	if (m_properties.m_medium != TerminalData::Electrical) {
+		prepareGeometryChange();
+	}
 	m_mouse_over = false;
 }
 
@@ -1697,12 +1708,31 @@ QPainterPath Conductor::shape() const
 	if (endsTouch())
 		return QPainterPath();
 	QPainterPathStroker pps;
-	pps.setWidth(m_mouse_over? 5 : 1);
+	if (m_properties.m_medium == TerminalData::Electrical) {
+		pps.setWidth(m_mouse_over? 5 : 1);
+	} else {
+			//A pipe or a signal line: as wide as it is drawn, a little
+			//more, and never too thin to pick; hovered, as wide as it is
+			//then drawn (paint(): its width + 4)
+		PotentialType type;
+		const qreal width = drawnWidth(potentialTypeFormat(&type) ? &type : nullptr);
+		const qreal area = qMax(width + 2, min_click_width);
+		pps.setWidth(m_mouse_over ? qMax(width + 4, area) : area);
+	}
 	pps.setJoinStyle(conductor_pen.joinStyle());
 
 	QPainterPath shape_(pps.createStroke(path()));
 
 	return shape_;
+}
+
+/**
+	@brief Conductor::drawnWidth
+	See the declaration
+*/
+qreal Conductor::drawnWidth(const PotentialType *type) const
+{
+	return type ? type->width : m_properties.lineWidth();
 }
 
 /**
@@ -2643,6 +2673,10 @@ void Conductor::setProperties(const ConductorProperties &properties)
 		//The run this conductor was part of, which may part now
 	const QList<Conductor *> old_run = cornerChain();
 	QString formula = m_properties.m_formula;
+		//The click area of a pipe follows its width (shape())
+	if (property.m_medium != TerminalData::Electrical) {
+		prepareGeometryChange();
+	}
 	m_properties = property;
 
 	if (!m_properties.m_formula.isEmpty())
@@ -3272,6 +3306,12 @@ void Conductor::updateFittings() const
 	LineReach::Fluid, the pipes its fluid passes to: as the spec, on through
 	spec breaks too (step 5l-1z); equipment stops it, and so does a nozzle
 	left out of the run of its symbol (the reagent of an injection lance).
+	LineReach::LineNumber, the pipes its line number passes to: as the
+	fluid, but through a tee or a cross (a run of three nozzles or more)
+	only straight on, from a nozzle to the one opposite, never into nor out
+	of a branch (step 5l-1k). LineReach::Flow, the pipes its flow passes
+	to: as the fluid, but a tee or a cross stops it on every side, the flow
+	parting there.
 	Pipes only: a signal line or a wire never goes on.
 */
 QList<Conductor *> Conductor::inlineRun(LineReach reach)
@@ -3297,6 +3337,24 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 		}
 		seen << terminal;
 		QList<Terminal *> siblings = terminal->runSiblings();
+			//A tee, a cross: three nozzles or more on the run
+		if (siblings.size() >= 2)
+		{
+				//The flow parts there, on every side
+			if (reach == LineReach::Flow) {
+				continue;
+			}
+				//The line goes on straight, a branch is another line
+			if (reach == LineReach::LineNumber) {
+				QList<Terminal *> straight;
+				for (Terminal *sibling : std::as_const(siblings)) {
+					if (Qet::isOpposed(terminal->orientation(), sibling->orientation())) {
+						straight << sibling;
+					}
+				}
+				siblings = straight;
+			}
+		}
 		if (reach != LineReach::Size)
 		{
 			const Element *element = terminal->parentElement();

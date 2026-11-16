@@ -245,9 +245,9 @@ class Conductor : public QGraphicsObject
 		void takeLineSpec();
 			/// How far a line goes on through its symbols, see inlineRun():
 			/// what its size passes through, what its material, piping
-			/// class and nominal pressure pass through, or what its fluid
-			/// passes through
-		enum class LineReach { Size, Spec, Fluid };
+			/// class and nominal pressure pass through, what its fluid
+			/// passes through, its line number, or its flow
+		enum class LineReach { Size, Spec, Fluid, LineNumber, Flow };
 		QList<Conductor *> inlineRun(LineReach reach = LineReach::Size);
 		void drawDiameterGaps(QPainter *painter) const;
 			/// What is wrong with the size of this pipe: a DN, or an outside
@@ -262,6 +262,14 @@ class Conductor : public QGraphicsObject
 		void drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const;
 		QPainterPath trimmedEnds(qreal half_width) const;
 		bool potentialTypeFormat(PotentialType *type) const;
+			/// The width this conductor is drawn with, out of the hover:
+			/// that of its potential type @p type when it has one, else its
+			/// own (ConductorProperties::lineWidth()). paint() draws with it
+			/// and shape() makes the click area of a pipe from it.
+		qreal drawnWidth(const PotentialType *type) const;
+			/// The narrowest click area of a pipe or a signal line, in
+			/// drawing units, so that a thin one is still easy to pick
+		static constexpr qreal min_click_width = 4.0;
 
 	private:
 		void setUpConnectionForFormula(

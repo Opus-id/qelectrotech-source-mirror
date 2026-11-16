@@ -236,9 +236,11 @@ void PipePropertiesWidget::buildUi()
 	layout->addRow(m_count);
 
 	layout->addRow(PidSection::title(tr("Designation", "section of the page of a pipe"), this));
+		//The same number on the whole line, through spec breaks too, straight
+		//on through a tee, never into its branch (step 5l-1k)
 	addTextField(QStringLiteral("line_number"), tr("Line number:"),
 				 [](const PipeProperties &p) { return p.line_number; },
-				 [](PipeProperties &p, const QString &t) { p.line_number = t; });
+				 [](PipeProperties &p, const QString &t) { p.line_number = t; }, Reach::LineNumber);
 
 		//The same fluid on the whole line: on through spec breaks too, up to
 		//equipment and injection lances (step 5l-1z)
@@ -345,9 +347,10 @@ void PipePropertiesWidget::buildUi()
 	connect(m_automatic_color, &QToolButton::clicked, this, [this]() { setManualColor(QColor()); });
 
 	layout->addRow(PidSection::title(tr("Other data", "section of the page of a pipe"), this));
+		//The flow of the line up to its tees, where it parts (step 5l-1k)
 	addTextField(QStringLiteral("flow"), tr("Flow:"),
 				 [](const PipeProperties &p) { return p.flow; },
-				 [](PipeProperties &p, const QString &t) { p.flow = t; });
+				 [](PipeProperties &p, const QString &t) { p.flow = t; }, Reach::Flow);
 	addTextField(QStringLiteral("spool"), tr("Spool number:"),
 				 [](const PipeProperties &p) { return p.spool; },
 				 [](PipeProperties &p, const QString &t) { p.spool = t; });
@@ -1139,7 +1142,8 @@ void PipePropertiesWidget::bindTextField(
 		edit->setModified(false);
 		const QString text = edit->text().trimmed();
 			//Said after the change, which clears what was said
-		const QString note = reach == Reach::Spec ? lineNote(get, text) : QString();
+		const QString note = reach == Reach::Selection || reach == Reach::Size
+				? QString() : lineNote(get, text, reach);
 		applyChange([set, text](PipeProperties &p) { set(p, text); }, reach);
 		if (!note.isEmpty()) {
 			m_refused = note;
@@ -1156,9 +1160,11 @@ QList<Conductor *> PipePropertiesWidget::changedPipes(Reach reach) const
 {
 	QList<Conductor *> changed = pipes();
 	if (reach != Reach::Selection) {
-		const Conductor::LineReach line_reach = reach == Reach::Spec  ? Conductor::LineReach::Spec
-											  : reach == Reach::Fluid ? Conductor::LineReach::Fluid
-																	  : Conductor::LineReach::Size;
+		const Conductor::LineReach line_reach = reach == Reach::Spec       ? Conductor::LineReach::Spec
+											  : reach == Reach::Fluid      ? Conductor::LineReach::Fluid
+											  : reach == Reach::LineNumber ? Conductor::LineReach::LineNumber
+											  : reach == Reach::Flow       ? Conductor::LineReach::Flow
+																		   : Conductor::LineReach::Size;
 		for (Conductor *pipe : pipes()) {
 			for (Conductor *next : pipe->inlineRun(line_reach)) {
 				if (!changed.contains(next)) {
@@ -1209,6 +1215,16 @@ QString PipePropertiesWidget::lineNote(const std::function<QString(const PipePro
 		note += QLatin1Char(' ')
 				+ tr("%n of them had another fluid (%1): only equipment or an injection lance "
 					 "keeps two fluids apart.", "", replaced)
+				  .arg(values.join(QStringLiteral(", ")));
+	} else if (replaced && reach == Reach::LineNumber) {
+		note += QLatin1Char(' ')
+				+ tr("%n of them had another line number (%1): only equipment, an injection lance "
+					 "or the branch of a tee keeps two line numbers apart.", "", replaced)
+				  .arg(values.join(QStringLiteral(", ")));
+	} else if (replaced && reach == Reach::Flow) {
+		note += QLatin1Char(' ')
+				+ tr("%n of them had another flow (%1): only a tee or equipment keeps two "
+					 "flows apart.", "", replaced)
 				  .arg(values.join(QStringLiteral(", ")));
 	} else if (replaced) {
 		note += QLatin1Char(' ')

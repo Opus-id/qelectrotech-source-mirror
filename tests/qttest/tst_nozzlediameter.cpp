@@ -2242,10 +2242,12 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(p5->properties().m_pipe.nominal_pressure, QStringLiteral("PN10"));
 			QVERIFY(p4->properties().m_pipe.nominal_pressure.isEmpty());
 
-				// the line number stays on the pipe selected
+				// the line number goes on along the line, through the spec
+				// break too (step 5l-1k)
 			type(line_number, QStringLiteral("47121"));
 			QCOMPARE(p1->properties().m_pipe.line_number, QStringLiteral("47121"));
-			QVERIFY(p2->properties().m_pipe.line_number.isEmpty());
+			QCOMPARE(p2->properties().m_pipe.line_number, QStringLiteral("47121"));
+			QCOMPARE(p6->properties().m_pipe.line_number, QStringLiteral("47121"));
 		}
 
 			// A new pipe takes the material, piping class and nominal pressure
@@ -2585,6 +2587,168 @@ class tst_nozzlediameter : public QObject
 				QCOMPARE(wire->medium(), TerminalData::Electrical);
 				QVERIFY(data(wire).fluid.isEmpty());
 			}
+		}
+
+			// The line number and the flow (step 5l-1k): as the fluid, through
+			// valves, reducers and spec breaks, up to equipment and the reagent
+			// of a lance; the line number goes straight on through a tee,
+			// never into nor out of its branch; a tee stops the flow
+		void theLineNumberGoesStraightOnTheFlowStopsAtATee()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *left = place(folio, tank);
+			Element *v = place(folio, addValve(project));
+			Element *tee = place(folio, addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" ")));
+			Element *below = place(folio, tank);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *spec_break = place(folio, addSpecBreak(project));
+			Element *lance = place(folio, addLance(project));
+			Element *dosing = place(folio, tank);
+			Element *right = place(folio, tank);
+			QVERIFY(left && v && tee && below && reducer && spec_break && lance && dosing && right);
+			left->setPos(0, 200);
+			v->setPos(200, 200);
+			tee->setPos(400, 200);
+			below->setPos(400, 600);
+			reducer->setPos(600, 200);
+			spec_break->setPos(800, 200);
+			lance->setPos(1000, 200);
+			dosing->setPos(1000, 600);
+			right->setPos(1200, 200);
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), v, QStringLiteral("N1"));
+			Conductor *p2 = connect(folio, v, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+			Conductor *branch = connect(folio, tee, QStringLiteral("N3"), below, QStringLiteral("N1"));
+			Conductor *p3 = connect(folio, tee, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *p4 = connect(folio, reducer, QStringLiteral("N2"), spec_break, QStringLiteral("N1"));
+			Conductor *p5 = connect(folio, spec_break, QStringLiteral("N2"), lance, QStringLiteral("N1"));
+			Conductor *reagent = connect(folio, dosing, QStringLiteral("N1"), lance, QStringLiteral("N3"));
+			Conductor *p6 = connect(folio, lance, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(p1 && p2 && branch && p3 && p4 && p5 && reagent && p6);
+			auto set = [](const QList<Conductor *> &run) {
+				return QSet<Conductor *>(run.cbegin(), run.cend());
+			};
+			using Reach = Conductor::LineReach;
+
+				// the line number: straight on, from anywhere on the run
+			const QSet<Conductor *> run{p1, p2, p3, p4, p5, p6};
+			for (Conductor *pipe : run) {
+				QVERIFY2(set(pipe->inlineRun(Reach::LineNumber)) == run,
+						 qPrintable(QString::number(pipe->inlineRun(Reach::LineNumber).size())));
+			}
+			QCOMPARE(branch->inlineRun(Reach::LineNumber), QList<Conductor *>{branch});
+			QCOMPARE(reagent->inlineRun(Reach::LineNumber), QList<Conductor *>{reagent});
+				// the flow: each side of the tee on its own
+			QVERIFY(set(p1->inlineRun(Reach::Flow)) == (QSet<Conductor *>{p1, p2}));
+			QVERIFY(set(p6->inlineRun(Reach::Flow)) == (QSet<Conductor *>{p3, p4, p5, p6}));
+			QCOMPARE(branch->inlineRun(Reach::Flow), QList<Conductor *>{branch});
+				// the fluid still goes everywhere, the branch included
+			QCOMPARE(p1->inlineRun(Reach::Fluid).size(), 7);
+
+				// a tee turned a quarter: the run is still the straight one
+			tee->setRotation(90);
+			QCOMPARE(branch->inlineRun(Reach::LineNumber), QList<Conductor *>{branch});
+			QVERIFY(set(p1->inlineRun(Reach::LineNumber)) == run);
+			tee->setRotation(0);
+
+				// ---- in the panel ----
+			auto line_number = [](const Conductor *pipe) { return pipe->properties().m_pipe.line_number; };
+			auto flow = [](const Conductor *pipe) { return pipe->properties().m_pipe.flow; };
+			auto give = [](Conductor *pipe, const QString &number) {
+				ConductorProperties properties = pipe->properties();
+				properties.m_pipe.line_number = number;
+				pipe->setProperties(properties);
+			};
+			give(branch, QStringLiteral("L-02"));
+			give(p5, QStringLiteral("L-09"));
+			auto type = [](QLineEdit *edit, const QString &text) {
+				edit->setText(text);
+				edit->setModified(true);
+				emit edit->editingFinished();
+			};
+			QUndoStack &stack = folio->undoStack();
+			const int steps = stack.count();
+			PipePropertiesWidget page({p1});
+			auto *number_edit = page.findChild<QLineEdit *>(QStringLiteral("line_number"));
+			auto *flow_edit = page.findChild<QLineEdit *>(QStringLiteral("flow"));
+			QVERIFY(number_edit && flow_edit);
+			type(number_edit, QStringLiteral("L-01"));
+			QCOMPARE(stack.count(), steps + 1);
+			for (Conductor *pipe : run) {
+				QCOMPARE(line_number(pipe), QStringLiteral("L-01"));
+			}
+			QCOMPARE(line_number(branch), QStringLiteral("L-02"));
+			QCOMPARE(line_number(reagent), QString());
+			QVERIFY2(page.diameterMessage().contains(QStringLiteral("5 other pipe line(s)")),
+					 qPrintable(page.diameterMessage()));
+			QVERIFY2(page.diameterMessage().contains(QStringLiteral("another line number (L-09)")),
+					 qPrintable(page.diameterMessage()));
+				// one step undoes it
+			stack.undo();
+			QVERIFY(line_number(p1).isEmpty());
+			QCOMPARE(line_number(p5), QStringLiteral("L-09"));
+			stack.redo();
+
+				// the branch renumbered: the run keeps its number
+			PipePropertiesWidget branch_page({branch});
+			type(branch_page.findChild<QLineEdit *>(QStringLiteral("line_number")), QStringLiteral("L-03"));
+			QCOMPARE(line_number(branch), QStringLiteral("L-03"));
+			QCOMPARE(line_number(p2), QStringLiteral("L-01"));
+			QVERIFY(branch_page.diameterMessage().isEmpty());
+
+				// the flow: up to the tee
+			type(flow_edit, QStringLiteral("120 m3/h"));
+			QCOMPARE(flow(p1), QStringLiteral("120 m3/h"));
+			QCOMPARE(flow(p2), QStringLiteral("120 m3/h"));
+			for (Conductor *pipe : {branch, p3, p4, p5, p6}) {
+				QVERIFY(flow(pipe).isEmpty());
+			}
+			QVERIFY2(page.diameterMessage().contains(QStringLiteral("1 other pipe line(s)")),
+					 qPrintable(page.diameterMessage()));
+
+				// ---- a new pipe ----
+				// on the run beyond the tank: nothing; on the branch of
+				// another tee: nothing; straight on: the number, not the
+				// flow, which a tee stops
+			Element *start = place(folio, tank);
+			Element *v2 = place(folio, addValve(project));
+			Element *tee2 = place(folio, addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" ")));
+			Element *after = place(folio, tank);
+			Element *aside = place(folio, tank);
+			QVERIFY(start && v2 && tee2 && after && aside);
+			start->setPos(0, 1000);
+			v2->setPos(200, 1000);
+			tee2->setPos(400, 1000);
+			after->setPos(600, 1000);
+			aside->setPos(400, 1400);
+			Conductor *q1 = connect(folio, start, QStringLiteral("N2"), v2, QStringLiteral("N1"));
+			QVERIFY(q1);
+			ConductorProperties first = q1->properties();
+			first.m_pipe.line_number = QStringLiteral("L-05");
+			first.m_pipe.flow = QStringLiteral("50 m3/h");
+			q1->setProperties(first);
+				// through the valve: both
+			Conductor *to_tee2 = connect(folio, v2, QStringLiteral("N2"), tee2, QStringLiteral("N1"));
+			QVERIFY(to_tee2);
+			QCOMPARE(line_number(to_tee2), QStringLiteral("L-05"));
+			QCOMPARE(flow(to_tee2), QStringLiteral("50 m3/h"));
+			Conductor *straight = connect(folio, tee2, QStringLiteral("N2"), after, QStringLiteral("N1"));
+			Conductor *aside_pipe = connect(folio, tee2, QStringLiteral("N3"), aside, QStringLiteral("N1"));
+			QVERIFY(straight && aside_pipe);
+			QCOMPARE(line_number(straight), QStringLiteral("L-05"));
+			QVERIFY(flow(straight).isEmpty());
+			QVERIFY(line_number(aside_pipe).isEmpty());
+			QVERIFY(flow(aside_pipe).isEmpty());
 		}
 
 			// A reducing tee is an equal tee with a reducer against its N3

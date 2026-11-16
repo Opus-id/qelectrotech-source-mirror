@@ -14416,6 +14416,22 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
             <numerusform>Dont %n qui avaient un autre fluide (%1) : seuls un équipement ou une canne d&apos;injection séparent deux fluides.</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="1220"/>
+        <source>%n of them had another line number (%1): only equipment, an injection lance or the branch of a tee keeps two line numbers apart.</source>
+        <translation>
+            <numerusform>Dont %n qui avait un autre numéro de ligne (%1) : seuls un équipement, une canne d&apos;injection ou la dérivation d&apos;un Té séparent deux numéros de ligne.</numerusform>
+            <numerusform>Dont %n qui avaient un autre numéro de ligne (%1) : seuls un équipement, une canne d&apos;injection ou la dérivation d&apos;un Té séparent deux numéros de ligne.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="1225"/>
+        <source>%n of them had another flow (%1): only a tee or equipment keeps two flows apart.</source>
+        <translation>
+            <numerusform>Dont %n qui avait un autre débit (%1) : seuls un Té ou un équipement séparent deux débits.</numerusform>
+            <numerusform>Dont %n qui avaient un autre débit (%1) : seuls un Té ou un équipement séparent deux débits.</numerusform>
+        </translation>
+    </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="306"/>
         <source>Pipe line</source>
