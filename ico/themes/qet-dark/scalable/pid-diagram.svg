@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <style type="text/css" id="current-color-scheme">
+    .ColorScheme-Text { color:#dcdcdc; }
+    .ColorScheme-Highlight { color:#1892d2; }
+  </style>
+  <!-- the line: valve, pump, valve, up to the tank, in the blue that marks what the page works on -->
+  <path class="ColorScheme-Highlight" d="M4 84H14M30 84H37M63 84H70M86 84H98"
+        fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+  <!-- the level in the tank -->
+  <path class="ColorScheme-Highlight" d="M100 58H122"
+        fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="5 3"/>
+  <!-- tank, valves and pump outlined in the ink, filled white -->
+  <g class="ColorScheme-Text" fill="#ffffff" stroke="currentColor" stroke-width="4"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M98 34C98 22 124 22 124 34V96C124 108 98 108 98 96Z" fill="none"/>
+    <path d="M14 76L30 92V76L14 92Z"/>
+    <path d="M70 76L86 92V76L70 92Z"/>
+    <circle cx="50" cy="84" r="13"/>
+    <path d="M50 71L63 84L50 97" fill="none"/>
+  </g>
+</svg>

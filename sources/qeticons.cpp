@@ -483,7 +483,7 @@ void QET::Icons::initIcons()
 	ApplyElementTextFormat = QIcon(":/ico/format-apply.svg");
 	DimensionLinear = QIcon(":/ico/dimension-linear.svg");
 	DimensionChain = QIcon(":/ico/dimension-chain.svg");
-	PidDiagram = QIcon(":/ico/pid-diagram.svg");
+	PidDiagram = QIcon::fromTheme("pid-diagram");
 	if (rtl) {
 		EditRedo.addPixmap(QIcon::fromTheme("edit-redo").pixmap(16).transformed(reverse));
 		EditRedo.addPixmap(QIcon::fromTheme("edit-redo").pixmap(22).transformed(reverse));

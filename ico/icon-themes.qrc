@@ -33,6 +33,7 @@
         <file alias="themes/qet/scalable/printer.svg">breeze/64/printer.svg</file>
         <file alias="themes/qet/scalable/settings.svg">breeze/48/systemsettings.svg</file>
         <file alias="themes/qet/scalable/configure-shortcuts.svg">qet/pages/configure-shortcuts.svg</file>
+        <file alias="themes/qet/scalable/pid-diagram.svg">qet/pages/pid-diagram.svg</file>
         <file alias="themes/qet/16x16/align-horizontal-center.svg">qet/scalable/16/align-horizontal-center.svg</file>
         <file alias="themes/qet/22x22/align-horizontal-center.svg">themes/generated/scalable-22/align-horizontal-center.svg</file>
         <file alias="themes/qet/32x32/align-horizontal-center.svg">qet/scalable/16/align-horizontal-center.svg</file>
@@ -2741,6 +2742,7 @@
         <file>themes/qet-dark/scalable/selection-replace.svg</file>
         <file>themes/qet-dark/scalable/snap-to-grid.svg</file>
         <file>themes/qet-dark/scalable/configure-shortcuts.svg</file>
+        <file>themes/qet-dark/scalable/pid-diagram.svg</file>
         <file>themes/qet-dark/scalable-16/align-horizontal-center.svg</file>
         <file>themes/qet-dark/scalable-22/align-horizontal-center.svg</file>
         <file>themes/qet-dark/scalable-16/align-horizontal-left.svg</file>

@@ -7,6 +7,6 @@
       </style>
   </defs>
   <rect x="0.5" y="0.5" width="10" height="10" style="fill:none;stroke:currentColor;stroke-width:1;stroke-dasharray:2,1" class="ColorScheme-Text"/>
-  <circle cx="11.5" cy="11.5" r="4" style="fill:#27ae60;stroke:currentColor;stroke-width:1" class="ColorScheme-Text"/>
+  <circle cx="11.5" cy="11.5" r="4" style="fill:#239d57;stroke:currentColor;stroke-width:1" class="ColorScheme-Text"/>
   <path style="fill:none;stroke:#ffffff;stroke-width:1.4" d="M 11.5 9 v 5 M 9 11.5 h 5"/>
 </svg>

@@ -321,6 +321,7 @@ BREEZE_PAGES = {
 # Page icons, QET name to SVG, relative to ico/.
 PAGES = {name: f"breeze/{size}/{breeze}.svg" for name, (breeze, size) in BREEZE_PAGES.items()}
 PAGES["configure-shortcuts"] = "qet/pages/configure-shortcuts.svg"
+PAGES["pid-diagram"] = "qet/pages/pid-diagram.svg"
 
 # The app icon's theme name. Its PNGs, one per size, stay in
 # ico/app/hicolor/<size>/apps/, where the packaging scripts install them from.
