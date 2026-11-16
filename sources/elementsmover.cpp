@@ -41,6 +41,7 @@
 #include "qetapp.h"
 #include "qetdiagrameditor.h"
 #include "undocommand/movegraphicsitemcommand.h"
+#include "pidnozzlemagnet.h"
 
 /**
 	@brief ElementsMover::ElementsMover Constructor
@@ -325,6 +326,35 @@ void ElementsMover::continueMovement(const QPointF &movement)
 }
 
 /**
+	@brief ElementsMover::magnetize
+	See the declaration. The step of the magnet is part of the movement,
+	so one undo puts the symbols back where the gesture found them; the
+	next move of the mouse starts from the grid again.
+*/
+void ElementsMover::magnetize(qreal radius)
+{
+	if (!m_movement_running || holds(m_movement_driver)) return;
+
+	const PidNozzleMagnet::Snap snap = PidNozzleMagnet::find(m_moved_content.m_elements, radius);
+	if (snap.isNull()) {
+		PidNozzleMagnet::clearMark();
+		return;
+	}
+	PidNozzleMagnet::mark(snap.target);
+	if (snap.step.isNull()) return;
+
+	m_current_movement += snap.step;
+		//The item under the mouse moves with its own hand, not with
+		//applyMovement(): off the grid, as the magnet put it; first, so
+		//the pipes are drawn again once everything stands in place
+	if (m_movement_driver) {
+		m_movement_driver->QGraphicsItem::setPos(m_movement_driver->pos()
+				+ QET::sceneStepInParent(m_movement_driver, snap.step));
+	}
+	applyMovement(snap.step);
+}
+
+/**
 	@brief ElementsMover::endMovement
 	Ended the current movement by creating an undo added to the undostack of the diagram.
 	If there is only one element moved, we try to auto-connect new conductor from this element
@@ -335,6 +365,7 @@ void ElementsMover::endMovement()
 		// A movement must be inited
 	if (!m_movement_running) return;
 	endPreview();
+	PidNozzleMagnet::clearMark();
 
 		//The lines he marked together with the elements settle first:
 		//they may have to be asked something before they can rest, and
@@ -654,6 +685,7 @@ void ElementsMover::cancelMovement()
 {
 	if (!m_movement_running) return;
 	endPreview();
+	PidNozzleMagnet::clearMark();
 
 		//Back to the places the gesture found them in: the recorded
 		//ones rather than the movement taken back, since every step of

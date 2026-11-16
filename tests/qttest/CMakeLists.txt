@@ -589,6 +589,10 @@ qet_add_app_test(tst_lassomedium tst_lassomedium.cpp)
 # The magnet of the nozzles: a pipe released near a free nozzle of the same
 # medium is caught by it; wires keep the behaviour they always had.
 qet_add_app_test(tst_pipemagnet tst_pipemagnet.cpp)
+# The magnet of the nozzles (5l-1c): a symbol placed or dragged near a free
+# nozzle of another one comes against it, nozzle on nozzle; Shift, wires and
+# nozzles already taken leave it where the mouse is; one undo puts it back.
+qet_add_app_test(tst_nozzlemagnet tst_nozzlemagnet.cpp)
 # The tool which draws pipes: two clicks or a drag near two free nozzles,
 # never a symbol picked nor moved, right click / Esc, wires left alone.
 qet_add_app_test(tst_pipetool tst_pipetool.cpp)

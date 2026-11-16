@@ -57,6 +57,10 @@ class ElementsMover {
 		void applyMovement(const QPointF &);
 		void endMovement();
 		bool holds(const QGraphicsItem *item) const;
+			/// The magnet of the nozzles (P&ID, 5l-1c): near a free nozzle
+			/// of a symbol left in place, a free nozzle of a moved symbol
+			/// comes against it, within @p radius on the folio (0: none)
+		void magnetize(qreal radius);
 			/**
 				Steps of items this mover does not move itself -- the
 				cable lines the user dragged himself, which know how to

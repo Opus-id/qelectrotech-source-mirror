@@ -27,6 +27,8 @@
 #include <autoNum/elementautonumschemecommand.h>
 #include <autoNum/numerotationcontextcommands.h>
 #include <diagram.h>
+#include <elementsmover.h>
+#include <pidnozzlemagnet.h>
 #include <shownkinds.h>
 #include <diagramcommands.h>
 #include <diagramcontext.h>
@@ -2771,7 +2773,11 @@ QList <QPair <Terminal *, Terminal *> > Element::AlignedFreeTerminals() const
 			if (other_terminal
 				&& terminal->hasRoomForWire()
 				&& other_terminal->hasRoomForWire()
-				&& terminal->sameMediumAs(other_terminal))
+				&& terminal->sameMediumAs(other_terminal)
+					//Two nozzles against each other touch: no pipe of no
+					//length between them (P&ID, 5l-1c)
+				&& !(terminal->medium() == TerminalData::Pipe
+					 && terminal->dockConductor() == other_terminal->dockConductor()))
 				list << qMakePair(terminal, other_terminal);
 		}
 	}
@@ -3697,6 +3703,12 @@ bool comparPos(const Element *elmt1, const Element *elmt2)
 void Element::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
 	QetGraphicsItem::mouseMoveEvent(event);
+		//Near a free nozzle of a symbol left in place, a free nozzle of the
+		//moved ones comes against it (P&ID, 5l-1c); Shift held moves without
+	if (Diagram *folio = diagram(); folio && (event->buttons() & Qt::LeftButton)) {
+		folio->elementsMover().magnetize((event->modifiers() & Qt::ShiftModifier)
+										 ? 0 : Terminal::magnetSceneRadius(event));
+	}
 	foreach (Terminal *t, terminals())
 	{
 		t -> drawHelpLine(true);

@@ -206,6 +206,10 @@ Terminal *findPartner(const State &s, const Terminal *from)
 	Terminal *nearest = found.first().second;
 	if (blocked(s, from, nearest) || !isFree(s, nearest))
 		return nullptr;
+		//Two nozzles against each other touch: no pipe of no length
+		//between them, nor one beyond (P&ID, 5l-1c)
+	if (from->medium() == TerminalData::Pipe && found.first().first <= kTolerance)
+		return nullptr;
 		//Nor may it run past a terminal that faces the other end: seen from
 		//there, that one comes first
 	if (facingBetween(s, nearest, from))

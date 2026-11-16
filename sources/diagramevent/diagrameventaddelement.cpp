@@ -35,6 +35,7 @@
 #include <diagramcontent.h>
 #include <autoconnect.h>
 #include <pidtag.h>
+#include <pidnozzlemagnet.h>
 #include <QPointer>
 #include <QTimer>
 #include <QGraphicsLineItem>
@@ -87,6 +88,7 @@ DiagramEventAddElement::DiagramEventAddElement(ElementsLocation &location, Diagr
 */
 DiagramEventAddElement::~DiagramEventAddElement()
 {
+	PidNozzleMagnet::clearMark();
 	endDrag();
 	if (m_element)
 	{
@@ -125,8 +127,19 @@ void DiagramEventAddElement::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 	if (m_element)
 	{
-		const auto pos_{Diagram::snapToGrid(event->scenePos())};
-		m_element->setPos(pos_);
+		m_element->setPos(Diagram::snapToGrid(event->scenePos()));
+			//Near a free nozzle of another symbol, a nozzle of this one
+			//comes against it (P&ID, 5l-1c); Shift held places without
+		const PidNozzleMagnet::Snap snap = (event->modifiers() & Qt::ShiftModifier)
+				? PidNozzleMagnet::Snap()
+				: PidNozzleMagnet::find({m_element}, Terminal::magnetSceneRadius(event));
+		if (snap.isNull()) {
+			PidNozzleMagnet::clearMark();
+		} else {
+			m_element->QGraphicsItem::setPos(m_element->pos() + snap.step);
+			PidNozzleMagnet::mark(snap.target);
+		}
+		const QPointF pos_ = m_element->pos();
 
 		if (m_status_bar) {
 			m_status_bar->showMessage(QString("x %1 : y %2").arg(QString::number(pos_.x()), QString::number(pos_.y())));
@@ -459,6 +472,11 @@ void DiagramEventAddElement::addElement()
 		//We must add item to scene (even if addItemCommand do this)
 		//for create the autoconnection below
 	element -> setPos(m_element->pos());
+		//Off the grid when the magnet of the nozzles brought it there
+	if (element->pos() != m_element->pos()) {
+		element->QGraphicsItem::setPos(m_element->pos());
+	}
+	PidNozzleMagnet::clearMark();
 	element -> setRotation(m_element -> rotation());
 	m_diagram -> addItem(element);
 
