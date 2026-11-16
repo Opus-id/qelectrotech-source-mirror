@@ -573,6 +573,11 @@ QTransform Element::symbolTextsTransform() const
 */
 void Element::updateSymbolPictures(bool force)
 {
+		//The texts of the nozzles keep the way of the sheet: their room in
+		//the element changes when it turns or mirrors (step 5l-1o)
+	for (Terminal *terminal : std::as_const(m_terminals)) {
+		terminal->updateLabelPlace();
+	}
 	const QTransform transform = symbolTextsTransform();
 	if (transform.isIdentity())
 	{

@@ -42,6 +42,7 @@
 #include "ui/pipepropertieswidget.h"
 #include "undocommand/changeelementlocationcommand.h"
 #include "undocommand/changenozzlediameterscommand.h"
+#include "undocommand/mirrorselectioncommand.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -59,6 +60,9 @@
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QToolButton>
+
+#include <tuple>
+#include <utility>
 #include <QUndoStack>
 
 /**
@@ -275,6 +279,155 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(part.labelText(), QStringLiteral("T1"));
 			QDomDocument out2;
 			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("pid_dn")));
+		}
+
+			// ---- the texts of a nozzle (step 5l-1o) ----
+			// Along a horizontal pipe, from the end of the nozzle: the name
+			// above the pipe, the size under it, clear of the largest mark of
+			// a connection. Along a vertical one, the same turned a quarter
+			// to read from the right of the sheet; or, texts kept horizontal,
+			// both on the right of the pipe, the name above the size.
+		void theTextsOfANozzleGoBesideItsPipe()
+		{
+			const qreal gap = TerminalData::nozzleLabelGap;
+			QVERIFY(gap > PipeConnection::markHalfHeight);
+			const QSizeF name(20, 10);
+			const QSizeF size(30, 10);
+
+			auto labels = TerminalData::nozzleLabels(Qet::West, true, name, size);
+			QCOMPARE(labels.rotation, 0.0);
+			QCOMPARE(labels.name, QRectF(-20, -gap - 10, 20, 10));
+			QCOMPARE(labels.size, QRectF(-30, gap, 30, 10));
+			labels = TerminalData::nozzleLabels(Qet::East, true, name, size);
+			QCOMPARE(labels.name, QRectF(0, -gap - 10, 20, 10));
+			QCOMPARE(labels.size, QRectF(0, gap, 30, 10));
+				// a quarter anticlockwise: the text runs up the sheet
+			labels = TerminalData::nozzleLabels(Qet::North, true, name, size);
+			QCOMPARE(labels.rotation, -90.0);
+			QCOMPARE(labels.name, QRectF(0, -gap - 10, 20, 10));
+			QCOMPARE(QTransform().rotate(-90).map(QPointF(1, 0)), QPointF(0, -1));
+			labels = TerminalData::nozzleLabels(Qet::South, true, name, size);
+			QCOMPARE(labels.rotation, -90.0);
+			QCOMPARE(labels.name, QRectF(-20, -gap - 10, 20, 10));
+				// texts kept horizontal: on the right of the pipe, beside its
+				// start, the name above the size
+			labels = TerminalData::nozzleLabels(Qet::North, false, name, size);
+			QCOMPARE(labels.rotation, 0.0);
+			QCOMPARE(labels.name, QRectF(gap, -20, 20, 10));
+			QCOMPARE(labels.size, QRectF(gap, -10, 30, 10));
+			labels = TerminalData::nozzleLabels(Qet::South, false, name, size);
+			QCOMPARE(labels.name, QRectF(gap, 0, 20, 10));
+			QCOMPARE(labels.size, QRectF(gap, 10, 30, 10));
+				// a size alone takes the place of the pair
+			labels = TerminalData::nozzleLabels(Qet::North, false, QSizeF(), size);
+			QCOMPARE(labels.size, QRectF(gap, -10, 30, 10));
+		}
+
+			// On a placed symbol the texts of a nozzle follow its pipe on the
+			// sheet, the symbol turned or mirrored, and always read normally;
+			// the room of the nozzle follows them. An electrical terminal
+			// keeps its name where its symbol puts it.
+		void theTextsOfANozzleFollowItsPipeOnTheSheet()
+		{
+			const qreal gap = TerminalData::nozzleLabelGap;
+			QETProject project;
+				// a new project keeps the texts of its turned symbols
+				// horizontal; this one turns them, as a project saved without
+				// the setting
+			QVERIFY(project.uprightSymbolTexts());
+			project.setUprightSymbolTexts(false);
+			Diagram *folio = project.addNewDiagram();
+			Element *tank = place(folio, addTank(project));
+			QVERIFY(tank);
+			Terminal *n1 = terminal(tank, QStringLiteral("N1"));
+			Terminal *e1 = terminal(tank, QStringLiteral("E1"));
+			QCOMPARE(n1->sizeLabelText(), QStringLiteral("DN 80"));
+			const QFontMetrics metrics{n1->labelFont()};
+			auto onSheet = [&metrics](const Terminal *t) {
+				const TerminalData::NozzleLabels labels = t->nozzleLabelsFor(
+							TerminalData::labelSize(metrics, t->name()),
+							TerminalData::labelSize(metrics, t->sizeLabelText()));
+				const QTransform frame = t->nozzleLabelFrame(labels.rotation);
+				return std::pair{t->mapRectToScene(frame.mapRect(labels.name)),
+								 t->mapRectToScene(frame.mapRect(labels.size))};
+			};
+			auto near = [](qreal a, qreal b) { return qAbs(a - b) < 0.01; };
+			auto holds = [](const Terminal *t, const QRectF &text) {
+				return t->mapRectToScene(t->boundingRect()).contains(text);
+			};
+			const QRectF electric = e1->boundingRect();
+
+				// the pipe leaves west: the texts end at the end of the nozzle
+			QCOMPARE(n1->orientation(), Qet::West);
+			QPointF end = n1->dockConductor();
+			auto [name, size] = onSheet(n1);
+			QVERIFY(near(name.right(), end.x()) && near(name.bottom(), end.y() - gap));
+			QVERIFY(near(size.right(), end.x()) && near(size.top(), end.y() + gap));
+			QVERIFY(holds(n1, name) && holds(n1, size));
+				// the pipe between the two texts stays the pipe's to click
+			QVERIFY(!n1->shape().contains(n1->mapFromScene(end + QPointF(-15, 0))));
+			QVERIFY(n1->shape().contains(n1->mapFromScene(name.center())));
+
+				// turned a quarter: the pipe leaves north, the texts read from
+				// the right of the sheet, the name on the left of the pipe
+			tank->setRotation(90);
+			QCOMPARE(n1->orientation(), Qet::North);
+			end = n1->dockConductor();
+			std::tie(name, size) = onSheet(n1);
+			QVERIFY(near(name.right(), end.x() - gap) && near(name.bottom(), end.y()));
+			QVERIFY(near(size.left(), end.x() + gap) && near(size.bottom(), end.y()));
+			QVERIFY(holds(n1, name) && holds(n1, size));
+				// texts kept horizontal by the project: on the right of the pipe
+			project.setUprightSymbolTexts(true);
+			std::tie(name, size) = onSheet(n1);
+			QVERIFY(near(name.left(), end.x() + gap) && near(size.left(), end.x() + gap));
+			QVERIFY(near(size.bottom(), end.y()) && near(name.bottom(), size.top()));
+			QVERIFY(holds(n1, name) && holds(n1, size));
+			project.setUprightSymbolTexts(false);
+
+				// mirrored: the pipe leaves east, the texts start at the end of
+				// the nozzle and read normally
+			tank->setRotation(0);
+			MirrorSelectionCommand mirror({tank}, Qt::Horizontal);
+			mirror.redo();
+			QCOMPARE(n1->orientation(), Qet::East);
+			end = n1->dockConductor();
+			std::tie(name, size) = onSheet(n1);
+			QVERIFY(near(name.left(), end.x()) && near(name.bottom(), end.y() - gap));
+			QVERIFY(near(size.left(), end.x()) && near(size.top(), end.y() + gap));
+			QVERIFY(holds(n1, name) && holds(n1, size));
+			const QTransform to_sheet = n1->nozzleLabelFrame(0) * n1->sceneTransform();
+			QVERIFY(to_sheet.type() <= QTransform::TxTranslate);
+
+				// an electrical terminal: its room in its element never moves
+			QCOMPARE(e1->boundingRect(), electric);
+		}
+
+			// The element editor writes the texts of a nozzle as a symbol not
+			// turned does, and they are not dragged
+		void theEditorWritesTheTextsOfANozzleBesideItsPipe()
+		{
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<terminal x=\"0\" y=\"0\" name=\"N1\" orientation=\"w\" type=\"Generic\" "
+				"medium=\"pipe\" pid_dn=\"100\" show_name=\"true\" label_x=\"40\" label_y=\"40\"/>"));
+			PartTerminal part(nullptr);
+			part.fromXml(doc.documentElement());
+			QCOMPARE(part.sizeLabelText(), QStringLiteral("DN 100"));
+			const TerminalData::NozzleLabels labels = part.nozzleLabels();
+			QCOMPARE(labels.rotation, 0.0);
+			QCOMPARE(labels.name.right(), 0.0);
+			QCOMPARE(labels.size.top(), TerminalData::nozzleLabelGap);
+				// the place the symbol gives the name is not read
+			const QRectF room = part.labelRect();
+			QVERIFY(room.contains(labels.name) && room.contains(labels.size));
+			QVERIFY(!room.contains(QPointF(40, 40)));
+				// pointing north: turned
+			part.setOrientation(Qet::North);
+			QCOMPARE(part.nozzleLabels().rotation, -90.0);
+				// an electrical terminal keeps the place of its symbol
+			part.setMedium(TerminalData::Electrical);
+			QVERIFY(part.labelRect().contains(QPointF(41, 41)));
 		}
 
 		void aDiameterIsAPositiveWholeNumber_data()

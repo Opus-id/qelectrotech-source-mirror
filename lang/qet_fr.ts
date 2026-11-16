@@ -29366,6 +29366,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <translation>Ce piquage prend la taille de sa tuyauterie : il n'a pas de taille propre. Voir le bloc Tuyauterie du panneau Informations (rien de sélectionné).</translation>
     </message>
     <message>
+        <location filename="../sources/editor/ui/terminaleditor.cpp" line="168"/>
+        <source>The name and the size of a nozzle are written beside its pipe, the name above, the size under it, whatever the symbol says: on any turned or mirrored symbol they read the same way.</source>
+        <translation>Le nom et la taille d&apos;un piquage s&apos;écrivent le long de sa tuyauterie, le nom au-dessus, la taille en dessous, quoi que dise le symbole : sur un symbole tourné ou en miroir, ils se lisent de la même façon.</translation>
+    </message>
+    <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="178"/>
         <source>North</source>
         <translation>Nord</translation>

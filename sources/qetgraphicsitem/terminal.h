@@ -234,6 +234,9 @@ class Terminal : public QGraphicsObject
 		QString diameterText() const;
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
+			/// The size labelText() writes under the name of a nozzle, as the
+			/// project writes it; nothing when it writes none
+		QString sizeLabelText() const;
 			/// The font of labelText(): the one of the symbol, at the size
 			/// the project sets for the texts of the nozzles
 		QFont labelFont() const;
@@ -242,6 +245,18 @@ class Terminal : public QGraphicsObject
 		bool labelIsDrawn() const;
 			/// To call before labelFont() changes its size
 		void prepareLabelChange() { prepareGeometryChange(); }
+			/// To call when the texts of a nozzle may turn on the sheet: its
+			/// element turned or mirrored, the setting of its project changed
+			/// (nozzleLabelsFor()); nothing for any other terminal
+		void updateLabelPlace();
+			/// For a nozzle: where texts of the sizes @p name and @p size
+			/// are written (TerminalData::nozzleLabels()), after the way its
+			/// pipe leaves on the sheet and the setting of its project
+		TerminalData::NozzleLabels nozzleLabelsFor(const QSizeF &name, const QSizeF &size) const;
+			/// The frame of those texts in the coordinates of this terminal:
+			/// at the end of the nozzle, along the axes of the sheet, turned
+			/// by @p rotation degrees, whatever its element does
+		QTransform nozzleLabelFrame(qreal rotation) const;
 		QString potential() const;
 		bool useMasterLabel() const { return d->m_use_master_label; }
 		void setUseMasterLabel(bool use);
@@ -345,6 +360,9 @@ class Terminal : public QGraphicsObject
 		QLocale sizeLocale() const;
 			/// The room of the terminal and of its name, without the mark
 		QRectF ownRect() const;
+			/// For a nozzle showing its name: the room of its name and of
+			/// the widest size it may write, each apart, beside its pipe
+		QList<QRectF> nozzleLabelRooms() const;
 		void drawConnectionMark(QPainter *painter, qreal detail) const;
 
 		bool               m_draw_help_line{false};

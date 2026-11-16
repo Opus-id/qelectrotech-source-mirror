@@ -122,6 +122,34 @@ void PartTerminal::paint(
 		painter->setRenderHint(QPainter::Antialiasing, true);
 		painter->setRenderHint(QPainter::TextAntialiasing, true);
 
+			// A nozzle writes its name and its size beside its pipe, as on
+			// the folio (step 5l-1o): its place, alignment and rotation are
+			// not read
+		if (d->m_medium == TerminalData::Pipe) {
+			const TerminalData::NozzleLabels labels = nozzleLabels();
+			painter->rotate(labels.rotation);
+			const QString size = sizeLabelText();
+			for (const auto &[rect, text] : {std::pair{labels.name, d->m_name},
+											 std::pair{labels.size, size}}) {
+				if (text.isEmpty()) {
+					continue;
+				}
+				if (d->m_label_frame) {
+					painter->drawRect(rect.adjusted(-1, -1, 1, 1));
+				}
+				painter->drawText(rect, static_cast<int>(Qt::AlignLeft | Qt::AlignTop), text);
+				if (isSelected() || m_hovered) {
+					painter->save();
+					painter->setPen(QPen(Qt::darkBlue, 0, Qt::DashLine));
+					painter->setBrush(Qt::NoBrush);
+					painter->drawRect(rect.adjusted(-1, -1, 1, 1));
+					painter->restore();
+				}
+			}
+			painter->restore();
+			return;
+		}
+
 		QPointF label_pos = d->m_label_pos;
 		QRectF text_rect;
 		QFontMetrics fm(d->m_label_font);
@@ -234,6 +262,20 @@ QRectF PartTerminal::labelRect() const
 {
 	if (!d->m_show_name || labelText().isEmpty())
 		return QRectF();
+
+		//A nozzle: its name and its size, beside its pipe
+	if (d->m_medium == TerminalData::Pipe) {
+		const TerminalData::NozzleLabels labels = nozzleLabels();
+		const QTransform frame = QTransform().rotate(labels.rotation);
+		QRectF room;
+		if (!d->m_name.isEmpty()) {
+			room = frame.mapRect(labels.name);
+		}
+		if (!sizeLabelText().isEmpty()) {
+			room = room.isNull() ? frame.mapRect(labels.size) : room.united(frame.mapRect(labels.size));
+		}
+		return room.adjusted(-3, -3, 3, 3);
+	}
 
 	QFontMetrics fm(d->m_label_font);
 	QSizeF text_size = TerminalData::labelSize(fm, labelText());
@@ -460,6 +502,23 @@ QString PartTerminal::labelText() const
 								   PidCodification().locale());
 }
 
+QString PartTerminal::sizeLabelText() const
+{
+	if (d->m_medium != TerminalData::Pipe || followsPipe() || !d->m_diameter.isSet()) {
+		return QString();
+	}
+	return d->m_diameter.text(PidCodification().locale());
+}
+
+TerminalData::NozzleLabels PartTerminal::nozzleLabels() const
+{
+	const QFontMetrics metrics(d->m_label_font);
+	const QString size = sizeLabelText();
+	return TerminalData::nozzleLabels(d->m_orientation, true,
+									  d->m_name.isEmpty() ? QSizeF() : TerminalData::labelSize(metrics, d->m_name),
+									  size.isEmpty() ? QSizeF() : TerminalData::labelSize(metrics, size));
+}
+
 /**
 	@brief PartTerminal::followsPipe
 	Same criterion as Terminal::followsPipe() of a placed symbol, read from
@@ -669,7 +728,9 @@ void PartTerminal::handleUserTransformation(const QRectF &initial_selection_rect
 
 void PartTerminal::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
-	if (event->button() == Qt::LeftButton && d->m_show_name && !d->m_name.isEmpty()) {
+		//The name of a nozzle has its place beside its pipe: not dragged
+	if (event->button() == Qt::LeftButton && d->m_show_name && !d->m_name.isEmpty()
+		&& d->m_medium != TerminalData::Pipe) {
 		QPointF local_click = event->pos();
 		// Only start label drag when click is on label AND NOT on terminal line
 		if (!shadowShape().contains(local_click) && labelRect().contains(local_click)) {

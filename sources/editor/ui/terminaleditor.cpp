@@ -163,6 +163,22 @@ void TerminalEditor::updateForm()
 #endif
 
 	ui->m_text_props_gb->setEnabled(m_part->showName());
+		//The name of a nozzle is written beside its pipe, as its pipe leaves
+		//on the folio (step 5l-1o): the place, rotation and alignment given
+		//here are not read. Greyed, kept in the file.
+	const QString beside_pipe = PidToolTip::wrapped(tr(
+		"The name and the size of a nozzle are written beside its pipe, the name above, "
+		"the size under it, whatever the symbol says: on any turned or mirrored symbol "
+		"they read the same way."));
+	for (QWidget *field : std::initializer_list<QWidget *>{
+			 ui->label_7, ui->m_label_x_dsb, ui->label_8, ui->m_label_y_dsb,
+			 ui->label_10, ui->m_label_rotation_sb, ui->m_align_pb}) {
+		field->setEnabled(!nozzle);
+		if (!field->property("ownTip").isValid()) {
+			field->setProperty("ownTip", field->toolTip());
+		}
+		field->setToolTip(nozzle ? beside_pipe : field->property("ownTip").toString());
+	}
 
 	// Update master label fields
 	bool is_slave = updateMasterLabelVisibility();

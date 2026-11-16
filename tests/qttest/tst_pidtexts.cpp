@@ -129,6 +129,18 @@ class tst_pidtexts : public QObject
 		return element->mapToScene(QRectF(-25, 5, 50, 30)).boundingRect();
 	}
 
+		// The area of the name of the first nozzle of @p element: above its
+		// pipe, wherever its symbol puts it (step 5l-1o)
+	static QRectF nozzleNameArea(const Element *element)
+	{
+		const Terminal *nozzle = element->terminals().first();
+		const QFontMetrics metrics(nozzle->labelFont());
+		const TerminalData::NozzleLabels labels = nozzle->nozzleLabelsFor(
+					TerminalData::labelSize(metrics, nozzle->name()), QSizeF());
+		const QTransform frame = nozzle->nozzleLabelFrame(labels.rotation);
+		return nozzle->mapRectToScene(frame.mapRect(labels.name)).adjusted(-2, -2, 2, 2);
+	}
+
 	private slots:
 		void initTestCase()
 		{
@@ -419,7 +431,7 @@ class tst_pidtexts : public QObject
 		void aSmallImageKeepsTheNameOfANozzle()
 		{
 			Element *pump = place(m_pump);
-			const QRectF area = labelArea(pump);
+			const QRectF area = nozzleNameArea(pump);
 			QVERIFY(inkOnPaper(area, 2.0) > 0);
 			const int ink = inkOnPaper(area, 0.4);
 			QVERIFY(ink > 0);

@@ -454,6 +454,33 @@ void Terminal::paint(
 		painter->setFont(label_font);
 		painter->setPen(d->m_label_color);
 
+			// A nozzle writes its name and its size beside its pipe, as the
+			// pipe leaves on the sheet (step 5l-1o): the place, the
+			// alignment and the rotation the symbol gives are not read
+		if (d->m_medium == TerminalData::Pipe) {
+			const QFontMetrics metrics(label_font);
+			const QString name_text = name();
+			const QString size_text = sizeLabelText();
+			const TerminalData::NozzleLabels labels = nozzleLabelsFor(
+						name_text.isEmpty() ? QSizeF() : TerminalData::labelSize(metrics, name_text),
+						size_text.isEmpty() ? QSizeF() : TerminalData::labelSize(metrics, size_text));
+			painter->save();
+			painter->setTransform(nozzleLabelFrame(labels.rotation), true);
+			for (const auto &[rect, text] : {std::pair{labels.name, name_text},
+											 std::pair{labels.size, size_text}}) {
+				if (text.isEmpty()) {
+					continue;
+				}
+				if (d->m_label_frame) {
+					painter->drawRect(rect.adjusted(-1, -1, 1, 1));
+				}
+				painter->drawText(rect, static_cast<int>(Qt::AlignLeft | Qt::AlignTop), text);
+			}
+			painter->restore();
+			painter->restore();
+			return;
+		}
+
 		QPointF label_pos = d->m_pos + d->m_label_pos;
 		QFontMetrics fm(label_font);
 		QSizeF text_size = TerminalData::labelSize(fm, display_name);
@@ -603,8 +630,35 @@ QRectF Terminal::boundingRect() const
 QPainterPath Terminal::shape() const
 {
 	QPainterPath path;
+		//A nozzle: its texts each apart, the pipe between them staying
+		//the pipe's to click
+	if (d->m_medium == TerminalData::Pipe && d->m_show_name) {
+		path.addRect(m_br);
+		for (const QRectF &text : nozzleLabelRooms()) {
+			path.addRect(text);
+		}
+		return path;
+	}
 	path.addRect(ownRect());
 	return path;
+}
+
+QList<QRectF> Terminal::nozzleLabelRooms() const
+{
+	const QString own_name = name();
+	const QFontMetrics fm(labelFont());
+		//The widest size it may write: "Ø 99999", or several DN a project
+		//says equal, "DN 00/000"
+	QSizeF size = TerminalData::labelSize(fm, PipeDiameter::outside(99999).text());
+	size = size.expandedTo(TerminalData::labelSize(fm, QStringLiteral("DN 00/000")));
+	const TerminalData::NozzleLabels labels = nozzleLabelsFor(
+				own_name.isEmpty() ? QSizeF() : TerminalData::labelSize(fm, own_name), size);
+	const QTransform frame = nozzleLabelFrame(labels.rotation);
+	QList<QRectF> rooms{frame.mapRect(labels.size).adjusted(-2, -2, 2, 2)};
+	if (!own_name.isEmpty()) {
+		rooms << frame.mapRect(labels.name).adjusted(-2, -2, 2, 2);
+	}
+	return rooms;
 }
 
 /**
@@ -620,16 +674,17 @@ QRectF Terminal::ownRect() const {
 		return m_br;
 	}
 
-	QFontMetrics fm(labelFont());
-	QSizeF text_size = TerminalData::labelSize(fm, display_name);
+		//A nozzle: its name and its size beside its pipe (step 5l-1o)
 	if (d->m_medium == TerminalData::Pipe)
 	{
-			//Or for several DN a project says equal, "DN 60/65"
-		const QString several = QStringLiteral("DN 00/000");
-		const qreal width = TerminalData::labelSize(
-					fm, name().isEmpty() ? several : name() + QLatin1Char('\n') + several).width();
-		text_size.setWidth(qMax(text_size.width(), width));
+		QRectF room = m_br;
+		for (const QRectF &text : nozzleLabelRooms()) {
+			room = room.united(text);
+		}
+		return room;
 	}
+	QFontMetrics fm(labelFont());
+	QSizeF text_size = TerminalData::labelSize(fm, display_name);
 	QPointF label_pos = d->m_pos + d->m_label_pos;
 
 	qreal dx = 0, dy = 0;
@@ -2230,6 +2285,42 @@ QString Terminal::labelText() const
 		shown.remove(0, dn.size());
 	}
 	return name().isEmpty() ? shown : name() + QLatin1Char('\n') + shown;
+}
+
+QString Terminal::sizeLabelText() const
+{
+	const QString text = labelText();
+	if (text == name()) {
+		return QString();
+	}
+	return name().isEmpty() ? text : text.section(QLatin1Char('\n'), 1);
+}
+
+TerminalData::NozzleLabels Terminal::nozzleLabelsFor(const QSizeF &name, const QSizeF &size) const
+{
+		//A project keeping the texts of its symbols horizontal keeps those
+		//of a vertical nozzle so too
+	const bool upright = parent_element_ && parent_element_->hasUprightSymbolTexts();
+	return TerminalData::nozzleLabels(orientation(), !upright, name, size);
+}
+
+QTransform Terminal::nozzleLabelFrame(qreal rotation) const
+{
+		//From the sheet to this terminal: what its element does (turn,
+		//mirror) is undone, so that the texts read as on the sheet
+	const QPointF end = dockConductor();
+	return QTransform().rotate(rotation)
+			* QTransform::fromTranslate(end.x(), end.y())
+			* sceneTransform().inverted();
+}
+
+void Terminal::updateLabelPlace()
+{
+	if (d->m_medium != TerminalData::Pipe || !d->m_show_name) {
+		return;
+	}
+	prepareGeometryChange();
+	update();
 }
 
 QString Terminal::diameterText() const

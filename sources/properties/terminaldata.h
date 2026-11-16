@@ -28,6 +28,7 @@
 #include <QFont>
 #include <QFontMetrics>
 #include <QPointF>
+#include <QRectF>
 #include <QSizeF>
 #include <QStringList>
 #include <QUuid>
@@ -151,6 +152,51 @@ class TerminalData : public PropertiesInterface
 		static QSizeF labelSize(const QFontMetrics &metrics, const QString &text)
 		{
 			return metrics.size(text.contains(QLatin1Char('\n')) ? 0 : int(Qt::TextSingleLine), text);
+		}
+
+			/// Where the name and the size of a nozzle are written (step
+			/// 5l-1o): beside its pipe, wherever the symbol says, so that
+			/// they read the same way on any symbol, turned or mirrored.
+			/// The rects are in a frame whose origin is the end of the
+			/// nozzle and whose axes are those of the sheet, turned by
+			/// rotation degrees.
+		struct NozzleLabels {
+			qreal rotation = 0;
+			QRectF name;
+			QRectF size;
+		};
+			/// How far the texts of a nozzle are from the axis of its pipe:
+			/// beyond the largest mark of a connection, drawn or not, so that
+			/// they keep their place whatever the project draws
+		static constexpr qreal nozzleLabelGap = PipeConnection::markHalfHeight + 2;
+			/// The NozzleLabels of a nozzle whose pipe leaves towards
+			/// @p leaving on the sheet, of texts of the sizes @p name and
+			/// @p size (empty for a text not written). Along a horizontal
+			/// pipe, from the end of the nozzle: the name above, the size
+			/// under it. Along a vertical one, the same turned to read from
+			/// the right of the sheet (the name on the left); or, when
+			/// @p turn_vertical is false (a project keeping the texts of its
+			/// symbols horizontal), on the right of the pipe, the name above
+			/// the size, beside its start.
+		static NozzleLabels nozzleLabels(Qet::Orientation leaving, bool turn_vertical,
+										 const QSizeF &name, const QSizeF &size)
+		{
+			const qreal gap = nozzleLabelGap;
+			NozzleLabels labels;
+			const bool vertical = leaving == Qet::North || leaving == Qet::South;
+			if (vertical && !turn_vertical) {
+				const qreal top = leaving == Qet::North ? -(name.height() + size.height()) : 0;
+				labels.name = QRectF(QPointF(gap, top), name);
+				labels.size = QRectF(QPointF(gap, top + name.height()), size);
+				return labels;
+			}
+				//Turned a quarter anticlockwise, the text runs up the sheet:
+				//a pipe going north runs along it as one going east
+			labels.rotation = vertical ? -90 : 0;
+			const bool forward = leaving == Qet::East || leaving == Qet::North;
+			labels.name = QRectF(QPointF(forward ? 0 : -name.width(), -gap - name.height()), name);
+			labels.size = QRectF(QPointF(forward ? 0 : -size.width(), gap), size);
+			return labels;
 		}
 		static QString namePrefix(TerminalData::Medium medium);
 		static QString suggestedName(TerminalData::Medium medium,

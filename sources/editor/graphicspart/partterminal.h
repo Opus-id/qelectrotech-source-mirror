@@ -137,6 +137,14 @@ class PartTerminal : public CustomElementGraphicPart
 		void setConnectionWord(const QString &word) {setConnection(PipeConnection::fromString(word));}
 			/// The text shown at the terminal: its name, and the DN of a nozzle
 		QString labelText() const;
+			/// The size labelText() writes under the name of a nozzle; nothing
+			/// when it writes none
+		QString sizeLabelText() const;
+			/// For a nozzle: where its name and its size are written, as on a
+			/// placed symbol which is not turned (TerminalData::nozzleLabels(),
+			/// step 5l-1o), in the coordinates of this part, at the end of
+			/// the nozzle, turned by its rotation
+		TerminalData::NozzleLabels nozzleLabels() const;
 			/// True for a nozzle that takes the size of its pipe (run of an
 			/// inline symbol, only nozzle of a free end): no size of its own
 		bool followsPipe() const;
