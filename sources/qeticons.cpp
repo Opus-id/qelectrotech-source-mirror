@@ -179,6 +179,10 @@ namespace QET {
 		QIcon Remove;
 		QIcon Restore;
 		QIcon RunDxf;
+		QIcon SelectByCriteria;
+		QIcon SelectionAdd;
+		QIcon SelectionRemove;
+		QIcon SelectionReplace;
 		QIcon SendBackward;
 		QIcon Settings;
 		QIcon SinglePage;
@@ -602,6 +606,10 @@ void QET::Icons::initIcons()
 	resize_image        = QIcon::fromTheme("transform-scale");
 	Restore             = QIcon::fromTheme("restaurer");
 	RunDxf              = QIcon::fromTheme("run-dxf");
+	SelectByCriteria    = QIcon::fromTheme("select-by-criteria");
+	SelectionAdd        = QIcon::fromTheme("selection-add");
+	SelectionRemove     = QIcon::fromTheme("selection-remove");
+	SelectionReplace    = QIcon::fromTheme("selection-replace");
 	SendBackward        = QIcon::fromTheme("send_backward");
 	Settings            = QIcon::fromTheme("settings");
 	SinglePage          = QIcon::fromTheme("single_page");

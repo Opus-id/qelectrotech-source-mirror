@@ -26,6 +26,7 @@
 #include "qetapptest.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "diagramcontext.h"
+#include "diagramview.h"
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
 #include "pidstatus.h"
@@ -453,6 +454,62 @@ class tst_selectbycriteria : public QObject
 			QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 			QCoreApplication::processEvents();
 			QVERIFY(!again || !again->isVisible());
+			QVERIFY(folio->selectedItems().isEmpty());
+			delete one;
+			delete two;
+		}
+
+			// The dialog open, a click on the folio is a zone, taken when
+			// the button is released: Add adds what it picked and is
+			// found, Remove takes it out; what is not checked is not found
+		void aClickOnTheFolioIsAZone()
+		{
+			QAction *action = QetAppTest::action(QStringLiteral("select_by_criteria"));
+			Diagram *folio = QetAppTest::diagram();
+			DiagramView *view = QetAppTest::view();
+			QVERIFY(action && folio && view);
+			auto *one = new IndependentTextItem();
+			auto *two = new IndependentTextItem();
+			folio->addItem(one);
+			folio->addItem(two);
+			folio->clearSelection();
+			QetAppTest::editor()->activateWindow();
+			QVERIFY(QTest::qWaitForWindowActive(QetAppTest::editor()));
+			action->trigger();
+			QPointer<SelectByCriteriaDialog> dialog = QetAppTest::editor()->findChild<SelectByCriteriaDialog *>();
+			QVERIFY(dialog);
+			dialog->setPreview(false);
+			dialog->setAction(SelectByCriteriaDialog::Action::Add);
+
+				// as QGraphicsScene does: the selection cleared, the item
+				// clicked selected, then the button released on the view
+			const auto click = [folio, view](QGraphicsItem *item) {
+				folio->clearSelection();
+				item->setSelected(true);
+				QTest::mouseRelease(view->viewport(), Qt::LeftButton);
+				QCoreApplication::processEvents();
+			};
+			click(one);
+			QCOMPARE(folio->selectedItems(), QList<QGraphicsItem *>({one}));
+			click(two);
+			QCOMPARE(folio->selectedItems().size(), 2);
+			QCOMPARE(dialog->resultItems().size(), 2);
+				// a zone moves the search to the selection
+			QVERIFY(!dialog->searchesFolio());
+
+			dialog->setAction(SelectByCriteriaDialog::Action::Remove);
+			click(one);
+			QCOMPARE(folio->selectedItems(), QList<QGraphicsItem *>({two}));
+
+				// nothing checked: the click finds nothing, nothing changes
+			dialog->setAction(SelectByCriteriaDialog::Action::Add);
+			dialog->setAllChecked(false);
+			click(one);
+			QCOMPARE(folio->selectedItems(), QList<QGraphicsItem *>({two}));
+
+			dialog->reject();
+			QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+			QCoreApplication::processEvents();
 			QVERIFY(folio->selectedItems().isEmpty());
 			delete one;
 			delete two;

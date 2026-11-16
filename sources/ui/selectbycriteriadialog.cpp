@@ -17,10 +17,13 @@
 */
 #include "selectbycriteriadialog.h"
 
+#include "../qeticons.h"
+
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QHash>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
@@ -84,12 +87,14 @@ SelectByCriteriaDialog::SelectByCriteriaDialog(const QList<QGraphicsItem *> &sel
 		{Action::Replace, tr("Replace")},
 		{Action::Add,     tr("Add")},
 		{Action::Remove,  tr("Remove")}};
+	const QList<QIcon> icons {QET::Icons::SelectionReplace, QET::Icons::SelectionAdd,
+							  QET::Icons::SelectionRemove};
 	const QStringList tips {
 		tr("The selection becomes what is found"),
 		tr("What is found is added to the selection"),
 		tr("What is found is taken out of the selection")};
 	for (int i = 0 ; i < action_names.size() ; ++i) {
-		auto *button = new QPushButton(action_names.at(i).second, this);
+		auto *button = new QPushButton(icons.at(i), action_names.at(i).second, this);
 		button->setCheckable(true);
 		button->setToolTip(tips.at(i));
 		button->setChecked(action_names.at(i).first == Action::Replace);
@@ -163,10 +168,18 @@ const SelectionCategories &SelectByCriteriaDialog::categories() const
 */
 void SelectByCriteriaDialog::fillTree()
 {
+		//A leaf there already keeps its box, the criteria with it
+	QHash<QString, Qt::CheckState> before;
+	for (QTreeWidgetItemIterator it(m_tree) ; *it ; ++it) {
+		const QString key = (*it)->data(0, key_role).toString();
+		if (!key.isEmpty()) {
+			before.insert(key, (*it)->checkState(0));
+		}
+	}
 	const QSignalBlocker blocker(m_tree);
 	m_tree->clear();
 	std::function<QTreeWidgetItem *(const SelectionCategories::Node &)> make =
-			[&make](const SelectionCategories::Node &node) {
+			[&make, &before](const SelectionCategories::Node &node) {
 		auto *item = new QTreeWidgetItem();
 		item->setText(0, node.count < 0
 						  ? node.label
@@ -179,7 +192,7 @@ void SelectByCriteriaDialog::fillTree()
 		if (node.children.isEmpty()) {
 			item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
 			item->setData(0, key_role, node.key);
-			item->setCheckState(0, Qt::Checked);
+			item->setCheckState(0, before.value(node.key, Qt::Checked));
 		} else {
 			item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate);
 			for (const SelectionCategories::Node &child : node.children) {
@@ -210,12 +223,34 @@ QSet<QString> SelectByCriteriaDialog::checked() const
 
 QList<QGraphicsItem *> SelectByCriteriaDialog::foundItems() const
 {
-	return categories().kept(checked());
+		//The folio's categories have every branch of the selection's: a
+		//branch it has besides has nothing checked and does not count
+	const QList<QGraphicsItem *> all = m_in_folio.kept(checked());
+	if (searchesFolio()) {
+		return all;
+	}
+	const QSet<QGraphicsItem *> pool(m_departure.cbegin(), m_departure.cend());
+	QList<QGraphicsItem *> found;
+	for (QGraphicsItem *item : all) {
+		if (pool.contains(item)) {
+			found << item;
+		}
+	}
+	return found;
 }
 
 QList<QGraphicsItem *> SelectByCriteriaDialog::resultItems() const
 {
-	const QList<QGraphicsItem *> found = foundItems();
+		//After a zone, in Add or Remove the boxes only set what the next
+		//zones find
+	if (m_zoned && m_action != Action::Replace) {
+		return m_departure;
+	}
+	return combined(foundItems());
+}
+
+QList<QGraphicsItem *> SelectByCriteriaDialog::combined(const QList<QGraphicsItem *> &found) const
+{
 	if (m_action == Action::Replace) {
 		return found;
 	}
@@ -297,18 +332,48 @@ void SelectByCriteriaDialog::apply()
 {
 	const QList<QGraphicsItem *> result = resultItems();
 	emit applied(result, zooms());
-		//The next action starts from here: the selection searched is it
-	m_departure = result;
+	setDeparture(result);
+		//The tree of what is now searched, the boxes kept
+	fillTree();
+}
+
+void SelectByCriteriaDialog::zone(const QList<QGraphicsItem *> &picked)
+{
+	const QSet<QGraphicsItem *> in(picked.cbegin(), picked.cend());
+	QList<QGraphicsItem *> found;
+	for (QGraphicsItem *item : m_in_folio.kept(checked())) {
+		if (in.contains(item)) {
+			found << item;
+		}
+	}
+	const QList<QGraphicsItem *> result = combined(found);
+	emit applied(result, false);
+	m_zoned = true;
+	setDeparture(result);
+		//The boxes now sort what the zones took; the tree, and the
+		//criteria, stay as they are
+	if (!m_departure.isEmpty()) {
+		const QSignalBlocker block_selection(m_search_selection);
+		const QSignalBlocker block_folio(m_search_folio);
+		m_search_selection->setChecked(true);
+	}
+	showCount();
+}
+
+/**
+	@brief SelectByCriteriaDialog::setDeparture
+	@p items are the selection the next action starts from
+*/
+void SelectByCriteriaDialog::setDeparture(const QList<QGraphicsItem *> &items)
+{
+	m_departure = items;
 	m_in_selection = SelectionCategories(m_departure, m_codes);
 	m_search_selection->setText(tr("the selection (%n)", "", int(m_departure.size())));
 	m_search_selection->setEnabled(!m_departure.isEmpty());
-	if (m_departure.isEmpty()) {
+	if (m_departure.isEmpty() && !searchesFolio()) {
+		const QSignalBlocker block_selection(m_search_selection);
+		const QSignalBlocker block_folio(m_search_folio);
 		m_search_folio->setChecked(true);
-	}
-	if (!searchesFolio()) {
-		fillTree();
-	} else {
-		updateCount();
 	}
 }
 
@@ -331,9 +396,14 @@ void SelectByCriteriaDialog::scheduleCount()
 void SelectByCriteriaDialog::updateCount()
 {
 	m_count_pending = false;
+	showCount();
+	preview();
+}
+
+void SelectByCriteriaDialog::showCount()
+{
 	const int found = int(foundItems().size());
 	m_count->setText(QStringLiteral("<b>%1</b> (%2)")
 					 .arg(tr("%n object(s) will be selected", "", keptCount()),
 						  tr("%n found", "", found)));
-	preview();
 }

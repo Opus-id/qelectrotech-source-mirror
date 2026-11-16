@@ -138,6 +138,9 @@
 #include <QDir>
 #include <QDesktopServices>
 #include <QTimer>
+
+#include <functional>
+#include <memory>
 #include <QGuiApplication>
 #include <QPushButton>
 #include <QMessageBox>
@@ -1954,7 +1957,7 @@ void QETDiagramEditor::setUpActions()
 	QAction *select_all_conductors  = m_select_actions_group.addAction( QET::Icons::Conductor,      tr("Select all conductors") );
 	QAction *select_all_text_fields = m_select_actions_group.addAction( QET::Icons::PartTextField,  tr("Select all text fields") );
 	m_select_same_symbols = m_select_actions_group.addAction( QET::Icons::Element, tr("Select the same symbols") );
-	m_select_by_criteria = m_select_actions_group.addAction( QET::Icons::EditSelectAll, tr("Select by criteria…") );
+	m_select_by_criteria = m_select_actions_group.addAction( QET::Icons::SelectByCriteria, tr("Select by criteria…") );
 
 	ShortcutManager::instance().registerAction(select_all, "diagrameditor.select_all", tr("Diagram editors"), QKeySequence::SelectAll);
 	ShortcutManager::instance().registerAction(select_nothing, "diagrameditor.select_nothing", tr("Diagram editors"), QKeySequence::Deselect);
@@ -3541,6 +3544,25 @@ void QETDiagramEditor::selectGroupTriggered(QAction *action)
 		selectByCriteria(diagram);
 }
 
+namespace {
+		/// Calls a function at each release of a mouse button on the object
+		/// it filters, letting the event go on; it goes with its parent
+	class ReleaseWatcher : public QObject
+	{
+		public:
+			ReleaseWatcher(std::function<void()> released, QObject *parent) :
+				QObject(parent), m_released(std::move(released)) {}
+			bool eventFilter(QObject *watched, QEvent *event) override {
+				if (event->type() == QEvent::MouseButtonRelease) {
+					m_released();
+				}
+				return QObject::eventFilter(watched, event);
+			}
+		private:
+			std::function<void()> m_released;
+	};
+}
+
 /**
 	@brief QETDiagramEditor::selectByCriteria
 	Edit > Selection > Select by criteria: the categories of the
@@ -3551,10 +3573,11 @@ void QETDiagramEditor::selectGroupTriggered(QAction *action)
 	the view of before.
 
 	The dialog is not modal: the folio can be zoomed and scrolled while it
-	is open. It closes, leaving the selection as it is, as soon as the
-	project changes (any step of its undo stack: the items listed may be
-	gone) or the folio or its view is closed. One at a time: the command
-	brings back the one open.
+	is open, and a rectangle or a click on it is a zone of the dialog
+	(SelectByCriteriaDialog::zone()). It closes, leaving the selection as
+	it is, as soon as the project changes (any step of its undo stack: the
+	items listed may be gone) or the folio or its view is closed. One at a
+	time: the command brings back the one open.
 */
 void QETDiagramEditor::selectByCriteria(Diagram *diagram)
 {
@@ -3580,13 +3603,19 @@ void QETDiagramEditor::selectByCriteria(Diagram *diagram)
 	m_criteria_dialog = dialog;
 	const QPointer<Diagram> folio(diagram);
 	const QPointer<DiagramView> shown(view);
+		//Who changes the selection: the dialog (applying), or the user on
+		//the folio, whose change is a zone taken once it is done (pending)
+	struct State { bool applying = false; bool pending = false; bool closed = false; };
+	const auto state = std::make_shared<State>();
 
 		//Only the items still on the folio are selected, and framed
-	const auto apply = [folio, shown](const QList<QGraphicsItem *> &items, bool zoom) {
+	const auto apply = [folio, shown, state](const QList<QGraphicsItem *> &items, bool zoom) {
 		if (!folio) {
 			return;
 		}
+		state->applying = true;
 		folio->selectExactly(items);
+		state->applying = false;
 		const QList<QGraphicsItem *> selected = folio->selectedItems();
 		if (!zoom || !shown || selected.isEmpty()) {
 			return;
@@ -3602,6 +3631,8 @@ void QETDiagramEditor::selectByCriteria(Diagram *diagram)
 		shown->zoomToRect(frame);
 	};
 	connect(dialog, &SelectByCriteriaDialog::applied, this, apply);
+		//Before accepted and rejected: what they select is no zone
+	connect(dialog, &QDialog::finished, this, [state]() { state->closed = true; });
 	connect(dialog, &QDialog::accepted, this, [dialog, apply]() {
 		apply(dialog->resultItems(), dialog->zooms());
 	});
@@ -3627,6 +3658,28 @@ void QETDiagramEditor::selectByCriteria(Diagram *diagram)
 	connect(&diagram->undoStack(), &QUndoStack::indexChanged, dialog, give_up);
 	connect(diagram, &QObject::destroyed, dialog, give_up);
 	connect(view, &QObject::destroyed, dialog, give_up);
+
+		//A rectangle or a click of the user on the folio is a zone, taken
+		//once the mouse button is released and QET has done with it (the
+		//rectangle and its filter; a click clears the selection, then
+		//selects the item clicked). Not at the press: a press that drags
+		//moves what is selected, which must stay what the user clicked.
+	const auto take_zone = [dialog, folio, state]() {
+		if (!state->pending || state->closed || !folio) {
+			return;
+		}
+		state->pending = false;
+		dialog->zone(folio->selectedItems());
+	};
+	connect(diagram, &QGraphicsScene::selectionChanged, dialog, [state]() {
+		if (!state->applying && !state->closed) {
+			state->pending = true;
+		}
+	});
+	auto *release = new ReleaseWatcher([dialog, take_zone]() {
+		QTimer::singleShot(0, dialog, take_zone);
+	}, dialog);
+	view->viewport()->installEventFilter(release);
 	dialog->show();
 }
 

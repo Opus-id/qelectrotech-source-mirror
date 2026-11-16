@@ -52,6 +52,13 @@ class QTreeWidget;
 
 	It is not modal, so that the folio can be zoomed and scrolled while
 	it is open: it keeps its own copy of the categories.
+
+	While it is open, a selection rectangle drawn on the folio, or a click
+	on an object, is a zone (zone()): what it picks and the boxes checked
+	find is replaced, added or taken out by the action, at once, and the
+	result is the next selection of departure. Then the search is in the
+	selection, and in Add or Remove the boxes only set what the next zones
+	find: they do not take the selection apart.
 */
 class SelectByCriteriaDialog : public QDialog
 {
@@ -92,6 +99,9 @@ class SelectByCriteriaDialog : public QDialog
 			/// Apply the result, which becomes the selection of departure
 			/// of the next action, as the Apply button does
 		void apply();
+			/// A rectangle or a click on the folio picked @p picked: what
+			/// of it is found is replaced, added or taken out at once
+		void zone(const QList<QGraphicsItem *> &picked);
 
 	signals:
 			/// Select @p items and nothing else, and frame them in the
@@ -100,9 +110,13 @@ class SelectByCriteriaDialog : public QDialog
 
 	private:
 		const SelectionCategories &categories() const;
+			/// The selection of departure and @p found, by the action
+		QList<QGraphicsItem *> combined(const QList<QGraphicsItem *> &found) const;
+		void setDeparture(const QList<QGraphicsItem *> &items);
 		void fillTree();
 		void scheduleCount();
 		void updateCount();
+		void showCount();
 		void preview();
 
 		const PidCodification m_codes;
@@ -119,6 +133,8 @@ class SelectByCriteriaDialog : public QDialog
 		QCheckBox *m_preview = nullptr;
 		QCheckBox *m_zoom = nullptr;
 		bool m_count_pending = false;
+			/// A zone was drawn since the opening
+		bool m_zoned = false;
 };
 
 #endif

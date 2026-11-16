@@ -187,6 +187,10 @@ namespace QET {
 		extern QIcon Remove;
 		extern QIcon Restore;
 		extern QIcon RunDxf;
+		extern QIcon SelectByCriteria;
+		extern QIcon SelectionAdd;
+		extern QIcon SelectionRemove;
+		extern QIcon SelectionReplace;
 		extern QIcon SendBackward;
 		extern QIcon Settings;
 		extern QIcon SinglePage;
