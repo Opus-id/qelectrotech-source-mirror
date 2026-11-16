@@ -41,6 +41,8 @@ namespace QET {
 		QIcon Bridge;
 		QIcon Pipe;
 		QIcon Cancel;
+		QIcon ChainBroken;
+		QIcon ChainLinked;
 		QIcon Company;
 		QIcon Conductor;
 		QIcon ConductorEdit;
@@ -434,6 +436,8 @@ void QET::Icons::initIcons()
 	Bridge              = QIcon::fromTheme("bridge");
 	Pipe                = QIcon::fromTheme("pipe");
 	Cancel              = QIcon::fromTheme("item-cancel");
+	ChainBroken         = QIcon::fromTheme("chain-broken");
+	ChainLinked         = QIcon::fromTheme("chain-linked");
 	Company             = QIcon::fromTheme("go-company");
 	Conductor           = QIcon::fromTheme("conductor");
 	ConductorEdit       = QIcon::fromTheme("conductor-edit");

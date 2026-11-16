@@ -135,9 +135,10 @@ class ElementNozzlesWidget : public AbstractElementPropertiesEditorWidget
 			/// one unlinked by a click, less each one linked by a click. A
 			/// link unlinked only because the nozzles differ is not one
 		NozzleLinks chosenUnlinked() const;
-			/// The two rings of a chain, joined in the colour of the
-			/// selection of @p palette (On, linked), apart in grey (Off)
-		static QIcon linkIcon(const QPalette &palette);
+			/// The icon of a link button: two links of a chain, one through
+			/// the other ("chain-linked" of the theme) if @p linked, else
+			/// pulled apart ("chain-broken")
+		static QIcon linkIcon(bool linked);
 			/// What asks which size goes with another when a line is given
 			/// the size of a reducer (PipePropertiesWidget::setChooser()), a
 			/// list in a dialog unless a test says otherwise

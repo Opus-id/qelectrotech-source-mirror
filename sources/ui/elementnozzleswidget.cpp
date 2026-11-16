@@ -38,9 +38,6 @@
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPainter>
-#include <QPalette>
-#include <QPixmap>
 #include <QSignalBlocker>
 #include <QToolButton>
 #include <QToolTip>
@@ -55,34 +52,12 @@ bool linked(const QToolButton *link)
 
 /**
 	@brief ElementNozzlesWidget::linkIcon
-	See the declaration. Drawn here: QET has no such icon, and the colour of
-	the selection reads on a light palette as on a dark one.
+	See the declaration. Two icons of the theme, not the On and Off states
+	of one: an icon of the theme follows a change of theme, light or dark
 */
-QIcon ElementNozzlesWidget::linkIcon(const QPalette &palette)
+QIcon ElementNozzlesWidget::linkIcon(bool linked)
 {
-	QIcon icon;
-	const qreal ratio = 2;
-	for (const bool joined : {true, false})
-	{
-		QPixmap pixmap(QSize(16, 16) * ratio);
-		pixmap.setDevicePixelRatio(ratio);
-		pixmap.fill(Qt::transparent);
-		QPainter painter(&pixmap);
-		painter.setRenderHint(QPainter::Antialiasing);
-		const QColor ink = joined ? palette.color(QPalette::Highlight)
-								  : palette.color(QPalette::Disabled, QPalette::WindowText);
-		painter.setPen(QPen(ink, 1.6));
-		painter.setBrush(Qt::NoBrush);
-		painter.translate(8, 8);
-		painter.rotate(-45);
-			//Two rings: one into the other, else a gap between them
-		const qreal apart = joined ? 0 : 2;
-		painter.drawRoundedRect(QRectF(-7 - apart, -2.5, 8, 5), 2.5, 2.5);
-		painter.drawRoundedRect(QRectF(-1 + apart, -2.5, 8, 5), 2.5, 2.5);
-		painter.end();
-		icon.addPixmap(pixmap, QIcon::Normal, joined ? QIcon::On : QIcon::Off);
-	}
-	return icon;
+	return linked ? QET::Icons::ChainLinked : QET::Icons::ChainBroken;
 }
 
 /**
@@ -328,13 +303,14 @@ QToolButton *ElementNozzlesWidget::addHeader(int column, const QString &text, No
 		link = new QToolButton(cell);
 		link->setCheckable(true);
 		link->setAutoRaise(true);
-		link->setIcon(linkIcon(palette()));
+		link->setIcon(linkIcon(false));
 			//Read by a screen reader; an icon only, not to widen the panel
 		link->setText(tip);
 		link->setToolButtonStyle(Qt::ToolButtonIconOnly);
 		link->setToolTip(PidToolTip::wrapped(tip));
 			//A click is the user's: unlinked, it stays so (chosenUnlinked())
-		connect(link, &QToolButton::toggled, this, [this, which](bool on) {
+		connect(link, &QToolButton::toggled, this, [this, link, which](bool on) {
+			link->setIcon(linkIcon(on));
 			m_unlinked.setFlag(which, !on);
 			sameToggled();
 		});
@@ -359,6 +335,8 @@ void ElementNozzlesWidget::showLinks()
 		}
 		const QSignalBlocker blocker(link);
 		link->setChecked(alike && !unlinked.testFlag(which));
+			//Blocked, toggled() does not change the icon
+		link->setIcon(linkIcon(link->isChecked()));
 	};
 	show(m_same_connection, NozzleLink::Connection, m_same_connection && allSameConnection());
 	show(m_same_size, NozzleLink::Size, m_same_size && allSameSize());

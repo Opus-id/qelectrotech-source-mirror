@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="1 1 22 22" width="22" height="22">
+  <defs id="defs3051">
+    <style type="text/css" id="current-color-scheme">
+      .ColorScheme-Text {
+        color:#dcdcdc;
+      }
+      </style>
+  </defs>
+  <!-- the chain of chain-linked, its middle link broken in two, each half
+       still in its link, splinters at the break -->
+  <g transform="rotate(-45 12 12)" class="ColorScheme-Text">
+    <rect x="0" y="8.5" width="9" height="7" rx="3.5" style="fill:none;stroke:currentColor;stroke-width:2"/>
+    <rect x="15" y="8.5" width="9" height="7" rx="3.5" style="fill:none;stroke:currentColor;stroke-width:2"/>
+    <rect x="4.5" y="10.5" width="6.5" height="3" rx="1.5" style="fill:currentColor"/>
+    <rect x="13" y="10.5" width="6.5" height="3" rx="1.5" style="fill:currentColor"/>
+    <path d="M 12 7 V 4 M 14.5 7.7 L 16 5.1 M 9.5 7.7 L 8 5.1 M 12 17 V 20 M 14.5 16.3 L 16 18.9 M 9.5 16.3 L 8 18.9"
+          style="fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round"/>
+  </g>
+</svg>

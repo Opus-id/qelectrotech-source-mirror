@@ -48,6 +48,8 @@ namespace QET {
 		extern QIcon Bridge;
 		extern QIcon Pipe;
 		extern QIcon Cancel;
+		extern QIcon ChainBroken;
+		extern QIcon ChainLinked;
 		extern QIcon Company;
 		extern QIcon Conductor;
 		extern QIcon ConductorEdit;

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <defs id="defs3051">
+    <style type="text/css" id="current-color-scheme">
+      .ColorScheme-Text {
+        color:#dcdcdc;
+      }
+      </style>
+  </defs>
+  <g transform="rotate(-45 8 8)" class="ColorScheme-Text">
+    <rect x="0" y="5.75" width="6" height="4.5" rx="2.25" style="fill:none;stroke:currentColor;stroke-width:1.5"/>
+    <rect x="10" y="5.75" width="6" height="4.5" rx="2.25" style="fill:none;stroke:currentColor;stroke-width:1.5"/>
+    <rect x="3" y="7" width="4.25" height="2" rx="1" style="fill:currentColor"/>
+    <rect x="8.75" y="7" width="4.25" height="2" rx="1" style="fill:currentColor"/>
+    <path d="M 8 4.5 V 2 M 8 11.5 V 14" style="fill:none;stroke:currentColor;stroke-width:1.25;stroke-linecap:round"/>
+  </g>
+</svg>

@@ -517,10 +517,13 @@ class tst_nozzleconnection : public QObject
 				// connection: unlike nozzles of one drawing, linked
 			QVERIFY(!tab.sameConnectionLink()->isChecked());
 			QVERIFY(tab.sameMarkLink()->isChecked());
-				// in light and dark, the icon has both states
-			const QIcon icon = ElementNozzlesWidget::linkIcon(QPalette());
-			QVERIFY(!icon.pixmap(16, QIcon::Normal, QIcon::On).isNull());
-			QVERIFY(!icon.pixmap(16, QIcon::Normal, QIcon::Off).isNull());
+				// the icon of the theme follows the state of the link
+			QCOMPARE(tab.sameMarkLink()->icon().name(), QStringLiteral("chain-linked"));
+			QCOMPARE(tab.sameConnectionLink()->icon().name(), QStringLiteral("chain-broken"));
+			QVERIFY(!tab.sameMarkLink()->icon().pixmap(16).isNull());
+			QVERIFY(!tab.sameConnectionLink()->icon().pixmap(16).isNull());
+			tab.sameConnectionLink()->setChecked(true);
+			QCOMPARE(tab.sameConnectionLink()->icon().name(), QStringLiteral("chain-linked"));
 		}
 
 			// A valve has the size of its line (step 5l-1j): no box "one size

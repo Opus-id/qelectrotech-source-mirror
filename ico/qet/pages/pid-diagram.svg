@@ -5,12 +5,12 @@
   </style>
   <!-- the line: valve, pump, valve, up to the tank, in the blue that marks what the page works on -->
   <path class="ColorScheme-Highlight" d="M4 84H14M30 84H37M63 84H70M86 84H98"
-        fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
   <!-- the level in the tank -->
   <path class="ColorScheme-Highlight" d="M100 58H122"
-        fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="5 3"/>
+        fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 3"/>
   <!-- tank, valves and pump outlined in the ink, filled white -->
-  <g class="ColorScheme-Text" fill="#ffffff" stroke="currentColor" stroke-width="4"
+  <g class="ColorScheme-Text" fill="#ffffff" stroke="currentColor" stroke-width="3"
      stroke-linecap="round" stroke-linejoin="round">
     <path d="M98 34C98 22 124 22 124 34V96C124 108 98 108 98 96Z" fill="none"/>
     <path d="M14 76L30 92V76L14 92Z"/>

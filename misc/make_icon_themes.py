@@ -181,6 +181,8 @@ SVGS = [
     "qet/scalable/align-vertical-center.svg",
     "qet/scalable/align-vertical-top.svg",
     "qet/scalable/bridge.svg",
+    "qet/scalable/chain-broken.svg",
+    "qet/scalable/chain-linked.svg",
     "qet/scalable/diagram.svg",
     "qet/scalable/draw-fillet.svg",
     "qet/scalable/folio-delete.svg",

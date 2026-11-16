@@ -152,6 +152,7 @@ Comment:
   ico/qet/traced/* other than the above by the QElectroTech team, traced from QElectroTech's PNG icons of the same names
   ico/qet/scalable/generic-device.svg by ispyisail from the QElectroTech team, a box with terminals and a divider on each side
   ico/qet/scalable/select-by-criteria.svg, selection-replace.svg, selection-add.svg, selection-remove.svg by the QElectroTech team, a dashed selection frame with a funnel, a square or a Breeze-coloured plus or minus
+  ico/qet/scalable/chain-linked.svg, chain-broken.svg by the QElectroTech team, three links of a chain, the middle one whole or broken in two
   ico/qet/scalable/16/* by the QElectroTech team, 16 pixel versions of the ico/qet/scalable/ icons of the same names
   ico/colors/* by Arnaud, contributed in 2020
 

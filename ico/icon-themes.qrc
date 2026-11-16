@@ -17,6 +17,8 @@
         <file alias="themes/qet/scalable/align-vertical-center.svg">qet/scalable/align-vertical-center.svg</file>
         <file alias="themes/qet/scalable/align-vertical-top.svg">qet/scalable/align-vertical-top.svg</file>
         <file alias="themes/qet/scalable/bridge.svg">qet/scalable/bridge.svg</file>
+        <file alias="themes/qet/scalable/chain-broken.svg">qet/scalable/chain-broken.svg</file>
+        <file alias="themes/qet/scalable/chain-linked.svg">qet/scalable/chain-linked.svg</file>
         <file alias="themes/qet/scalable/diagram.svg">qet/scalable/diagram.svg</file>
         <file alias="themes/qet/scalable/draw-fillet.svg">qet/scalable/draw-fillet.svg</file>
         <file alias="themes/qet/scalable/folio-delete.svg">qet/scalable/folio-delete.svg</file>
@@ -290,6 +292,30 @@
         <file alias="themes/qet/24x24/cable.svg">themes/generated/traced-24/cable.svg</file>
         <file alias="themes/qet/24x24@2/cable.svg">themes/generated/traced-large-24/cable.svg</file>
         <file alias="themes/qet/scalable/cable.svg">qet/traced/large22/cable.svg</file>
+        <file alias="themes/qet/16x16/chain-broken.svg">qet/scalable/16/chain-broken.svg</file>
+        <file alias="themes/qet/22x22/chain-broken.svg">themes/generated/scalable-22/chain-broken.svg</file>
+        <file alias="themes/qet/32x32/chain-broken.svg">qet/scalable/16/chain-broken.svg</file>
+        <file alias="themes/qet/48x48/chain-broken.svg">qet/scalable/chain-broken.svg</file>
+        <file alias="themes/qet/64x64/chain-broken.svg">qet/scalable/16/chain-broken.svg</file>
+        <file alias="themes/qet/128x128/chain-broken.svg">qet/scalable/16/chain-broken.svg</file>
+        <file alias="themes/qet/16x16@2/chain-broken.svg">qet/scalable/16/chain-broken.svg</file>
+        <file alias="themes/qet/22x22@2/chain-broken.svg">themes/generated/scalable-22/chain-broken.svg</file>
+        <file alias="themes/qet/32x32@2/chain-broken.svg">qet/scalable/16/chain-broken.svg</file>
+        <file alias="themes/qet/48x48@2/chain-broken.svg">qet/scalable/chain-broken.svg</file>
+        <file alias="themes/qet/64x64@2/chain-broken.svg">qet/scalable/16/chain-broken.svg</file>
+        <file alias="themes/qet/128x128@2/chain-broken.svg">qet/scalable/16/chain-broken.svg</file>
+        <file alias="themes/qet/16x16/chain-linked.svg">qet/scalable/16/chain-linked.svg</file>
+        <file alias="themes/qet/22x22/chain-linked.svg">themes/generated/scalable-22/chain-linked.svg</file>
+        <file alias="themes/qet/32x32/chain-linked.svg">qet/scalable/16/chain-linked.svg</file>
+        <file alias="themes/qet/48x48/chain-linked.svg">qet/scalable/chain-linked.svg</file>
+        <file alias="themes/qet/64x64/chain-linked.svg">qet/scalable/16/chain-linked.svg</file>
+        <file alias="themes/qet/128x128/chain-linked.svg">qet/scalable/16/chain-linked.svg</file>
+        <file alias="themes/qet/16x16@2/chain-linked.svg">qet/scalable/16/chain-linked.svg</file>
+        <file alias="themes/qet/22x22@2/chain-linked.svg">themes/generated/scalable-22/chain-linked.svg</file>
+        <file alias="themes/qet/32x32@2/chain-linked.svg">qet/scalable/16/chain-linked.svg</file>
+        <file alias="themes/qet/48x48@2/chain-linked.svg">qet/scalable/chain-linked.svg</file>
+        <file alias="themes/qet/64x64@2/chain-linked.svg">qet/scalable/16/chain-linked.svg</file>
+        <file alias="themes/qet/128x128@2/chain-linked.svg">qet/scalable/16/chain-linked.svg</file>
         <file alias="themes/qet/16x16/circle.svg">qet/traced/16/circle.svg</file>
         <file alias="themes/qet/16x16@2/circle.svg">qet/traced/large16/circle.svg</file>
         <file alias="themes/qet/22x22/circle.svg">qet/traced/22/circle.svg</file>
@@ -2728,6 +2754,8 @@
         <file>themes/qet-dark/scalable/align-vertical-center.svg</file>
         <file>themes/qet-dark/scalable/align-vertical-top.svg</file>
         <file>themes/qet-dark/scalable/bridge.svg</file>
+        <file>themes/qet-dark/scalable/chain-broken.svg</file>
+        <file>themes/qet-dark/scalable/chain-linked.svg</file>
         <file>themes/qet-dark/scalable/diagram.svg</file>
         <file>themes/qet-dark/scalable/draw-fillet.svg</file>
         <file>themes/qet-dark/scalable/folio-delete.svg</file>
@@ -2810,6 +2838,10 @@
         <file>themes/qet-dark/traced/large22/cable.svg</file>
         <file>themes/qet-dark/traced-large-24/cable.svg</file>
         <file>themes/qet-dark/traced-24/cable.svg</file>
+        <file>themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file>themes/qet-dark/scalable-22/chain-broken.svg</file>
+        <file>themes/qet-dark/scalable-16/chain-linked.svg</file>
+        <file>themes/qet-dark/scalable-22/chain-linked.svg</file>
         <file>themes/qet-dark/traced/16/circle.svg</file>
         <file>themes/qet-dark/traced/large16/circle.svg</file>
         <file>themes/qet-dark/traced/22/circle.svg</file>
@@ -3668,6 +3700,30 @@
         <file alias="themes/qet-dark/24x24/cable.svg">themes/qet-dark/traced-24/cable.svg</file>
         <file alias="themes/qet-dark/24x24@2/cable.svg">themes/qet-dark/traced-large-24/cable.svg</file>
         <file alias="themes/qet-dark/scalable/cable.svg">themes/qet-dark/traced/large22/cable.svg</file>
+        <file alias="themes/qet-dark/16x16/chain-broken.svg">themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file alias="themes/qet-dark/22x22/chain-broken.svg">themes/qet-dark/scalable-22/chain-broken.svg</file>
+        <file alias="themes/qet-dark/32x32/chain-broken.svg">themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file alias="themes/qet-dark/48x48/chain-broken.svg">themes/qet-dark/scalable/chain-broken.svg</file>
+        <file alias="themes/qet-dark/64x64/chain-broken.svg">themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file alias="themes/qet-dark/128x128/chain-broken.svg">themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file alias="themes/qet-dark/16x16@2/chain-broken.svg">themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file alias="themes/qet-dark/22x22@2/chain-broken.svg">themes/qet-dark/scalable-22/chain-broken.svg</file>
+        <file alias="themes/qet-dark/32x32@2/chain-broken.svg">themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file alias="themes/qet-dark/48x48@2/chain-broken.svg">themes/qet-dark/scalable/chain-broken.svg</file>
+        <file alias="themes/qet-dark/64x64@2/chain-broken.svg">themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file alias="themes/qet-dark/128x128@2/chain-broken.svg">themes/qet-dark/scalable-16/chain-broken.svg</file>
+        <file alias="themes/qet-dark/16x16/chain-linked.svg">themes/qet-dark/scalable-16/chain-linked.svg</file>
+        <file alias="themes/qet-dark/22x22/chain-linked.svg">themes/qet-dark/scalable-22/chain-linked.svg</file>
+        <file alias="themes/qet-dark/32x32/chain-linked.svg">themes/qet-dark/scalable-16/chain-linked.svg</file>
+        <file alias="themes/qet-dark/48x48/chain-linked.svg">themes/qet-dark/scalable/chain-linked.svg</file>
+        <file alias="themes/qet-dark/64x64/chain-linked.svg">themes/qet-dark/scalable-16/chain-linked.svg</file>
+        <file alias="themes/qet-dark/128x128/chain-linked.svg">themes/qet-dark/scalable-16/chain-linked.svg</file>
+        <file alias="themes/qet-dark/16x16@2/chain-linked.svg">themes/qet-dark/scalable-16/chain-linked.svg</file>
+        <file alias="themes/qet-dark/22x22@2/chain-linked.svg">themes/qet-dark/scalable-22/chain-linked.svg</file>
+        <file alias="themes/qet-dark/32x32@2/chain-linked.svg">themes/qet-dark/scalable-16/chain-linked.svg</file>
+        <file alias="themes/qet-dark/48x48@2/chain-linked.svg">themes/qet-dark/scalable/chain-linked.svg</file>
+        <file alias="themes/qet-dark/64x64@2/chain-linked.svg">themes/qet-dark/scalable-16/chain-linked.svg</file>
+        <file alias="themes/qet-dark/128x128@2/chain-linked.svg">themes/qet-dark/scalable-16/chain-linked.svg</file>
         <file alias="themes/qet-dark/16x16/circle.svg">themes/qet-dark/traced/16/circle.svg</file>
         <file alias="themes/qet-dark/16x16@2/circle.svg">themes/qet-dark/traced/large16/circle.svg</file>
         <file alias="themes/qet-dark/22x22/circle.svg">themes/qet-dark/traced/22/circle.svg</file>
