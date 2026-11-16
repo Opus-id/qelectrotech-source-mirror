@@ -20,6 +20,7 @@
 
 #include <QSet>
 #include <QList>
+#include <QPointF>
 
 class Diagram;
 class Element;
@@ -36,6 +37,10 @@ class QUndoCommand;
 	conductors are left untouched. A pipe is always broken; a wire or a
 	signal line only when the project asks for it
 	(QETProject::autoBreakConductor()).
+	P&ID (5l-1c): a nozzle on the free end of a line takes it on (the free
+	end goes, PidFreeEnd::join()); a free end the symbol passes over goes;
+	two nozzles against each other need no pipe; a pipe never goes back
+	from its far end to the symbol.
 	@param diagram           the diagram containing the conductors
 	@param element            the element whose terminals trigger breaks
 	@param parent             undo command under which break/reconnect
@@ -55,5 +60,14 @@ QSet<Terminal *> autoBreakConductors(
 	QUndoCommand *parent,
 	QList<Conductor *> &conductors_handled,
 	QSet<Terminal *> &used_terminals);
+
+/**
+	@brief liesOnConductor
+	@return true when @a scene_point lies on @a conductor as
+	autoBreakConductors() sees it: within 5 units of its path; a pipe up to
+	half the grid away as well, so a symbol placed on the grid breaks a pipe
+	drawn off it (P&ID)
+*/
+bool liesOnConductor(const Conductor *conductor, const QPointF &scene_point);
 
 #endif // AUTOBREAKCONDUCTOR_H

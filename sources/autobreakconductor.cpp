@@ -20,14 +20,18 @@
 #include "diagram.h"
 #include "qetproject.h"
 #include "conductorautonumerotation.h"
+#include "pidfreeend.h"
+#include "pidnozzlemagnet.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetgraphicsitem/conductor.h"
 #include "undocommand/addgraphicsobjectcommand.h"
 #include "undocommand/deleteqgraphicsitemcommand.h"
 
+#include <QLineF>
 #include <QPainterPath>
 #include <QMap>
+#include <QRectF>
 #include <limits>
 
 namespace {
@@ -58,7 +62,73 @@ qreal distanceToSegment(const QPointF &point, const QLineF &segment)
 	return QLineF(point, a + t * ab).length();
 }
 
+	/// Two nozzles against each other, facing: they touch, no pipe between
+bool inContact(const Terminal *a, const Terminal *b)
+{
+	return a && b && PidNozzleMagnet::faces(a, b)
+			&& QLineF(a->dockConductor(), b->dockConductor()).length() < PidNozzleMagnet::kSamePoint;
+}
+
+	/// @p nozzle is the free end which ends @p pipe
+bool isFreeEndOf(const Terminal *nozzle, const Conductor *pipe)
+{
+	return pipe && PidFreeEnd::pipeOf(nozzle) == pipe;
+}
+
+	/// The free end of a line on @p nozzle of @p element, facing the same
+	/// way: the symbol takes the line on there (P&ID, 5l-1c)
+Terminal *freeEndOn(Diagram *diagram, const Element *element, Terminal *nozzle,
+		    const QList<Conductor *> &conductors_handled)
+{
+	const QPointF dock = nozzle->dockConductor();
+	const qreal near = PidNozzleMagnet::kSamePoint;
+	const QRectF area(dock.x() - near, dock.y() - near, 2 * near, 2 * near);
+	for (QGraphicsItem *item : diagram->items(area))
+	{
+		Terminal *end = qgraphicsitem_cast<Terminal *>(item);
+		if (!end || end->parentElement() == element) {
+			continue;
+		}
+		const Conductor *held = PidFreeEnd::pipeOf(end);
+		if (held && !conductors_handled.contains(held)
+			&& end->orientation() == nozzle->orientation()
+			&& QLineF(end->dockConductor(), dock).length() < near
+			&& PidFreeEnd::mayJoin(end, nozzle)) {
+			return end;
+		}
+	}
+	return nullptr;
+}
+
 } // anonymous namespace
+
+/**
+	@brief liesOnConductor
+	See the declaration
+*/
+bool liesOnConductor(const Conductor *conductor, const QPointF &scene_point)
+{
+	if (!conductor) {
+		return false;
+	}
+		//A wire as before; a pipe up to half the grid away as well: a
+		//symbol placed with the mouse stands on the grid, a pipe from a
+		//nozzle brought off it by the magnet may run half a grid away
+	const qreal tolerance = conductor->medium() == TerminalData::Pipe
+			? qMax(5.0, qMax(Diagram::xGrid, Diagram::yGrid) / 2.0) + 0.01
+			: 5.0;
+	const QPointF local = conductor->mapFromScene(scene_point);
+	const QPainterPath path = conductor->path();
+	for (int i = 0; i < path.elementCount() - 1; ++i)
+	{
+		const QPainterPath::Element &e1 = path.elementAt(i);
+		const QPainterPath::Element &e2 = path.elementAt(i + 1);
+		if (distanceToSegment(local, QLineF(QPointF(e1.x, e1.y), QPointF(e2.x, e2.y))) < tolerance) {
+			return true;
+		}
+	}
+	return false;
+}
 
 /**
 	@brief autoBreakConductors
@@ -93,6 +163,20 @@ QSet<Terminal *> autoBreakConductors(
 
 		QPointF t_dock = t->dockConductor();
 
+			//P&ID: a nozzle on the free end of a line, facing the same way,
+			//takes the line on: the free end goes, the pipe comes to the
+			//nozzle with its route and data (PidFreeEnd::join())
+		if (t->medium() == TerminalData::Pipe && t->hasRoomForWire()) {
+			if (Terminal *end = freeEndOn(diagram, element, t, conductors_handled)) {
+				Conductor *held = PidFreeEnd::pipeOf(end);
+				if (PidFreeEnd::join(diagram, end, t, parent)) {
+					conductors_handled.append(held);
+					used_terminals.insert(t);
+					continue;
+				}
+			}
+		}
+
 		struct ConductorMatch {
 			Conductor *conductor;
 			Terminal *connect_to;
@@ -109,22 +193,7 @@ QSet<Terminal *> autoBreakConductors(
 			if (!all_media && c->medium() != TerminalData::Pipe)
 				continue;
 
-			QPointF local_dock = c->mapFromScene(t_dock);
-			bool point_on_conductor = false;
-			QPainterPath path = c->path();
-			for (int i = 0; i < path.elementCount() - 1; ++i)
-			{
-				const QPainterPath::Element &e1 = path.elementAt(i);
-				const QPainterPath::Element &e2 = path.elementAt(i + 1);
-				QLineF segment(QPointF(e1.x, e1.y), QPointF(e2.x, e2.y));
-				if (distanceToSegment(local_dock, segment) < 5.0)
-				{
-					point_on_conductor = true;
-					break;
-				}
-			}
-
-			if (!point_on_conductor)
+			if (!liesOnConductor(c, t_dock))
 				continue;
 
 			Terminal *c1 = c->terminal1;
@@ -195,30 +264,6 @@ QSet<Terminal *> autoBreakConductors(
 
 		used_terminals.insert(t);
 
-		DiagramContent content;
-		for (const auto &m : matches) {
-			content.m_other_conductors.append(m.conductor);
-			conductors_handled.append(m.conductor);
-		}
-		new DeleteQGraphicsItemCommand(diagram, content, parent);
-
-		for (const auto &m : matches) {
-			Conductor *new_c = new Conductor(m.connect_to, t);
-				//The two halves of a pipe are the same line: they keep its
-				//data, which no potential brings back as for a wire
-			if (m.conductor->medium() == TerminalData::Pipe) {
-				new_c->setProperties(m.conductor->properties());
-				new_c->takeNozzleDiameter();
-			}
-			new AddGraphicsObjectCommand(new_c, diagram, QPointF(), parent);
-			ConductorAutoNumerotation can(new_c, diagram, parent);
-			can.numerate();
-			if (diagram->freezeNewConductors() || diagram->project()->isFreezeNewConductors())
-				new_c->setFreezeLabel(true);
-
-			broken_endpoints.insert(m.connect_to);
-		}
-
 		QPointF other_dock = best_other->dockConductor();
 		Terminal *other_terminal = nullptr;
 		qreal best_dist = std::numeric_limits<qreal>::max();
@@ -254,7 +299,70 @@ QSet<Terminal *> autoBreakConductors(
 			}
 		}
 
-		if (other_terminal) {
+			//P&ID (5l-1c): against a nozzle of the line, the symbol needs no
+			//pipe there, they touch; a free end it stands on or passes over
+			//goes, the symbol ending the line; never a pipe going back from
+			//the far end to the symbol
+		bool join_near = true;
+		bool join_far = other_terminal != nullptr;
+		QList<Element *> free_ends_taken;
+		if (t->medium() == TerminalData::Pipe)
+		{
+			const Conductor *line = matches.first().conductor;
+			Terminal *near = matches.first().connect_to;
+			if (inContact(near, t)) {
+				join_near = false;
+				if (isFreeEndOf(near, line)) {
+					free_ends_taken << near->parentElement();
+				}
+			}
+			const qreal ahead = other_terminal
+					? PidNozzleMagnet::ahead(other_terminal->orientation(),
+								 other_terminal->dockConductor(), other_dock)
+					: 0;
+			if (isFreeEndOf(best_other, line)) {
+				if (!other_terminal || ahead < PidNozzleMagnet::kSamePoint) {
+					join_far = false;
+					if (!free_ends_taken.contains(best_other->parentElement())) {
+						free_ends_taken << best_other->parentElement();
+					}
+				}
+			} else if (other_terminal && (ahead < -PidNozzleMagnet::kSamePoint
+						      || inContact(best_other, other_terminal))) {
+				join_far = false;
+			}
+		}
+
+		DiagramContent content;
+		for (const auto &m : matches) {
+			content.m_other_conductors.append(m.conductor);
+			conductors_handled.append(m.conductor);
+		}
+		content.m_elements << free_ends_taken;
+		new DeleteQGraphicsItemCommand(diagram, content, parent);
+
+		for (const auto &m : matches) {
+			if (!join_near) {
+				broken_endpoints.insert(m.connect_to);
+				continue;
+			}
+			Conductor *new_c = new Conductor(m.connect_to, t);
+				//The two halves of a pipe are the same line: they keep its
+				//data, which no potential brings back as for a wire
+			if (m.conductor->medium() == TerminalData::Pipe) {
+				new_c->setProperties(m.conductor->properties());
+				new_c->takeNozzleDiameter();
+			}
+			new AddGraphicsObjectCommand(new_c, diagram, QPointF(), parent);
+			ConductorAutoNumerotation can(new_c, diagram, parent);
+			can.numerate();
+			if (diagram->freezeNewConductors() || diagram->project()->isFreezeNewConductors())
+				new_c->setFreezeLabel(true);
+
+			broken_endpoints.insert(m.connect_to);
+		}
+
+		if (other_terminal && join_far) {
 			Conductor *new_c2 = new Conductor(best_other, other_terminal);
 			if (matches.first().conductor->medium() == TerminalData::Pipe) {
 				new_c2->setProperties(matches.first().conductor->properties());

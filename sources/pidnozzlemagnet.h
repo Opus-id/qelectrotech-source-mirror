@@ -18,11 +18,15 @@
 #ifndef PIDNOZZLEMAGNET_H
 #define PIDNOZZLEMAGNET_H
 
+#include "qet.h"
+
 #include <QList>
 #include <QPointF>
 #include <QPointer>
 
 class Element;
+class QGraphicsEllipseItem;
+class QGraphicsScene;
 class Terminal;
 
 /**
@@ -30,9 +34,15 @@ class Terminal;
 	The magnet of the nozzles (P&ID, 5l-1c): a symbol placed or dragged with
 	the mouse near a free nozzle of another symbol comes against it exactly,
 	nozzle on nozzle, so the two touch (Terminal::touchesNozzle()) and draw
-	no connection between them. Only free pipe nozzles (one pipe each, none
-	yet) that face each other catch; a wire or a terminal of another medium
-	never does. The nozzle caught is shown while the mouse moves.
+	no connection between them. Free pipe nozzles (one pipe each, none yet)
+	that face each other catch; a wire or a terminal of another medium never
+	does. Two more catch a free nozzle of the symbol moved:
+	- the free end of a line (PidFreeEnd), facing the same way or facing it:
+	  dropped, the symbol takes the end (autoBreakConductors());
+	- a nozzle with its pipe, facing it, when the nozzle of the symbol lies
+	  on that pipe: dropped, the pipe goes on from the other nozzle of the
+	  symbol; not when it would go back to it (pipe shorter than the symbol).
+	The nozzle caught is shown while the mouse moves.
 	Shift held, or the keyboard (Ctrl + arrows), places without it.
 */
 class PidNozzleMagnet
@@ -47,14 +57,25 @@ class PidNozzleMagnet
 			bool isNull() const { return !own || !target; }
 		};
 
+			/// Two points nearer than this, in units of the folio, are one:
+			/// two nozzles in contact, a nozzle on the end of a pipe. Half a
+			/// unit, below the unit of the fine move (Ctrl + arrows)
+		static constexpr qreal kSamePoint = 0.5;
+
 		static Snap find(const QList<Element *> &moved, qreal radius);
 		static bool faces(const Terminal *a, const Terminal *b);
+			/// How far @p to lies ahead of @p from, along @p way (negative:
+			/// behind)
+		static qreal ahead(Qet::Orientation way, const QPointF &from, const QPointF &to);
 		static void mark(Terminal *target);
 		static void clearMark();
 		static Terminal *marked();
 
 	private:
 		static QPointer<Terminal> s_marked;
+			/// The mark shown on top of the folio, and its folio
+		static QGraphicsEllipseItem *s_spot;
+		static QPointer<QGraphicsScene> s_spot_folio;
 };
 
 #endif // PIDNOZZLEMAGNET_H

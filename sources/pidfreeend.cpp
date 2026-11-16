@@ -19,6 +19,7 @@
 
 #include "diagram.h"
 #include "diagramcontent.h"
+#include "pidnozzlemagnet.h"
 #include "pipeconnection.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
@@ -256,7 +257,12 @@ Conductor *PidFreeEnd::join(Diagram *diagram, Terminal *from, Terminal *to, QUnd
 		//The route kept, the new piece where the free end was
 	QList<QPointF> points;
 	if (first) points << pathTo(first, from);
-	points << route(from, to);
+		//A nozzle placed on the free end (5l-1c): nothing in between
+	if (QLineF(from->dockConductor(), to->dockConductor()).length() >= PidNozzleMagnet::kSamePoint) {
+		points << route(from, to);
+	} else {
+		points << to->dockConductor();
+	}
 	if (second) {
 		QList<QPointF> back = pathTo(second, to);
 		std::reverse(back.begin(), back.end());
