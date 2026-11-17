@@ -631,6 +631,21 @@ target_link_libraries(tst_signalproperties PRIVATE Qt::Test Qt::Xml)
 # The page of a signal line in the properties panel: only signal lines get
 # it, a change is one undo step; the type is saved for a signal line only.
 qet_add_app_test(tst_signalpanel tst_signalpanel.cpp)
+# The marks of a signal line: the words of the catalogue, the mark of each
+# type of signal, where the marks stand along a line and which way they read.
+add_executable(
+  tst_signalmark
+  tst_signalmark.cpp
+  ${QET_DIR}/sources/signalmark.cpp
+  ${QET_DIR}/sources/signalproperties.cpp
+  ${QET_DIR}/sources/conductordashpattern.cpp)
+add_test(NAME tst_signalmark COMMAND tst_signalmark)
+target_include_directories(tst_signalmark PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_signalmark PRIVATE Qt::Test Qt::Gui Qt::Xml)
+# A signal line on a folio: thin whatever it holds as a wire, in the colour
+# the project gives the signal lines, with the marks of its type of signal;
+# a wire and a pipe are drawn as before.
+qet_add_app_test(tst_signaldrawing tst_signaldrawing.cpp)
 # The colours of a P&ID: set for a project, none known by the code; on a pipe
 # its own colour first, then its fluid, then its family of object.
 qet_add_app_test(tst_pidcolors tst_pidcolors.cpp)

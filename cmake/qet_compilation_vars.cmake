@@ -237,6 +237,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pipeproperties.h
   ${QET_DIR}/sources/signalproperties.cpp
   ${QET_DIR}/sources/signalproperties.h
+  ${QET_DIR}/sources/signalmark.cpp
+  ${QET_DIR}/sources/signalmark.h
   ${QET_DIR}/sources/pidcodification.cpp
   ${QET_DIR}/sources/pidcodification.h
   ${QET_DIR}/sources/pidtag.cpp

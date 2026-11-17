@@ -1086,6 +1086,8 @@ namespace {
 		//subsidiary and auxiliary ones
 	constexpr qreal main_line_width = 4.0;
 	constexpr qreal medium_line_width = 2.0;
+		//The same standard, for the control and transmission lines: 0.25 mm
+	constexpr qreal signal_line_width = 1.0;
 }
 
 /**
@@ -1093,40 +1095,52 @@ namespace {
 	@return the width the conductor is drawn with. A wire: its own width
 	(cond_size), as always. A pipe: the width of its kind of line (ISO
 	10628-1), a main line twice as wide as a secondary or an auxiliary one;
-	its kind is the only setting of it.
+	its kind is the only setting of it. A signal line: a thin line, whatever
+	width it was given as a wire.
 */
 qreal ConductorProperties::lineWidth() const
 {
-	if (m_medium != TerminalData::Pipe) {
-		return cond_size;
+	switch (m_medium) {
+		case TerminalData::Pipe:
+			return m_pipe.line_kind == PipeProperties::Main ? main_line_width
+															: medium_line_width;
+		case TerminalData::Signal:
+			return signal_line_width;
+		default:
+			return cond_size;
 	}
-	return m_pipe.line_kind == PipeProperties::Main ? main_line_width
-													: medium_line_width;
 }
 
 /**
 	@brief ConductorProperties::lineStyle
 	@return the style the conductor is drawn with. A wire: its own style.
 	A pipe: dashed for an auxiliary line (ISO 10628-1), solid otherwise.
+	A signal line: solid, its type of signal saying how it is marked or
+	dashed (SignalMark); the style it may hold as a wire is not applied.
 */
 Qt::PenStyle ConductorProperties::lineStyle() const
 {
-	if (m_medium != TerminalData::Pipe) {
-		return style;
+	switch (m_medium) {
+		case TerminalData::Pipe:
+			return m_pipe.line_kind == PipeProperties::Auxiliary ? Qt::DashLine
+																 : Qt::SolidLine;
+		case TerminalData::Signal:
+			return Qt::SolidLine;
+		default:
+			return style;
 	}
-	return m_pipe.line_kind == PipeProperties::Auxiliary ? Qt::DashLine
-														 : Qt::SolidLine;
 }
 
 /**
 	@brief ConductorProperties::usesDashPattern
 	@return true if the conductor is drawn with its own pattern of dashes
 	(m_dash_pattern): a wire that sets one. A pipe is drawn after its kind
-	of line only.
+	of line only, a signal line after its type of signal only.
 */
 bool ConductorProperties::usesDashPattern() const
 {
-	return m_medium != TerminalData::Pipe && m_dash_pattern.enabled;
+	return m_medium != TerminalData::Pipe && m_medium != TerminalData::Signal
+			&& m_dash_pattern.enabled;
 }
 
 /**

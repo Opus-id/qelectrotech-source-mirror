@@ -914,8 +914,14 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	const Qt::PenStyle line_style = typed ? potential_type.style : m_properties.lineStyle();
 		//The type says how the line looks, so the conductor's own pattern
 		//stays stored but is not applied
-	const bool custom_pattern = !typed && m_properties.usesDashPattern()
+	bool custom_pattern = !typed && m_properties.usesDashPattern()
 			&& m_properties.m_dash_pattern.apply(final_conductor_pen, line_style);
+		//A signal line: its type of signal says its mark, which may be dashes
+	const SignalMark::Mark signal_mark = signalMark();
+	if (signal_mark == SignalMark::Dashes) {
+		SignalMark::applyDashes(final_conductor_pen);
+		custom_pattern = true;
+	}
 	if (!custom_pattern)
 	{
 		if (line_style == Qt::DashLine)
@@ -960,7 +966,12 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	if (m_properties.m_medium == TerminalData::Pipe) {
 		drawOffSeries(painter, painted_path, line_width, detail);
 	}
-	painter -> drawPath(painted_path);
+	if (SignalMark::lineGap(signal_mark) > 0) {
+			//A mark which stands in the line: the line stops either side
+		painter -> drawPath(SignalMark::brokenLine(signal_mark, segmentsToPoints()));
+	} else {
+		painter -> drawPath(painted_path);
+	}
 		//On to the middle of a spec break between two pipes, with the same
 		//pen: its own width, colour and kind of line on each side
 	if (m_properties.m_medium == TerminalData::Pipe) {
@@ -1030,8 +1041,54 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		drawPipeParts(painter, final_conductor_color, detail);
 		drawDiameterGaps(painter);
 	}
+	drawSignalMarks(painter, final_conductor_color, detail);
 
 	painter -> restore();
+}
+
+/**
+	@brief Conductor::signalMark
+	See the declaration
+*/
+SignalMark::Mark Conductor::signalMark() const
+{
+	if (m_properties.m_medium != TerminalData::Signal) {
+		return SignalMark::None;
+	}
+	return SignalMark::defaultMark(m_properties.m_signal.signal_type);
+}
+
+/**
+	@brief Conductor::drawSignalMarks
+	See the declaration. Part of the drawing: on paper too. The marks keep
+	the width of the line when it is hovered, and their place whichever way
+	the line was drawn.
+	@param painter
+	@param color : the colour the line is drawn in
+	@param detail : the level of detail of the drawing
+*/
+void Conductor::drawSignalMarks(QPainter *painter, const QColor &color, qreal detail) const
+{
+	const SignalMark::Mark mark = signalMark();
+	if (!SignalMark::isRepeated(mark)) {
+		return;
+	}
+	const QPainterPath marks = SignalMark::marksPath(mark, segmentsToPoints());
+	if (marks.isEmpty()) {
+		return;
+	}
+	const bool on_screen = painter->device()
+			&& painter->device()->devType() == QInternal::Widget;
+	painter->save();
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	QPen pen(color, m_properties.lineWidth(), Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+	if (on_screen && detail < 1.0) {
+		pen.setCosmetic(true);
+	}
+	painter->setPen(pen);
+	painter->setBrush(Qt::NoBrush);
+	painter->drawPath(marks);
+	painter->restore();
 }
 
 namespace {
@@ -3248,6 +3305,17 @@ QColor Conductor::drawnColor() const
 	if (pipe_color.isValid()) {
 		return pipe_color;
 	}
+	if (m_properties.m_medium == TerminalData::Signal) {
+			//The colour the project gives the signal lines, when it has one
+		const Diagram *parent_diagram = diagram();
+		const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+		const QColor family = project
+				? project->pidCodification().object_colors.value(QStringLiteral("signal"))
+				: QColor();
+		if (family.isValid()) {
+			return family;
+		}
+	}
 	PotentialType type;
 	return potentialTypeFormat(&type) ? type.color : m_properties.color;
 }
@@ -3452,6 +3520,10 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 */
 bool Conductor::potentialTypeFormat(PotentialType *type) const
 {
+		//A pipe or a signal line has no potential: its own data say how
+		//it is drawn
+	if (m_properties.m_medium != TerminalData::Electrical)
+		return false;
 	const Diagram *parent_diagram = diagram();
 	QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
 	if (!project || !project->potentialTypes().isEnabled())
