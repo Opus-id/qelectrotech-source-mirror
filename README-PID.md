@@ -30,6 +30,34 @@ of a pipe (see below).
 The earlier attempt, with a separate pipe class, is kept frozen under the
 tag `pipe-connector-freeze-2026-11-03`.
 
+## A first look
+
+The symbols of these pictures are simple shapes drawn for the example
+only; the codes are invented.
+
+![A small P&ID: a tank, a pump, valves, a reducer and a tee](docs/pid/example-lines.png)
+
+*Lines colored after their fluid and drawn after their kind (main,
+secondary, auxiliary), tags, names and sizes of the nozzles, flanges.*
+
+![The same folio with a status of works](docs/pid/example-status.png)
+
+*Status of works: existing and kept in grey, to be demolished in orange
+(colors set for the project).*
+
+![A pipe selected and its page in the properties panel](docs/pid/ui-pipe.png)
+
+*The page of a pipe: designation, drawing, other data.*
+
+![A tank selected and its P&ID tab](docs/pid/ui-symbol.png)
+
+*The P&ID tab of a symbol: type and options, tag made of fields, nozzles.*
+
+![The Select by criteria window](docs/pid/ui-select-by-criteria.png)
+
+*Select by criteria: symbols by family, pipes by size, fluid, kind of
+line.*
+
 ## What works today
 
 **Terminals**
