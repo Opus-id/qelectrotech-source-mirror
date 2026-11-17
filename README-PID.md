@@ -57,13 +57,25 @@ tag `pipe-connector-freeze-2026-11-03`.
   context menu of a symbol offers *Draw a pipe from here*: the pipe starts
   at its free nozzle nearest to the click. Lasso (Ctrl + drag) around two
   nozzles: one pipe between them.
+- **From or to an empty place**: when the project names a symbol of free
+  end (*P&ID* page, *Connections* tab), a click of the tool in an empty
+  place starts or ends the pipe there, with that symbol at its end. The
+  preview is the route the pipe will take; an end within 10° of an axis of
+  the start is set on it (Ctrl: no snap), and Space switches between a
+  route in L and in S when an end is free. A pipe started or ended on a
+  free end takes that line up: one pipe, its route and data kept.
+- **A tee placed by the tool**: when the project names a tee symbol, a
+  click of the tool on a pipe, or a drag from a free nozzle released on
+  it, places the tee there (on the grid, 2.5 mm at least from a nozzle),
+  cuts that pipe and joins the branch, in one undo step.
 - A conductor takes the medium
   of the terminal it starts from; other properties applied to it never
   change its medium. A file is read as it is: a conductor saved without a
   medium stays electrical.
-- **No potential**: nothing is ever passed on from a pipe to the pipes or
-  wires connected to it (numbering, shared properties, cables, bridges,
-  search and replace… all go through the potential).
+- **No potential**: nothing goes from a pipe to the pipes or wires
+  connected to it through the potential (numbering, shared properties,
+  cables, bridges, search and replace…). What a line passes on has rules
+  of its own (*Data that follow the line*, below).
 - **No wire fields**: no wire number, no single-line symbols, definition
   mark, cable, wire color or section, voltage, bus or function.
 - **Data of a pipe**: nominal diameter, fluid, material, flow, line
@@ -72,8 +84,20 @@ tag `pipe-connector-freeze-2026-11-03`.
   They go through `.qet`, `.qetz` and `.qetdb` files with no code of their
   own (checked by a round trip through a `.qetdb` file).
 - **A page of its own** in the properties panel, and in the dialog a double
-  click opens, in place of the page of a wire. Several pipes can be edited
-  at once: only the field changed reaches them, in one undo step.
+  click opens, in place of the page of a wire, in three sections
+  (*Designation*, *Drawing*, *Other data*). Several pipes can be edited
+  at once: only the field changed reaches them, in one undo step. The
+  *Color* row tells where the color comes from (set by hand, status of
+  works, automatic) and gives the automatic one back.
+- **Data that follow the line**: a value set on the page of a pipe reaches
+  its line in one undo step, and a message tells what was changed.
+  Material, piping class and nominal pressure go through valves, tees and
+  reducers, and stop at a **spec break** (a symbol of `pid_role` =
+  `spec_break`) and at equipment. The fluid also goes through spec breaks;
+  it stops at equipment and at a nozzle out of the run of a symbol (an
+  injection point). The line number goes as the fluid, but through a tee
+  or a cross only straight on, never into or out of the branch. The flow
+  stops at every tee. A new pipe takes what the line it joins has.
 - **A codification per project**: *Project > Import a P&ID codification*
   reads the codes of the fluids and materials from a CSV file the company
   keeps (lines `kind;code;name;family`); none is shipped. The page of a pipe
@@ -109,8 +133,28 @@ tag `pipe-connector-freeze-2026-11-03`.
   with the options, so a `.qetdb` file refuses it as it refuses them.
 - **Drawn after its kind of line** (ISO 10628-1): main line 1 mm (4 units),
   secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed.
-- A symbol dropped on a pipe breaks it, as for a wire; a tee takes the pipe
-  through its run and keeps its branch free.
+- A P&ID symbol placed or moved on a pipe always cuts it, whatever the
+  button of automatic break of conductors says (wires and signal lines
+  follow the button); a tee takes the pipe through its run and keeps its
+  branch free.
+- **Magnet of the nozzles**: a symbol placed or dragged with the mouse is
+  caught (20 pixels of the screen; Shift: no magnet) by a free nozzle
+  facing one of its own, by the free end of a pipe, which it takes, or by
+  a connected nozzle when its own nozzle lies on that pipe. Two nozzles
+  that touch get no pipe between them.
+- **Deleting an in-line symbol** joins its two pipes into one again; the
+  branch of a deleted tee goes with it. A free end left alone by a
+  deletion is removed too.
+- A pipe is picked over its drawn width, a little more when hovered.
+- **Select by criteria…** (*Edit* menu, context menu of the folio): a
+  window that stays open beside the folio, with a tree of boxes: symbols
+  by family, symbol, functional unit or status; pipes by size, fluid,
+  material, line number, piping class… A branch appears only when an
+  object bears the data, and has a *No size*, *No fluid*… box: the pipes
+  without a size are found there. The search runs in the selection or in
+  the whole folio and replaces, extends or reduces the selection;
+  rectangles drawn on the folio while the window is open follow the same
+  action.
 
 **Sizes: the size lives on the pipe**
 - The way of working: draw, connect, place the fittings, **size at the
@@ -137,34 +181,50 @@ tag `pipe-connector-freeze-2026-11-03`.
 - **Inline symbols have no size of their own**: the nozzles of a valve
   (`pid_inline`, its two nozzles) or of a tee (`pid_run="N1 N2 N3"`, the
   nozzles of one size) follow their pipe; their size field is greyed, in
-  the *Nozzles* tab as in the element editor. A change made on the page of
-  a pipe goes through them, and through nozzles that touch with no pipe
-  between them, in one undo step, each material taking it as it has it
-  (DN 60 for a cast iron). It stops at equipment, at reducers and at a
-  group of nozzles of different sizes.
+  the *Nozzles* section of the *P&ID* tab as in the element editor. A
+  change made on the page of a pipe goes through them, and through
+  nozzles that touch with no pipe between them, in one undo step, each
+  material taking it as it has it (DN 60 for a cast iron). It stops at
+  equipment, at reducers and at a group of nozzles of different sizes.
 - Equipment, instruments and **reducers** have sizes of their own: given in
   the symbol (the element editor chooses DN or Ø beside the field) and
-  changed on a placed symbol in its *Nozzles* tab (`<pid_nozzles>` block of
-  `<element>`, written only when set; undoable). A reducer (`pid_role` =
-  `reducer`) is where the size of the line changes: a size typed on one of
-  its sides resizes that line in the same undo step. A `.qetdb` file
-  refuses a size given on a placed symbol, as it refuses the options.
+  changed on a placed symbol in the *Nozzles* section of its *P&ID* tab
+  (`<pid_nozzles>` block of `<element>`, written only when set; undoable).
+  A reducer (`pid_role` = `reducer`) is where the size of the line
+  changes: a size typed on one of its sides resizes that line in the same
+  undo step. A `.qetdb` file refuses a size given on a placed symbol, as
+  it refuses the options.
 - A size fills what is empty and never replaces a value: a new pipe
-  without a size takes that of its nozzle, once.
+  without a size takes that of its nozzle, once. A size typed on a nozzle
+  of an equipment, or brought by *Change type*, fills the pipes without a
+  size of its line, up to a reducer, an equipment or a sized pipe, in one
+  undo step.
 - A difference is marked without being blocked: an orange diamond in front
   of the pipe, on screen only, and a tooltip (a reducer with the same size
   on both sides too). No reducer is ever inserted.
-- The size of a nozzle is shown under its name, when terminal names are
+- A reducer may name its large side (`pid_large`, *Large side* list of the
+  element editor): laid the wrong way, its two nozzles are marked and the
+  tooltip says so; nothing is turned nor blocked.
+- The size of a nozzle is shown with its name, when terminal names are
   shown and the project shows the sizes; the word `DN` can be left out
-  (*Texts* tab).
+  (*Texts* tab). Both are written from the end of the nozzle, along its
+  pipe and clear of the mark of its connection: the name above and the
+  size below a horizontal pipe; beside a vertical one, upright or turned
+  as the project keeps the texts of rotated elements horizontal or not.
 
 **Connections of the nozzles**
 - Each nozzle has a kind of connection: flange (the default, not written),
   plain end, socket (to glue, to weld or with a gasket: the material of the
   pipe tells them apart), pipe thread, butt weld, grooved or quick coupling
   (`pid_connection` attribute of `<terminal>` in the
-  `.elmt`, changed on a placed symbol in its *Nozzles* tab, in the same
-  undo step as its size). The list is fixed in the code.
+  `.elmt`, changed on a placed symbol in the *Nozzles* section of its
+  *P&ID* tab, in the same undo step as its size). The list is fixed in the
+  code.
+- In that section, a chain button above each column (connection, size,
+  drawing of the connection) keeps the nozzles of the symbol alike: the
+  first one gives its value. A link is undone only by a click, and stays
+  undone (`same_connection`, `same_size`, `same_mark` = `false` on
+  `<pid_nozzles>`).
 - The connection limits the kind of size: a flange or a quick coupling
   takes a DN, a pipe thread inches, the others a DN or an outside diameter.
   When the connection changes, a size it allows is kept, else it is
@@ -180,21 +240,39 @@ tag `pipe-connector-freeze-2026-11-03`.
   connections and the families of symbols the project chooses
   (*Connections* tab); the connection is also named in the tooltip of the
   nozzle.
+- How it is drawn: a flange is a line across the pipe, 1 mm from the side
+  of a valve or at the end of the nozzle of an equipment. The pipe brings
+  its own part, in its own color: its flange 1 mm further (the
+  counter-flange), its socket around a plain end (drawn with the
+  sockets), its grooved end in the collar, the other half of a quick
+  coupling. A butt weld is a dot. Two symbols joined nozzle to nozzle
+  draw nothing between them. A spec break is transparent: the pipe draws
+  the part that answers the symbol on the other side.
 
 **Symbols**
+- **A *P&ID* tab** in the properties panel of a placed P&ID symbol, first
+  and open by default, in sections: *Type and options*, *Tag*, *Nozzles*,
+  each shown when it applies. An electrical symbol has no such tab.
 - **Change type**: right-click a placed symbol, *Change type* lists the
   symbols of the same collection folder that have the same size, hotspot
   and terminals (name, place and medium). The symbol is swapped in place,
   keeping its position, information and connections; undoable. A generic
   symbol (a valve, a pump) can be placed first and made precise later. A
   P&ID symbol keeps its texts (its tag) and takes the identifier of the new
-  symbol.
+  symbol. The *Type* list of the *P&ID* tab does the same; both show a
+  thumbnail of each symbol.
+- **Symbols that play a role for the lines** (`pid_role`, chosen in the
+  *Piping* block of the element editor, with the family, the run and the
+  large side): a reducer, a free end, a spec break. An end closure (blind
+  flange, cap) needs none: a symbol of the `pipe` family with one nozzle
+  takes the free end of a line and follows its size.
 - **Tags made of fields**: a P&ID symbol may give the identifier of its
   type (`prefix` attribute of `<definition>`, e.g. `PC`). A placed
-  equipment or valve has a *Tag* tab: functional unit (picked in the list
-  of the project, or typed), train and order, saved as information of the
-  element. The model of its family in the project, for instance
-  `{unit} {id} {train}{order:2}`, makes its label (`U01 PC 105`); `\n`
+  equipment or valve has a *Tag* section in its *P&ID* tab: functional
+  unit (picked in the list of the project, or typed), train and order,
+  saved as information of the element. The model of its family in the
+  project, for instance `{unit} {id} {train}{order:2}`, makes its label
+  (`U01 PC 105`); `\n`
   starts a new line, for the three lines of an instrument bubble. The label
   follows a change of model or of type, and a label held twice in the
   project is told. Without a model, the label is typed by hand as before.
@@ -204,7 +282,7 @@ tag `pipe-connector-freeze-2026-11-03`.
 - **Tags numbered automatically**: the order is one more than the highest
   held by the same functional unit, identifier and train in the project
   (a number freed below it is not given again; no counter is saved, the
-  project is read each time). The *Tag* tab fills an empty order as soon
+  project is read each time). The *Tag* section fills an empty order as soon
   as the unit is there, and *Next number* gives it on demand; an order
   typed is never changed. When the model shows the train, a numbered tag
   always has one (0 for none). A pasted copy whose tag is taken gets the
@@ -222,8 +300,9 @@ tag `pipe-connector-freeze-2026-11-03`.
   only for some values (`show_if` attribute). Example: one pump symbol
   with a *motor* option (none, fixed speed, variable speed) instead of
   three symbols. A placed symbol saves its choices in its `<element>`
-  block, only when it has some; they are chosen in an *Options* tab of its
-  properties panel (undoable) and kept by *Change type*. A `.qetdb` file
+  block, only when it has some; they are chosen in the *Type and options*
+  section of its *P&ID* tab or in the *Options* submenu of its context
+  menu (undoable) and kept by *Change type*. A `.qetdb` file
   does not keep them yet: saving such a project as `.qetdb` is refused
   with a message.
 
@@ -244,11 +323,11 @@ QElectroTech are saved byte for byte as by master.
 ## What is missing
 
 - The line designation shown along a pipe.
-- Placing a tee by dropping a pipe on another, flow direction, crossings
-  as ISO 10628-1 draws them.
+- Flow direction, crossings as ISO 10628-1 draws them.
 - Signal lines, drive links, equipment data tables.
-- A way to find the pipes without a diameter, piping classes (material,
-  pressure, wall thickness), the pressure rating (PN) of the nozzles.
+- Piping classes (material, pressure, wall thickness), the pressure rating
+  (PN) of the nozzles.
+- Equipment drawn to size (a tank that stretches).
 - Keeping the tags of an issued drawing set: once issued, a deleted tag
   should never be given again.
 - Declaring options and conditions in the element editor (they are written
@@ -270,7 +349,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<definition>` | `pid_family` | `equipment`, `valve`, `instrument`, `pipe` | none: not a P&ID symbol | the symbol has a family |
 | `.elmt`, `<definition>` | `pid_inline` | `true` | a line does not run through it | a line runs through its two nozzles (valve) |
 | `.elmt`, `<definition>` | `pid_run` | names of nozzles, space separated (`N1 N2 N3`) | the two nozzles of a `pid_inline` symbol | a tee or a three-way valve |
-| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end` | none | the symbol plays that role for the lines |
+| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break` | none | the symbol plays that role for the lines |
 | `.elmt`, `<definition>` | `pid_large` | name of a nozzle (`N1`) | none: the way of the reducer is not checked | a reducer names its large side; a large side smaller than the other one is marked |
 | `.elmt`, `<definition>` | `prefix` | identifier of the tag (`PC`) | that of the collection folder | the symbol gives one |
 | `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
@@ -280,8 +359,8 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<terminal>` | `pid_dn`, `pid_od`, `pid_thread` | DN; outside diameter to the tenth; inches (`1 1/2`) | the size of its pipe | a nozzle with a size of its own |
 | `.elmt`, `<terminal>` | `pid_connection` | `plain_end`, `socket`, `thread`, `butt_weld`, `grooved`, `quick_coupling` | `flange` | not a flange |
 | `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
-| `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never` | those of the symbol and the project | a nozzle of the placed symbol is changed |
-| `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* tab is filled |
+| `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never`; on the block, `same_connection`, `same_size`, `same_mark` = `false` | those of the symbol and the project; nozzles linked | a nozzle of the placed symbol is changed, or a link undone |
+| `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
 | `.qet`, `<conductor>` | `medium` | `pipe`, `signal`, `drive` | `electrical` | not electrical |
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
 | `.qet`, `<conductor>` | `pid_fluid`, `pid_material`, `pid_flow`, `pid_line_number`, `pid_piping_class`, `pid_nominal_pressure`, `pid_spool`, `pid_external_finish` | text (a code of the codification, or free) | empty | set |
