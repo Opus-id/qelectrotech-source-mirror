@@ -395,6 +395,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_line_kind` | `secondary`, `auxiliary` | `main` | not main |
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | not to be built |
+| `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link` | undefined | a signal line whose type is chosen |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end` or `tee`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee | a symbol is chosen for the role |
 
