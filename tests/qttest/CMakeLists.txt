@@ -619,6 +619,18 @@ qet_add_app_test(tst_mediumguards tst_mediumguards.cpp)
 # The page of a pipe in the properties panel: only pipes get it, a change is
 # one undo step and reaches the field edited of the pipes selected, no other.
 qet_add_app_test(tst_pipepanel tst_pipepanel.cpp)
+# The data of a signal line (its type of signal): the words of the file
+# format, written only when set, an unknown value read as undefined.
+add_executable(
+  tst_signalproperties
+  tst_signalproperties.cpp
+  ${QET_DIR}/sources/signalproperties.cpp)
+add_test(NAME tst_signalproperties COMMAND tst_signalproperties)
+target_include_directories(tst_signalproperties PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_signalproperties PRIVATE Qt::Test Qt::Xml)
+# The page of a signal line in the properties panel: only signal lines get
+# it, a change is one undo step; the type is saved for a signal line only.
+qet_add_app_test(tst_signalpanel tst_signalpanel.cpp)
 # The colours of a P&ID: set for a project, none known by the code; on a pipe
 # its own colour first, then its fluid, then its family of object.
 qet_add_app_test(tst_pidcolors tst_pidcolors.cpp)
@@ -2170,6 +2182,7 @@ add_executable(
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/conductorproperties.cpp
   ${QET_DIR}/sources/pipeproperties.cpp
+  ${QET_DIR}/sources/signalproperties.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp
   ${QET_DIR}/sources/shortcutmanager.cpp)
@@ -2185,6 +2198,7 @@ add_executable(
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/conductorproperties.cpp
   ${QET_DIR}/sources/pipeproperties.cpp
+  ${QET_DIR}/sources/signalproperties.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp
   ${QET_DIR}/sources/shortcutmanager.cpp)
@@ -2212,6 +2226,7 @@ add_executable(
   ${QET_DIR}/sources/conductorproperties.cpp
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/pipeproperties.cpp
+  ${QET_DIR}/sources/signalproperties.cpp
   ${QET_DIR}/sources/qetinformation.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp
@@ -2228,6 +2243,7 @@ add_executable(
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/conductorproperties.cpp
   ${QET_DIR}/sources/pipeproperties.cpp
+  ${QET_DIR}/sources/signalproperties.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp
   ${QET_DIR}/sources/shortcutmanager.cpp)
@@ -2244,6 +2260,7 @@ add_executable(
   ${QET_DIR}/sources/conductordashpattern.cpp
   ${QET_DIR}/sources/conductorproperties.cpp
   ${QET_DIR}/sources/pipeproperties.cpp
+  ${QET_DIR}/sources/signalproperties.cpp
   ${QET_DIR}/sources/QPropertyUndoCommand/qpropertyundocommand.cpp
   ${QET_DIR}/sources/qet.cpp
   ${QET_DIR}/sources/qeticons.cpp

@@ -14082,6 +14082,24 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
 </context>
 <context>
+    <name>SignalProperties</name>
+    <message><source>Undefined</source><comment>type of signal</comment><translation>Non défini</translation></message>
+    <message><source>Pneumatic</source><comment>type of signal</comment><translation>Pneumatique</translation></message>
+    <message><source>Electrical</source><comment>type of signal</comment><translation>Électrique</translation></message>
+    <message><source>Hydraulic</source><comment>type of signal</comment><translation>Hydraulique</translation></message>
+    <message><source>Capillary</source><comment>type of signal</comment><translation>Capillaire</translation></message>
+    <message><source>Guided electromagnetic</source><comment>type of signal</comment><translation>Électromagnétique guidé</translation></message>
+    <message><source>Data link</source><comment>type of signal</comment><translation>Liaison de données</translation></message>
+</context>
+<context>
+    <name>SignalPropertiesWidget</name>
+    <message><source>Signal line</source><comment>section of the page of a signal line</comment><translation>Ligne de signal</translation></message>
+    <message><source>Signal line</source><translation>Ligne de signal</translation></message>
+    <message><source>Type of signal:</source><translation>Type de signal :</translation></message>
+    <message><source>Change the properties of a signal line</source><translation>Modifier les propriétés d&apos;une ligne de signal</translation></message>
+    <message numerus="yes"><source>%n signal line(s) selected</source><translation><numerusform>%n ligne de signal sélectionnée</numerusform><numerusform>%n lignes de signal sélectionnées</numerusform></translation></message>
+</context>
+<context>
     <name>SelectionCategories</name>
     <message><source>Signal lines</source><translation>Lignes de signal</translation></message>
     <message><source>Drive lines</source><translation>Lignes d&apos;entraînement</translation></message>

@@ -33,6 +33,7 @@
 #include <qetgraphicsitem/terminal.h>
 #include <ui/conductorpropertiesdialog.h>
 #include <ui/pipepropertieswidget.h>
+#include <ui/signalpropertieswidget.h>
 #include "conductortextitem.h"
 #include "conductordefinitionmark.h"
 #include "element.h"
@@ -2693,6 +2694,9 @@ void Conductor::setProperties(const ConductorProperties &properties)
 		//and only a pipe has the data of a pipe
 	if (property.m_medium != TerminalData::Pipe)
 		property.m_pipe = PipeProperties();
+		//and only a signal line the data of a signal line
+	if (property.m_medium != TerminalData::Signal)
+		property.m_signal = SignalProperties();
 	if (m_properties == property) return;
 
 		//The run this conductor was part of, which may part now
@@ -3151,6 +3155,10 @@ void Conductor::editProperty()
 		//The dialog of a wire is all about wires
 	if (medium() == TerminalData::Pipe) {
 		PipePropertiesWidget::editInDialog(this, diagramEditor());
+		return;
+	}
+	if (medium() == TerminalData::Signal) {
+		SignalPropertiesWidget::editInDialog(this, diagramEditor());
 		return;
 	}
 	ConductorPropertiesDialog::PropertiesDialog(this, diagramEditor());

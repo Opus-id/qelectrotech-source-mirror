@@ -22,6 +22,7 @@
 #include "pipeproperties.h"
 #include "properties/terminaldata.h"
 #include "qet.h"
+#include "signalproperties.h"
 #include <QColor>
 #include <QSettings>
 #include <QUuid>
@@ -98,6 +99,10 @@ class ConductorProperties
 			/// "pid_" attributes, only for a conductor of the pipe medium;
 			/// Conductor::setProperties() clears it for any other.
 		PipeProperties m_pipe;
+			/// The data of a signal line (its type of signal): written, as
+			/// "pid_" attributes, only for a conductor of the signal medium;
+			/// Conductor::setProperties() clears it for any other.
+		SignalProperties m_signal;
 
 		QColor
 		color,

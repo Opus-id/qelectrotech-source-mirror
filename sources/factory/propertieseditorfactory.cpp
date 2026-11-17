@@ -45,6 +45,7 @@
 #include <ui/multielementinfowidget.h>
 #include <ui/shapegraphicsitempropertieswidget.h>
 #include <ui/pipepropertieswidget.h>
+#include <ui/signalpropertieswidget.h>
 #include <ui/structureboxpropertieswidget.h>
 
 #include <QGraphicsItem>
@@ -167,11 +168,15 @@ PropertiesEditorWidget *PropertiesEditorFactory::propertiesEditor(
 		{
 			QList<Conductor *> conductors;
 			int pipes = 0;
+			int signal_lines = 0;
 			for (QGraphicsItem *qgi : std::as_const(items)) {
 				auto *conductor = static_cast<Conductor *>(qgi);
 				conductors << conductor;
-				if (conductor->medium() == TerminalData::Pipe) {
+				const TerminalData::Medium medium = conductor->medium();
+				if (medium == TerminalData::Pipe) {
 					++pipes;
+				} else if (medium == TerminalData::Signal) {
+					++signal_lines;
 				}
 			}
 
@@ -186,8 +191,19 @@ PropertiesEditorWidget *PropertiesEditorFactory::propertiesEditor(
 				}
 				return new PipePropertiesWidget(conductors, parent);
 			}
-				//Pipes and wires share no field worth editing together
-			if (pipes) {
+				//So has a signal line, for the same reason
+			if (signal_lines == conductors.size())
+			{
+				if (class_name == SignalPropertiesWidget::staticMetaObject.className())
+				{
+					static_cast<SignalPropertiesWidget *>(editor)->setLines(conductors);
+					return editor;
+				}
+				return new SignalPropertiesWidget(conductors, parent);
+			}
+				//Pipes, signal lines and wires share no field worth editing
+				//together
+			if (pipes || signal_lines) {
 				return nullptr;
 			}
 

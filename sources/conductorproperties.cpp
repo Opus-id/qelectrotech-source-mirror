@@ -304,6 +304,9 @@ QList<QPair<QString, QString>> ConductorProperties::attributes() const
 		//The data of a pipe, for a pipe only
 	if (m_medium == TerminalData::Pipe)
 		a << m_pipe.attributes();
+		//The data of a signal line, for a signal line only
+	if (m_medium == TerminalData::Signal)
+		a << m_signal.attributes();
 
 	if (color != QColor(Qt::black))
 		add("color", color.name());
@@ -388,6 +391,9 @@ void ConductorProperties::fromXml(QDomElement &e)
 	m_pipe = PipeProperties();
 	if (m_medium == TerminalData::Pipe)
 		m_pipe.fromXml(e);
+	m_signal = SignalProperties();
+	if (m_medium == TerminalData::Signal)
+		m_signal.fromXml(e);
 
 		// get conductor color
 	QColor xml_color= QColor(e.attribute("color"));
@@ -1169,6 +1175,7 @@ bool ConductorProperties::operator==(const ConductorProperties &other) const
 		other.type == type &&\
 		other.m_medium == m_medium &&\
 		other.m_pipe == m_pipe &&\
+		other.m_signal == m_signal &&\
 		other.color == color &&\
 		other.m_bicolor == m_bicolor &&\
 		other.m_color_2 == m_color_2 &&\
