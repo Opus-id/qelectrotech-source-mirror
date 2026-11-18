@@ -1127,7 +1127,7 @@ void QETDiagramEditor::setUpActions()
 	m_shown_kinds_menu = new QMenu(tr("Show"), this);
 	const QList<QPair<ShownKinds::Kind, QString>> kinds {
 		{ShownKinds::SymbolTexts,     tr("Element texts")},
-		{ShownKinds::WireNumbers,     tr("Conductor texts")},
+		{ShownKinds::WireNumbers,     tr("Texts of lines and conductors")},
 		{ShownKinds::FreeTexts,       tr("Text fields")},
 		{ShownKinds::Shapes,          tr("Shapes")},
 		{ShownKinds::Pictures,        tr("Pictures")},
@@ -1160,7 +1160,7 @@ void QETDiagramEditor::setUpActions()
 		{Diagram::SelectionFilter::All,         tr("Everything")},
 		{Diagram::SelectionFilter::Automatic,   tr("Automatic: symbols with their texts")},
 		{Diagram::SelectionFilter::Symbols,     tr("Symbols")},
-		{Diagram::SelectionFilter::Conductors,  tr("Conductors")},
+		{Diagram::SelectionFilter::Conductors,  tr("Lines and conductors")},
 		{Diagram::SelectionFilter::FreeTexts,   tr("Free texts")},
 		{Diagram::SelectionFilter::SymbolTexts, tr("Symbol texts")}};
 	for (const auto &selection_filter : selection_filters) {
@@ -4507,8 +4507,17 @@ void QETDiagramEditor::slot_updateComplexActions()
 		//edit conductor
 		else if (selected_conductors_count)
 		{
-			m_edit_selection -> setText(tr("Edit conductor",
-						       "edit conductor"));
+				//A pipe and a signal line of a P&ID are never called
+				//conductors
+			const QSet<Conductor *> lines = diagram_->selectedConductors();
+			const TerminalData::Medium medium = lines.isEmpty()
+					? TerminalData::Electrical : (*lines.cbegin())->medium();
+			m_edit_selection -> setText(
+						medium == TerminalData::Pipe
+						? tr("Edit the pipe", "edit pipe")
+						: medium == TerminalData::Signal
+						  ? tr("Edit the signal line", "edit signal line")
+						  : tr("Edit conductor", "edit conductor"));
 			m_edit_selection -> setIcon(QET::Icons::ConductorEdit);
 		}
 	}

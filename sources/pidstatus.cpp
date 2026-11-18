@@ -43,7 +43,8 @@ QList<QPair<QString, QString>> PidStatus::statuses()
 bool PidStatus::applies(const QGraphicsItem *item)
 {
 	if (const auto *conductor = qgraphicsitem_cast<const Conductor *>(item)) {
-		return conductor->medium() == TerminalData::Pipe;
+		return conductor->medium() == TerminalData::Pipe
+				|| conductor->medium() == TerminalData::Signal;
 	}
 	if (const auto *element = qgraphicsitem_cast<const Element *>(item)) {
 		return !element->elementData().m_pid_family.isEmpty();
@@ -62,7 +63,11 @@ QUndoCommand *PidStatus::change(const QList<QGraphicsItem *> &items, const QStri
 		if (auto *conductor = qgraphicsitem_cast<Conductor *>(item))
 		{
 			ConductorProperties properties = conductor->properties();
-			properties.m_pipe.status = status;
+			if (conductor->medium() == TerminalData::Pipe) {
+				properties.m_pipe.status = status;
+			} else {
+				properties.m_signal.status = status;
+			}
 			if (properties == conductor->properties()) {
 				continue;
 			}

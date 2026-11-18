@@ -204,8 +204,14 @@ namespace {
 		return static_cast<Conductor *>(item)->properties().m_pipe;
 	}
 
+	SignalProperties signalOf(QGraphicsItem *item)
+	{
+		return static_cast<Conductor *>(item)->properties().m_signal;
+	}
+
 		/// The categories of the items which are neither pipes nor
-		/// symbols, in the order of the tree
+		/// symbols, in the order of the tree; the signal lines make a
+		/// leaf of that kind when none holds a type or a status
 	enum class Kind {
 		Signal, Drive, Conductor,
 		FreeText, SymbolText, LineText,
@@ -216,7 +222,7 @@ namespace {
 SelectionCategories::SelectionCategories(const QList<QGraphicsItem *> &items,
 										 const PidCodification &codes)
 {
-	QList<QGraphicsItem *> pipes, symbols;
+	QList<QGraphicsItem *> pipes, signal_lines, symbols;
 	QMap<int, QList<QGraphicsItem *>> others;
 	for (QGraphicsItem *item : items)
 	{
@@ -227,7 +233,7 @@ SelectionCategories::SelectionCategories(const QList<QGraphicsItem *> &items,
 		{
 			switch (conductor->medium()) {
 				case TerminalData::Pipe:   pipes << item; break;
-				case TerminalData::Signal: others[int(Kind::Signal)] << item; break;
+				case TerminalData::Signal: signal_lines << item; break;
 				case TerminalData::Drive:  others[int(Kind::Drive)] << item; break;
 				default:                   others[int(Kind::Conductor)] << item; break;
 			}
@@ -271,10 +277,12 @@ SelectionCategories::SelectionCategories(const QList<QGraphicsItem *> &items,
 	if (!pipes.isEmpty()) {
 		addPipes(pipes, codes);
 	}
+	if (!signal_lines.isEmpty()) {
+		addSignalLines(signal_lines);
+	}
 
 	const QHash<int, QString> labels {
-		{int(Kind::Signal),        tr("Signal lines")},
-		{int(Kind::Drive),         tr("Drive lines")},
+		{int(Kind::Drive),        tr("Drive lines")},
 		{int(Kind::Conductor),     tr("Conductors")},
 		{int(Kind::FreeText),      tr("Free texts")},
 		{int(Kind::SymbolText),    tr("Symbol texts")},
@@ -297,7 +305,7 @@ SelectionCategories::SelectionCategories(const QList<QGraphicsItem *> &items,
 		}
 		return leaf;
 	};
-	for (Kind kind : {Kind::Signal, Kind::Drive, Kind::Conductor}) {
+	for (Kind kind : {Kind::Drive, Kind::Conductor}) {
 		if (others.contains(int(kind))) {
 			m_tree << leaf_of(kind);
 		}
@@ -409,6 +417,48 @@ void SelectionCategories::addPipes(const QList<QGraphicsItem *> &pipes,
 	}
 	for (QGraphicsItem *pipe : pipes) {
 		m_needs << qMakePair(pipe, needs.value(pipe));
+	}
+	m_tree << node;
+}
+
+/**
+	@brief SelectionCategories::addSignalLines
+	The node of the signal lines: a branch by type of signal and one by
+	status of works, or a leaf when every line is of undefined type, to be
+	built.
+*/
+void SelectionCategories::addSignalLines(const QList<QGraphicsItem *> &lines)
+{
+	QStringList type_order;
+	for (SignalProperties::SignalType type : SignalProperties::types()) {
+		type_order << SignalProperties::typeToString(type);
+	}
+
+	const QList<Branch> branches {
+		{QStringLiteral("type"), tr("By type of signal"), nullptr,
+		 [](QGraphicsItem *item) {
+			const SignalProperties::SignalType type = signalOf(item).signal_type;
+			return Value{SignalProperties::typeToString(type), SignalProperties::typeName(type)};
+		 }, SignalProperties::typeToString(SignalProperties::Undefined), type_order},
+		{QStringLiteral("status"), tr("By status of works"), nullptr,
+		 [](QGraphicsItem *item) { return statusValue(signalOf(item).status); },
+		 QString(), statusKeys()}};
+
+	Node node;
+	node.label = tr("Signal lines");
+	node.count = int(lines.size());
+	Needs needs;
+	for (const Branch &branch : branches) {
+		addBranch(branch, QStringLiteral("signal/"), lines, needs, node.children);
+	}
+	if (node.children.isEmpty()) {
+		node.key = QStringLiteral("kind/%1").arg(int(Kind::Signal));
+		for (QGraphicsItem *line : lines) {
+			needs[line] << node.key;
+		}
+	}
+	for (QGraphicsItem *line : lines) {
+		m_needs << qMakePair(line, needs.value(line));
 	}
 	m_tree << node;
 }
@@ -549,9 +599,11 @@ QSet<QString> SelectionCategories::leaves() const
 
 QString SelectionCategories::branchOf(const QString &key)
 {
-		//"pipe/<branch>/<value>", "symbol-by/<branch>/<value>": the value
-		//may hold a slash ("DN 60/65"), the branch does not
-	for (const QString &prefix : {QStringLiteral("pipe/"), QStringLiteral("symbol-by/")}) {
+		//"pipe/<branch>/<value>", "signal/<branch>/<value>",
+		//"symbol-by/<branch>/<value>": the value may hold a slash
+		//("DN 60/65"), the branch does not
+	for (const QString &prefix : {QStringLiteral("pipe/"), QStringLiteral("signal/"),
+								  QStringLiteral("symbol-by/")}) {
 		if (key.startsWith(prefix)) {
 			const qsizetype slash = key.indexOf(QLatin1Char('/'), prefix.size());
 			return slash < 0 ? key : key.left(slash);
@@ -567,6 +619,9 @@ QString SelectionCategories::categoryOf(const QString &key)
 {
 	if (key.startsWith(QStringLiteral("pipe/"))) {
 		return QStringLiteral("pipe");
+	}
+	if (key.startsWith(QStringLiteral("signal/"))) {
+		return QStringLiteral("signal");
 	}
 	if (key.startsWith(QStringLiteral("symbol/")) || key.startsWith(QStringLiteral("symbol-by/"))) {
 		return QStringLiteral("symbol");

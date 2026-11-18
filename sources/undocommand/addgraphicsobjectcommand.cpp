@@ -86,8 +86,13 @@ QString AddGraphicsObjectCommand::itemText() const
 		return qgi->name();
 	} else if (dynamic_cast<IndependentTextItem *>(m_item.data())) {
 		return QObject::tr("a text field");
-	} else if (dynamic_cast<Conductor *>(m_item.data())) {
-		return QObject::tr("a conductor");
+	} else if (auto conductor = dynamic_cast<Conductor *>(m_item.data())) {
+			//A pipe and a signal line of a P&ID are never called conductors
+		switch (conductor->medium()) {
+			case TerminalData::Pipe:   return QObject::tr("a pipe");
+			case TerminalData::Signal: return QObject::tr("a signal line");
+			default:                   return QObject::tr("a conductor");
+		}
 	} else {
 		return QObject::tr("a graphic element");
 	}

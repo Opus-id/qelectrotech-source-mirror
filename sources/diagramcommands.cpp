@@ -548,7 +548,12 @@ ChangeConductorCommand::ChangeConductorCommand(
 	Qt::Corner path_t,
 	QUndoCommand *parent
 ) :
-	QUndoCommand(QObject::tr("modify a conductor", "undo caption"), parent),
+		//A pipe and a signal line of a P&ID are never called conductors
+	QUndoCommand(c && c->medium() == TerminalData::Pipe
+				 ? QObject::tr("modify a pipe", "undo caption")
+				 : c && c->medium() == TerminalData::Signal
+				   ? QObject::tr("modify a signal line", "undo caption")
+				   : QObject::tr("modify a conductor", "undo caption"), parent),
 	conductor(c),
 	old_profile(old_p),
 	new_profile(new_p),
@@ -617,11 +622,21 @@ ResetConductorCommand::ResetConductorCommand(
 	conductors_profiles(cp),
 	diagram(cp.keys().first()->diagram())
 {
+		//The pipes and the signal lines of a P&ID are counted apart
+	int conductors_count = 0, pipes_count = 0, signal_lines_count = 0;
+	for (auto it = cp.constBegin() ; it != cp.constEnd() ; ++it) {
+		switch (it.key()->medium()) {
+			case TerminalData::Pipe:   ++pipes_count; break;
+			case TerminalData::Signal: ++signal_lines_count; break;
+			default:                   ++conductors_count; break;
+		}
+	}
 	setText(
 		QObject::tr(
 			"Reset %1",
 			"undo caption - %1 is a sentence listing the reset content"
-		).arg(QET::ElementsAndConductorsSentence(0, cp.count()))
+		).arg(QET::ElementsAndConductorsSentence(0, conductors_count, 0, 0, 0, 0, 0, 0,
+												 pipes_count, signal_lines_count))
 	);
 }
 

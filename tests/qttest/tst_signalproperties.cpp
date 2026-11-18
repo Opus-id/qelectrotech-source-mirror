@@ -161,6 +161,43 @@ private slots:
 		QVERIFY(!(a == b));
 		QVERIFY(!b.isDefault());
 	}
+
+		// The status of works (step 6-5): the attribute of a pipe,
+		// pid_status, written only when set, read back as it is written
+	void theStatusOfWorksIsWrittenOnlyWhenSet()
+	{
+		SignalProperties p;
+		QVERIFY(p.status.isEmpty());
+		p.status = QStringLiteral("demolished");
+		QVERIFY(!p.isDefault());
+		QCOMPARE(p.attributes().size(), 1);
+		QCOMPARE(written(p, QStringLiteral("pid_status")), QStringLiteral("demolished"));
+		p.signal_type = SignalProperties::Pneumatic;
+		QCOMPARE(p.attributes().size(), 2);
+
+		QDomDocument doc;
+		SignalProperties loaded;
+		loaded.fromXml(conductor(doc, QStringLiteral(
+			"pid_signal_type=\"pneumatic\" pid_status=\"demolished\"")));
+		QCOMPARE(loaded, p);
+			// a status this version does not know is kept
+		loaded.fromXml(conductor(doc, QStringLiteral("pid_status=\"stored\"")));
+		QCOMPARE(loaded.status, QStringLiteral("stored"));
+		QCOMPARE(written(loaded, QStringLiteral("pid_status")), QStringLiteral("stored"));
+			// none: to be built
+		loaded.fromXml(conductor(doc, QString()));
+		QVERIFY(loaded.isDefault());
+	}
+
+	void comparisonSeesTheStatus()
+	{
+		SignalProperties a, b;
+		b.status = QStringLiteral("existing");
+		QVERIFY(a != b);
+		QVERIFY(!(a == b));
+		a.status = QStringLiteral("existing");
+		QVERIFY(a == b);
+	}
 };
 
 QTEST_GUILESS_MAIN(tst_signalproperties)

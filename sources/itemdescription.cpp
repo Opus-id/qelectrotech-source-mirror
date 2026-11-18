@@ -17,6 +17,9 @@
 */
 #include "itemdescription.h"
 
+#include "diagram.h"
+#include "pidcodification.h"
+#include "qetproject.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/diagramimageitem.h"
@@ -76,6 +79,66 @@ namespace {
 			default:                      return QCoreApplication::translate("ItemDescription", "Shape");
 		}
 	}
+
+		/// What tells a pipe apart: its line number, then its size as the
+		/// project writes it ("W01-L · DN 100"); nothing when it has neither
+	QString pipeDetail(const Conductor *pipe)
+	{
+		const PipeProperties data = pipe->properties().m_pipe;
+		QStringList parts;
+		const QString number = shortText(data.line_number);
+		if (!number.isEmpty())
+			parts << number;
+		if (data.hasSize()) {
+			const Diagram *diagram = pipe->diagram();
+			const QETProject *project = diagram ? diagram->project() : nullptr;
+			const PidCodification codes = project ? project->pidCodification() : PidCodification();
+			parts << codes.text(data.writtenSize(codes.outsideDiameterFor(data.material)),
+								data.material);
+		}
+		return parts.join(QStringLiteral(" · "));
+	}
+
+		/// A wire is a conductor; a pipe and a signal line are never called
+		/// so, even when the signal is an electrical one
+	QString conductorKind(const Conductor *conductor)
+	{
+		switch (conductor->medium()) {
+			case TerminalData::Pipe: {
+				const QString detail = pipeDetail(conductor);
+				return detail.isEmpty() ? QCoreApplication::translate("ItemDescription", "Pipe")
+										: QCoreApplication::translate("ItemDescription", "Pipe %1").arg(detail);
+			}
+			case TerminalData::Signal: {
+				const SignalProperties::SignalType type = conductor->properties().m_signal.signal_type;
+				return type == SignalProperties::Undefined
+						? QCoreApplication::translate("ItemDescription", "Signal line")
+						: QCoreApplication::translate("ItemDescription", "Signal line: %1")
+						  .arg(SignalProperties::typeName(type));
+			}
+			default:
+				break;
+		}
+		const QString text = shortText(conductor->properties().text);
+		return text.isEmpty() ? QCoreApplication::translate("ItemDescription", "Conductor")
+							  : QCoreApplication::translate("ItemDescription", "Conductor %1").arg(text);
+	}
+
+		/// The text of a wire, of a pipe or of a signal line
+	QString lineText(const ConductorTextItem *text)
+	{
+		const QString content = shortText(text->toPlainText());
+		const Conductor *conductor = text->parentConductor();
+		switch (conductor ? conductor->medium() : TerminalData::Electrical) {
+			case TerminalData::Pipe:
+				return QCoreApplication::translate("ItemDescription", "Pipe text: %1").arg(content);
+			case TerminalData::Signal:
+				return QCoreApplication::translate("ItemDescription", "Signal line text: %1").arg(content);
+			default:
+				break;
+		}
+		return QCoreApplication::translate("ItemDescription", "Conductor text: %1").arg(content);
+	}
 }
 
 /**
@@ -106,13 +169,9 @@ QString ItemDescription::of(const QGraphicsItem *item)
 			return QCoreApplication::translate("ItemDescription", "Free text: %1").arg(
 					shortText(static_cast<const IndependentTextItem *>(item)->toPlainText()));
 		case ConductorTextItem::Type:
-			return QCoreApplication::translate("ItemDescription", "Conductor text: %1").arg(
-					shortText(static_cast<const ConductorTextItem *>(item)->toPlainText()));
-		case Conductor::Type: {
-			auto conductor = static_cast<const Conductor *>(item);
-			const QString text = shortText(conductor->properties().text);
-			return text.isEmpty() ? QCoreApplication::translate("ItemDescription", "Conductor") : QCoreApplication::translate("ItemDescription", "Conductor %1").arg(text);
-		}
+			return lineText(static_cast<const ConductorTextItem *>(item));
+		case Conductor::Type:
+			return conductorKind(static_cast<const Conductor *>(item));
 		case Terminal::Type:
 			return of(item->parentItem());
 		case QetShapeItem::Type:

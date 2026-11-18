@@ -631,6 +631,12 @@ target_link_libraries(tst_signalproperties PRIVATE Qt::Test Qt::Xml)
 # The page of a signal line in the properties panel: only signal lines get
 # it, a change is one undo step; the type is saved for a signal line only.
 qet_add_app_test(tst_signalpanel tst_signalpanel.cpp)
+# The status of works of a signal line: kept on the line, chosen as on a
+# pipe, drawn in its colour; the signal lines sorted by type and by status.
+qet_add_app_test(tst_signalstatus tst_signalstatus.cpp)
+# The words for the lines of a P&ID: a pipe and a signal line are never
+# called conductors in the status bar, the undo captions and the labels.
+qet_add_app_test(tst_pidvocabulary tst_pidvocabulary.cpp)
 # The marks of a signal line: the words of the catalogue, the mark of each
 # type of signal, where the marks stand along a line and which way they read.
 add_executable(

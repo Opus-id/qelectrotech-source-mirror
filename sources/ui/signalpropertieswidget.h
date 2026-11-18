@@ -32,10 +32,11 @@ class QLabel;
 /**
 	@brief The SignalPropertiesWidget class
 	The data of the signal lines selected on a folio, conductors of the
-	signal medium (SignalProperties): for now their type of signal.
+	signal medium (SignalProperties): their type of signal and their status
+	of works.
 	It stands for the page of a wire, whose fields mean nothing for a signal
 	line. A change is applied at once, with undo, to every signal line
-	selected: a type which differs from one line to another shows none and
+	selected: a value which differs from one line to another shows none and
 	changes nothing until one is chosen. It stays on the lines selected: it
 	is never passed on to the lines connected to them.
 */
@@ -60,6 +61,7 @@ class SignalPropertiesWidget : public PropertiesEditorWidget
 
 		QList<QPointer<Conductor>> m_lines;
 		QComboBox *m_type = nullptr;
+		QComboBox *m_status = nullptr;
 		QLabel *m_count = nullptr;
 };
 

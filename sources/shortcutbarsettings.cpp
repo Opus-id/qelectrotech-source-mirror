@@ -78,7 +78,7 @@ QString ShortcutBarSettings::title(Context context)
 		case Selection:
 			return QCoreApplication::translate("ShortcutBarSettings", "Selected elements");
 		case Conductor:
-			return QCoreApplication::translate("ShortcutBarSettings", "Selected conductors");
+			return QCoreApplication::translate("ShortcutBarSettings", "Selected lines and conductors");
 	}
 	return QString();
 }

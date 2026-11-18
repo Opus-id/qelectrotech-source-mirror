@@ -337,6 +337,10 @@ void QET::trackDialogGeometry(QDialog *dialog, const QString &key)
 	@param shapes_count
 	@param element_text_count
 	@param tables_count
+	@param terminal_strip_count
+	@param pipes_count how many pipes of a P&ID, which are never counted
+	among the conductors
+	@param signal_lines_count how many signal lines of a P&ID, neither
 	@return la proposition decrivant le nombre d'elements, de conducteurs et de
 	textes
 */
@@ -348,7 +352,9 @@ QString QET::ElementsAndConductorsSentence(
 		int shapes_count,
 		int element_text_count,
 		int tables_count,
-		int terminal_strip_count)
+		int terminal_strip_count,
+		int pipes_count,
+		int signal_lines_count)
 {
 	QStringList parts;
 	if (elements_count) {
@@ -367,6 +373,26 @@ QString QET::ElementsAndConductorsSentence(
 				"%n conductors",
 				"Sentence fragment used in an automatically generated list of different objects, e.g. objects moved at the same time, which will be combined into a sentence.",
 				conductors_count
+			)
+		);
+	}
+
+	if (pipes_count) {
+		parts.append(
+			QObject::tr(
+				"%n pipes",
+				"Sentence fragment used in an automatically generated list of different objects, e.g. objects moved at the same time, which will be combined into a sentence.",
+				pipes_count
+			)
+		);
+	}
+
+	if (signal_lines_count) {
+		parts.append(
+			QObject::tr(
+				"%n signal lines",
+				"Sentence fragment used in an automatically generated list of different objects, e.g. objects moved at the same time, which will be combined into a sentence.",
+				signal_lines_count
 			)
 		);
 	}

@@ -29,9 +29,10 @@ class QUndoCommand;
 /**
 	The status of works of what is drawn on a P&ID: to be built, the default,
 	which has no word; existing and kept; to be demolished. A pipe keeps it in
-	PipeProperties::status, a placed symbol of a family of objects among the
-	options chosen on it (Element::optionChoices()). The project sets the
-	colour of each status (PidCodification::status_colors).
+	PipeProperties::status, a signal line in SignalProperties::status, a
+	placed symbol of a family of objects among the options chosen on it
+	(Element::optionChoices()). The project sets the colour of each status
+	(PidCodification::status_colors).
 */
 namespace PidStatus
 {
@@ -39,7 +40,8 @@ namespace PidStatus
 	QString option();
 		/// Each status (none for the default) with its name, in order
 	QList<QPair<QString, QString>> statuses();
-		/// True for a pipe, and for a symbol of a family of objects
+		/// True for a pipe, for a signal line, and for a symbol of a family
+		/// of objects
 	bool applies(const QGraphicsItem *item);
 		/// The items among @p items which can have a status take @p status,
 		/// in one undo step; nullptr when that changes nothing

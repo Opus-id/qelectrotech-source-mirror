@@ -3302,7 +3302,9 @@ bool isContained(const QPointF &a, const QPointF &b, const QPointF &c) {
 /**
 	@brief Conductor::drawnColor
 	@return the colour the conductor is drawn in: that of a pipe when it has
-	one, its potential type's when the project draws from them, else its own
+	one, that of the status of works of a signal line or of the signal lines
+	of the project, its potential type's when the project draws from them,
+	else its own
 */
 QColor Conductor::drawnColor() const
 {
@@ -3311,12 +3313,16 @@ QColor Conductor::drawnColor() const
 		return pipe_color;
 	}
 	if (m_properties.m_medium == TerminalData::Signal) {
-			//The colour the project gives the signal lines, when it has one
+			//The colour the project gives the status of works of the line,
+			//else the one it gives the signal lines, when it has one
 		const Diagram *parent_diagram = diagram();
 		const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
-		const QColor family = project
-				? project->pidCodification().object_colors.value(QStringLiteral("signal"))
-				: QColor();
+		const PidCodification codification = project ? project->pidCodification() : PidCodification();
+		const QColor status = codification.status_colors.value(m_properties.m_signal.status);
+		if (status.isValid()) {
+			return status;
+		}
+		const QColor family = codification.object_colors.value(QStringLiteral("signal"));
 		if (family.isValid()) {
 			return family;
 		}

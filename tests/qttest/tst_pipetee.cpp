@@ -93,7 +93,7 @@ class tst_pipetee : public QObject
 
 	QETProject *m_project = nullptr;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_pipe, m_vertical, m_electrical, m_tee, m_free_end;
+	ElementsLocation m_pipe, m_vertical, m_electrical, m_signal, m_tee, m_free_end;
 	qreal m_next_y = 0;
 	QPointer<DiagramEventAddPipe> m_tool;
 
@@ -275,7 +275,7 @@ class tst_pipetee : public QObject
 			m_project = new QETProject();
 			m_project->embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("pipetee"), NamesList());
-			QDomDocument a, b, c, d, e;
+			QDomDocument a, b, c, d, e, f;
 			m_pipe = add("pipe.elmt", definition(a, "a1111111-1111-1111-1111-111111111111", "pipe"));
 			m_vertical = add("vertical.elmt", definition(b, "a2222222-2222-2222-2222-222222222222",
 														 "pipe", true));
@@ -283,8 +283,10 @@ class tst_pipetee : public QObject
 															 QString()));
 			m_tee = add("tee.elmt", teeDefinition(d));
 			m_free_end = add("freeend.elmt", freeEndDefinition(e));
+			m_signal = add("signal.elmt", definition(f, "a7777777-7777-7777-7777-777777777777",
+													 QStringLiteral("signal")));
 			QVERIFY(m_pipe.exist() && m_vertical.exist() && m_electrical.exist()
-					&& m_tee.exist() && m_free_end.exist());
+					&& m_signal.exist() && m_tee.exist() && m_free_end.exist());
 			m_folio = m_project->addNewDiagram();
 		}
 
@@ -390,6 +392,53 @@ class tst_pipetee : public QObject
 			QVERIFY(!m_tool->startsOnPipe());
 			QCOMPARE(elements(), before);
 			QVERIFY(joins(l.pipe, nozzle(l.a, "N2"), nozzle(l.b, "N1")));
+		}
+
+			// The same on a real signal line, between two signal terminals
+			// (step 6-5): no tee at the start of a pipe, none at its end,
+			// none by a drag from a free nozzle, even when the project has a
+			// symbol of free end; nothing placed, no undo step, the line whole
+		void aSignalLineTakesNoTee()
+		{
+			const Line l = line(m_signal);
+			QCOMPARE(int(l.pipe->medium()), int(TerminalData::Signal));
+			Terminal *a = nozzle(l.a, "N2"), *b = nozzle(l.b, "N1");
+			const PidTee::Spot spot = PidTee::spotAt(m_folio, QPointF(200, l.y));
+			QCOMPARE(spot.pipe.data(), l.pipe);
+			QVERIFY(!spot.isValid());
+			QVERIFY(!spot.refusal.isEmpty());
+
+			Element *c = place(m_vertical, QPointF(200, l.y + 200));
+			Terminal *from = nozzle(c, "N1");
+			setToolSymbol(PidCodification::freeEndRole(), path("freeend.elmt"));
+			const QSet<Element *> before = elements();
+			const int steps = m_folio->undoStack().index();
+
+				// the tool: a click on the line starts nothing
+			startTool();
+			click(QPointF(200, l.y));
+			QVERIFY(!m_tool->startsOnPipe());
+			QCOMPARE(m_tool->startNozzle(), nullptr);
+				// a pipe from a nozzle, ended on the line: it waits
+			click(from->dockConductor() + QPointF(0, 5));
+			QCOMPARE(m_tool->startNozzle(), from);
+			click(QPointF(200, l.y));
+			QCOMPARE(m_tool->startNozzle(), from);
+			QCOMPARE(from->conductors().size(), 0);
+			stopTool();
+			QCOMPARE(elements(), before);
+
+				// outside the tool: a drag from the free nozzle released on it
+			QString refusal;
+			QVERIFY(PidTee::branchFrom(from, QPointF(200, l.y), &refusal));
+			QVERIFY(!refusal.isEmpty());
+			dragFrom(from, QPointF(202, l.y + 1));
+			QCOMPARE(from->conductors().size(), 0);
+			QCOMPARE(elements(), before);
+			QCOMPARE(m_folio->undoStack().index(), steps);
+			QVERIFY(joins(l.pipe, a, b));
+			QCOMPARE(a->conductors().size(), 1);
+			QCOMPARE(b->conductors().size(), 1);
 		}
 
 			// With the tool: a click on a pipe starts there, nothing placed;

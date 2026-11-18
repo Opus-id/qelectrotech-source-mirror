@@ -100,27 +100,33 @@ QString SignalProperties::typeName(SignalType type)
 	@brief SignalProperties::attributes
 	@return the attributes of the conductor these properties are written
 	as: only those that are set, each prefixed with "pid_", as every P&ID
-	attribute outside a P&ID block. A signal line of undefined type writes
-	none. The project database stores the data of a signal line as these,
-	with the other attributes of the conductor.
+	attribute outside a P&ID block. A signal line of undefined type, to be
+	built, writes none. The status of works takes the attribute of a pipe,
+	pid_status: a conductor is one or the other. The project database stores
+	the data of a signal line as these, with the other attributes of the
+	conductor.
 */
 QList<QPair<QString, QString>> SignalProperties::attributes() const
 {
 	QList<QPair<QString, QString>> a;
 	if (signal_type != Undefined)
 		a << qMakePair(QStringLiteral("pid_signal_type"), typeToString(signal_type));
+	if (!status.isEmpty())
+		a << qMakePair(QStringLiteral("pid_status"), status);
 	return a;
 }
 
 /**
 	@brief SignalProperties::fromXml
 	Read the signal properties from the attributes of the conductor @p e.
-	A missing or unknown type leaves the signal undefined.
+	A missing or unknown type leaves the signal undefined; a status this
+	version does not know is kept as it is written.
 	@param e the xml element of the conductor
 */
 void SignalProperties::fromXml(const QDomElement &e)
 {
 	signal_type = typeFromString(e.attribute(QStringLiteral("pid_signal_type")));
+	status = e.attribute(QStringLiteral("pid_status"));
 }
 
 /**
@@ -130,7 +136,8 @@ void SignalProperties::fromXml(const QDomElement &e)
 */
 bool SignalProperties::operator==(const SignalProperties &other) const
 {
-	return signal_type == other.signal_type;
+	return signal_type == other.signal_type
+		&& status == other.status;
 }
 
 /**

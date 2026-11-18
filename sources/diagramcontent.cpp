@@ -549,7 +549,17 @@ int DiagramContent::count(int filter) const
 QString DiagramContent::sentence(int filter) const
 {
 	int elements_count   = (filter & Elements) ? m_elements.count() : 0;
-	int conductors_count = conductors(filter).count();
+		//A pipe and a signal line of a P&ID are counted apart: they are
+		//never called conductors
+	int conductors_count = 0, pipes_count = 0, signal_lines_count = 0;
+	const auto all_conductors = conductors(filter);
+	for (const Conductor *conductor : all_conductors) {
+		switch (conductor->medium()) {
+			case TerminalData::Pipe:   ++pipes_count; break;
+			case TerminalData::Signal: ++signal_lines_count; break;
+			default:                   ++conductors_count; break;
+		}
+	}
 	int textfields_count = (filter & TextFields) ? (m_text_fields.count()) : 0;
 	int images_count	 = (filter & Images) ? m_images.count() : 0;
 	int shapes_count	 = (filter & Shapes) ? m_shapes.count() : 0;
@@ -565,7 +575,9 @@ QString DiagramContent::sentence(int filter) const
 			shapes_count,
 			elmt_text_count,
 			tables_count,
-			strip_count
+			strip_count,
+			pipes_count,
+			signal_lines_count
 		)
 	);
 }

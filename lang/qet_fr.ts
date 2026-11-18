@@ -11961,6 +11961,12 @@ Veuillez utiliser l&apos;éditeur avancé pour cela.</translation>
         <source>Conductor %1</source>
         <translation>Conducteur %1</translation>
     </message>
+    <message><source>Pipe</source><translation>Tuyauterie</translation></message>
+    <message><source>Pipe %1</source><translation>Tuyauterie %1</translation></message>
+    <message><source>Signal line</source><translation>Ligne de signal</translation></message>
+    <message><source>Signal line: %1</source><translation>Ligne de signal : %1</translation></message>
+    <message><source>Pipe text: %1</source><translation>Texte de tuyauterie : %1</translation></message>
+    <message><source>Signal line text: %1</source><translation>Texte de ligne de signal : %1</translation></message>
     <message>
         <location filename="../sources/itemdescription.cpp" line="120"/>
         <source>Picture</source>
@@ -14145,6 +14151,7 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message><source>Signal line</source><comment>section of the page of a signal line</comment><translation>Ligne de signal</translation></message>
     <message><source>Signal line</source><translation>Ligne de signal</translation></message>
     <message><source>Type of signal:</source><translation>Type de signal :</translation></message>
+    <message><source>Status of works:</source><translation>Statut de travaux :</translation></message>
     <message><source>Change the properties of a signal line</source><translation>Modifier les propriétés d&apos;une ligne de signal</translation></message>
     <message numerus="yes"><source>%n signal line(s) selected</source><translation><numerusform>%n ligne de signal sélectionnée</numerusform><numerusform>%n lignes de signal sélectionnées</numerusform></translation></message>
 </context>
@@ -14180,6 +14187,7 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message><source>No nominal pressure</source><translation>Sans pression nominale</translation></message>
     <message><source>By kind of line</source><translation>Par type de ligne</translation></message>
     <message><source>By status of works</source><translation>Par statut de travaux</translation></message>
+    <message><source>By type of signal</source><translation>Par type de signal</translation></message>
     <message><source>By flow</source><translation>Par débit</translation></message>
     <message><source>No flow</source><translation>Sans débit</translation></message>
     <message><source>By spool</source><translation>Par numéro de tronçon</translation></message>
@@ -17613,8 +17621,8 @@ Maintenir Ctrl pendant le déplacement pour placer librement.</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="1060"/>
-        <source>Conductor texts</source>
-        <translation>Textes des conducteurs</translation>
+        <source>Texts of lines and conductors</source>
+        <translation>Textes des lignes et conducteurs</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="1061"/>
@@ -17668,8 +17676,8 @@ Maintenir Ctrl pendant le déplacement pour placer librement.</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="1092"/>
-        <source>Conductors</source>
-        <translation>Conducteurs</translation>
+        <source>Lines and conductors</source>
+        <translation>Lignes et conducteurs</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="1093"/>
@@ -19809,6 +19817,8 @@ Déponter et/ou supprimer les niveaux des bornes concerné afin de pouvoir les s
         <comment>edit conductor</comment>
         <translation>Éditer le conducteur</translation>
     </message>
+    <message><source>Edit the pipe</source><comment>edit pipe</comment><translation>Éditer la tuyauterie</translation></message>
+    <message><source>Edit the signal line</source><comment>edit signal line</comment><translation>Éditer la ligne de signal</translation></message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="4181"/>
         <source>Edit the selected object</source>
@@ -21682,6 +21692,8 @@ Que désirez vous faire ?</translation>
             <numerusform>%n conducteurs</numerusform>
         </translation>
     </message>
+    <message numerus="yes"><source>%n pipes</source><comment>Sentence fragment used in an automatically generated list of different objects, e.g. objects moved at the same time, which will be combined into a sentence.</comment><translation><numerusform>%n tuyauterie</numerusform><numerusform>%n tuyauteries</numerusform></translation></message>
+    <message numerus="yes"><source>%n signal lines</source><comment>Sentence fragment used in an automatically generated list of different objects, e.g. objects moved at the same time, which will be combined into a sentence.</comment><translation><numerusform>%n ligne de signal</numerusform><numerusform>%n lignes de signal</numerusform></translation></message>
     <message numerus="yes">
         <location filename="../sources/qet.cpp" line="375"/>
         <source>%n textfields</source>
@@ -21956,6 +21968,8 @@ the translated name of this folder could not be read, so its folder name is disp
         <source>a conductor</source>
         <translation>un conducteur</translation>
     </message>
+    <message><source>a pipe</source><translation>une tuyauterie</translation></message>
+    <message><source>a signal line</source><translation>une ligne de signal</translation></message>
     <message>
         <location filename="../sources/undocommand/addgraphicsobjectcommand.cpp" line="92"/>
         <source>a graphic element</source>
@@ -21998,6 +22012,8 @@ the translated name of this folder could not be read, so its folder name is disp
         <comment>undo caption</comment>
         <translation>modifier un conducteur</translation>
     </message>
+    <message><source>modify a pipe</source><comment>undo caption</comment><translation>modifier une tuyauterie</translation></message>
+    <message><source>modify a signal line</source><comment>undo caption</comment><translation>modifier une ligne de signal</translation></message>
     <message>
         <location filename="../sources/diagramcommands.cpp" line="607"/>
         <source>Reset %1</source>
@@ -26975,8 +26991,8 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
     <message>
         <location filename="../sources/shortcutbarsettings.cpp" line="81"/>
-        <source>Selected conductors</source>
-        <translation>Conducteurs sélectionnés</translation>
+        <source>Selected lines and conductors</source>
+        <translation>Lignes et conducteurs sélectionnés</translation>
     </message>
 </context>
 <context>

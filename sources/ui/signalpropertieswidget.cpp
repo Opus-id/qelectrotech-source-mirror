@@ -21,6 +21,7 @@
 #include "../conductorproperties.h"
 #include "../diagram.h"
 #include "../pidsection.h"
+#include "../pidstatus.h"
 #include "../qetgraphicsitem/conductor.h"
 
 #include <QComboBox>
@@ -103,6 +104,18 @@ void SignalPropertiesWidget::buildUi()
 		const auto type = SignalProperties::SignalType(m_type->itemData(index).toInt());
 		applyChange([type](SignalProperties &s) { s.signal_type = type; });
 	});
+
+		//The status of works, as on the page of a pipe
+	m_status = new QComboBox(this);
+	m_status->setObjectName(QStringLiteral("status"));
+	for (const auto &status : PidStatus::statuses()) {
+		m_status->addItem(status.second, status.first);
+	}
+	layout->addRow(tr("Status of works:"), m_status);
+	connect(m_status, &QComboBox::activated, this, [this](int index) {
+		const QString status = m_status->itemData(index).toString();
+		applyChange([status](SignalProperties &s) { s.status = status; });
+	});
 }
 
 /**
@@ -162,6 +175,23 @@ void SignalPropertiesWidget::updateUi()
 		}
 	}
 	m_type->setCurrentIndex(same_type ? m_type->findData(int(type)) : -1);
+
+		//The same for the status of works; one this version does not know
+		//shows none
+	const QSignalBlocker status_blocker(m_status);
+	const QString status = list.first()->properties().m_signal.status;
+	bool same_status = true;
+	for (Conductor *line : list) {
+		if (line->properties().m_signal.status != status) {
+			same_status = false;
+		}
+	}
+	m_status->setCurrentIndex(-1);
+	for (int i = 0 ; same_status && i < m_status->count() ; ++i) {
+		if (m_status->itemData(i).toString() == status) {
+			m_status->setCurrentIndex(i);
+		}
+	}
 }
 
 /**

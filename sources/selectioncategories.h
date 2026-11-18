@@ -38,8 +38,9 @@ class QGraphicsItem;
 	The symbols are sorted by family of objects (P&ID), then by symbol; the
 	pipes, the lines of signal, the conductors, the texts... each make a
 	category. Beside these, some branches cross the others: "By size",
-	"By fluid"... for the pipes, "By functional unit" and "By status of
-	works" for the symbols. A pipe stays selected when its value is checked
+	"By fluid"... for the pipes, "By type of signal" and "By status of works"
+	for the signal lines, "By functional unit" and "By status of works" for
+	the symbols. A pipe stays selected when its value is checked
 	in every branch of the pipes, a symbol when the symbol is checked and
 	its value in every branch of the symbols. A branch where nothing is
 	checked does not count (the symbols by family make one branch): only
@@ -92,15 +93,16 @@ class SelectionCategories
 			/// where something is
 		QList<QGraphicsItem *> kept(const QSet<QString> &checked) const;
 			/// The branch of the leaf @p key: "pipe/size" for a size,
-			/// "symbol" for a symbol; the leaf itself for a category
-			/// without branch
+			/// "signal/type" for a type of signal, "symbol" for a symbol;
+			/// the leaf itself for a category without branch
 		static QString branchOf(const QString &key);
-			/// The category of the leaf @p key: "pipe", "symbol"; the
-			/// leaf itself for a category without branch
+			/// The category of the leaf @p key: "pipe", "signal", "symbol";
+			/// the leaf itself for a category without branch
 		static QString categoryOf(const QString &key);
 
 	private:
 		void addPipes(const QList<QGraphicsItem *> &pipes, const PidCodification &codes);
+		void addSignalLines(const QList<QGraphicsItem *> &lines);
 		void addSymbols(const QList<QGraphicsItem *> &symbols, const PidCodification &codes);
 
 			/// Each item with the keys it needs checked

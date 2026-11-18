@@ -30,9 +30,9 @@
 	instrument to another one, not a fluid. A signal line has no diameter,
 	no material and no fluid: it is not a pipe, and it is not a wire either,
 	even when the signal is an electrical one.
-	For now only the type of signal is kept. It belongs to one line only: it
-	is never passed on to the lines it is connected to.
-	It is saved as an attribute of the conductor, prefixed with "pid_", and
+	It keeps the type of signal and the status of works. They belong to one
+	line only: they are never passed on to the lines it is connected to.
+	Each is saved as an attribute of the conductor, prefixed with "pid_", and
 	only when it is set: see attributes().
 */
 class SignalProperties
@@ -63,6 +63,9 @@ class SignalProperties
 
 			/// Type of signal, undefined by default
 		SignalType signal_type = Undefined;
+			/// Status of works, as a pipe has one (PidStatus): empty for a
+			/// line to be built, the default; "existing", "demolished"
+		QString status;
 
 		QList<QPair<QString, QString>> attributes() const;
 		void fromXml(const QDomElement &);
