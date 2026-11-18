@@ -20,6 +20,7 @@
 
 #include "pipeconnection.h"
 #include "pipediameter.h"
+#include "signalmark.h"
 
 #include <QByteArray>
 #include <QColor>
@@ -348,6 +349,26 @@ class PidCodification
 		static QString freeEndRole() { return QStringLiteral("free_end"); }
 		static QString teeRole() { return QStringLiteral("tee"); }
 		QString toolSymbol(const QString &role) const { return tool_symbols.value(role); }
+			/// The mark of the signal lines of a type of signal (SignalMark),
+			/// where the project says it: the word of the type
+			/// (SignalProperties::typeToString()), then that of the mark
+			/// (SignalMark::toString()). A type without one takes
+			/// SignalMark::defaultMark(): ISO 14617, else ANSI/ISA-5.1. A
+			/// word this version does not know, read from a project, is
+			/// kept. Written only where it is not the default one.
+		QMap<QString, QString> signal_marks;
+			/// The mark of the signal lines of type @p type: that of
+			/// signal_marks, else the default one
+		SignalMark::Mark signalMark(SignalProperties::SignalType type) const;
+			/// Give the signal lines of type @p type the mark @p mark; the
+			/// default one is not kept
+		void setSignalMark(SignalProperties::SignalType type, SignalMark::Mark mark);
+			/// A type of signal at least has another mark than the default
+			/// one
+		bool hasSignalMarks() const;
+			/// Take out of signal_marks those which are the default ones, as
+			/// a file read may say them all
+		void dropDefaultSignalMarks();
 			/// How the tenths of a size are written on the screen and on
 			/// paper; a file always has a point
 		enum class Decimal {
@@ -379,7 +400,9 @@ class PidCodification
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
 					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty();
 		}
-		bool isEmpty() const { return !hasCodes() && !hasColors() && !hasTextSettings(); }
+		bool isEmpty() const {
+			return !hasCodes() && !hasColors() && !hasTextSettings() && signal_marks.isEmpty();
+		}
 
 			/// The fluid / material of code @p code, or nullptr
 		const Entry *fluid(const QString &code) const;
@@ -399,9 +422,9 @@ class PidCodification
 
 			/// This codification, with the codes of @p other when it has
 			/// none (and its equal DN when it has none either), its colours
-			/// when it has none and its settings of texts
-			/// when it has none: a file of codes does not take the colours of
-			/// a project away, nor the reverse
+			/// when it has none, its settings of texts when it has none and
+			/// its marks of signal lines when it says none: a file of codes
+			/// does not take the colours of a project away, nor the reverse
 		PidCodification completedWith(const PidCodification &other) const;
 
 			/// The <pid_codification> block, a null element when empty
@@ -433,7 +456,11 @@ class PidCodification
 			/// "text_option;drawn_connections;flange butt_weld" (the words
 			/// of PipeConnection, a word not known being left out), and of lines
 			/// "tool_symbol;free_end;custom://folder/symbol.elmt" ("symbole_outil",
-			/// a role of toolSymbolRoles() and the place of its symbol); the separator
+			/// a role of toolSymbolRoles() and the place of its symbol), and of lines
+			/// "signal_mark;pneumatic;bar2" ("marque_signal": a type of signal
+			/// and the mark of its lines, by their words of the files; a file
+			/// which has some says them all, a type it leaves out taking the
+			/// default one); the separator
 			/// may also be a tab or a comma, a first line naming the columns
 			/// is skipped, and so is a line that cannot be read, counted in
 			/// @p skipped. Returns the codification read, empty when none.
@@ -444,8 +471,8 @@ class PidCodification
 		static PidCodification fromCsv(const QString &text, int *skipped = nullptr,
 									   QMap<QString, QList<Size>> *loose_sizes = nullptr);
 			/// The presentation: colours, settings of texts, connections
-			/// drawn, models of tags and symbols of the tools, as lines
-			/// fromCsv() reads; what is
+			/// drawn, models of tags, symbols of the tools and marks of the
+			/// signal lines, as lines fromCsv() reads; what is
 			/// kept in the settings, for new projects. The codes stay out,
 			/// kept apart (codesToCsv())
 		QString presentationToCsv() const;

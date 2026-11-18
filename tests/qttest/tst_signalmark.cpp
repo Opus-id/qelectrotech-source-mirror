@@ -62,6 +62,20 @@ class tst_signalmark : public QObject
 			QCOMPARE(int(SignalMark::fromString(QString())), int(SignalMark::None));
 		}
 
+			// What a list of marks shows: a name each, never the word of the
+			// files
+		void eachMarkHasAName()
+		{
+			QSet<QString> names;
+			for (SignalMark::Mark mark : SignalMark::all()) {
+				const QString name = SignalMark::name(mark);
+				QVERIFY2(!name.isEmpty(), qPrintable(SignalMark::toString(mark)));
+				QVERIFY2(!names.contains(name), qPrintable(name));
+				QVERIFY2(!name.contains(QLatin1Char('_')), qPrintable(name));
+				names << name;
+			}
+		}
+
 			// ISO 14617 where it has a mark, else ISA-5.1-2009
 		void theMarkOfEachTypeOfSignal()
 		{

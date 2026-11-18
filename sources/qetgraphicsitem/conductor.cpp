@@ -1055,7 +1055,12 @@ SignalMark::Mark Conductor::signalMark() const
 	if (m_properties.m_medium != TerminalData::Signal) {
 		return SignalMark::None;
 	}
-	return SignalMark::defaultMark(m_properties.m_signal.signal_type);
+		//The project says which mark each type of signal takes; it knows
+		//the default ones
+	const Diagram *parent_diagram = diagram();
+	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+	return project ? project->pidCodification().signalMark(m_properties.m_signal.signal_type)
+				   : SignalMark::defaultMark(m_properties.m_signal.signal_type);
 }
 
 /**

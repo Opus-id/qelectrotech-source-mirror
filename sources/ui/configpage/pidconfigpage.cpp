@@ -43,11 +43,14 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMouseEvent>
+#include <QPainter>
+#include <QPixmap>
 #include <QPushButton>
 #include <QSet>
 #include <QShortcut>
 #include <QSpinBox>
 #include <QSplitter>
+#include <QStyledItemDelegate>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QUndoStack>
@@ -147,6 +150,49 @@ namespace {
 			}
 			QTableWidgetItem *clone() const override { return new CodeItem(*this); }
 	};
+
+		/// The size of the picture of a mark of signal line, in a list
+	const QSize mark_icon_size(72, 20);
+
+		/// A piece of signal line with its mark @p mark, drawn in @p ink as
+		/// a folio draws it (Conductor::paint()); @p ratio is the pixel
+		/// ratio of the screen
+	QPixmap markPixmap(SignalMark::Mark mark, const QColor &ink, qreal ratio)
+	{
+		QPixmap pixmap(mark_icon_size * ratio);
+		pixmap.setDevicePixelRatio(ratio);
+		pixmap.fill(Qt::transparent);
+		QPainter painter(&pixmap);
+		painter.setRenderHint(QPainter::Antialiasing, true);
+			//A mark, 10 drawing units high, takes most of the height
+		const qreal scale = 1.5;
+		painter.translate(0, mark_icon_size.height() / 2.0);
+		painter.scale(scale, scale);
+		const QList<QPointF> points{QPointF(0, 0), QPointF(mark_icon_size.width() / scale, 0)};
+		const QPen pen(ink, 1.0, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+		QPen line = pen;
+		if (mark == SignalMark::Dashes) {
+			SignalMark::applyDashes(line);
+		}
+		painter.setBrush(Qt::NoBrush);
+		painter.setPen(line);
+		painter.drawPath(SignalMark::brokenLine(mark, points));
+		painter.setPen(pen);
+		painter.drawPath(SignalMark::marksPath(mark, points));
+		painter.end();
+		return pixmap;
+	}
+
+		/// The picture of the mark @p mark for a list of marks, in the
+		/// colours of the texts of @p palette: that of a line selected too,
+		/// which Qt would else make from the other one, hardly seen
+	QIcon markIcon(SignalMark::Mark mark, const QPalette &palette, qreal ratio)
+	{
+		QIcon icon(markPixmap(mark, palette.color(QPalette::Text), ratio));
+		icon.addPixmap(markPixmap(mark, palette.color(QPalette::HighlightedText), ratio),
+					   QIcon::Selected);
+		return icon;
+	}
 }
 
 /**
@@ -431,9 +477,9 @@ void PidConfigPage::initWidgets()
 		//The presentation: all but the codification
 	m_save_presentation = new QPushButton(tr("Save as default presentation"), this);
 	m_save_presentation->setObjectName(QStringLiteral("save_presentation"));
-	m_save_presentation->setToolTip(wrapped(tr("Saves the tabs Colors, Texts and Connections, and the models of "
-								  "tags, on this computer. New projects will start with them; "
-								  "projects that already exist do not change.")));
+	m_save_presentation->setToolTip(wrapped(tr("Saves the tabs Colors, Texts, Connections and Signal lines, "
+								  "and the models of tags, on this computer. New projects will "
+								  "start with them; projects that already exist do not change.")));
 	connect(m_save_presentation, &QPushButton::clicked, this, &PidConfigPage::saveAsDefaultPresentation);
 	m_save_codification = new QPushButton(tr("Save as default codification"), this);
 	m_save_codification->setObjectName(QStringLiteral("save_codification"));
@@ -527,6 +573,37 @@ void PidConfigPage::initWidgets()
 		connect(clear, &QPushButton::clicked, this, [this, role]() { setToolSymbol(role, QString()); });
 		m_clear_tool_symbols.insert(role, clear);
 	}
+
+		//The mark of the signal lines of each type of signal: the catalogue
+		//of the marks, each with its picture
+	QList<QIcon> mark_icons;
+	for (SignalMark::Mark mark : SignalMark::all()) {
+		mark_icons << markIcon(mark, palette(), devicePixelRatioF());
+	}
+	for (SignalProperties::SignalType type : SignalProperties::types())
+	{
+		auto *marks = new QComboBox(this);
+		marks->setObjectName(QStringLiteral("signal_mark_") + SignalProperties::typeToString(type));
+		marks->setIconSize(mark_icon_size);
+			//Drawn as the lines of a list, not as those of a menu: QETStyle
+			//gives the highlighted line of a menu an icon made for the small
+			//square ones (PM_SmallIconSize), which would squeeze the picture
+		marks->setItemDelegate(new QStyledItemDelegate(marks));
+		const QList<SignalMark::Mark> all = SignalMark::all();
+		for (int i = 0 ; i < all.size() ; ++i) {
+			marks->addItem(mark_icons.at(i), SignalMark::name(all.at(i)),
+						   SignalMark::toString(all.at(i)));
+		}
+			//A choice of the user only: a mark this version does not know
+			//stays in the project as long as its list is not touched
+		connect(marks, &QComboBox::activated, this, [this, type, marks](int index) {
+			setSignalMark(type, SignalMark::fromString(marks->itemData(index).toString()));
+		});
+		m_signal_marks.insert(type, marks);
+	}
+	m_reset_signal_marks = new QPushButton(tr("Back to the default marks"), this);
+	m_reset_signal_marks->setObjectName(QStringLiteral("signal_marks_reset"));
+	connect(m_reset_signal_marks, &QPushButton::clicked, this, &PidConfigPage::resetSignalMarks);
 }
 
 void PidConfigPage::initLayout()
@@ -706,6 +783,32 @@ void PidConfigPage::initLayout()
 	tabs->addTab(texts_tab, tr("Texts"));
 	tabs->addTab(connections_tab, tr("Connections"));
 
+		//(not "signals_tab": "signals" is a word of Qt)
+	auto *signal_tab = new QWidget(this);
+	auto *signal_layout = new QVBoxLayout(signal_tab);
+	auto *signal_help = new QLabel(tr("A signal line is drawn with the mark of its type of signal, "
+									  "repeated along it. By default the marks of ISO 14617, and "
+									  "those of ANSI/ISA-5.1 for the two types it has not."),
+								   signal_tab);
+	signal_help->setWordWrap(true);
+	signal_layout->addWidget(signal_help);
+	auto *signal_form = new QFormLayout();
+	for (SignalProperties::SignalType type : SignalProperties::types()) {
+			//A list of the width of its choices
+		auto *row = new QHBoxLayout();
+		row->addWidget(m_signal_marks.value(type));
+		row->addStretch(1);
+		signal_form->addRow(tr("%1:", "a type of signal, before the list of its marks")
+							.arg(SignalProperties::typeName(type)), row);
+	}
+	signal_layout->addLayout(signal_form);
+	auto *signal_buttons = new QHBoxLayout();
+	signal_buttons->addWidget(m_reset_signal_marks);
+	signal_buttons->addStretch();
+	signal_layout->addLayout(signal_buttons);
+	signal_layout->addStretch();
+	tabs->addTab(signal_tab, tr("Signal lines"));
+
 	auto *defaults = new QHBoxLayout();
 	defaults->addStretch();
 	defaults->addWidget(m_default_saved);
@@ -766,6 +869,44 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 		it.value()->setChecked(codification.drawn_families.contains(it.key()));
 	}
 	showToolSymbols();
+	showSignalMarks();
+}
+
+/**
+	@brief PidConfigPage::showSignalMarks
+	The mark of each type of signal, in its list: the one its lines are
+	drawn with
+*/
+void PidConfigPage::showSignalMarks()
+{
+	for (auto it = m_signal_marks.cbegin() ; it != m_signal_marks.cend() ; ++it) {
+		const QSignalBlocker blocker(it.value());
+		it.value()->setCurrentIndex(it.value()->findData(
+										SignalMark::toString(m_codification.signalMark(it.key()))));
+	}
+}
+
+/**
+	@brief PidConfigPage::setSignalMark
+	See the declaration
+*/
+void PidConfigPage::setSignalMark(SignalProperties::SignalType type, SignalMark::Mark mark)
+{
+	m_codification.setSignalMark(type, mark);
+	showSignalMarks();
+}
+
+/**
+	@brief PidConfigPage::resetSignalMarks
+	See the declaration. What a later version set for a type this one does
+	not know stays.
+*/
+void PidConfigPage::resetSignalMarks()
+{
+	for (SignalProperties::SignalType type : SignalProperties::types()) {
+		m_codification.setSignalMark(type, SignalMark::defaultMark(type));
+	}
+	showSignalMarks();
 }
 
 /**
@@ -863,6 +1004,10 @@ void PidConfigPage::adjustReadOnly()
 	for (QPushButton *button : std::as_const(m_clear_tool_symbols)) {
 		button->setEnabled(!read_only);
 	}
+	for (QComboBox *marks : std::as_const(m_signal_marks)) {
+		marks->setEnabled(!read_only);
+	}
+	m_reset_signal_marks->setEnabled(!read_only);
 }
 
 /**
@@ -957,6 +1102,7 @@ void PidConfigPage::saveAsDefaultPresentation()
 {
 	QetSettings::setPidPresentation(m_codification.presentationToCsv());
 	m_default_saved->setText(m_codification.hasColors() || m_codification.hasTextSettings()
+							 || m_codification.hasSignalMarks()
 							 ? tr("Presentation saved") : tr("Default presentation removed"));
 }
 
@@ -1750,6 +1896,10 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 		return false;
 	}
 	m_codification = read.completedWith(m_codification);
+		//A file may say the default marks of the signal lines, to take those
+		//of the page away: they are not kept
+	const bool signal_marks = !read.signal_marks.isEmpty();
+	m_codification.dropDefaultSignalMarks();
 		//A code read is no code renamed: no line keeps a former code
 	if (read.hasCodeLists()) {
 		fillCodeTables(false);
@@ -1776,7 +1926,7 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 		//the page
 	const bool presentation = read.hasColors() || read.hasTextSettings();
 	QStringList what;
-	if (read.hasCodeLists() || (sizes_alone.isEmpty() && !presentation)) {
+	if (read.hasCodeLists() || (sizes_alone.isEmpty() && !presentation && !signal_marks)) {
 		what << tr("%1 fluids, %2 materials and %3 functional units")
 				.arg(read.fluids.size()).arg(read.materials.size())
 				.arg(read.functional_units.size());
@@ -1785,6 +1935,10 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 	}
 	if (presentation) {
 		what << tr("the presentation (tabs Colors, Texts and Connections)");
+	}
+		//The marks of the signal lines apart: a file may bring them alone
+	if (signal_marks) {
+		what << tr("the marks of the signal lines");
 	}
 	QString message = tr("Read: %1. Apply this page to keep them.").arg(what.join(QStringLiteral("; ")));
 	if (skipped) {

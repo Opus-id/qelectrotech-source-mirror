@@ -23,8 +23,8 @@
 
 // How a signal line is drawn on a folio: a thin line, whatever width, style
 // or pattern of dashes it holds as a wire; in the colour the project gives
-// the signal lines; with the mark of its type of signal repeated along it.
-// The potential types of the project never reach it. A wire and a pipe are
+// the signal lines; with the mark of its type of signal repeated along it,
+// the default one unless the project says another. The potential types of the project never reach it. A wire and a pipe are
 // drawn as before.
 class tst_signaldrawing : public QObject
 {
@@ -384,6 +384,97 @@ class tst_signaldrawing : public QObject
 						 qPrintable(QString::number(scale)));
 				QVERIFY(p.inkedPixels() > picture(wire, scale).inkedPixels());
 			}
+		}
+
+			// ---- the marks the project says ----
+			// A project says which mark a type of signal takes
+			// (PidCodification::signal_marks): its lines are drawn with it
+			// at once, and with the default one again when it says no more
+		void theProjectSaysTheMarkOfATypeOfSignal()
+		{
+			Conductor *line = draw(m_signals);
+			Conductor *other = draw(m_signals);
+			QVERIFY(line && other);
+			setType(line, SignalProperties::Pneumatic);
+			setType(other, SignalProperties::Capillary);
+			QCOMPARE(int(line->signalMark()), int(SignalMark::AMark));
+			const QImage before = picture(line).image;
+			const QImage other_before = picture(other).image;
+
+			PidCodification c;
+			c.setSignalMark(SignalProperties::Pneumatic, SignalMark::Bar2);
+			m_project.setPidCodification(c);
+			QCOMPARE(int(line->signalMark()), int(SignalMark::Bar2));
+			QVERIFY(picture(line).image != before);
+			QVERIFY(picture(line).inkedOffTheLine(points(line).first().y()) > 0);
+				// a type it does not name keeps its mark
+			QCOMPARE(int(other->signalMark()), int(SignalMark::Cross));
+			QCOMPARE(picture(other).image, other_before);
+
+				// a mark of a later version: the default one meanwhile
+			c.signal_marks.insert(QStringLiteral("pneumatic"), QStringLiteral("diamond"));
+			m_project.setPidCodification(c);
+			QCOMPARE(int(line->signalMark()), int(SignalMark::AMark));
+			QCOMPARE(picture(line).image, before);
+
+			m_project.setPidCodification(PidCodification());
+			QCOMPARE(int(line->signalMark()), int(SignalMark::AMark));
+			QCOMPARE(picture(line).image, before);
+		}
+
+			// Two marks no type takes by default: a plain line, nothing
+			// along it; a dashed line, cut and nothing off it
+		void aTypeMayBeDrawnPlainOrDashed()
+		{
+			Conductor *line = draw(m_signals);
+			QVERIFY(line);
+			setType(line, SignalProperties::Electrical);
+			const qreal y = points(line).first().y();
+			QVERIFY(picture(line).inkedOffTheLine(y) > 0);
+
+			PidCodification c;
+			c.setSignalMark(SignalProperties::Electrical, SignalMark::None);
+			m_project.setPidCodification(c);
+			const Picture plain = picture(line);
+			QCOMPARE(plain.inkedOffTheLine(y), 0);
+			const int whole = plain.inkedPixels();
+			QVERIFY(whole > 0);
+
+			c.setSignalMark(SignalProperties::Electrical, SignalMark::Dashes);
+			m_project.setPidCodification(c);
+			const Picture dashed = picture(line);
+			QCOMPARE(dashed.inkedOffTheLine(y), 0);
+				// dashes of 6 units, 4 between two: six tenths of the line
+			const QByteArray counts = QByteArray::number(dashed.inkedPixels()) + " of "
+									  + QByteArray::number(whole);
+			QVERIFY2(dashed.inkedPixels() > whole * 0.45, counts.constData());
+			QVERIFY2(dashed.inkedPixels() < whole * 0.75, counts.constData());
+				// a dashed line stays a thin one
+			QCOMPARE(dashed.inkedInColumn(points(line).first().x() + 2), 1);
+
+			m_project.setPidCodification(PidCodification());
+		}
+
+			// The marks of the project are those of its signal lines only
+		void theMarksOfTheProjectNeverReachAWireOrAPipe()
+		{
+			Conductor *wire = draw(m_electrical);
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(wire && pipe);
+			const QImage wire_before = picture(wire).image;
+			const QImage pipe_before = picture(pipe).image;
+
+			PidCodification c;
+			for (SignalProperties::SignalType type : SignalProperties::types()) {
+				c.setSignalMark(type, SignalMark::Bar3);
+			}
+			m_project.setPidCodification(c);
+			QCOMPARE(int(wire->signalMark()), int(SignalMark::None));
+			QCOMPARE(int(pipe->signalMark()), int(SignalMark::None));
+			QCOMPARE(picture(wire).image, wire_before);
+			QCOMPARE(picture(pipe).image, pipe_before);
+
+			m_project.setPidCodification(PidCodification());
 		}
 
 			// ---- the potential types of the wires ----

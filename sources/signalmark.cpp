@@ -19,6 +19,7 @@
 
 #include "conductordashpattern.h"
 
+#include <QCoreApplication>
 #include <QLineF>
 #include <QtMath>
 
@@ -89,6 +90,30 @@ SignalMark::Mark SignalMark::fromString(const QString &string, bool *ok)
 	}
 	if (ok) *ok = false;
 	return None;
+}
+
+/**
+	@brief SignalMark::name
+	@param mark
+	@return the name of @p mark shown to the user, translated. The files
+	never hold it: see toString().
+*/
+QString SignalMark::name(Mark mark)
+{
+	switch (mark) {
+		case None:   return QCoreApplication::translate("SignalMark", "Plain line", "mark of a signal line");
+		case Dashes: return QCoreApplication::translate("SignalMark", "Dashes", "mark of a signal line");
+		case Bar1:   return QCoreApplication::translate("SignalMark", "One bar", "mark of a signal line");
+		case Bar2:   return QCoreApplication::translate("SignalMark", "Two bars", "mark of a signal line");
+		case Bar3:   return QCoreApplication::translate("SignalMark", "Three bars", "mark of a signal line");
+		case AMark:  return QCoreApplication::translate("SignalMark", "Letter A", "mark of a signal line");
+		case EMark:  return QCoreApplication::translate("SignalMark", "Letter E", "mark of a signal line");
+		case LMark:  return QCoreApplication::translate("SignalMark", "Letter L", "mark of a signal line");
+		case Cross:  return QCoreApplication::translate("SignalMark", "Cross", "mark of a signal line");
+		case Wave:   return QCoreApplication::translate("SignalMark", "Wave", "mark of a signal line");
+		case Circle: return QCoreApplication::translate("SignalMark", "Circle", "mark of a signal line");
+	}
+	return QString();
 }
 
 /**

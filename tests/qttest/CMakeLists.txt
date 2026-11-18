@@ -646,6 +646,9 @@ target_link_libraries(tst_signalmark PRIVATE Qt::Test Qt::Gui Qt::Xml)
 # the project gives the signal lines, with the marks of its type of signal;
 # a wire and a pipe are drawn as before.
 qet_add_app_test(tst_signaldrawing tst_signaldrawing.cpp)
+# Which mark the signal lines of each type of signal take: a setting of the
+# project, nothing written by default; its file, the CSV files, the P&ID page.
+qet_add_app_test(tst_signalmarksettings tst_signalmarksettings.cpp)
 # The colours of a P&ID: set for a project, none known by the code; on a pipe
 # its own colour first, then its fluid, then its family of object.
 qet_add_app_test(tst_pidcolors tst_pidcolors.cpp)

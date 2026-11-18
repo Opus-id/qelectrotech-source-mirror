@@ -34,7 +34,8 @@
 	wave, a circle), or a dashed line, or a plain one.
 	The catalogue of the marks is fixed. Which type of signal takes which
 	mark is a convention: defaultMark() gives those of ISO 14617 where it has
-	one, else those of ANSI/ISA-5.1-2009.
+	one, else those of ANSI/ISA-5.1-2009, and a project may say otherwise
+	(PidCodification::signal_marks).
 
 	Nothing here knows a conductor: places() and shapes() work on points, so
 	that the rule which places the marks is tested alone.
@@ -63,6 +64,8 @@ class SignalMark
 			/// The mark @p string names; anything else is None. @p ok, if
 			/// given, tells whether @p string was a word of the catalogue.
 		static Mark fromString(const QString &string, bool *ok = nullptr);
+			/// The name of @p mark for the user, translated
+		static QString name(Mark mark);
 			/// The mark of a signal line of type @p type when nothing else
 			/// says: ISO 14617 (7.1.2) for the undefined, pneumatic,
 			/// electrical, hydraulic and capillary signals, ANSI/ISA-5.1-2009

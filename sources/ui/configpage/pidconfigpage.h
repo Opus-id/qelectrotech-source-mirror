@@ -50,7 +50,8 @@ class QTableWidgetItem;
 	current line; and the DN of the project which are the same size of line.
 	The size of its texts by category: what has none keeps the size
 	of its symbol. The connections drawn at the end of the nozzles: none by
-	default.
+	default. The mark of the signal lines of each type of signal: those of
+	SignalMark::defaultMark() unless the project says otherwise.
 */
 class PidConfigPage : public ProjectConfigPage
 {
@@ -126,6 +127,12 @@ class PidConfigPage : public ProjectConfigPage
 			/// (PidCodification::toolSymbolRoles()) is that at @p location,
 			/// a path of a collection; none when it is empty
 		void setToolSymbol(const QString &role, const QString &location);
+			/// The signal lines of type @p type are drawn with the mark
+			/// @p mark
+		void setSignalMark(SignalProperties::SignalType type, SignalMark::Mark mark);
+			/// Each type of signal takes its default mark again
+			/// (SignalMark::defaultMark())
+		void resetSignalMarks();
 
 	protected:
 		void initWidgets() override;
@@ -142,6 +149,7 @@ class PidConfigPage : public ProjectConfigPage
 		void readTextWidgets();
 		void readConnectionWidgets();
 		void showToolSymbols();
+		void showSignalMarks();
 		void chooseToolSymbol(const QString &role);
 		void undoLastChange();
 		void redoLastChange();
@@ -211,6 +219,10 @@ class PidConfigPage : public ProjectConfigPage
 		QMap<QString, QLineEdit *> m_tool_symbols;
 		QMap<QString, QPushButton *> m_choose_tool_symbols;
 		QMap<QString, QPushButton *> m_clear_tool_symbols;
+			/// The mark of the signal lines of each type of signal, in a
+			/// list of the marks of the catalogue, each with its picture
+		QMap<SignalProperties::SignalType, QComboBox *> m_signal_marks;
+		QPushButton *m_reset_signal_marks = nullptr;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
 		std::function<QColor(const QColor &)> m_ask_color;

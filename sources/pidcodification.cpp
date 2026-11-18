@@ -39,6 +39,32 @@ namespace
 	const QString size_tag = QStringLiteral("size");
 	const QString equal_tag = QStringLiteral("equal_dn");
 	const QString tool_symbol_tag = QStringLiteral("tool_symbol");
+	const QString signal_mark_tag = QStringLiteral("signal_mark");
+
+		/// @p word is the word of a type of signal this version knows,
+		/// written in @p type if given
+	bool isSignalType(const QString &word, SignalProperties::SignalType *type = nullptr)
+	{
+		for (SignalProperties::SignalType known : SignalProperties::types()) {
+			if (word == SignalProperties::typeToString(known)) {
+				if (type) *type = known;
+				return true;
+			}
+		}
+		return false;
+	}
+
+		/// The mark of word @p mark is the one the signal lines of the type
+		/// of word @p type take without the project saying it. Not so for a
+		/// word this version does not know.
+	bool isDefaultSignalMark(const QString &type, const QString &mark)
+	{
+		SignalProperties::SignalType known_type = SignalProperties::Undefined;
+		bool known_mark = false;
+		const SignalMark::Mark read = SignalMark::fromString(mark, &known_mark);
+		return isSignalType(type, &known_type) && known_mark
+				&& read == SignalMark::defaultMark(known_type);
+	}
 
 		/// @p connections as words separated by spaces: a list the CSV
 		/// separators (semicolon, tab, comma) never cut
@@ -1080,6 +1106,66 @@ QStringList PidCodification::textCategories()
 }
 
 /**
+	@brief PidCodification::signalMark
+	See the declaration
+*/
+SignalMark::Mark PidCodification::signalMark(SignalProperties::SignalType type) const
+{
+	const auto said = signal_marks.constFind(SignalProperties::typeToString(type));
+	if (said != signal_marks.cend()) {
+		bool known = false;
+		const SignalMark::Mark mark = SignalMark::fromString(said.value(), &known);
+		if (known) {
+			return mark;
+		}
+	}
+	return SignalMark::defaultMark(type);
+}
+
+/**
+	@brief PidCodification::setSignalMark
+	See the declaration
+*/
+void PidCodification::setSignalMark(SignalProperties::SignalType type, SignalMark::Mark mark)
+{
+	const QString word = SignalProperties::typeToString(type);
+	if (mark == SignalMark::defaultMark(type)) {
+		signal_marks.remove(word);
+	} else {
+		signal_marks.insert(word, SignalMark::toString(mark));
+	}
+}
+
+/**
+	@brief PidCodification::hasSignalMarks
+	See the declaration
+*/
+bool PidCodification::hasSignalMarks() const
+{
+	for (auto it = signal_marks.cbegin() ; it != signal_marks.cend() ; ++it) {
+		if (!isDefaultSignalMark(it.key(), it.value())) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+	@brief PidCodification::dropDefaultSignalMarks
+	See the declaration
+*/
+void PidCodification::dropDefaultSignalMarks()
+{
+	for (auto it = signal_marks.begin() ; it != signal_marks.end() ; ) {
+		if (isDefaultSignalMark(it.key(), it.value())) {
+			it = signal_marks.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
+/**
 	@brief PidCodification::completedWith
 	See the declaration
 */
@@ -1111,6 +1197,10 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.drawn_connections = other.drawn_connections;
 		result.drawn_families = other.drawn_families;
 		result.tool_symbols = other.tool_symbols;
+	}
+		//A file which has marks of signal lines says them all
+	if (signal_marks.isEmpty()) {
+		result.signal_marks = other.signal_marks;
 	}
 	return result;
 }
@@ -1183,6 +1273,22 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 		e.setAttribute(QStringLiteral("location"), it.value());
 		block.appendChild(e);
 	}
+	for (auto it = signal_marks.cbegin() ; it != signal_marks.cend() ; ++it)
+	{
+			//The default one is not written: a project which changes
+			//nothing saves as before
+		if (isDefaultSignalMark(it.key(), it.value())) {
+			continue;
+		}
+		QDomElement e = document.createElement(signal_mark_tag);
+		e.setAttribute(QStringLiteral("type"), it.key());
+		e.setAttribute(QStringLiteral("mark"), it.value());
+		block.appendChild(e);
+	}
+		//Default marks alone: nothing to write
+	if (!block.hasChildNodes() && !block.hasAttributes()) {
+		return QDomElement();
+	}
 	return block;
 }
 
@@ -1249,6 +1355,18 @@ void PidCodification::fromXml(const QDomElement &parent)
 			tool_symbols.insert(role, location);
 		}
 	}
+	signal_marks.clear();
+	for (QDomElement e = block.firstChildElement(signal_mark_tag) ; !e.isNull() ;
+		 e = e.nextSiblingElement(signal_mark_tag))
+	{
+		const QString type = e.attribute(QStringLiteral("type")).trimmed();
+		const QString mark = e.attribute(QStringLiteral("mark")).trimmed();
+			//A type or a mark this version does not know is kept: a later
+			//one set it, and its lines take the default mark meanwhile
+		if (!type.isEmpty() && !mark.isEmpty() && !signal_marks.contains(type)) {
+			signal_marks.insert(type, mark);
+		}
+	}
 }
 
 /**
@@ -1301,6 +1419,12 @@ QString PidCodification::presentationToCsv() const
 	for (auto it = tool_symbols.cbegin() ; it != tool_symbols.cend() ; ++it) {
 		text += tool_symbol_tag + QLatin1Char(';') + it.key() + QLatin1Char(';')
 				+ csvField(it.value()) + QLatin1Char('\n');
+	}
+	for (auto it = signal_marks.cbegin() ; it != signal_marks.cend() ; ++it) {
+		if (!isDefaultSignalMark(it.key(), it.value())) {
+			text += signal_mark_tag + QLatin1Char(';') + it.key() + QLatin1Char(';')
+					+ it.value() + QLatin1Char('\n');
+		}
 	}
 	return text;
 }
@@ -1550,6 +1674,20 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 			}
 			continue;
 		}
+		if (kind == signal_mark_tag || kind == QLatin1String("marque_signal"))
+		{
+				//Kept even when it is the default one: the file says it
+			const QString type = fields.value(1).trimmed().toLower();
+			const QString mark = fields.value(2).trimmed().toLower();
+			bool known_mark = false;
+			SignalMark::fromString(mark, &known_mark);
+			if (!isSignalType(type) || !known_mark || codification.signal_marks.contains(type)) {
+				++left_out;
+			} else {
+				codification.signal_marks.insert(type, mark);
+			}
+			continue;
+		}
 		const bool is_fluid = kind == QLatin1String("fluid") || kind == QLatin1String("fluide");
 		const bool is_material = kind == QLatin1String("material") || kind == QStringLiteral("matériau")
 							   || kind == QLatin1String("materiau");
@@ -1639,5 +1777,6 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& decimal == other.decimal
 			&& drawn_connections == other.drawn_connections
 			&& drawn_families == other.drawn_families
-			&& tool_symbols == other.tool_symbols;
+			&& tool_symbols == other.tool_symbols
+			&& signal_marks == other.signal_marks;
 }

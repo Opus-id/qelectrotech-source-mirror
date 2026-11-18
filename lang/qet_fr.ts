@@ -13932,8 +13932,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="114"/>
-        <source>Saves the tabs Colors, Texts and Connections, and the models of tags, on this computer. New projects will start with them; projects that already exist do not change.</source>
-        <translation>Enregistre sur cet ordinateur les onglets Couleurs, Textes et Raccords, ainsi que les modèles de repère. Les nouveaux projets partiront de ces réglages ; les projets existants ne changent pas.</translation>
+        <source>Saves the tabs Colors, Texts, Connections and Signal lines, and the models of tags, on this computer. New projects will start with them; projects that already exist do not change.</source>
+        <translation>Enregistre sur cet ordinateur les onglets Couleurs, Textes, Raccords et Lignes de signal, ainsi que les modèles de repère. Les nouveaux projets partiront de ces réglages ; les projets existants ne changent pas.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="125"/>
@@ -14080,6 +14080,24 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <source>To be demolished</source>
         <translation>À démolir</translation>
     </message>
+    <message><source>Back to the default marks</source><translation>Revenir aux marques par défaut</translation></message>
+    <message><source>A signal line is drawn with the mark of its type of signal, repeated along it. By default the marks of ISO 14617, and those of ANSI/ISA-5.1 for the two types it has not.</source><translation>Une ligne de signal est dessinée avec la marque de son type de signal, répétée le long du trait. Par défaut, les marques de l&apos;ISO 14617, et celles de l&apos;ANSI/ISA-5.1 pour les deux types qu&apos;elle ne connaît pas.</translation></message>
+    <message><source>%1:</source><comment>a type of signal, before the list of its marks</comment><translation>%1 :</translation></message>
+    <message><source>the marks of the signal lines</source><translation>les marques des lignes de signal</translation></message>
+</context>
+<context>
+    <name>SignalMark</name>
+    <message><source>Plain line</source><comment>mark of a signal line</comment><translation>Trait simple</translation></message>
+    <message><source>Dashes</source><comment>mark of a signal line</comment><translation>Tirets</translation></message>
+    <message><source>One bar</source><comment>mark of a signal line</comment><translation>Une barre</translation></message>
+    <message><source>Two bars</source><comment>mark of a signal line</comment><translation>Deux barres</translation></message>
+    <message><source>Three bars</source><comment>mark of a signal line</comment><translation>Trois barres</translation></message>
+    <message><source>Letter A</source><comment>mark of a signal line</comment><translation>Lettre A</translation></message>
+    <message><source>Letter E</source><comment>mark of a signal line</comment><translation>Lettre E</translation></message>
+    <message><source>Letter L</source><comment>mark of a signal line</comment><translation>Lettre L</translation></message>
+    <message><source>Cross</source><comment>mark of a signal line</comment><translation>Croix</translation></message>
+    <message><source>Wave</source><comment>mark of a signal line</comment><translation>Onde</translation></message>
+    <message><source>Circle</source><comment>mark of a signal line</comment><translation>Rond</translation></message>
 </context>
 <context>
     <name>SignalProperties</name>

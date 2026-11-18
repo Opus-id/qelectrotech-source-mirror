@@ -274,8 +274,10 @@ class Conductor : public QGraphicsObject
 		void drawOffSeries(QPainter *painter, const QPainterPath &path,
 						   qreal line_width, qreal detail) const;
 		void drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const;
-			/// How this signal line says its type of signal: the mark of its
-			/// type (SignalMark::defaultMark()); none for any other medium
+			/// How this signal line says its type of signal: the mark its
+			/// project gives its type (PidCodification::signalMark(), the
+			/// default one unless it says otherwise); none for any other
+			/// medium
 		SignalMark::Mark signalMark() const;
 			/// Draw the marks of this signal line along its straight runs
 			/// (SignalMark::places()), in @p color, as thin as its line
