@@ -1138,18 +1138,52 @@ class tst_nozzlediameter : public QObject
 		{
 			QETProject project;
 			Diagram *folio = project.addNewDiagram();
-			Element *element = place(folio, addTank(project));
+				// a symbol with one nozzle: an equipment, whose nozzle has
+				// its size; of the family of the pipes, a piece of pipe whose
+				// nozzle follows. A line runs through neither: one can be
+				// changed for the other (step 6b-1c)
+			project.embeddedElementCollection()->createDir(
+						QStringLiteral("import"), QStringLiteral("nozzles"), NamesList());
+			const auto oneNozzle = [&project](const QString &file, const QString &uuid,
+											  const QString &family) {
+				QDomDocument doc;
+				doc.setContent(QStringLiteral(
+					"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" %2"
+					"width=\"20\" height=\"20\" hotspot_x=\"10\" hotspot_y=\"10\">"
+					"<uuid uuid=\"%1\"/>"
+					"<names><name lang=\"en\">One nozzle</name></names>"
+					"<description>"
+					"<terminal uuid=\"{7b000000-0000-0000-0000-000000000092}\" name=\"N1\" x=\"0\" y=\"0\" "
+					"orientation=\"w\" type=\"Generic\" medium=\"pipe\" pid_connection=\"plain_end\"/>"
+					"</description></definition>").arg(uuid, family));
+				project.embeddedElementCollection()->addElementDefinition(
+							QStringLiteral("import/nozzles"), file, doc.documentElement());
+				return ElementsLocation(QStringLiteral("embed://import/nozzles/") + file, &project);
+			};
+			const ElementsLocation outlet = oneNozzle(QStringLiteral("outlet.elmt"),
+						QStringLiteral("{7b999999-9999-9999-9999-99999999999a}"),
+						QStringLiteral("pid_family=\"equipment\" "));
+			const ElementsLocation vent = oneNozzle(QStringLiteral("vent.elmt"),
+						QStringLiteral("{7b999999-9999-9999-9999-99999999999b}"),
+						QStringLiteral("pid_family=\"pipe\" "));
+			Element *element = place(folio, outlet);
 			QVERIFY(element);
-			const NozzleDiameters given = dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N2"), 50}});
+			const NozzleDiameters given = dns({{QStringLiteral("N1"), 100}});
 			element->setNozzleDiameters(given);
-			folio->undoStack().push(new ChangeElementLocationCommand(element, addValve(project)));
-			QVERIFY(element->isPipeInline());
+			QVERIFY(!terminal(element, QStringLiteral("N1"))->followsPipe());
+			folio->undoStack().push(new ChangeElementLocationCommand(element, vent));
+			QVERIFY(terminal(element, QStringLiteral("N1"))->followsPipe());
 			QVERIFY(element->nozzleDiameters().isEmpty());
 			QVERIFY(!terminal(element, QStringLiteral("N1"))->diameter().isSet());
 			folio->undoStack().undo();
-			QVERIFY(!element->isPipeInline());
+			QVERIFY(!terminal(element, QStringLiteral("N1"))->followsPipe());
 			QCOMPARE(element->nozzleDiameters(), given);
 			QCOMPARE(terminal(element, QStringLiteral("N1"))->diameter().value(), 100.0);
+
+				// a symbol a line runs through is no equipment: not offered
+			Element *tank = place(folio, addTank(project));
+			QVERIFY(tank);
+			QVERIFY(!tank->canChangeLocationTo(addValve(project)));
 		}
 
 			// the run a symbol names (pid_run): a tee takes its branch in;

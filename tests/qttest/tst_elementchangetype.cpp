@@ -389,6 +389,107 @@ class tst_elementchangetype : public QObject
 			QCOMPARE(m_folio->undoStack().count(), steps + 1);
 		}
 
+			// Step 6b-1c: the lines must go through the new symbol the way they
+			// do through the old one. A tee, whose branch is of the line, is
+			// no injection point, whose reagent is not; where the size or
+			// the specification of a line changes it still does.
+		void theLinesKeepTheirWayThroughTheSymbol()
+		{
+				// A fitting 40 x 40 with its first @p count nozzles: N1 west,
+				// N2 east, N3 south, N4 north
+			const auto fitting = [this](const QString &file, const QString &uuid,
+										const QString &attributes, int count) {
+				const QStringList nozzles{
+					QStringLiteral("name=\"N1\" x=\"-20\" y=\"0\" orientation=\"w\""),
+					QStringLiteral("name=\"N2\" x=\"20\" y=\"0\" orientation=\"e\""),
+					QStringLiteral("name=\"N3\" x=\"0\" y=\"20\" orientation=\"s\""),
+					QStringLiteral("name=\"N4\" x=\"0\" y=\"-20\" orientation=\"n\"")};
+				QString terminals;
+				for (int i = 0 ; i < count ; ++i) {
+					terminals += QStringLiteral("<terminal %1 type=\"Generic\" medium=\"pipe\"/>")
+								 .arg(nozzles.at(i));
+				}
+				QDomDocument doc;
+				doc.setContent(QStringLiteral(
+					"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+					"pid_family=\"pipe\" %2 width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+					"<uuid uuid=\"{%1}\"/><names><name lang=\"en\">Fitting</name></names>"
+					"<description>%3</description></definition>").arg(uuid, attributes, terminals));
+				return add(file, doc.documentElement());
+			};
+			const auto placed = [this](const ElementsLocation &location) {
+				int state = 0;
+				Element *element = ElementFactory::Instance()->createElement(location, nullptr, &state);
+				if (element) m_folio->addItem(element);
+				return element;
+			};
+			const QString junction = QStringLiteral("pid_role=\"junction\" ");
+			const ElementsLocation tee = fitting("tee.elmt", "aaaaaaaa-0000-0000-0000-000000000001",
+												 junction + QStringLiteral("pid_run=\"N1 N2 N3\""), 3);
+			const ElementsLocation injection = fitting("injection.elmt", "aaaaaaaa-0000-0000-0000-000000000002",
+													   junction + QStringLiteral("pid_run=\"N1 N2\""), 3);
+			const ElementsLocation cross = fitting("cross.elmt", "aaaaaaaa-0000-0000-0000-000000000003",
+												   junction + QStringLiteral("pid_run=\"N1 N2 N3 N4\""), 4);
+			QVERIFY(tee.exist() && injection.exist() && cross.exist());
+
+			Element *a_tee = placed(tee);
+			Element *an_injection = placed(injection);
+			Element *a_cross = placed(cross);
+			QVERIFY(a_tee && an_injection && a_cross);
+			QVERIFY(!a_tee->canChangeLocationTo(injection));
+			QVERIFY(!an_injection->canChangeLocationTo(tee));
+				// another tee, whose three nozzles are of the line too
+			const ElementsLocation other_tee = fitting("tee2.elmt", "aaaaaaaa-0000-0000-0000-00000000000b",
+													   QStringLiteral("pid_run=\"N1 N2 N3\""), 3);
+			QVERIFY(a_tee->canChangeLocationTo(other_tee));
+			QVERIFY(!an_injection->canChangeLocationTo(other_tee));
+				// a cross has a nozzle more: neither way, as before
+			QVERIFY(!a_tee->canChangeLocationTo(cross));
+			QVERIFY(!a_cross->canChangeLocationTo(tee));
+				// in the menu "Change type" of the tee: the other tee only
+			QStringList offered;
+			for (const ElementsLocation &location : Element::otherTypes({a_tee})) {
+				offered << location.collectionPath(false).section(QLatin1Char('/'), -1);
+			}
+			QVERIFY(offered.contains(QStringLiteral("tee2.elmt")));
+			QVERIFY(!offered.contains(QStringLiteral("injection.elmt")));
+			QVERIFY(!offered.contains(QStringLiteral("cross.elmt")));
+
+				// two nozzles: a line runs through a valve and through a spec
+				// break, its size changes at a reducer
+			const ElementsLocation valve = fitting("valve.elmt", "aaaaaaaa-0000-0000-0000-000000000004",
+												   QStringLiteral("pid_inline=\"true\""), 2);
+			const ElementsLocation other_valve = fitting("valve2.elmt", "aaaaaaaa-0000-0000-0000-000000000005",
+														 QStringLiteral("pid_inline=\"true\""), 2);
+			const ElementsLocation reducer = fitting("reducer.elmt", "aaaaaaaa-0000-0000-0000-000000000006",
+													 QStringLiteral("pid_role=\"reducer\""), 2);
+			const ElementsLocation other_reducer = fitting("reducer2.elmt", "aaaaaaaa-0000-0000-0000-000000000007",
+														   QStringLiteral("pid_role=\"reducer\" pid_large=\"N1\""), 2);
+			const ElementsLocation spec_break = fitting("break.elmt", "aaaaaaaa-0000-0000-0000-000000000008",
+														QStringLiteral("pid_inline=\"true\" pid_role=\"spec_break\""), 2);
+			Element *a_valve = placed(valve);
+			Element *a_reducer = placed(reducer);
+			Element *a_break = placed(spec_break);
+			QVERIFY(a_valve && a_reducer && a_break);
+			QVERIFY(a_valve->canChangeLocationTo(other_valve));
+			QVERIFY(!a_valve->canChangeLocationTo(reducer));
+			QVERIFY(!a_valve->canChangeLocationTo(spec_break));
+			QVERIFY(a_reducer->canChangeLocationTo(other_reducer));
+			QVERIFY(!a_reducer->canChangeLocationTo(valve));
+			QVERIFY(!a_break->canChangeLocationTo(valve));
+
+				// one nozzle: a free end becomes an arrow, and back
+			const ElementsLocation free_end = fitting("end.elmt", "aaaaaaaa-0000-0000-0000-000000000009",
+													  QStringLiteral("pid_role=\"free_end\""), 1);
+			const ElementsLocation arrow = fitting("arrow.elmt", "aaaaaaaa-0000-0000-0000-00000000000a",
+												   QString(), 1);
+			Element *an_end = placed(free_end);
+			Element *an_arrow = placed(arrow);
+			QVERIFY(an_end && an_arrow);
+			QVERIFY(an_end->canChangeLocationTo(arrow));
+			QVERIFY(an_arrow->canChangeLocationTo(free_end));
+		}
+
 			// A symbol no other of its folder can replace: the list shows its
 			// type, greyed
 		void aTypeAloneIsGreyed()

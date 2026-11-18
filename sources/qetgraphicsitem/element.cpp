@@ -4571,7 +4571,53 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 			return false;
 		}
 	}
-	return true;
+
+		//The lines must go through the new symbol the way they do through
+		//this one: the same run on the nozzles of this element (a tee, whose
+		//branch is of the line, is no injection point, whose reagent is
+		//not), and where the size or the specification of a line changes
+		//it still does. A free end is not compared: it may become an
+		//arrow, a strainer, a blind flange.
+	const QString new_role = definition.attribute(QStringLiteral("pid_role")).trimmed();
+	for (const QString &role : {QStringLiteral("reducer"), QStringLiteral("spec_break")}) {
+		if ((new_role == role) != (m_data.m_pid_role == role)) {
+			return false;
+		}
+	}
+	QStringList new_nozzles;
+	for (auto it = new_media.cbegin() ; it != new_media.cend() ; ++it) {
+		if (it.value() == TerminalData::Pipe && !new_names.value(it.key()).isEmpty()) {
+			new_nozzles << new_names.value(it.key());
+		}
+	}
+	QStringList new_run = definition.attribute(QStringLiteral("pid_run"))
+						  .split(QLatin1Char(' '), Qt::SkipEmptyParts);
+	if (new_run.isEmpty()) {
+		if (definition.attribute(QStringLiteral("pid_inline")) == QLatin1String("true")
+			&& new_nozzles.size() == 2) {
+			new_run = new_nozzles;
+		}
+	} else {
+		new_run.erase(std::remove_if(new_run.begin(), new_run.end(),
+									 [&new_nozzles](const QString &name) {
+			return !new_nozzles.contains(name);
+		}), new_run.end());
+	}
+	if (new_run.size() < 2) {
+		new_run.clear();
+	}
+	QStringList own_names;
+	for (const Terminal *terminal : m_terminals) {
+		own_names << terminal->baseName();
+	}
+	new_run.erase(std::remove_if(new_run.begin(), new_run.end(),
+								 [&own_names](const QString &name) {
+		return !own_names.contains(name);
+	}), new_run.end());
+	QStringList own_run = pipeRun();
+	new_run.sort();
+	own_run.sort();
+	return new_run == own_run;
 }
 
 /**
