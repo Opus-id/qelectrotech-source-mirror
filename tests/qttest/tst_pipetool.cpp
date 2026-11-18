@@ -955,10 +955,10 @@ class tst_pipetool : public QObject
 			// presentation of the project: file, CSV, page with undo
 		void theSymbolOfFreeEndIsASettingOfTheProject()
 		{
-			const QString rac_ext = QStringLiteral("custom://pid_essai/extremites/RAC-EXT Extrémité libre.elmt");
+			const QString free_end_symbol = QStringLiteral("custom://pid/50_pipe_ends/end_free.elmt");
 			PidCodification codification;
 			QVERIFY(!codification.hasTextSettings());
-			codification.tool_symbols.insert(PidCodification::freeEndRole(), rac_ext);
+			codification.tool_symbols.insert(PidCodification::freeEndRole(), free_end_symbol);
 			QVERIFY(codification.hasTextSettings());
 				// the file
 			QDomDocument doc;
@@ -966,22 +966,22 @@ class tst_pipetool : public QObject
 			holder.appendChild(codification.toXml(doc));
 			const QDomElement written = holder.firstChildElement().firstChildElement(QStringLiteral("tool_symbol"));
 			QCOMPARE(written.attribute(QStringLiteral("role")), QStringLiteral("free_end"));
-			QCOMPARE(written.attribute(QStringLiteral("location")), rac_ext);
+			QCOMPARE(written.attribute(QStringLiteral("location")), free_end_symbol);
 			PidCodification read;
 			read.fromXml(holder);
-			QCOMPARE(read.toolSymbol(PidCodification::freeEndRole()), rac_ext);
+			QCOMPARE(read.toolSymbol(PidCodification::freeEndRole()), free_end_symbol);
 			QVERIFY(read == codification);
 				// the presentation, a role not known left out
-			QVERIFY(codification.presentationToCsv().contains(QStringLiteral("tool_symbol;free_end;") + rac_ext));
+			QVERIFY(codification.presentationToCsv().contains(QStringLiteral("tool_symbol;free_end;") + free_end_symbol));
 			int skipped = 0;
 			const PidCodification csv = PidCodification::fromCsv(
-						QStringLiteral("symbole_outil;free_end;") + rac_ext
+						QStringLiteral("symbole_outil;free_end;") + free_end_symbol
 						+ QStringLiteral("\ntool_symbol;cross;custom://x.elmt\n"), &skipped);
-			QCOMPARE(csv.toolSymbol(PidCodification::freeEndRole()), rac_ext);
+			QCOMPARE(csv.toolSymbol(PidCodification::freeEndRole()), free_end_symbol);
 			QCOMPARE(skipped, 1);
 				// the default presentation brings it to a project without one
 			QCOMPARE(PidCodification().completedWith(codification).toolSymbol(PidCodification::freeEndRole()),
-					 rac_ext);
+					 free_end_symbol);
 
 				// the page: its name shown, given to the project with undo
 			PidConfigPage page(m_project);

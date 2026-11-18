@@ -56,7 +56,7 @@ class tst_pipetee : public QObject
 		return doc.documentElement();
 	}
 
-		// A tee as RAC-TE: N1 west and N2 east at 20 from its middle, N3
+		// A tee as fitting_tee: N1 west and N2 east at 20 from its middle, N3
 		// south at 20
 	static QDomElement teeDefinition(QDomDocument &doc)
 	{
@@ -874,20 +874,20 @@ class tst_pipetee : public QObject
 		void theSymbolOfTeeIsASettingOfTheProject()
 		{
 			QVERIFY(PidCodification::toolSymbolRoles().contains(QStringLiteral("tee")));
-			const QString rac_te = QStringLiteral("custom://pid_essai/raccords/RAC-TE Té.elmt");
+			const QString tee_symbol = QStringLiteral("custom://pid/40_fittings/fitting_tee.elmt");
 			PidCodification codification;
-			codification.tool_symbols.insert(PidCodification::teeRole(), rac_te);
+			codification.tool_symbols.insert(PidCodification::teeRole(), tee_symbol);
 			QDomDocument doc;
 			QDomElement holder = doc.createElement(QStringLiteral("project"));
 			holder.appendChild(codification.toXml(doc));
 			PidCodification read;
 			read.fromXml(holder);
-			QCOMPARE(read.toolSymbol(PidCodification::teeRole()), rac_te);
-			QVERIFY(codification.presentationToCsv().contains(QStringLiteral("tool_symbol;tee;") + rac_te));
+			QCOMPARE(read.toolSymbol(PidCodification::teeRole()), tee_symbol);
+			QVERIFY(codification.presentationToCsv().contains(QStringLiteral("tool_symbol;tee;") + tee_symbol));
 			int skipped = 0;
 			const PidCodification csv = PidCodification::fromCsv(
-						QStringLiteral("tool_symbol;tee;") + rac_te + QStringLiteral("\n"), &skipped);
-			QCOMPARE(csv.toolSymbol(PidCodification::teeRole()), rac_te);
+						QStringLiteral("tool_symbol;tee;") + tee_symbol + QStringLiteral("\n"), &skipped);
+			QCOMPARE(csv.toolSymbol(PidCodification::teeRole()), tee_symbol);
 			QCOMPARE(skipped, 0);
 		}
 };
