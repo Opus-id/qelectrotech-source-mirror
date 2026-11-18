@@ -291,6 +291,35 @@ class tst_pipejunction : public QObject
 			QVERIFY(!inked(empty, 40, 40) && !inked(empty, 25, 40) && !inked(empty, 40, 55));
 		}
 
+			// The nozzles of a junction may be on the edge of its frame: the
+			// ring drawn on screen around a nozzle without a pipe goes
+			// beyond it, and must be repainted with it
+		void theRingOfAFreeNozzleIsRepaintedWithTheJunction()
+		{
+			Scene scene(QStringLiteral("tee.elmt"));
+			QVERIFY(scene.fitting);
+			const QRectF frame(-20, -20, 40, 40);
+			const QRectF ring1(-26, -6, 12, 12), ring2(14, -6, 12, 12), ring3(-6, 14, 12, 12);
+			QVERIFY(scene.fitting->boundingRect().contains(ring1));
+			QVERIFY(scene.fitting->boundingRect().contains(ring2));
+			QVERIFY(scene.fitting->boundingRect().contains(ring3));
+				// a pipe comes: no ring there, the frame and the other rings
+			QVERIFY(scene.pipe("N1"));
+			QVERIFY(scene.pipe("N2"));
+			QCOMPARE(scene.fitting->boundingRect().left(), frame.left());
+			QCOMPARE(scene.fitting->boundingRect().right(), frame.right());
+			QVERIFY(scene.fitting->boundingRect().contains(ring3));
+			Conductor *branch = scene.pipe("N3");
+			QVERIFY(branch);
+			QCOMPARE(scene.fitting->boundingRect(), frame);
+				// it goes: the ring again
+			scene.folio->removeItem(branch);
+			delete branch;
+			QVERIFY(scene.fitting->boundingRect().contains(ring3));
+				// an equipment has no ring: its frame
+			QCOMPARE(scene.west->boundingRect(), frame);
+		}
+
 		void eachLineIsDrawnAsItsPipe()
 		{
 			Scene scene(QStringLiteral("tee.elmt"));

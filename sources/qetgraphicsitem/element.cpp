@@ -864,6 +864,9 @@ void Element::updateInk()
 {
 	if (!m_data.m_pid_family.isEmpty()) {
 		takePictures();
+			//A symbol which draws nothing takes no picture: the rings of its
+			//free nozzles still come and go with its pipes
+		updateDrawnRect();
 	}
 }
 
@@ -1434,6 +1437,11 @@ void Element::drawJunction(QPainter *painter, qreal detail) const
 	painter->restore();
 }
 
+namespace {
+		/// The radius of the ring drawn around a nozzle without a pipe
+	constexpr qreal free_nozzle_ring = 6.0;
+}
+
 /**
 	@brief Element::drawFreeNozzles
 	Draw a ring around each nozzle without a pipe of a fitting, whose drawing
@@ -1457,7 +1465,8 @@ void Element::drawFreeNozzles(QPainter *painter) const
 	for (const Terminal *terminal : m_terminals)
 	{
 		if (terminal->medium() == TerminalData::Pipe && terminal->conductors().isEmpty()) {
-			painter->drawEllipse(mapFromScene(terminal->dockConductor()), 6.0, 6.0);
+			painter->drawEllipse(mapFromScene(terminal->dockConductor()),
+								 free_nozzle_ring, free_nozzle_ring);
 		}
 	}
 	painter->restore();
@@ -1579,7 +1588,11 @@ QRectF Element::boundingRect() const
 /**
 	@brief Element::updateDrawnRect
 	Keep m_drawn_rect, what boundingRect() adds to the frame, up to date
-	with the drawings, with a pixel more for the width of their lines.
+	with the drawings, with a pixel more for the width of their lines, and
+	with the rings of the nozzles without a pipe of a fitting
+	(drawFreeNozzles()) which go beyond the frame: those of a junction, whose
+	nozzles are on its edge. It is called again when a pipe comes or goes
+	(updateInk()).
 */
 void Element::updateDrawnRect()
 {
@@ -1587,6 +1600,22 @@ void Element::updateDrawnRect()
 	for (const QPicture *picture : {&m_picture, &m_readable_picture})
 		if (!picture->isNull() && picture->boundingRect().isValid())
 			drawn = drawn.united(QRectF(picture->boundingRect()).adjusted(-1, -1, 1, 1));
+	if (followsPipes())
+	{
+		const QRectF frame(QPointF(-hotspot_coord.x(), -hotspot_coord.y()), dimensions);
+		const qreal reach = free_nozzle_ring + 1;
+		for (const Terminal *terminal : std::as_const(m_terminals))
+		{
+			if (terminal->medium() != TerminalData::Pipe || !terminal->conductors().isEmpty()) {
+				continue;
+			}
+			const QPointF nozzle = mapFromScene(terminal->dockConductor());
+			const QRectF ring(nozzle - QPointF(reach, reach), QSizeF(2 * reach, 2 * reach));
+			if (!frame.contains(ring)) {
+				drawn = drawn.united(ring);
+			}
+		}
+	}
 	if (drawn != m_drawn_rect)
 	{
 		prepareGeometryChange();
