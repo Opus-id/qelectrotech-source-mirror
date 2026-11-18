@@ -443,6 +443,19 @@ class tst_pipejunction : public QObject
 			QVERIFY(qAlpha(thumbnail.pixel(35, 20)) > 128);
 			QVERIFY(qAlpha(thumbnail.pixel(20, 35)) > 128);
 			QVERIFY(qAlpha(thumbnail.pixel(20, 5)) < 128);
+				// main lines, 4 wide
+			QVERIFY(qAlpha(thumbnail.pixel(18, 35)) > 128);
+
+				// an injection point: its reagent, out of the run, a secondary
+				// line, 2 wide, beside which its arrow shows
+			Scene injection(QStringLiteral("injection.elmt"));
+			QVERIFY(injection.fitting);
+			const QImage reagent = ElementPictureFactory::instance()
+								   ->pixmap(injection.fitting->location()).toImage();
+			QVERIFY(qAlpha(reagent.pixel(5, 20)) > 128);
+			QVERIFY(qAlpha(reagent.pixel(20, 35)) > 128);
+			QVERIFY(qAlpha(reagent.pixel(17, 35)) < 128);
+			QVERIFY(qAlpha(reagent.pixel(22, 31)) > 128);
 
 			Scene other(QStringLiteral("plain.elmt"));
 			QVERIFY(other.fitting);

@@ -259,23 +259,34 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 
 			//A junction of pipes (pid_role="junction": a tee, a cross) draws
 			//none of its lines, the folio does (Element::drawJunction()).
-			//Its thumbnail shows them as main lines, from its origin to each
-			//nozzle: it would be empty otherwise.
+			//Its thumbnail shows them, from its origin to each nozzle: it
+			//would be empty otherwise. Main lines; a nozzle left out of the
+			//run (the reagent of an injection point) a secondary one, so
+			//that what the symbol draws there, its arrow, is seen.
 		const pugi::xml_node root = doc.document_element();
 		if (QString::fromUtf8(root.attribute("pid_role").as_string()).trimmed()
 			== QLatin1String("junction"))
 		{
-			ConductorProperties plain;
-			plain.m_medium = TerminalData::Pipe;
+			ConductorProperties main_line;
+			main_line.m_medium = TerminalData::Pipe;
+			ConductorProperties secondary_line = main_line;
+			secondary_line.m_pipe.line_kind = PipeProperties::Secondary;
+			const QStringList run = QString::fromUtf8(root.attribute("pid_run").as_string())
+									.split(QLatin1Char(' '), Qt::SkipEmptyParts);
 			const QColor ink(choices.value(inkChoice()));
-			painter.setPen(QPen(ink.isValid() ? ink : QColor(Qt::black), plain.lineWidth(),
-								Qt::SolidLine, Qt::FlatCap));
+			QPen pen(ink.isValid() ? ink : QColor(Qt::black), main_line.lineWidth(),
+					 Qt::SolidLine, Qt::FlatCap);
 			for (const pugi::xml_node &nozzle : root.child("description").children("terminal"))
 			{
-				if (QLatin1String(nozzle.attribute("medium").as_string()) == QLatin1String("pipe")) {
-					painter.drawLine(QPointF(0, 0), QPointF(nozzle.attribute("x").as_double(),
-															nozzle.attribute("y").as_double()));
+				if (QLatin1String(nozzle.attribute("medium").as_string()) != QLatin1String("pipe")) {
+					continue;
 				}
+				const bool in_run = run.isEmpty()
+						|| run.contains(QString::fromUtf8(nozzle.attribute("name").as_string()));
+				pen.setWidthF(in_run ? main_line.lineWidth() : secondary_line.lineWidth());
+				painter.setPen(pen);
+				painter.drawLine(QPointF(0, 0), QPointF(nozzle.attribute("x").as_double(),
+														nozzle.attribute("y").as_double()));
 			}
 		}
 
