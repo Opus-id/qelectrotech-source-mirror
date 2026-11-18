@@ -29372,8 +29372,8 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="52"/>
-        <source>&quot;Reducer&quot;: the size of the line changes at this symbol. Each of its nozzles takes the size of its pipe or a size of its own, and a change of size stops there. Tick no nozzle of the run of the line. &quot;Spec break&quot;: the material, piping class and nominal pressure of the line change at this symbol, its size goes on through it. Make it an in-line symbol.</source>
-        <translation>« Réduction » : la taille de la ligne change sur ce symbole. Chaque piquage prend la taille de sa tuyauterie ou une taille propre, et un changement de taille s&apos;y arrête. Ne cocher aucun piquage du groupe de la ligne. « Rupture de spécification » : le matériau, la classe de tuyauterie et le PN de la ligne changent sur ce symbole, sa taille le traverse. En faire un symbole en ligne.</translation>
+        <source>&quot;Reducer&quot;: the size of the line changes at this symbol. Each of its nozzles takes the size of its pipe or a size of its own, and a change of size stops there. Tick no nozzle of the run of the line. &quot;Spec break&quot;: the material, piping class and nominal pressure of the line change at this symbol, its size goes on through it. Make it an in-line symbol. &quot;Junction&quot;: a tee, a cross, an injection point. Do not draw its lines: on a folio each is drawn from the origin of the symbol to a nozzle, as the pipe of that nozzle.</source>
+        <translation>« Réduction » : la taille de la ligne change sur ce symbole. Chaque piquage prend la taille de sa tuyauterie ou une taille propre, et un changement de taille s&apos;y arrête. Ne cocher aucun piquage du groupe de la ligne. « Rupture de spécification » : le matériau, la classe de tuyauterie et le PN de la ligne changent sur ce symbole, sa taille le traverse. En faire un symbole en ligne. « Jonction » : un Té, une croix, un piquage d&apos;injection. Ne pas dessiner ses traits : sur un folio, chacun est tracé de l&apos;origine du symbole à un piquage, avec l&apos;aspect de la tuyauterie de ce piquage.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="61"/>
@@ -29404,6 +29404,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="109"/>
         <source>Spec break</source>
         <translation>Rupture de spécification</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="123"/>
+        <source>Junction</source>
+        <translation>Jonction</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="35"/>

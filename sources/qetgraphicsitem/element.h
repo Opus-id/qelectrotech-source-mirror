@@ -309,6 +309,13 @@ class Element : public QetGraphicsItem
 		bool isSpecBreak() const {
 			return m_data.m_pid_role == QLatin1String("spec_break");
 		}
+			/// True for a junction (pid_role="junction"): a tee, a cross, an
+			/// injection point. Its symbol does not draw its lines: each is
+			/// drawn from the origin of the symbol to a nozzle, as the pipe
+			/// of that nozzle (drawJunction())
+		bool isJunction() const {
+			return m_data.m_pid_role == QLatin1String("junction");
+		}
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// The colour of the label of this symbol when the project draws
@@ -541,6 +548,9 @@ class Element : public QetGraphicsItem
 	QList <Terminal *> m_terminals;
 	ElementOptions::Choices inkedChoices(const ElementOptions &options, const QString &family) const;
 	const Conductor *leadingPipe() const;
+	const Conductor *inkingPipe() const;
+	QColor statusInk() const;
+	void drawJunction(QPainter *painter, qreal detail) const;
 	void drawFreeNozzles(QPainter *painter) const;
 	void takePictures();
 

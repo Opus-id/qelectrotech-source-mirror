@@ -235,6 +235,24 @@ class Conductor : public QGraphicsObject
 			/// The colour of a pipe, and with @p source where it comes from:
 			/// the same rule for the folio and for the properties panel
 		QColor pipeColor(PipeColorSource *source = nullptr) const;
+			/// The colour the line is drawn in at rest, neither picked,
+			/// highlighted nor a preview: drawnColor(), black on a folio
+			/// drawn in black
+		QColor plainColor() const;
+			/// The pen the line is drawn with, @p width wide and in @p color:
+			/// its style or its dashes (its potential type @p type when it
+			/// has one, its kind of line, its type of signal), and a
+			/// cosmetic line below a certain zoom (@p detail). The one rule
+			/// for paint() and for a junction, which draws its lines as the
+			/// pipes they go on (Element::drawJunction())
+		QPen linePen(const QColor &color, qreal width, qreal detail,
+					 const PotentialType *type) const;
+			/// The pen of the line at rest: plainColor(), drawnWidth()
+		QPen plainPen(qreal detail) const;
+			/// @p pen as a line is drawn below a certain zoom (@p detail):
+			/// a cosmetic line; that of a pipe (@p pipe), several units wide,
+			/// follows the zoom down to one pixel
+		static QPen zoomedPen(QPen pen, qreal detail, bool pipe);
 			/// Draw again the fittings at the ends of a pipe, which take
 			/// its colour (Element::followsPipes())
 		void updateFittings() const;

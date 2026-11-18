@@ -600,6 +600,10 @@ qet_add_app_test(tst_pipetool tst_pipetool.cpp)
 # grid along the line, at a bend, refusals, the pipe cut keeping its data,
 # one step to undo; wires never cut.
 qet_add_app_test(tst_pipetee tst_pipetee.cpp)
+# A junction of pipes (a tee, a cross, an injection point): its lines drawn by
+# the folio as the pipes they go on, a free nozzle too; the arrow of an
+# injection point in the colour of its reagent; its thumbnail.
+qet_add_app_test(tst_pipejunction tst_pipejunction.cpp)
 # A symbol a line runs through, taken away, leaves one pipe where it stood
 # (the run of a tee too, never its branch); one step to undo; wires as before.
 qet_add_app_test(tst_pipedelete tst_pipedelete.cpp)

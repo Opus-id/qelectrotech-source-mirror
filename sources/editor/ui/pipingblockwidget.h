@@ -31,8 +31,9 @@ class QLabel;
 	The block "Piping" of the element editor: the family of the symbol, the
 	case "in-line symbol" and one case per nozzle for the run of the line (the
 	nozzles whose size follows the pipe, and through which a change of size
-	goes), the role of the symbol for the lines (pid_role: a reducer) and,
-	for a reducer, the nozzle of its large side (pid_large).
+	goes), the role of the symbol for the lines (pid_role: a reducer, a
+	free end, a spec break, a junction) and, for a reducer, the nozzle of
+	its large side (pid_large).
 	Shown in the panel Informations, when no part is selected.
 */
 class PipingBlockWidget : public QGroupBox

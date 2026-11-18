@@ -879,7 +879,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	const QET::Palette::SheetInk sheet_ink = PaletteGraphicsView::paintingInk(qw);
 	PotentialType potential_type;
 	const bool typed = potentialTypeFormat(&potential_type);
-	QColor final_conductor_color(drawnColor());
+	QColor final_conductor_color;
 	if (m_preview) {
 		final_conductor_color = QColor(160, 160, 160);
 	} else if (must_highlight_ == Normal) {
@@ -889,65 +889,21 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	} else if (isSelected()) {
 		final_conductor_color = QET::Palette::pickedColor(sheet_ink);
 	} else {
-		if (Diagram *parent_diagram = diagram()) {
-			if (!parent_diagram -> drawColoredConductors()) {
-				final_conductor_color = Qt::black;
-			}
-		}
+		final_conductor_color = plainColor();
 	}
 
 		//Draw the conductor bigger when is hovered
 		//(lineWidth(): a wire's own width, or for a pipe its kind of line)
 	const qreal line_width = drawnWidth(typed ? &potential_type : nullptr);
-	conductor_pen.setWidthF(m_mouse_over? line_width + 4 : line_width);
+	const qreal detail = options ? options->levelOfDetailFromTransform(painter->worldTransform()) : 1.0;
 
 		//Set the QPen and QBrush to the QPainter
 	painter -> setBrush(conductor_brush);
-	QPen final_conductor_pen = conductor_pen;
-
-		//Set the conductor style. Qt's own dashes (4 on, 2 off) leave
-		//gaps too short to tell a dashed or a dash-dotted conductor from
-		//a solid one at a normal zoom, so these two get longer gaps
-	final_conductor_pen.setColor(final_conductor_color);
-		//(lineStyle(): a wire's own style, or for a pipe its kind of line,
-		//which also never takes a pattern of its own)
-	const Qt::PenStyle line_style = typed ? potential_type.style : m_properties.lineStyle();
-		//The type says how the line looks, so the conductor's own pattern
-		//stays stored but is not applied
-	bool custom_pattern = !typed && m_properties.usesDashPattern()
-			&& m_properties.m_dash_pattern.apply(final_conductor_pen, line_style);
-		//A signal line: its type of signal says its mark, which may be dashes
+	QPen final_conductor_pen = linePen(final_conductor_color,
+									   m_mouse_over ? line_width + 4 : line_width,
+									   detail, typed ? &potential_type : nullptr);
+		//A signal line: its type of signal says its mark
 	const SignalMark::Mark signal_mark = signalMark();
-	if (signal_mark == SignalMark::Dashes) {
-		SignalMark::applyDashes(final_conductor_pen);
-		custom_pattern = true;
-	}
-	if (!custom_pattern)
-	{
-		if (line_style == Qt::DashLine)
-			final_conductor_pen.setDashPattern({5, 4});
-		else if (line_style == Qt::DashDotLine)
-			final_conductor_pen.setDashPattern({6, 4, 1, 4});
-		else
-			final_conductor_pen.setStyle(line_style);
-	}
-	final_conductor_pen.setJoinStyle(Qt::SvgMiterJoin); // better rendering with dot
-
-		//Use a cosmetic line, below a certain zoom. A custom pattern is
-		//in drawing units, which a cosmetic pen cannot follow
-	const qreal detail = options ? options->levelOfDetailFromTransform(painter->worldTransform()) : 1.0;
-	if (!custom_pattern && options && detail < 0.5)
-	{
-			//A cosmetic pen keeps its width in pixels: fine for a wire of one
-			//unit, but a pipe several units wide would swell as the zoom goes
-			//down. It follows the zoom, down to one pixel.
-		if (m_properties.m_medium != TerminalData::Pipe) {
-			final_conductor_pen.setCosmetic(true);
-		} else if (final_conductor_pen.widthF() * detail < 1.0) {
-			final_conductor_pen.setCosmetic(true);
-			final_conductor_pen.setWidthF(1.0);
-		}
-	}
 
 	painter -> setPen(final_conductor_pen);
 
@@ -1044,6 +1000,97 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	drawSignalMarks(painter, final_conductor_color, detail);
 
 	painter -> restore();
+}
+
+/**
+	@brief Conductor::plainColor
+	See the declaration
+*/
+QColor Conductor::plainColor() const
+{
+	if (const Diagram *parent_diagram = diagram()) {
+		if (!parent_diagram -> drawColoredConductors()) {
+			return Qt::black;
+		}
+	}
+	return drawnColor();
+}
+
+/**
+	@brief Conductor::linePen
+	See the declaration
+*/
+QPen Conductor::linePen(const QColor &color, qreal width, qreal detail,
+						const PotentialType *type) const
+{
+	QPen final_conductor_pen = conductor_pen;
+	final_conductor_pen.setWidthF(width);
+
+		//Set the conductor style. Qt's own dashes (4 on, 2 off) leave
+		//gaps too short to tell a dashed or a dash-dotted conductor from
+		//a solid one at a normal zoom, so these two get longer gaps
+	final_conductor_pen.setColor(color);
+		//(lineStyle(): a wire's own style, or for a pipe its kind of line,
+		//which also never takes a pattern of its own)
+	const Qt::PenStyle line_style = type ? type->style : m_properties.lineStyle();
+		//The type says how the line looks, so the conductor's own pattern
+		//stays stored but is not applied
+	bool custom_pattern = !type && m_properties.usesDashPattern()
+			&& m_properties.m_dash_pattern.apply(final_conductor_pen, line_style);
+		//A signal line: its type of signal says its mark, which may be dashes
+	if (signalMark() == SignalMark::Dashes) {
+		SignalMark::applyDashes(final_conductor_pen);
+		custom_pattern = true;
+	}
+	if (!custom_pattern)
+	{
+		if (line_style == Qt::DashLine)
+			final_conductor_pen.setDashPattern({5, 4});
+		else if (line_style == Qt::DashDotLine)
+			final_conductor_pen.setDashPattern({6, 4, 1, 4});
+		else
+			final_conductor_pen.setStyle(line_style);
+	}
+	final_conductor_pen.setJoinStyle(Qt::SvgMiterJoin); // better rendering with dot
+
+		//Use a cosmetic line, below a certain zoom. A custom pattern is
+		//in drawing units, which a cosmetic pen cannot follow
+	if (custom_pattern) {
+		return final_conductor_pen;
+	}
+	return zoomedPen(final_conductor_pen, detail, m_properties.m_medium == TerminalData::Pipe);
+}
+
+/**
+	@brief Conductor::plainPen
+	See the declaration
+*/
+QPen Conductor::plainPen(qreal detail) const
+{
+	PotentialType potential_type;
+	const PotentialType *type = potentialTypeFormat(&potential_type) ? &potential_type : nullptr;
+	return linePen(plainColor(), drawnWidth(type), detail, type);
+}
+
+/**
+	@brief Conductor::zoomedPen
+	See the declaration
+*/
+QPen Conductor::zoomedPen(QPen pen, qreal detail, bool pipe)
+{
+	if (detail >= 0.5) {
+		return pen;
+	}
+		//A cosmetic pen keeps its width in pixels: fine for a wire of one
+		//unit, but a pipe several units wide would swell as the zoom goes
+		//down. It follows the zoom, down to one pixel.
+	if (!pipe) {
+		pen.setCosmetic(true);
+	} else if (pen.widthF() * detail < 1.0) {
+		pen.setCosmetic(true);
+		pen.setWidthF(1.0);
+	}
+	return pen;
 }
 
 /**

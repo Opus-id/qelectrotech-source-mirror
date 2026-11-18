@@ -1054,13 +1054,64 @@ const Conductor *Element::leadingPipe() const
 }
 
 /**
+	@brief Element::inkingPipe
+	@return the pipe a fitting takes the colour of. A junction whose symbol
+	leaves a nozzle out of its run (the reagent of an injection point): the
+	pipe of the first such nozzle that has one, what the symbol draws being
+	the arrow of that line. Else leadingPipe(). Nullptr without a pipe.
+*/
+const Conductor *Element::inkingPipe() const
+{
+	if (isJunction())
+	{
+		const QStringList run = pipeRun();
+		const Terminal *first = nullptr;
+		const Conductor *pipe = nullptr;
+		for (const Terminal *terminal : m_terminals)
+		{
+			if (terminal->medium() != TerminalData::Pipe || run.contains(terminal->baseName())
+				|| (first && terminal->baseName() >= first->baseName())) {
+				continue;
+			}
+			for (const Conductor *conductor : terminal->conductors())
+			{
+				if (conductor->medium() == TerminalData::Pipe) {
+					first = terminal;
+					pipe = conductor;
+					break;
+				}
+			}
+		}
+		if (pipe) {
+			return pipe;
+		}
+	}
+	return leadingPipe();
+}
+
+/**
+	@brief Element::statusInk
+	@return the colour the project sets for the status of works of this
+	element; an invalid one when it has none, or on a folio drawn in black
+*/
+QColor Element::statusInk() const
+{
+	const Diagram *folio = diagram();
+	if (!folio || !folio->drawColoredConductors() || !folio->project()) {
+		return QColor();
+	}
+	return folio->project()->pidCodification().status_colors.value(
+				m_option_choices.value(PidStatus::option()));
+}
+
+/**
 	@brief Element::inkedChoices
 	@param options : the options of a symbol
 	@param family : its family of objects, see ElementData::m_pid_family
 	@return what to draw the symbol with: the options chosen, and the colour
 	the project sets for the status of works of this element, else that of
-	the pipe of a fitting, else that of @p family, unless the folio is drawn
-	in black
+	the pipe of a fitting (inkingPipe()), else that of @p family, unless the
+	folio is drawn in black
 */
 ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 											   const QString &family) const
@@ -1080,7 +1131,7 @@ ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 	const PidCodification &codification = project->pidCodification();
 	QColor ink = codification.status_colors.value(m_option_choices.value(PidStatus::option()));
 	if (!ink.isValid() && family == QLatin1String("pipe")) {
-		if (const Conductor *pipe = leadingPipe()) {
+		if (const Conductor *pipe = inkingPipe()) {
 			ink = pipe->pipeColor();
 		}
 	}
@@ -1260,6 +1311,12 @@ void Element::paint(
 			drawPlcTable(painter);
 	}
 
+		//A junction: its lines, over its drawing (the arrow of an injection
+		//point stops at the edge of the line it meets)
+	if (isJunction()) {
+		drawJunction(painter, options ? options->levelOfDetailFromTransform(painter->worldTransform())
+									  : 1.0);
+	}
 	if (followsPipes()) {
 		drawFreeNozzles(painter);
 	}
@@ -1268,6 +1325,113 @@ void Element::paint(
 	if ( isSelected() || m_mouse_over ) {
 		QGIUtility::drawBoundingRectSelection(this, painter);
 	}
+}
+
+/**
+	@brief Element::drawJunction
+	Draw the lines of a junction (isJunction()): one from the origin of the
+	symbol to each of its nozzles, in or out of its run, as the pipe of that
+	nozzle is drawn at rest (Conductor::plainPen(): its width, its dashes,
+	its colour, black on a folio drawn in black). A nozzle without a pipe is
+	drawn too, as the first pipe of the junction (leadingPipe()), else as a
+	main line in the ink of the symbol: the junction is always whole, on
+	paper too. The status of works of the element, when it has one, gives
+	its colour to all its lines, as it does to its drawing.
+	Dashes start from the origin, which is always inked. A branch, which no
+	line goes on from on the other side of the origin, goes back beyond it
+	by half the width of the widest line across, so that two lines meeting
+	at a right angle leave no notch; the lines which go straight on are
+	drawn over the branches, and where two of them cross (a cross), the one
+	of the first nozzles, N1 and N2, over the other.
+	@param painter
+	@param detail : the level of detail of the drawing
+*/
+void Element::drawJunction(QPainter *painter, qreal detail) const
+{
+	struct Line {
+		QString nozzle;
+		QPointF along;	//unit vector from the origin to the nozzle
+		qreal length;
+		QPen pen;
+	};
+	QList<Line> lines;
+	const Conductor *leading = leadingPipe();
+	const QColor status = statusInk();
+	for (const Terminal *terminal : m_terminals)
+	{
+		if (terminal->medium() != TerminalData::Pipe) {
+			continue;
+		}
+		const QPointF nozzle = mapFromScene(terminal->dockConductor());
+		const qreal length = QLineF(QPointF(), nozzle).length();
+			//(a nozzle on the origin has no line)
+		if (length < 0.5) {
+			continue;
+		}
+		const Conductor *pipe = leading;
+		for (const Conductor *conductor : terminal->conductors())
+		{
+			if (conductor->medium() == TerminalData::Pipe) {
+				pipe = conductor;
+				break;
+			}
+		}
+		QPen pen;
+		if (pipe) {
+			pen = pipe->plainPen(detail);
+		} else {
+			ConductorProperties plain;
+			plain.m_medium = TerminalData::Pipe;
+			pen = Conductor::zoomedPen(QPen(symbolInk(), plain.lineWidth(), Qt::SolidLine,
+											Qt::SquareCap, Qt::MiterJoin), detail, true);
+		}
+		if (status.isValid()) {
+			pen.setColor(status);
+		}
+		lines << Line{terminal->baseName(), nozzle / length, length, pen};
+	}
+		//The last nozzles first: where two lines cross, the one of the first
+		//nozzles, N1 and N2, is drawn over the other
+	std::sort(lines.begin(), lines.end(), [](const Line &a, const Line &b) {
+		return a.nozzle > b.nozzle;
+	});
+
+	painter->save();
+	painter->setRenderHint(QPainter::Antialiasing, false);
+	painter->setBrush(Qt::NoBrush);
+		//The branches first, then the lines which go straight on through
+		//the origin, over them
+	for (const bool straight : {false, true})
+	{
+		for (const Line &line : std::as_const(lines))
+		{
+			bool goes_on = false;
+			qreal back = 0;
+			for (const Line &other : std::as_const(lines))
+			{
+				const qreal across = line.along.x() * other.along.y() - line.along.y() * other.along.x();
+				if (qAbs(across) > 0.01) {
+					if (!other.pen.isCosmetic()) {
+						back = qMax(back, other.pen.widthF() / 2.0);
+					}
+				} else if (QPointF::dotProduct(line.along, other.along) < 0) {
+					goes_on = true;
+				}
+			}
+			if (goes_on != straight) {
+				continue;
+			}
+				//The square ends of the pen of a pipe, which shape its dashes,
+				//go half its width beyond the line drawn: it is drawn that
+				//much shorter, and inks up to the nozzle, no further
+			const qreal cap = line.pen.isCosmetic() || line.pen.capStyle() == Qt::FlatCap
+					? 0 : line.pen.widthF() / 2.0;
+			painter->setPen(line.pen);
+			painter->drawLine(QLineF((cap - (goes_on ? 0 : back)) * line.along,
+									 (line.length - cap) * line.along));
+		}
+	}
+	painter->restore();
 }
 
 /**

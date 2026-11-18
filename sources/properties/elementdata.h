@@ -365,8 +365,12 @@ class ElementData : public PropertiesInterface
 			/// "reducer", where the size of the line changes and a change
 			/// of DN stops (Element::isReducer()); "free_end", the free end
 			/// of a pipe the pipe tool places in an empty place, which goes
-			/// with its pipe (Element::isFreeEnd()); none for any other
-			/// symbol. A role this version does not know is kept as it is.
+			/// with its pipe (Element::isFreeEnd()); "spec_break", where
+			/// the specification of the line changes (Element::isSpecBreak());
+			/// "junction", a tee, a cross, an injection point, whose lines
+			/// the program draws as the pipes they go on
+			/// (Element::isJunction()); none for any other symbol. A role
+			/// this version does not know is kept as it is.
 		QString m_pid_role;
 			/// The large side of a reducer, by the name of its nozzle
 			/// (attribute pid_large="N1", Element::largeNozzle()): a large

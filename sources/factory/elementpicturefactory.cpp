@@ -18,6 +18,7 @@
 #include "elementpicturefactory.h"
 
 #include <ElementsCollection/elementslocation.h>
+#include <conductorproperties.h>
 #include <editor/graphicspart/partline.h>
 #include <properties/elementdata.h>
 #include <qetapp.h>
@@ -255,6 +256,28 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 		painter.scale(scale, scale);
 		painter.translate(hsx, hsy);
 		painter.drawPicture(0, 0, m_pictures_H.value(uuid));
+
+			//A junction of pipes (pid_role="junction": a tee, a cross) draws
+			//none of its lines, the folio does (Element::drawJunction()).
+			//Its thumbnail shows them as main lines, from its origin to each
+			//nozzle: it would be empty otherwise.
+		const pugi::xml_node root = doc.document_element();
+		if (QString::fromUtf8(root.attribute("pid_role").as_string()).trimmed()
+			== QLatin1String("junction"))
+		{
+			ConductorProperties plain;
+			plain.m_medium = TerminalData::Pipe;
+			const QColor ink(choices.value(inkChoice()));
+			painter.setPen(QPen(ink.isValid() ? ink : QColor(Qt::black), plain.lineWidth(),
+								Qt::SolidLine, Qt::FlatCap));
+			for (const pugi::xml_node &nozzle : root.child("description").children("terminal"))
+			{
+				if (QLatin1String(nozzle.attribute("medium").as_string()) == QLatin1String("pipe")) {
+					painter.drawLine(QPointF(0, 0), QPointF(nozzle.attribute("x").as_double(),
+															nozzle.attribute("y").as_double()));
+				}
+			}
+		}
 
 		m_pixmap_H.insert(uuid, pix);
 		return pix;
