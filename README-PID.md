@@ -132,9 +132,11 @@ line.*
   reducers, and stop at a **spec break** (a symbol of `pid_role` =
   `spec_break`) and at equipment. The fluid also goes through spec breaks;
   it stops at equipment and at a nozzle out of the run of a symbol (an
-  injection point). The line number goes as the fluid, but through a tee
-  or a cross only straight on, never into or out of the branch. The flow
-  stops at every tee. A new pipe takes what the line it joins has.
+  injection point). The line number and the kind of line (main,
+  secondary, auxiliary) go as the fluid, but through a tee or a cross only
+  straight on, never into or out of the branch. The flow stops at every
+  junction: a tee, a cross, an injection point. A new pipe takes what the
+  line it joins has; the branch of a tee starts as a main line.
 - **A codification per project**: *Project > Import a P&ID codification*
   reads the codes of the fluids and materials from a CSV file the company
   keeps (lines `kind;code;name;family`); none is shipped. The page of a pipe
@@ -256,13 +258,19 @@ line.*
   size out of the list of its material is marked by an orange band under
   the pipe, on screen only.
 - **Inline symbols have no size of their own**: the nozzles of a valve
-  (`pid_inline`, its two nozzles) or of a tee (`pid_run="N1 N2 N3"`, the
-  nozzles of one size) follow their pipe; their size field is greyed, in
+  (`pid_inline`, its two nozzles) or of a tee (`pid_run="N1 N2 N3"`)
+  follow their pipe; their size field is greyed, in
   the *Nozzles* section of the *P&ID* tab as in the element editor. A
   change made on the page of a pipe goes through them, and through
   nozzles that touch with no pipe between them, in one undo step, each
   material taking it as it has it (DN 60 for a cast iron). It stops at
-  equipment, at reducers and at a group of nozzles of different sizes.
+  equipment and at reducers.
+- **The branch of a tee has a size of its own**: the size goes through a
+  tee or a cross straight on only, as the line number. A reducing tee is
+  one tee, DN 25 on a DN 50 line, with no reducer and no mark; a change of
+  DN on the line leaves its branches as they are. A pipe drawn from the
+  branch starts with the size of the line (an equal tee until told
+  otherwise), unless the nozzle at its other end has a size.
 - Equipment, instruments and **reducers** have sizes of their own: given in
   the symbol (the element editor chooses DN or Ø beside the field) and
   changed on a placed symbol in the *Nozzles* section of its *P&ID* tab
