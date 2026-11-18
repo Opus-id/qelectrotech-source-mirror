@@ -292,7 +292,7 @@ line.*
   tooltip says so; nothing is turned nor blocked.
 - The size of a nozzle is shown with its name, when terminal names are
   shown and the project shows the sizes; the word `DN` can be left out
-  (*Texts* tab). Both are written from the end of the nozzle, along its
+  (*Texts* tab). Both are written 1 mm from the end of the nozzle, along its
   pipe and clear of the mark of its connection: the name above and the
   size below a horizontal pipe; beside a vertical one, upright or turned
   as the project keeps the texts of rotated elements horizontal or not.
@@ -305,9 +305,10 @@ line.*
   `.elmt`, changed on a placed symbol in the *Nozzles* section of its
   *P&ID* tab, in the same undo step as its size). The list is fixed in the
   code.
-- In that section, a chain button above each column (connection, size,
-  drawing of the connection) keeps the nozzles of the symbol alike: the
-  first one gives its value. A link is undone only by a click, and stays
+- In that section the nozzles are listed by name (N10 after N9), and a
+  chain button above each column (connection, size, drawing of the
+  connection) keeps the nozzles of the symbol alike: the first one gives
+  its value. A link is undone only by a click, and stays
   undone (`same_connection`, `same_size`, `same_mark` = `false` on
   `<pid_nozzles>`).
 - The connection limits the kind of size: a flange or a quick coupling
@@ -332,7 +333,10 @@ line.*
   sockets), its grooved end in the collar, the other half of a quick
   coupling. A butt weld is a dot. Two symbols joined nozzle to nozzle
   draw nothing between them. A spec break is transparent: the pipe draws
-  the part that answers the symbol on the other side.
+  the part that answers the symbol on the other side. A pipe begins at
+  its nozzle: the square end of a thick line never shows behind it, in
+  the symbol. The element editor draws the mark of the connection chosen
+  on the nozzle, in the colour of the nozzle.
 
 **Symbols**
 - **A *P&ID* tab** in the properties panel of a placed P&ID symbol, first
