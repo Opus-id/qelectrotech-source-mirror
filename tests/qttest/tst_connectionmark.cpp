@@ -988,6 +988,47 @@ class tst_connectionmark : public QObject
 			QVERIFY(wire->lineIntoSpecBreak(wire->terminal1).isNull());
 		}
 
+			// A pipe begins at its nozzle: where no connection is drawn, the
+			// square end of its pen, half its width, does not show behind
+			// the nozzle, in the symbol (lot c3 of the step 6b-1c)
+		void aPipeDoesNotShowBehindItsNozzle()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			folio->setDrawTerminals(false);
+			folio->setDisplayGrid(false);
+				// N2 of the equipment, east, x 120; N1 of the valve, west, x 310
+			Element *tank = place(project, folio, QPointF(100, 200));
+			Element *valve = place(project, folio, QPointF(330, 200), true);
+			QVERIFY(tank && valve);
+			Terminal *t2 = terminal(tank, QStringLiteral("N2"));
+			Terminal *v1 = terminal(valve, QStringLiteral("N1"));
+			auto *pipe = new Conductor(t2, v1);
+			folio->addItem(pipe);
+				// the project draws no connection: the pipe begins at its nozzles
+			QVERIFY(!t2->drawsConnectionMark() && !v1->drawsConnectionMark());
+			QCOMPARE(pipe->pipeStartAt(t2), 0.0);
+			QCOMPARE(pipe->pipeStartAt(v1), 0.0);
+				// a pipe of 4 units, from y 198 to 202: its upper edge is the
+				// row 38 of the image, clear of the line of the symbols
+				// on the valve: drawn up to x 310, not from 310 to 312
+			const QImage at_valve = render(folio, QPointF(310, 200));
+			QVERIFY(qGray(at_valve.pixel(36, 38)) < 192);
+			QVERIFY2(qGray(at_valve.pixel(40, 38)) >= 192, "the pipe shows in the valve");
+			QVERIFY2(qGray(at_valve.pixel(41, 38)) >= 192, "the pipe shows in the valve");
+			QVERIFY2(qGray(at_valve.pixel(41, 41)) >= 192, "the pipe shows in the valve");
+				// on the equipment: drawn from x 120, not from 118 to 120
+			const QImage at_tank = render(folio, QPointF(120, 200));
+			QVERIFY(qGray(at_tank.pixel(44, 38)) < 192);
+			QVERIFY2(qGray(at_tank.pixel(38, 38)) >= 192, "the pipe shows on the nozzle of the equipment");
+			QVERIFY2(qGray(at_tank.pixel(39, 38)) >= 192, "the pipe shows on the nozzle of the equipment");
+				// with its connection drawn, the pipe begins further still
+			drawFlanges(project);
+			QVERIFY(pipe->pipeStartAt(v1) > 0);
+			const QImage flanged = render(folio, QPointF(310, 200));
+			QVERIFY2(qGray(flanged.pixel(41, 38)) >= 192, "the pipe shows in the valve");
+		}
+
 			// ---- on paper ----
 		void theMarkIsPrintedInTheInkOfTheSymbol()
 		{

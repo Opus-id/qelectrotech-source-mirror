@@ -935,8 +935,9 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 
 	painter -> setPen(final_conductor_pen);
 
-		//A pipe begins at the flange it brings or at the mark of its nozzle
-		//(pipeStartAt()): what lies before is not drawn
+		//A pipe begins at its nozzle, at the flange it brings or at the mark
+		//of its nozzle (pipeStartAt()): what lies before is not drawn, the
+		//square end of its pen behind the nozzle included
 	const QPainterPath trimmed = m_properties.m_medium == TerminalData::Pipe
 			? trimmedEnds(final_conductor_pen.widthF() / 2.0 + 1.0) : QPainterPath();
 	if (!trimmed.isEmpty()) {
@@ -1315,30 +1316,54 @@ QLineF Conductor::lineIntoSpecBreak(const Terminal *terminal) const
 /**
 	@brief Conductor::trimmedEnds
 	@param half_width : half the width of the pen the pipe is drawn with
-	@return what of this pipe is not drawn: at each end, from the nozzle to
-	where it begins (pipeStartAt()); on a spec break where the line goes no
-	further (lineIntoSpecBreak() null), the square end of a thick pipe
-	beyond the nozzle too; an empty path for most pipes and for any other
-	medium
+	@return what of this pipe is not drawn: at each end, the square end of
+	its pen behind the nozzle, half its width into the symbol, and the line
+	from the nozzle to where the pipe begins (pipeStartAt()). A pipe begins
+	at its nozzle, no sooner. The square end is kept where the line goes on
+	with the same pen: into a spec break between two pipes
+	(lineIntoSpecBreak()), in a junction (Element::drawJunction()); and for
+	a path which does not leave its nozzle straight, which would be notched.
+	An empty path for any other medium.
 */
 QPainterPath Conductor::trimmedEnds(qreal half_width) const
 {
 	QPainterPath trimmed;
+	if (m_properties.m_medium != TerminalData::Pipe || endsTouch()) {
+		return trimmed;
+	}
+	const QList<QPointF> points = segmentsToPoints();
+		//The first step of the path from @p terminal goes the way the nozzle
+		//faces
+	auto leaves_straight = [this, &points](const Terminal *terminal, const QPointF &outward) {
+		const bool from_first = terminal == terminal1;
+		for (int i = 0 ; i + 1 < points.size() ; ++i) {
+			const QPointF step = from_first
+					? points.at(i + 1) - points.at(i)
+					: points.at(points.size() - 2 - i) - points.at(points.size() - 1 - i);
+			if (QLineF(QPointF(), step).length() < 0.01) {
+				continue;
+			}
+			const qreal along = step.x() * outward.x() + step.y() * outward.y();
+			const qreal aside = step.x() * outward.y() - step.y() * outward.x();
+			return along > 0 && qAbs(aside) < 0.01;
+		}
+		return false;
+	};
 	for (const Terminal *terminal : {terminal1, terminal2})
 	{
+		if (!terminal) {
+			continue;
+		}
+		const QPointF outward = outwardOf(terminal);
 		qreal start = pipeStartAt(terminal);
 		if (start <= 0) {
-				//Its counter-flange on the nozzle of a spec break: the pipe
-				//stops there, its square end would show beyond it
-			const Element *mark = terminal ? terminal->parentElement() : nullptr;
-			if (m_properties.m_medium != TerminalData::Pipe || endsTouch()
-				|| !mark || !mark->isSpecBreak()
-				|| !lineIntoSpecBreak(terminal).isNull()) {
+			const Element *symbol = terminal->parentElement();
+			if (!lineIntoSpecBreak(terminal).isNull() || (symbol && symbol->isJunction())
+				|| !leaves_straight(terminal, outward)) {
 				continue;
 			}
 			start = 0;
 		}
-		const QPointF outward = outwardOf(terminal);
 		const QPointF across(-outward.y(), outward.x());
 		const QPointF dock = mapFromScene(terminal->dockConductor());
 			//From behind the nozzle, where the square end of a thick pipe
