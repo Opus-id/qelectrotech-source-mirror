@@ -49,7 +49,8 @@ class QToolButton;
 	its own material (resizeLine()); reducers stop it. The spec: the
 	material, piping class and nominal pressure go on through the valves,
 	tees and reducers; spec breaks and equipment stop it (step 5l-1l). The
-	other fields stay on the pipes selected.
+	fluid, the line number, the kind of line and the flow go on as
+	Conductor::inlineRun() says. The other fields stay on the pipes selected.
 */
 class PipePropertiesWidget : public PropertiesEditorWidget
 {
@@ -74,8 +75,10 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// Which pipes a change reaches: those selected; with them, those
 			/// their size passes to; those their spec (material, piping
 			/// class, nominal pressure) passes to; those their fluid, their
-			/// line number or their flow passes to, see Conductor::inlineRun()
-		enum class Reach { Selection, Size, Spec, Fluid, LineNumber, Flow };
+			/// line number or their flow passes to, see Conductor::inlineRun();
+			/// those their kind of line passes to, the same as their line
+			/// number
+		enum class Reach { Selection, Size, Spec, Fluid, LineNumber, LineKind, Flow };
 
 		void buildUi();
 		QLineEdit *addTextField(const QString &name, const QString &label,

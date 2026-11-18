@@ -300,9 +300,19 @@ void PipePropertiesWidget::buildUi()
 	m_kind->addItem(tr("Secondary flow line"), int(PipeProperties::Secondary));
 	m_kind->addItem(tr("Auxiliary system line"), int(PipeProperties::Auxiliary));
 	layout->addRow(tr("Kind of line:"), m_kind);
+		//The same kind on the whole line, as its number: straight on through
+		//a tee, never into its branch (step 6b-1c)
 	connect(m_kind, &QComboBox::activated, this, [this](int index) {
 		const auto kind = PipeProperties::LineKind(m_kind->itemData(index).toInt());
-		applyChange([kind](PipeProperties &p) { p.line_kind = kind; });
+		const QString note = lineNote(
+					[](const PipeProperties &p) { return PipeProperties::lineKindToString(p.line_kind); },
+					PipeProperties::lineKindToString(kind), Reach::LineKind);
+		applyChange([kind](PipeProperties &p) { p.line_kind = kind; }, Reach::LineKind);
+			//Said after the change, which clears what was said
+		if (!note.isEmpty()) {
+			m_refused = note;
+			updateUi();
+		}
 	});
 
 	m_status = new QComboBox(this);
@@ -1160,9 +1170,11 @@ QList<Conductor *> PipePropertiesWidget::changedPipes(Reach reach) const
 {
 	QList<Conductor *> changed = pipes();
 	if (reach != Reach::Selection) {
+			//The kind of a line goes as far as its number
 		const Conductor::LineReach line_reach = reach == Reach::Spec       ? Conductor::LineReach::Spec
 											  : reach == Reach::Fluid      ? Conductor::LineReach::Fluid
 											  : reach == Reach::LineNumber ? Conductor::LineReach::LineNumber
+											  : reach == Reach::LineKind   ? Conductor::LineReach::LineNumber
 											  : reach == Reach::Flow       ? Conductor::LineReach::Flow
 																		   : Conductor::LineReach::Size;
 		for (Conductor *pipe : pipes()) {
@@ -1221,6 +1233,8 @@ QString PipePropertiesWidget::lineNote(const std::function<QString(const PipePro
 				+ tr("%n of them had another line number (%1): only equipment, an injection lance "
 					 "or the branch of a tee keeps two line numbers apart.", "", replaced)
 				  .arg(values.join(QStringLiteral(", ")));
+	} else if (replaced && reach == Reach::LineKind) {
+			//Every pipe changed had another kind: nothing more to say
 	} else if (replaced && reach == Reach::Flow) {
 		note += QLatin1Char(' ')
 				+ tr("%n of them had another flow (%1): only a tee or equipment keeps two "

@@ -208,7 +208,8 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	and reducers, up to a spec break or equipment); its fluid the same way,
 	through spec breaks too (LineReach::Fluid, step 5l-1z); its line number
 	and its flow as far as they go (LineReach::LineNumber, LineReach::Flow,
-	step 5l-1k). Done once, when
+	step 5l-1k); its kind of line (main, secondary, auxiliary) as its line
+	number, a branch of a tee starting as a main line (step 6b-1c). Done once, when
 	it is connected: a pipe given data of its own afterwards (the halves of a
 	pipe cut, a pipe read from a file) keeps them, empty fields included.
 */
@@ -256,6 +257,22 @@ void Conductor::takeLineSpec()
 	take({&PipeProperties::fluid}, LineReach::Fluid);
 	take({&PipeProperties::line_number}, LineReach::LineNumber);
 	take({&PipeProperties::flow}, LineReach::Flow);
+		//Its kind of line, that of the nearest pipe of the line it goes on:
+		//as far as the line number goes (step 6b-1c)
+	bool kind_taken = false;
+	for (Terminal *end : {terminal1, terminal2})
+	{
+		if (!end || kind_taken) {
+			continue;
+		}
+		for (const Conductor *other : runFrom({end}, LineReach::LineNumber)) {
+			if (other != this && other->m_properties.m_medium == TerminalData::Pipe) {
+				data.line_kind = other->m_properties.m_pipe.line_kind;
+				kind_taken = true;
+				break;
+			}
+		}
+	}
 	if (!(pipe == properties())) {
 		setProperties(pipe);
 	}
@@ -3478,7 +3495,8 @@ void Conductor::updateFittings() const
 	LineReach::Fluid, the pipes its fluid passes to: as the spec, on through
 	spec breaks too (step 5l-1z); equipment stops it, and so does a nozzle
 	left out of the run of its symbol (the reagent of an injection lance).
-	LineReach::LineNumber, the pipes its line number passes to: as the
+	LineReach::LineNumber, the pipes its line number passes to, and its
+	kind of line (step 6b-1c): as the
 	fluid, but through a tee or a cross (a run of three nozzles or more)
 	only straight on, from a nozzle to the one opposite, never into nor out
 	of a branch (step 5l-1k). LineReach::Flow, the pipes its flow passes

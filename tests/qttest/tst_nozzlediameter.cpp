@@ -3105,6 +3105,111 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(flow(aside_pipe).isEmpty());
 		}
 
+			// The kind of line (main, secondary, auxiliary; step 6b-1c) goes
+			// as the line number: through valves and reducers, straight on
+			// through a tee, never into its branch. A new pipe takes the one
+			// of the line it goes on; changed in the panel, the whole line
+			// takes it in one step; a pipe read from a file keeps its own.
+		void theKindOfLineGoesAsTheLineNumber()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *left = place(folio, tank);
+			Element *v = place(folio, addValve(project));
+			Element *tee = place(folio, addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" ")));
+			Element *below = place(folio, tank);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *right = place(folio, tank);
+			QVERIFY(left && v && tee && below && reducer && right);
+			left->setPos(0, 200);
+			v->setPos(200, 200);
+			tee->setPos(400, 200);
+			below->setPos(400, 600);
+			reducer->setPos(600, 200);
+			right->setPos(800, 200);
+			auto kind = [](const Conductor *pipe) { return pipe->properties().m_pipe.line_kind; };
+			auto give = [](Conductor *pipe, PipeProperties::LineKind line_kind) {
+				ConductorProperties properties = pipe->properties();
+				properties.m_pipe.line_kind = line_kind;
+				pipe->setProperties(properties);
+			};
+
+				// ---- a new pipe ----
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), v, QStringLiteral("N1"));
+			QVERIFY(p1);
+			QCOMPARE(kind(p1), PipeProperties::Main);
+			give(p1, PipeProperties::Secondary);
+				// through the valve, straight on through the tee, through the
+				// reducer; the branch is another line, a main one to start with
+			Conductor *p2 = connect(folio, v, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+			Conductor *p3 = connect(folio, tee, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *branch = connect(folio, tee, QStringLiteral("N3"), below, QStringLiteral("N1"));
+			Conductor *p4 = connect(folio, reducer, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			QVERIFY(p2 && p3 && branch && p4);
+			for (const Conductor *pipe : {p2, p3, p4}) {
+				QCOMPARE(kind(pipe), PipeProperties::Secondary);
+			}
+			QCOMPARE(kind(branch), PipeProperties::Main);
+
+				// ---- in the panel ----
+			QUndoStack &stack = folio->undoStack();
+			const int steps = stack.count();
+			PipePropertiesWidget page({p3});
+			auto *list = page.findChild<QComboBox *>(QStringLiteral("line_kind"));
+			QVERIFY(list);
+			list->setCurrentIndex(2);
+			emit list->activated(2);
+			for (const Conductor *pipe : {p1, p2, p3, p4}) {
+				QCOMPARE(kind(pipe), PipeProperties::Auxiliary);
+			}
+			QCOMPARE(kind(branch), PipeProperties::Main);
+			QCOMPARE(stack.count(), steps + 1);
+			QVERIFY2(page.diameterMessage().contains(QStringLiteral("3 other pipe line(s)")),
+					 qPrintable(page.diameterMessage()));
+				// one step undoes it
+			stack.undo();
+			for (const Conductor *pipe : {p1, p2, p3, p4}) {
+				QCOMPARE(kind(pipe), PipeProperties::Secondary);
+			}
+			stack.redo();
+			QCOMPARE(kind(p1), PipeProperties::Auxiliary);
+				// the branch changed: alone, nothing to say
+			PipePropertiesWidget branch_page({branch});
+			auto *branch_list = branch_page.findChild<QComboBox *>(QStringLiteral("line_kind"));
+			branch_list->setCurrentIndex(1);
+			emit branch_list->activated(1);
+			QCOMPARE(kind(branch), PipeProperties::Secondary);
+			QCOMPARE(kind(p2), PipeProperties::Auxiliary);
+			QCOMPARE(kind(p3), PipeProperties::Auxiliary);
+			QVERIFY(branch_page.diameterMessage().isEmpty());
+
+				// ---- the file ----
+				// a main line among auxiliary ones, as a file may have it: a
+				// new pipe there takes the kind of the line, the one read
+				// back keeps its own
+			give(p2, PipeProperties::Main);
+			QHash<Terminal *, int> ids;
+			QDomDocument doc;
+			QDomElement saved = p2->toXml(doc, ids, {});
+			QVERIFY(!saved.hasAttribute(QStringLiteral("pid_line_kind")));
+			Terminal *from = p2->terminal1;
+			Terminal *to = p2->terminal2;
+			folio->removeItem(p2);
+			delete p2;
+			auto *again = new Conductor(from, to);
+			QCOMPARE(kind(again), PipeProperties::Auxiliary);
+			again->fromXml(saved);
+			QCOMPARE(kind(again), PipeProperties::Main);
+			delete again;
+		}
+
 			// The branch of a tee has a size of its own (step 6b-1c, which
 			// revises 5l-1j, j1): a reducer against its N3 is no more needed
 			// for a reducing tee; one placed there sizes the branch only, and
