@@ -2076,7 +2076,7 @@ void QETDiagramEditor::setUpActions()
 	m_add_dimension_linear->setStatusTip(tr("Adds a linear dimension to the current sheet"));
 	m_add_dimension_chain ->setStatusTip(tr("Adds a chain dimension to the current sheet"));
 	m_add_bridge    ->setStatusTip(tr("Draws a bridge over terminals: every terminal crossed becomes one of its connections"));
-	m_add_pipe      ->setStatusTip(tr("Draws pipes from a free nozzle to another: a click near a nozzle is enough"));
+	m_add_pipe      ->setStatusTip(tr("Draws pipes from a free nozzle to another, and signal lines from a signal terminal to another: a click near one is enough"));
 		//A frame with its own =plant +location: the symbols drawn inside it
 		//take them (see StructureBoxItem)
 	QAction *add_structure_box = m_add_item_actions_group.addAction(QET::Icons::PartRectangle, tr("Add a structure box"));

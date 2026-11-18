@@ -43,7 +43,7 @@ class tst_pipemagnet : public QObject
 
 	QETProject *m_project = nullptr;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_electrical, m_pipe;
+	ElementsLocation m_electrical, m_pipe, m_signal;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -119,12 +119,14 @@ class tst_pipemagnet : public QObject
 			m_project = new QETProject();
 			m_project->embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("magnet"), NamesList());
-			QDomDocument a, b;
+			QDomDocument a, b, c;
 			m_electrical = add("electrical.elmt",
 					   definition(a, "81111111-1111-1111-1111-111111111111", ""));
 			m_pipe = add("pipe.elmt",
 				     definition(b, "82222222-2222-2222-2222-222222222222", "pipe"));
-			QVERIFY(m_electrical.exist() && m_pipe.exist());
+			m_signal = add("signal.elmt",
+				       definition(c, "83333333-3333-3333-3333-333333333333", "signal"));
+			QVERIFY(m_electrical.exist() && m_pipe.exist() && m_signal.exist());
 			m_folio = m_project->addNewDiagram();
 		}
 
@@ -220,6 +222,50 @@ class tst_pipemagnet : public QObject
 				// exactly on it, as always
 			dragFrom(from, to->sceneBoundingRect().center());
 			QCOMPARE(from->conductors().size(), 1);
+		}
+
+			// Step 6-4: a signal line is caught by a signal terminal as a
+			// pipe is by a nozzle, and never across two media
+		void aSignalTerminalCatchesASignalLineReleasedNearIt()
+		{
+			const auto ends = row(m_signal, m_signal);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			Terminal *to = ends.second->terminals().at(0);
+			QCOMPARE(from->magnetTarget(nearBelow(to), Terminal::magnetRadius), to);
+				// the other terminal of its own symbol
+			QCOMPARE(from->magnetTarget(nearBelow(ends.first->terminals().at(0)),
+						    Terminal::magnetRadius), nullptr);
+
+				// a signal line near a nozzle, a pipe near a signal terminal
+			const auto mixed = row(m_signal, m_pipe);
+			QVERIFY(mixed.first && mixed.second);
+			Terminal *signal = mixed.first->terminals().at(1);
+			Terminal *nozzle = mixed.second->terminals().at(0);
+			QCOMPARE(signal->magnetTarget(nearBelow(nozzle), Terminal::magnetRadius), nullptr);
+			QCOMPARE(nozzle->magnetTarget(nearBelow(signal), Terminal::magnetRadius), nullptr);
+				// a signal line near a wire terminal, a wire near a signal terminal
+			const auto wires = row(m_signal, m_electrical);
+			QVERIFY(wires.first && wires.second);
+			Terminal *wire = wires.second->terminals().at(0);
+			Terminal *other_signal = wires.first->terminals().at(1);
+			QCOMPARE(other_signal->magnetTarget(nearBelow(wire), Terminal::magnetRadius), nullptr);
+			QCOMPARE(wire->magnetTarget(nearBelow(other_signal), Terminal::magnetRadius), nullptr);
+
+				// the whole gesture, through the events of the folio
+			const QPointF at = nearBelow(to);
+			QVERIFY2(!onATerminal(at), "the release point must be off the terminal");
+			dragFrom(from, at);
+			QCOMPARE(from->conductors().size(), 1);
+			QCOMPARE(to->conductors().size(), 1);
+			QCOMPARE(int(from->conductors().first()->medium()), int(TerminalData::Signal));
+				// a signal terminal takes more than one line: it still catches
+			Element *third = place(m_signal, QPointF(-200, to->dockConductor().y()));
+			QVERIFY(third);
+			QCOMPARE(third->terminals().at(1)->magnetTarget(nearBelow(to), Terminal::magnetRadius), to);
+				// one undo step takes the line away
+			m_folio->undoStack().undo();
+			QCOMPARE(from->conductors().size(), 0);
 		}
 };
 

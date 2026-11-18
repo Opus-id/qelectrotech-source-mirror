@@ -11,6 +11,8 @@
 #include "qetgraphicsitem/terminal.h"
 #include "pidcodification.h"
 #include "qetproject.h"
+#include "signalmark.h"
+#include "signalproperties.h"
 #include "ui/configpage/pidconfigpage.h"
 
 #include <QDomDocument>
@@ -26,6 +28,8 @@
 // undo step. While it runs a click never picks nor moves a symbol, the
 // tool stays on after each pipe, a right click or Esc takes back the pipe
 // being drawn and a second one leaves the tool. Wires are not drawn with it.
+// Signal lines are (step 6-4): from a signal terminal to another one only,
+// with the type of signal T turns and a preview which shows its mark.
 class tst_pipetool : public QObject
 {
 	Q_OBJECT
@@ -103,9 +107,31 @@ class tst_pipetool : public QObject
 
 	QETProject *m_project = nullptr;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_electrical, m_pipe;
+	ElementsLocation m_electrical, m_pipe, m_signal;
 	qreal m_next_y = 0;
 	QPointer<DiagramEventAddPipe> m_tool;
+
+		// The points of @p points which say its shape, in one way or the other
+	static bool sameRuns(const QList<QPointF> &points, const QList<QPointF> &others)
+	{
+		const QList<QPointF> runs = SignalMark::straightRuns(points);
+		QList<QPointF> other_runs = SignalMark::straightRuns(others);
+		if (runs == other_runs) return true;
+		std::reverse(other_runs.begin(), other_runs.end());
+		return runs == other_runs;
+	}
+
+		// A line through @p points, then the marks @p mark along it: what
+		// the preview of a signal line is made of
+	static QPainterPath lineWithMarks(const QList<QPointF> &points, SignalMark::Mark mark)
+	{
+		QPainterPath path;
+		if (points.size() < 2) return path;
+		path.moveTo(points.constFirst());
+		for (int i = 1; i < points.size(); ++i) path.lineTo(points.at(i));
+		path.addPath(SignalMark::marksPath(mark, points));
+		return path;
+	}
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
 	{
@@ -201,9 +227,9 @@ class tst_pipetool : public QObject
 		mouse(QEvent::GraphicsSceneMouseRelease, to, Qt::LeftButton, Qt::NoButton);
 	}
 
-	void key(int k)
+	void key(int k, Qt::KeyboardModifiers modifiers = Qt::NoModifier)
 	{
-		QKeyEvent event(QEvent::KeyPress, k, Qt::NoModifier);
+		QKeyEvent event(QEvent::KeyPress, k, modifiers);
 		QCoreApplication::sendEvent(m_folio, &event);
 	}
 
@@ -225,12 +251,14 @@ class tst_pipetool : public QObject
 			m_project = new QETProject();
 			m_project->embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("pipetool"), NamesList());
-			QDomDocument a, b, c;
+			QDomDocument a, b, c, d;
 			m_electrical = add("electrical.elmt",
 					   definition(a, "91111111-1111-1111-1111-111111111111", ""));
 			m_pipe = add("pipe.elmt",
 				     definition(b, "92222222-2222-2222-2222-222222222222", "pipe"));
-			QVERIFY(m_electrical.exist() && m_pipe.exist());
+			m_signal = add("signal.elmt",
+				       definition(d, "94444444-4444-4444-4444-444444444444", "signal"));
+			QVERIFY(m_electrical.exist() && m_pipe.exist() && m_signal.exist());
 			QVERIFY(add("freeend.elmt", freeEndDefinition(c)).exist());
 			m_folio = m_project->addNewDiagram();
 		}
@@ -972,6 +1000,273 @@ class tst_pipetool : public QObject
 			QVERIFY(!field->styleSheet().isEmpty());
 			page.setToolSymbol(PidCodification::freeEndRole(), QString());
 			QVERIFY(field->text().isEmpty());
+		}
+
+			// Step 6-4: the tool draws the signal lines too, from a signal
+			// terminal to another one
+		void twoClicksNearTwoSignalTerminalsDrawASignalLine()
+		{
+			const auto ends = row(m_signal, m_signal);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			Terminal *to = ends.second->terminals().at(0);
+			const int steps = m_folio->undoStack().index();
+
+			click(nearBelow(from));
+			QCOMPARE(m_tool->startNozzle(), from);
+			QVERIFY(m_tool->drawsSignalLine());
+			click(nearBelow(to));
+			QCOMPARE(from->conductors().size(), 1);
+			QVERIFY(from->isLinkedTo(to));
+			const Conductor *line = from->conductors().first();
+			QCOMPARE(int(line->medium()), int(TerminalData::Signal));
+			QCOMPARE(int(line->properties().m_signal.signal_type), int(SignalProperties::Undefined));
+				// the tool stays on, ready for the next line
+			QVERIFY(m_tool);
+			QCOMPARE(m_tool->startNozzle(), nullptr);
+			QVERIFY(!m_tool->drawsSignalLine());
+				// one undo step
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+			m_folio->undoStack().undo();
+			QCOMPARE(from->conductors().size(), 0);
+		}
+
+		void aDragFromASignalTerminalToAnotherDrawsASignalLine()
+		{
+			const auto ends = row(m_signal, m_signal);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			Terminal *to = ends.second->terminals().at(0);
+			drag(nearBelow(from), nearBelow(to));
+			QVERIFY(from->isLinkedTo(to));
+			QCOMPARE(int(from->conductors().first()->medium()), int(TerminalData::Signal));
+			QCOMPARE(m_tool->startNozzle(), nullptr);
+		}
+
+			// Neither at a nozzle, nor in an empty place, nor on a pipe; and
+			// a pipe never ends at a signal terminal
+		void aSignalLineEndsAtASignalTerminalOnly()
+		{
+				// a pipe near a signal terminal: not caught
+			const auto back = row(m_pipe, m_signal);
+			QVERIFY(back.first && back.second);
+			Terminal *nozzle_from = back.first->terminals().at(1);
+			click(nearBelow(nozzle_from));
+			QCOMPARE(m_tool->startNozzle(), nozzle_from);
+			QVERIFY(!m_tool->drawsSignalLine());
+			click(nearBelow(back.second->terminals().at(0)));
+			QCOMPARE(nozzle_from->conductors().size(), 0);
+			key(Qt::Key_Escape);
+			QCOMPARE(m_tool->startNozzle(), nullptr);
+
+				// a signal line near a nozzle: not caught, it waits
+			const auto mixed = row(m_signal, m_pipe);
+			QVERIFY(mixed.first && mixed.second);
+			Terminal *from = mixed.first->terminals().at(1);
+			Terminal *nozzle = mixed.second->terminals().at(0);
+			click(nearBelow(from));
+			click(nearBelow(nozzle));
+			QCOMPARE(from->conductors().size(), 0);
+			QCOMPARE(nozzle->conductors().size(), 0);
+			QCOMPARE(m_tool->startNozzle(), from);
+
+				// in an empty place, even when the project has a symbol of
+				// free end: nothing placed, it waits
+			setFreeEnd(freeEndPath());
+			const int symbols = m_folio->elements().size();
+			click(from->dockConductor() + QPointF(90, 60));
+			QCOMPARE(m_folio->elements().size(), symbols);
+			QCOMPARE(from->conductors().size(), 0);
+			QCOMPARE(m_tool->startNozzle(), from);
+			key(Qt::Key_Escape);
+			QCOMPARE(m_tool->startNozzle(), nullptr);
+			setFreeEnd(QString());
+
+				// on a pipe: nothing either
+			const auto pipes = row(m_pipe, m_pipe);
+			QVERIFY(pipes.first && pipes.second);
+			Terminal *pipe_from = pipes.first->terminals().at(1);
+			Terminal *pipe_to = pipes.second->terminals().at(0);
+			click(nearBelow(pipe_from));
+			click(nearBelow(pipe_to));
+			QVERIFY(pipe_from->isLinkedTo(pipe_to));
+			const auto lines = row(m_signal, m_signal);
+			QVERIFY(lines.first && lines.second);
+			Terminal *line_from = lines.first->terminals().at(1);
+			click(nearBelow(line_from));
+			QVERIFY(m_tool->drawsSignalLine());
+			click((pipe_from->dockConductor() + pipe_to->dockConductor()) / 2);
+			QCOMPARE(line_from->conductors().size(), 0);
+			QCOMPARE(pipe_from->conductors().size(), 1);
+			QCOMPARE(m_folio->elements().size(), symbols + 4);
+			QCOMPARE(m_tool->startNozzle(), line_from);
+		}
+
+			// A signal terminal takes more than one line: it stays marked
+			// and stays a start
+		void aConnectedSignalTerminalIsStillAStart()
+		{
+			const auto ends = row(m_signal, m_signal);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			Terminal *to = ends.second->terminals().at(0);
+			Element *third = place(m_signal, QPointF(400, m_next_y));
+			QVERIFY(third);
+				// started again: it marks the terminals of the folio when it starts
+			startTool();
+			const int marks = m_tool->markCount();
+			QVERIFY(marks >= 6);
+			click(nearBelow(from));
+			click(nearBelow(to));
+			QVERIFY(from->isLinkedTo(to));
+			QCOMPARE(m_tool->markCount(), marks);
+			click(nearBelow(from));
+			QCOMPARE(m_tool->startNozzle(), from);
+			click(nearBelow(third->terminals().at(0)));
+			QCOMPARE(from->conductors().size(), 2);
+				// never twice between the same two terminals
+			click(nearBelow(from));
+			click(nearBelow(to));
+			QCOMPARE(from->conductors().size(), 2);
+		}
+
+			// T, while a signal line is drawn: the next type of signal, kept
+			// for the next lines while the tool runs
+		void tTurnsTheTypeOfSignal()
+		{
+			const auto ends = row(m_signal, m_signal);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			Terminal *to = ends.second->terminals().at(0);
+			QKeyEvent override_t(QEvent::ShortcutOverride, Qt::Key_T, Qt::NoModifier);
+
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Undefined));
+				// not before a signal line is drawn
+			QVERIFY(!m_tool->handlesShortcutOverride(&override_t));
+			key(Qt::Key_T);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Undefined));
+
+			click(nearBelow(from));
+			QVERIFY(m_tool->handlesShortcutOverride(&override_t));
+			key(Qt::Key_T);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Pneumatic));
+			key(Qt::Key_T);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Electrical));
+				// Shift+T: the one before; from the first one, the last one
+			key(Qt::Key_T, Qt::ShiftModifier);
+			key(Qt::Key_T, Qt::ShiftModifier);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Undefined));
+			key(Qt::Key_T, Qt::ShiftModifier);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::DataLink));
+			key(Qt::Key_T);
+			key(Qt::Key_T);
+			key(Qt::Key_T);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Electrical));
+				// the line still waits for its end, and takes that type
+			QCOMPARE(m_tool->startNozzle(), from);
+			click(nearBelow(to));
+			QCOMPARE(from->conductors().size(), 1);
+			QCOMPARE(int(from->conductors().first()->properties().m_signal.signal_type),
+				 int(SignalProperties::Electrical));
+				// undone and done again, it keeps it
+			m_folio->undoStack().undo();
+			QCOMPARE(from->conductors().size(), 0);
+			m_folio->undoStack().redo();
+			QCOMPARE(from->conductors().size(), 1);
+			QCOMPARE(int(from->conductors().first()->properties().m_signal.signal_type),
+				 int(SignalProperties::Electrical));
+				// kept for the next line; undefined again the next time
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Electrical));
+			startTool();
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Undefined));
+
+				// a pipe has no type of signal: T does nothing while one is drawn
+			const auto pipes = row(m_pipe, m_pipe);
+			QVERIFY(pipes.first && pipes.second);
+			click(nearBelow(pipes.first->terminals().at(1)));
+			QVERIFY(!m_tool->handlesShortcutOverride(&override_t));
+			key(Qt::Key_T);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Undefined));
+		}
+
+			// The preview of a signal line: a line of its own with the mark
+			// the project gives its type, along the route a click would draw
+		void thePreviewOfASignalLineShowsTheMarkOfItsType()
+		{
+			const auto ends = row(m_signal, m_signal);
+			QVERIFY(ends.first && ends.second);
+			Terminal *from = ends.first->terminals().at(1);
+			Terminal *to = ends.second->terminals().at(0);
+			const PidCodification codification = m_project->pidCodification();
+			const SignalMark::Mark undefined = codification.signalMark(SignalProperties::Undefined);
+			const SignalMark::Mark pneumatic = codification.signalMark(SignalProperties::Pneumatic);
+			QVERIFY(SignalMark::isRepeated(undefined) && SignalMark::isRepeated(pneumatic));
+			QVERIFY(undefined != pneumatic);
+
+			QVERIFY(m_tool->signalPreview().isEmpty());
+			click(nearBelow(from));
+				// to the mouse, straight, with the marks of the type; never
+				// the dashed line of a pipe being drawn
+			const QPointF away = from->dockConductor() + QPointF(100, 60);
+			move(away);
+			const QList<QPointF> straight{from->dockConductor(), away};
+			QCOMPARE(m_tool->signalPreviewRoute(), straight);
+			QVERIFY(!SignalMark::marksPath(undefined, straight).isEmpty());
+			QCOMPARE(m_tool->signalPreview(), lineWithMarks(straight, undefined));
+			QVERIFY(preview().isNull());
+
+				// caught by a signal terminal: the route of the line
+			move(nearBelow(to));
+			const QList<QPointF> route = m_tool->signalPreviewRoute();
+			QVERIFY(route.size() >= 2);
+			QCOMPARE(route.constFirst(), from->dockConductor());
+			QCOMPARE(route.constLast(), to->dockConductor());
+			QCOMPARE(m_tool->signalPreview(), lineWithMarks(route, undefined));
+				// another type: its mark, on the same route
+			key(Qt::Key_T);
+			QCOMPARE(m_tool->signalPreviewRoute(), route);
+			QCOMPARE(m_tool->signalPreview(), lineWithMarks(route, pneumatic));
+
+				// the line drawn follows that route; no preview left
+			click(nearBelow(to));
+			QCOMPARE(from->conductors().size(), 1);
+			const Conductor *line = from->conductors().first();
+			QVERIFY(sameRuns(route, pointsOf(line->path(), line)));
+			QVERIFY(m_tool->signalPreview().isEmpty());
+			QVERIFY(m_tool->signalPreviewRoute().isEmpty());
+
+				// taken back with Esc: no preview left either
+			click(nearBelow(from));
+			move(away);
+			QVERIFY(!m_tool->signalPreview().isEmpty());
+			key(Qt::Key_Escape);
+			QVERIFY(m_tool->signalPreview().isEmpty());
+		}
+
+			// The right click on a symbol: its free nozzle or its free signal
+			// terminal nearest to the click starts the line
+		void theRightClickStartsASignalLineToo()
+		{
+			const auto ends = row(m_signal, m_pipe);
+			QVERIFY(ends.first && ends.second);
+			Terminal *west = ends.first->terminals().at(0);
+			Terminal *east = ends.first->terminals().at(1);
+			const QList<QGraphicsItem *> selected{ends.first};
+			QCOMPARE(DiagramEventAddPipe::nearestLineStart(selected, east->dockConductor()
+								       + QPointF(3, 40)), east);
+			QCOMPARE(DiagramEventAddPipe::nearestLineStart(selected, west->dockConductor()), west);
+				// not a nozzle: the pipes alone do not start there
+			QCOMPARE(DiagramEventAddPipe::nearestFreeNozzle(selected, east->dockConductor()), nullptr);
+			QCOMPARE(DiagramEventAddPipe::nearestLineStart({ends.second}, QPointF()),
+				 DiagramEventAddPipe::nearestFreeNozzle({ends.second}, QPointF()));
+				// no start among wire terminals
+			const auto wires = row(m_electrical, m_electrical);
+			QVERIFY(wires.first);
+			QCOMPARE(DiagramEventAddPipe::nearestLineStart({wires.first}, QPointF()), nullptr);
+
+			m_tool->startFrom(east);
+			QCOMPARE(m_tool->startNozzle(), east);
+			QVERIFY(m_tool->drawsSignalLine());
 		}
 };
 

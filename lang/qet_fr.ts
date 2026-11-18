@@ -4370,6 +4370,30 @@ Continuer ?</translation>
         <translation>Espace : tracé en S</translation>
     </message>
     <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="495"/>
+        <source>A signal line ends at a signal terminal: not on a pipe, a wire nor another line.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Une ligne de signal finit sur une borne de signal : ni sur une tuyauterie, ni sur un fil, ni sur une autre ligne.</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="498"/>
+        <source>No signal terminal of another symbol here: the signal line waits for its end. Right click or Esc: cancel.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Aucune borne de signal d&apos;un autre symbole ici : la ligne de signal attend sa fin. Clic droit ou Échap : annuler.</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="1478"/>
+        <source>Click or release near another signal terminal: end the signal line; T: type of signal (%1); right click or Esc: cancel</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cliquez ou relâchez près d&apos;une autre borne de signal : finir la ligne de signal ; T : type de signal (%1) ; clic droit ou Échap : annuler</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="1530"/>
+        <source>near a signal terminal: start a signal line</source>
+        <comment>pipe drawing tool</comment>
+        <translation>près d&apos;une borne de signal : commencer une ligne de signal</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="828"/>
         <source>Click near a free nozzle or a free end (its line goes on), on a pipe (tee) or in an empty place: start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>
@@ -5080,6 +5104,12 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <source>Draw a pipe from here</source>
         <comment>context menu action</comment>
         <translation>Tracer une tuyauterie depuis ce piquage</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="3390"/>
+        <source>Draw a signal line from here</source>
+        <comment>context menu action</comment>
+        <translation>Tracer une ligne de signal depuis cette borne</translation>
     </message>
     <message>
         <location filename="../sources/diagramview.cpp" line="164"/>
@@ -18435,8 +18465,8 @@ Maintenir Ctrl pendant le déplacement pour placer librement.</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="1929"/>
-        <source>Draws pipes from a free nozzle to another: a click near a nozzle is enough</source>
-        <translation>Trace des tuyauteries d&apos;un piquage libre à un autre : un clic près d&apos;un piquage suffit</translation>
+        <source>Draws pipes from a free nozzle to another, and signal lines from a signal terminal to another: a click near one is enough</source>
+        <translation>Trace des tuyauteries d&apos;un piquage libre à un autre, et des lignes de signal d&apos;une borne de signal à une autre : un clic près de l&apos;un d&apos;eux suffit</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="1920"/>

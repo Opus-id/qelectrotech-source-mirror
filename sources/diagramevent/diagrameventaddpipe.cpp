@@ -29,9 +29,11 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/terminal.h"
 #include "../qetproject.h"
+#include "../signalmark.h"
 #include "../undocommand/addgraphicsobjectcommand.h"
 
 #include <QGraphicsEllipseItem>
+#include <QGraphicsPathItem>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QKeyEvent>
@@ -52,6 +54,64 @@ namespace {
 	bool snaps(const QGraphicsSceneMouseEvent *event)
 	{
 		return !(event->modifiers() & Qt::ControlModifier);
+	}
+
+		///T, alone or with Shift: the next type of signal, or the one before
+	bool turnsSignalType(const QKeyEvent *event)
+	{
+		return event->key() == Qt::Key_T
+				&& (event->modifiers() == Qt::NoModifier
+					|| event->modifiers() == Qt::ShiftModifier);
+	}
+
+		///Among the terminals of @p diagram which are @p wanted, the nearest
+		///to @p scene_pos within @p radius; nullptr for none
+	Terminal *nearestWithin(Diagram *diagram, const QPointF &scene_pos, qreal radius,
+							bool (*wanted)(const Terminal *))
+	{
+		if (!diagram || radius <= 0) return nullptr;
+
+		const QRectF area(scene_pos.x() - radius, scene_pos.y() - radius,
+						  2 * radius, 2 * radius);
+		Terminal *nearest = nullptr;
+		qreal nearest_distance = 0;
+		for (QGraphicsItem *item : diagram->items(area))
+		{
+			Terminal *terminal = qgraphicsitem_cast<Terminal *>(item);
+			if (!wanted(terminal)) continue;
+			const qreal distance = QLineF(scene_pos, terminal->dockConductor()).length();
+			if (distance > radius) continue;
+			if (!nearest || distance < nearest_distance) {
+				nearest = terminal;
+				nearest_distance = distance;
+			}
+		}
+		return nearest;
+	}
+
+		///Among the terminals of the symbols of @p items which are @p wanted,
+		///the nearest to @p scene_pos, however far; nullptr for none
+	Terminal *nearestOf(const QList<QGraphicsItem *> &items, const QPointF &scene_pos,
+						bool (*wanted)(const Terminal *))
+	{
+		Terminal *nearest = nullptr;
+		qreal nearest_distance = 0;
+		for (QGraphicsItem *item : items)
+		{
+			const Element *element = qgraphicsitem_cast<Element *>(item);
+			if (!element) continue;
+			const QList<Terminal *> terminals = element->terminals();
+			for (Terminal *terminal : terminals)
+			{
+				if (!wanted(terminal)) continue;
+				const qreal distance = QLineF(scene_pos, terminal->dockConductor()).length();
+				if (!nearest || distance < nearest_distance) {
+					nearest = terminal;
+					nearest_distance = distance;
+				}
+			}
+		}
+		return nearest;
 	}
 }
 
@@ -87,6 +147,7 @@ DiagramEventAddPipe::~DiagramEventAddPipe()
 	m_start_end.clear();
 	concealFreeEnds(nullptr);
 	clearMarks();
+	clearSignalPreview();
 	delete m_tee_model;
 	m_tee_model = nullptr;
 	if (m_diagram)
@@ -140,24 +201,40 @@ bool DiagramEventAddPipe::isFreeNozzle(const Terminal *terminal)
 Terminal *DiagramEventAddPipe::freeNozzleNear(Diagram *diagram, const QPointF &scene_pos,
 											  qreal radius)
 {
-	if (!diagram || radius <= 0) return nullptr;
+	return nearestWithin(diagram, scene_pos, radius, &DiagramEventAddPipe::isFreeNozzle);
+}
 
-	const QRectF area(scene_pos.x() - radius, scene_pos.y() - radius,
-					  2 * radius, 2 * radius);
-	Terminal *nearest = nullptr;
-	qreal nearest_distance = 0;
-	for (QGraphicsItem *item : diagram->items(area))
-	{
-		Terminal *terminal = qgraphicsitem_cast<Terminal *>(item);
-		if (!isFreeNozzle(terminal)) continue;
-		const qreal distance = QLineF(scene_pos, terminal->dockConductor()).length();
-		if (distance > radius) continue;
-		if (!nearest || distance < nearest_distance) {
-			nearest = terminal;
-			nearest_distance = distance;
-		}
-	}
-	return nearest;
+/**
+	@brief DiagramEventAddPipe::isFreeSignalTerminal
+	@param terminal
+	@return true for a signal terminal of a symbol which may still take a
+	signal line
+*/
+bool DiagramEventAddPipe::isFreeSignalTerminal(const Terminal *terminal)
+{
+	return terminal
+			&& terminal->parentElement()
+			&& terminal->medium() == TerminalData::Signal
+			&& terminal->hasRoomForWire();
+}
+
+/**
+	@brief DiagramEventAddPipe::mayStartALine
+	See the declaration
+*/
+bool DiagramEventAddPipe::mayStartALine(const Terminal *terminal)
+{
+	return isFreeNozzle(terminal) || isFreeSignalTerminal(terminal);
+}
+
+/**
+	@brief DiagramEventAddPipe::freeSignalTerminalNear
+	See the declaration
+*/
+Terminal *DiagramEventAddPipe::freeSignalTerminalNear(Diagram *diagram, const QPointF &scene_pos,
+													  qreal radius)
+{
+	return nearestWithin(diagram, scene_pos, radius, &DiagramEventAddPipe::isFreeSignalTerminal);
 }
 
 /**
@@ -169,43 +246,163 @@ Terminal *DiagramEventAddPipe::freeNozzleNear(Diagram *diagram, const QPointF &s
 Terminal *DiagramEventAddPipe::nearestFreeNozzle(const QList<QGraphicsItem *> &items,
 												 const QPointF &scene_pos)
 {
-	Terminal *nearest = nullptr;
-	qreal nearest_distance = 0;
-	for (QGraphicsItem *item : items)
-	{
-		const Element *element = qgraphicsitem_cast<Element *>(item);
-		if (!element) continue;
-		const QList<Terminal *> terminals = element->terminals();
-		for (Terminal *terminal : terminals)
-		{
-			if (!isFreeNozzle(terminal)) continue;
-			const qreal distance = QLineF(scene_pos, terminal->dockConductor()).length();
-			if (!nearest || distance < nearest_distance) {
-				nearest = terminal;
-				nearest_distance = distance;
-			}
-		}
-	}
-	return nearest;
+	return nearestOf(items, scene_pos, &DiagramEventAddPipe::isFreeNozzle);
+}
+
+/**
+	@brief DiagramEventAddPipe::nearestLineStart
+	See the declaration
+*/
+Terminal *DiagramEventAddPipe::nearestLineStart(const QList<QGraphicsItem *> &items,
+												const QPointF &scene_pos)
+{
+	return nearestOf(items, scene_pos, &DiagramEventAddPipe::mayStartALine);
 }
 
 /**
 	@brief DiagramEventAddPipe::startFrom
-	@param nozzle : where the pipe starts
+	@param nozzle : where the line starts
 */
 void DiagramEventAddPipe::startFrom(Terminal *nozzle)
 {
-	if (!m_diagram || m_diagram->isReadOnly() || !isFreeNozzle(nozzle)
+	if (!m_diagram || m_diagram->isReadOnly() || !mayStartALine(nozzle)
 			|| nozzle->diagram() != m_diagram) {
 		return;
 	}
 	m_start = nozzle;
 	m_start_free = false;
-	m_diagram->setConductorStart(nozzle->dockConductor());
-	m_diagram->setConductorStop(nozzle->dockConductor());
-	m_diagram->setConductor(true);
 	hover(nullptr, QColor());
+	if (drawsSignalLine()) {
+			//A signal line has a preview of its own, with its marks
+		showSignalPreview(nullptr, nozzle->dockConductor());
+	} else {
+		m_diagram->setConductorStart(nozzle->dockConductor());
+		m_diagram->setConductorStop(nozzle->dockConductor());
+		m_diagram->setConductor(true);
+	}
 	showHint();
+}
+
+/**
+	@brief DiagramEventAddPipe::drawsSignalLine
+	See the declaration
+*/
+bool DiagramEventAddPipe::drawsSignalLine() const
+{
+	return m_start && m_start->medium() == TerminalData::Signal;
+}
+
+/**
+	@brief DiagramEventAddPipe::setSignalType
+	See the declaration
+*/
+void DiagramEventAddPipe::setSignalType(SignalProperties::SignalType type)
+{
+	m_signal_type = type;
+	if (drawsSignalLine()) {
+			//Drawn again where it was, with the mark of that type
+		Terminal *target = m_hovered.data();
+		showSignalPreview(target, m_signal_route.isEmpty() ? m_start->dockConductor()
+														   : m_signal_route.constLast());
+	}
+	showHint();
+}
+
+/**
+	@brief DiagramEventAddPipe::signalPreview
+	See the declaration
+*/
+QPainterPath DiagramEventAddPipe::signalPreview() const
+{
+	return m_signal_preview ? m_signal_preview->path() : QPainterPath();
+}
+
+/**
+	@brief DiagramEventAddPipe::showSignalPreview
+	See the declaration. A thin plain line, as a signal line is drawn, with
+	the mark the project gives the type of the next lines: dashed, broken
+	at each open circle or with its marks along it.
+*/
+void DiagramEventAddPipe::showSignalPreview(Terminal *target, const QPointF &scene_pos)
+{
+	if (!m_diagram || !m_start) {
+		clearSignalPreview();
+		return;
+	}
+	const QPointF from = m_start->dockConductor();
+	QList<QPointF> route;
+	if (target) {
+			//The route of the signal line a click would draw: it leaves its
+			//terminals as a wire does (Conductor::exitRoom())
+		route = Conductor::defaultRoute(from, m_start->orientation(), target->dockConductor(),
+										target->orientation(), 0);
+	} else if (QLineF(from, scene_pos).length() >= 0.5) {
+		route << from << scene_pos;
+	}
+	m_signal_route = route;
+
+	const QETProject *project = m_diagram->project();
+	const SignalMark::Mark mark = project ? project->pidCodification().signalMark(m_signal_type)
+										  : SignalMark::defaultMark(m_signal_type);
+	QPainterPath path;
+	if (route.size() >= 2)
+	{
+		if (SignalMark::lineGap(mark) > 0) {
+			path = SignalMark::brokenLine(mark, route);
+		} else {
+			path.moveTo(route.constFirst());
+			for (int i = 1 ; i < route.size() ; ++i) path.lineTo(route.at(i));
+		}
+		if (SignalMark::isRepeated(mark)) {
+			path.addPath(SignalMark::marksPath(mark, route));
+		}
+	}
+
+	ConductorProperties look;
+	look.m_medium = TerminalData::Signal;
+	QPen pen(Qt::black, look.lineWidth(), Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+	if (mark == SignalMark::Dashes) {
+		SignalMark::applyDashes(pen);
+	} else if (!m_diagram->views().isEmpty()
+			   && m_diagram->views().constFirst()->transform().m11() < 1.0) {
+			//Seen from afar the line keeps a width on screen, as the signal
+			//lines of the folio do; dashes are in units of the folio
+		pen.setCosmetic(true);
+	}
+
+	if (!m_signal_preview)
+	{
+		m_signal_preview = new QGraphicsPathItem();
+		m_signal_preview->setZValue(1000000);
+		m_signal_preview->setAcceptedMouseButtons(Qt::NoButton);
+		m_signal_preview->setBrush(Qt::NoBrush);
+		m_diagram->addItem(m_signal_preview);
+	}
+	m_signal_preview->setPen(pen);
+	m_signal_preview->setPath(path);
+}
+
+/**
+	@brief DiagramEventAddPipe::clearSignalPreview
+*/
+void DiagramEventAddPipe::clearSignalPreview()
+{
+	m_signal_route.clear();
+	if (!m_signal_preview) return;
+	if (m_diagram && m_signal_preview->scene() == m_diagram) {
+		m_diagram->removeItem(m_signal_preview);
+	}
+	delete m_signal_preview;
+	m_signal_preview = nullptr;
+}
+
+/**
+	@brief DiagramEventAddPipe::handlesShortcutOverride
+	See the declaration
+*/
+bool DiagramEventAddPipe::handlesShortcutOverride(QKeyEvent *event) const
+{
+	return event && turnsSignalType(event) && drawsSignalLine();
 }
 
 /**
@@ -257,7 +454,11 @@ void DiagramEventAddPipe::mousePressEvent(QGraphicsSceneMouseEvent *event)
 			startOnFreeEnd(start);
 		} else if (start) {
 			startFrom(start);
-			m_diagram->setConductorStop(pos);
+			if (drawsSignalLine()) {
+				showSignalPreview(nullptr, pos);
+			} else {
+				m_diagram->setConductorStop(pos);
+			}
 		} else if (spot.isValid()) {
 			startOnPipe(spot);
 		} else if (spot.pipe) {
@@ -270,6 +471,22 @@ void DiagramEventAddPipe::mousePressEvent(QGraphicsSceneMouseEvent *event)
 		} else {
 			showHint(tr("No free nozzle here: click nearer to a nozzle, or in an empty place.",
 						"pipe drawing tool"));
+		}
+		return;
+	}
+
+	if (drawsSignalLine())
+	{
+			//A signal line ends at a signal terminal of another symbol only
+			//(a free end for it, or a tap on a pipe: later)
+		if (Terminal *signal_target = targetNear(pos, radius)) {
+			finishAt(signal_target, snap);
+		} else if (PidTee::conductorAt(m_diagram, pos)) {
+			refuse(event, tr("A signal line ends at a signal terminal: not on a pipe, a wire "
+							 "nor another line.", "pipe drawing tool"));
+		} else {
+			showHint(tr("No signal terminal of another symbol here: the signal line waits for "
+						"its end. Right click or Esc: cancel.", "pipe drawing tool"));
 		}
 		return;
 	}
@@ -674,7 +891,14 @@ void DiagramEventAddPipe::drawPipe(Terminal *start, const QPointF &start_point,
 				showHint(message);
 			}
 		} else {
-			start->connectTo(target);
+			Conductor *line = start->connectTo(target);
+				//A signal line takes the type of signal of the tool
+			if (line && line->medium() == TerminalData::Signal
+					&& m_signal_type != SignalProperties::Undefined) {
+				ConductorProperties properties = line->properties();
+				properties.m_signal.signal_type = m_signal_type;
+				line->setProperties(properties);
+			}
 		}
 		return;
 	}
@@ -857,6 +1081,15 @@ void DiagramEventAddPipe::updatePreview(const QPointF &scene_pos, bool snap, qre
 	m_mouse_snap = snap;
 	m_mouse_radius = radius;
 
+	if (drawsSignalLine())
+	{
+			//To the signal terminal which would catch it, else to the mouse
+		Terminal *signal_target = targetNear(scene_pos, radius);
+		showSignalPreview(signal_target, scene_pos);
+		hover(signal_target, Terminal::allowedColor);
+		return;
+	}
+
 	Terminal *target = targetNear(scene_pos, radius);
 		//Started in an empty place: moved onto the axis of the nozzle
 		//which would catch the pipe, back when it no longer would
@@ -914,11 +1147,22 @@ void DiagramEventAddPipe::startOnFreeEnd(Terminal *nozzle)
 */
 Terminal *DiagramEventAddPipe::startNear(const QPointF &scene_pos, qreal radius) const
 {
-	Terminal *nozzle = freeNozzleNear(m_diagram, scene_pos, radius);
-	Terminal *free_end = PidFreeEnd::nozzleNear(m_diagram, scene_pos, radius);
-	if (!nozzle || !free_end) return nozzle ? nozzle : free_end;
-	return QLineF(scene_pos, free_end->dockConductor()).length()
-			< QLineF(scene_pos, nozzle->dockConductor()).length() ? free_end : nozzle;
+		//The nearest of the three; a nozzle before a free end as near, a
+		//signal terminal last
+	Terminal *nearest = nullptr;
+	qreal nearest_distance = 0;
+	for (Terminal *terminal : {freeNozzleNear(m_diagram, scene_pos, radius),
+							   PidFreeEnd::nozzleNear(m_diagram, scene_pos, radius),
+							   freeSignalTerminalNear(m_diagram, scene_pos, radius)})
+	{
+		if (!terminal) continue;
+		const qreal distance = QLineF(scene_pos, terminal->dockConductor()).length();
+		if (!nearest || distance < nearest_distance) {
+			nearest = terminal;
+			nearest_distance = distance;
+		}
+	}
+	return nearest;
 }
 
 /**
@@ -1051,8 +1295,8 @@ void DiagramEventAddPipe::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 		return;
 	}
 		//A drag from a nozzle released on a pipe: a tee there, as the
-		//release of a drag outside the tool does
-	if (m_start && PidTee::isSet(m_diagram))
+		//release of a drag outside the tool does; never for a signal line
+	if (m_start && !drawsSignalLine() && PidTee::isSet(m_diagram))
 	{
 		const PidTee::Spot spot = PidTee::spotAt(m_diagram, event->scenePos());
 		if (spot.isValid()) {
@@ -1065,15 +1309,29 @@ void DiagramEventAddPipe::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 	@brief DiagramEventAddPipe::keyPressEvent
 	Esc takes back the pipe being drawn, a second Esc leaves the tool.
 	Space, while a pipe is drawn, turns its route in S or back in L.
+	T, while a signal line is drawn, gives it the next type of signal, and
+	Shift+T the one before.
 	@param event
 */
 void DiagramEventAddPipe::keyPressEvent(QKeyEvent *event)
 {
+	if (turnsSignalType(event) && drawsSignalLine())
+	{
+		const QList<SignalProperties::SignalType> types = SignalProperties::types();
+		if (!types.isEmpty()) {
+			const int at = qMax(0, types.indexOf(m_signal_type));
+			const int step = event->modifiers() == Qt::ShiftModifier ? types.size() - 1 : 1;
+			setSignalType(types.at((at + step) % types.size()));
+		}
+		event->setAccepted(true);
+		return;
+	}
 		//Space: the route in S rather than in L, or back; never a rotation
 		//of the selection while the tool runs (DiagramView::event())
 	if (event->key() == Qt::Key_Space && event->modifiers() == Qt::NoModifier)
 	{
-		if (hasStart()) {
+			//A signal line has no free end to turn the route of
+		if (hasStart() && !drawsSignalLine()) {
 			m_s_shape = !m_s_shape;
 			updatePreview(m_mouse_pos, m_mouse_snap, m_mouse_radius);
 			showHint();
@@ -1121,6 +1379,7 @@ void DiagramEventAddPipe::reset()
 	if (m_diagram && hasStart()) {
 		m_diagram->setConductor(false);
 	}
+	clearSignalPreview();
 	m_start.clear();
 	m_start_free = false;
 	m_start_point = QPointF();
@@ -1167,27 +1426,37 @@ void DiagramEventAddPipe::clearMarks()
 
 /**
 	@brief DiagramEventAddPipe::refreshMarks
-	A ring, the same size on screen at any zoom, around every free nozzle.
+	A ring, the same size on screen at any zoom, around every free nozzle
+	and every free signal terminal, each in the colour of its medium.
 */
 void DiagramEventAddPipe::refreshMarks()
 {
 	clearMarks();
+	m_signal_marks = 0;
+		//The start of a signal line gone with an undone step: its preview too
+	if (!hasStart()) {
+		clearSignalPreview();
+	}
 	if (!m_diagram) return;
 
 	QPen pen(Terminal::stemColor(TerminalData::Pipe));
 	pen.setCosmetic(true);
 	pen.setWidthF(1.5);
+	QPen signal_pen(pen);
+	signal_pen.setColor(Terminal::stemColor(TerminalData::Signal));
 
 	const QList<QGraphicsItem *> items = m_diagram->items();
 	for (QGraphicsItem *item : items)
 	{
 		Terminal *terminal = qgraphicsitem_cast<Terminal *>(item);
-		if (!isFreeNozzle(terminal)) continue;
+		if (!mayStartALine(terminal)) continue;
+		const bool signal = terminal->medium() == TerminalData::Signal;
+		if (signal) ++m_signal_marks;
 
 		auto *mark = new QGraphicsEllipseItem(-mark_radius, -mark_radius,
 											  2 * mark_radius, 2 * mark_radius);
 		mark->setFlag(QGraphicsItem::ItemIgnoresTransformations);
-		mark->setPen(pen);
+		mark->setPen(signal ? signal_pen : pen);
 		mark->setBrush(Qt::NoBrush);
 		mark->setAcceptedMouseButtons(Qt::NoButton);
 		mark->setZValue(1000.0);
@@ -1212,6 +1481,11 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 	QString text;
 	if (!message.isEmpty()) {
 		text = (message);
+	} else if (drawsSignalLine()) {
+		text = (tr(
+			"Click or release near another signal terminal: end the signal line; T: type of "
+			"signal (%1); right click or Esc: cancel", "pipe drawing tool")
+				.arg(SignalProperties::typeName(m_signal_type)));
 		//A free end holding a line may start or end the pipe in any case
 		//(PidFreeEnd): its line goes on
 	} else if (hasStart() && tee && free_end) {
@@ -1251,9 +1525,14 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 			"right click or Esc: quit the tool", "pipe drawing tool"));
 	}
 		//A free end may end the pipe: Space turns its route the other way
-	if (message.isEmpty() && hasStart() && free_end) {
+	if (message.isEmpty() && hasStart() && !drawsSignalLine() && free_end) {
 		text += QStringLiteral("; ") + (m_s_shape ? tr("Space: route in L", "pipe drawing tool")
 												  : tr("Space: route in S", "pipe drawing tool"));
+	}
+		//A folio with signal terminals: the tool draws the signal lines too
+	if (message.isEmpty() && !hasStart() && m_signal_marks > 0) {
+		text += QStringLiteral("; ") + tr("near a signal terminal: start a signal line",
+										  "pipe drawing tool");
 	}
 	editor->statusBar()->showMessage(text);
 }

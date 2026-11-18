@@ -956,6 +956,9 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 				//put there; elsewhere the straight line
 			if (medium() == TerminalData::Pipe) {
 				diag->setConductorRoute(teeRoute(this, e->scenePos()));
+			} else if (medium() == TerminalData::Signal) {
+					//A signal line off any terminal: the straight line again
+				diag->setConductorRoute({});
 			}
 			return;
 		}
@@ -990,13 +993,15 @@ void Terminal::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 	other_terminal -> update();
 
 		//A pipe shows the route a release would give it, bends included
-		//(Conductor::defaultRoute()); a wire keeps the straight line
-	if (medium() == TerminalData::Pipe) {
+		//(Conductor::defaultRoute()), and so does a signal line, which
+		//leaves its terminals as a wire does; a wire keeps the straight line
+	if (medium() == TerminalData::Pipe || medium() == TerminalData::Signal) {
 		const bool linked = canBeLinkedTo(other_terminal) && !wiredAutomatically(other_terminal);
+		const qreal exit_room = medium() == TerminalData::Pipe ? PipeConnection::pipeExit : 0;
 		diag->setConductorRoute(linked ? Conductor::defaultRoute(dockConductor(), orientation(),
 																 other_terminal->dockConductor(),
 																 other_terminal->orientation(),
-																 PipeConnection::pipeExit)
+																 exit_room)
 									   : QList<QPointF>());
 	}
 }
@@ -1259,18 +1264,22 @@ bool Terminal::refusesMediumOf(const Terminal *other) const
 	@brief Terminal::magnetTarget
 	Drawing a pipe at a low zoom, hitting a nozzle exactly is hard: a pipe
 	drawn from this nozzle and released near another one, rather than on
-	it, is caught by it. Only nozzles catch pipes, so that the wires keep
-	the behaviour they always had.
+	it, is caught by it. A signal line drawn from a signal terminal is
+	caught the same way by another signal terminal. Only nozzles catch
+	pipes and only signal terminals catch signal lines, so that the wires
+	keep the behaviour they always had.
 	@param scene_pos : where the mouse is, on the folio
 	@param radius : how near, in units of the folio
-	@return the nozzle nearest to @p scene_pos within @p radius that this
-	one may be linked to (free, of another symbol), or nullptr; always nullptr
-	when this terminal is not a nozzle
+	@return the terminal of the same medium nearest to @p scene_pos within
+	@p radius that this one may be linked to (with room, of another symbol),
+	or nullptr; always nullptr when this terminal is neither a nozzle nor a
+	signal terminal
 */
 Terminal *Terminal::magnetTarget(const QPointF &scene_pos, qreal radius)
 {
 	Diagram *parent_diagram = diagram();
-	if (d->m_medium != TerminalData::Pipe || !parent_diagram || radius <= 0) {
+	const bool catches = d->m_medium == TerminalData::Pipe || d->m_medium == TerminalData::Signal;
+	if (!catches || !parent_diagram || radius <= 0) {
 		return nullptr;
 	}
 

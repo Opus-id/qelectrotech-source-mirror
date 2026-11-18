@@ -23,15 +23,18 @@
 #include "../pidtee.h"
 #include "../qet.h"
 #include "../qetgraphicsitem/terminal.h"
+#include "../signalproperties.h"
 
 #include <QColor>
 #include <QList>
+#include <QPainterPath>
 #include <QPointF>
 #include <QPointer>
 
 class Element;
 class QGraphicsEllipseItem;
 class QGraphicsItem;
+class QGraphicsPathItem;
 
 /**
 	@brief The DiagramEventAddPipe class: the tool which draws pipes.
@@ -44,7 +47,7 @@ class QGraphicsItem;
 	The free nozzles are marked while the tool runs, and the tool stays on
 	after each pipe. A right click or Esc takes back the pipe being drawn,
 	a second one leaves the tool. Wires are not drawn with it: it starts
-	at nozzles only.
+	at nozzles and at signal terminals only.
 
 	When the project has a symbol of free end (PidCodification::tool_symbols),
 	a click in an empty place -- no free nozzle near, no symbol nor pipe
@@ -71,6 +74,17 @@ class QGraphicsItem;
 	The preview shows the route the pipe will take, bends included. Where
 	a free end decides it, the route is in L (one bend) or, after Space, in
 	S (two bends); the choice stays while the tool runs.
+
+	The tool draws the signal lines too, from a signal terminal to another
+	one of another symbol, with the same magnet: the line started near a
+	signal terminal is a signal line. It ends at a signal terminal only: not
+	in an empty place, not on a pipe nor on another line, and the tool says
+	so. A signal terminal already connected may still start or end one,
+	within the wiring rules of the project. While a signal line is drawn, T
+	gives it the next type of signal (Shift+T the one before): its preview,
+	a thin line, shows the mark the project gives that type
+	(PidCodification::signalMark()), and the type stays for the next lines
+	while the tool runs.
 */
 class DiagramEventAddPipe : public DiagramEventInterface
 {
@@ -84,6 +98,8 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 		void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 		void keyPressEvent(QKeyEvent *event) override;
+			/// T, while a signal line is drawn, is a key of the tool
+		bool handlesShortcutOverride(QKeyEvent *event) const override;
 		void init() override;
 
 			/// The free nozzle of @p diagram nearest to @p scene_pos within
@@ -92,13 +108,41 @@ class DiagramEventAddPipe : public DiagramEventInterface
 										qreal radius);
 			/// A nozzle which may still take a pipe
 		static bool isFreeNozzle(const Terminal *terminal);
+			/// A signal terminal of a symbol which may still take a signal
+			/// line: any, unless the wiring rules of the project limit it
+		static bool isFreeSignalTerminal(const Terminal *terminal);
+			/// Where the tool may start a line: a free nozzle (a pipe) or a
+			/// free signal terminal (a signal line)
+		static bool mayStartALine(const Terminal *terminal);
+			/// The free signal terminal of @p diagram nearest to @p scene_pos
+			/// within @p radius, nullptr for none
+		static Terminal *freeSignalTerminalNear(Diagram *diagram, const QPointF &scene_pos,
+												qreal radius);
 			/// The free nozzle of the symbols among @p items nearest to
 			/// @p scene_pos, however far; nullptr for none
 		static Terminal *nearestFreeNozzle(const QList<QGraphicsItem *> &items,
 										   const QPointF &scene_pos);
-			/// Start the pipe at @p nozzle, as a first click near it does;
-			/// nothing when it is not a free nozzle of this folio
+			/// The same among the free nozzles and the free signal terminals:
+			/// where the right click on a symbol starts a line
+		static Terminal *nearestLineStart(const QList<QGraphicsItem *> &items,
+										  const QPointF &scene_pos);
+			/// Start the line at @p nozzle, as a first click near it does: a
+			/// pipe at a free nozzle, a signal line at a free signal terminal;
+			/// nothing when it is neither, or not of this folio
 		void startFrom(Terminal *nozzle);
+			/// Whether the line being drawn is a signal line
+		bool drawsSignalLine() const;
+			/// The type of signal the next signal lines take, undefined when
+			/// the tool starts; T turns it while a signal line is drawn
+		SignalProperties::SignalType signalType() const { return m_signal_type; }
+		void setSignalType(SignalProperties::SignalType type);
+			/// The preview of the signal line being drawn, on the folio: its
+			/// line and the marks of its type; empty when none is drawn
+		QPainterPath signalPreview() const;
+			/// The route that preview follows: that of the signal line a
+			/// click would draw, when a signal terminal catches it; else the
+			/// straight line to the mouse
+		QList<QPointF> signalPreviewRoute() const { return m_signal_route; }
 			/// Where the pipe being drawn starts, nullptr before the first click
 			/// and for a pipe started in an empty place
 		Terminal *startNozzle() const { return m_start; }
@@ -222,6 +266,10 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// The free ends the preview reaches hidden: the one the pipe
 			/// starts from, and @p target when it is one; the others shown
 		void concealFreeEnds(Terminal *target);
+			/// The preview of the signal line being drawn, to @p target when
+			/// it catches the line, else to the mouse at @p scene_pos
+		void showSignalPreview(Terminal *target, const QPointF &scene_pos);
+		void clearSignalPreview();
 		bool hasStart() const { return m_start || m_start_free || m_start_tee || m_start_end; }
 		QPointF startScenePoint() const;
 		qreal teeArm();
@@ -255,6 +303,13 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		qreal m_mouse_radius = 0;
 		QPointer<Terminal> m_hovered;
 		QList<QGraphicsEllipseItem *> m_marks;
+			/// How many of the marks are around signal terminals
+		int m_signal_marks = 0;
+			/// The type of the next signal lines (signalType())
+		SignalProperties::SignalType m_signal_type = SignalProperties::Undefined;
+			/// The preview of the signal line being drawn, nullptr when none
+		QGraphicsPathItem *m_signal_preview = nullptr;
+		QList<QPointF> m_signal_route;
 };
 
 #endif // DIAGRAMEVENTADDPIPE_H

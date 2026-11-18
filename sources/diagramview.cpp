@@ -204,10 +204,12 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 	connect(m_generate_cabinet_thumbnail, &QAction::triggered, this, &DiagramView::generateCabinetThumbnails);
 
 		//P&ID: the pipe tool, started at the nozzle right-clicked: the
-		//free nozzle of the selected symbols nearest to the click
+		//free nozzle, or the free signal terminal (a signal line), of the
+		//selected symbols nearest to the click; named for it when the menu
+		//opens (contextMenuActions())
 	m_draw_pipe_from_here = new QAction(QET::Icons::Pipe, tr("Draw a pipe from here", "context menu action"), this);
 	connect(m_draw_pipe_from_here, &QAction::triggered, this, [this]() {
-		Terminal *start = DiagramEventAddPipe::nearestFreeNozzle(
+		Terminal *start = DiagramEventAddPipe::nearestLineStart(
 					m_diagram ? m_diagram->selectedItems() : QList<QGraphicsItem *>(),
 					m_menu_scene_pos);
 		QETDiagramEditor *qde = diagramEditor();
@@ -3377,9 +3379,15 @@ QList<QAction *> DiagramView::contextMenuActions() const
 				}));
 			list << m_generate_cabinet_thumbnail;
 			list << qde->m_create_similar;
-				//P&ID: a symbol with a free nozzle offers the pipe tool,
-				//the pipe starting at the nozzle right-clicked
-			if (DiagramEventAddPipe::nearestFreeNozzle(selected_items, QPointF())) {
+				//P&ID: a symbol with a free nozzle or a free signal terminal
+				//offers the pipe tool, the line starting at the one
+				//right-clicked: a pipe or a signal line
+			if (const Terminal *start = DiagramEventAddPipe::nearestLineStart(selected_items,
+																			  m_menu_scene_pos)) {
+				m_draw_pipe_from_here->setText(
+						start->medium() == TerminalData::Signal
+						? tr("Draw a signal line from here", "context menu action")
+						: tr("Draw a pipe from here", "context menu action"));
 				list << m_draw_pipe_from_here;
 			}
 			list << m_change_type_menu->menuAction();
