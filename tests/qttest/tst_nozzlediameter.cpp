@@ -42,6 +42,7 @@
 #include "ui/pipepropertieswidget.h"
 #include "undocommand/changeelementlocationcommand.h"
 #include "undocommand/changenozzlediameterscommand.h"
+#include "undocommand/fillunsizedpipescommand.h"
 #include "undocommand/mirrorselectioncommand.h"
 
 #include <QCheckBox>
@@ -1186,7 +1187,8 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!tank->canChangeLocationTo(addValve(project)));
 		}
 
-			// the run a symbol names (pid_run): a tee takes its branch in;
+			// the run a symbol names (pid_run): a tee takes its branch in,
+			// which has a size of its own all the same (step 6b-1c);
 			// a symbol may leave a nozzle out (the drain of a valve)
 		void aTeeHasTheRunItsSymbolNames()
 		{
@@ -1220,7 +1222,9 @@ class tst_nozzlediameter : public QObject
 				QVERIFY(before && after && branch);
 				const QList<Conductor *> run = before->inlineRun();
 				QVERIFY(run.contains(after));
-				QCOMPARE(run.contains(branch), is_equal);
+					// the size goes straight on: never into the branch
+				QVERIFY(!run.contains(branch));
+				QCOMPARE(before->inlineRun(Conductor::LineReach::Spec).contains(branch), is_equal);
 					// the nozzles of the run keep no size; the one left out
 					// of it keeps its own
 				tee->setNozzleDiameters(dns({{QStringLiteral("N1"), 100}, {QStringLiteral("N3"), 50}}));
@@ -1229,13 +1233,16 @@ class tst_nozzlediameter : public QObject
 				QCOMPARE(terminal(tee, QStringLiteral("N3"))->ownDiameter().isSet(), !is_equal);
 				QCOMPARE(tee->nozzleDiameters().size(), is_equal ? 0 : 1);
 					// the size of the line on the free side of the run; the
-					// branch has the DN 80 its pipe took from the tank, or its
-					// own, and is marked: no reducer there
+					// branch has the DN 80 its pipe took from the tank, a
+					// size of its own which nothing marks; a nozzle left out
+					// of the run has its own, and is marked: no reducer there
 				setDn(before, 100);
 				QCOMPARE(terminal(tee, QStringLiteral("N2"))->diameter().value(), 100.0);
 				QCOMPARE(dn(branch), 80);
 				QCOMPARE(terminal(tee, QStringLiteral("N3"))->diameter().value(), is_equal ? 80.0 : 50.0);
-				QVERIFY(terminal(tee, QStringLiteral("N3"))->hasDiameterGap());
+				QCOMPARE(terminal(tee, QStringLiteral("N3"))->hasDiameterGap(), !is_equal);
+				QVERIFY(!terminal(tee, QStringLiteral("N1"))->hasDiameterGap());
+				QVERIFY(!terminal(tee, QStringLiteral("N2"))->hasDiameterGap());
 			}
 		}
 
@@ -2341,7 +2348,8 @@ class tst_nozzlediameter : public QObject
 		}
 
 			// The two reaches of a line (step 5l-1l, l1): its size goes through
-			// valves, tees and spec breaks, and stops at reducers; its material,
+			// valves, tees (straight on, step 6b-1c) and spec breaks, and stops
+			// at reducers; its material,
 			// piping class and nominal pressure go through valves, tees and
 			// reducers, and stop at spec breaks. Equipment stops both.
 		void theSpecOfALineStopsAtSpecBreaksNotAtReducers()
@@ -2392,9 +2400,11 @@ class tst_nozzlediameter : public QObject
 			};
 			using Reach = Conductor::LineReach;
 
-				// the size: through the valve and the tee, stopped by the reducer
-			QVERIFY(set(p1->inlineRun()) == (QSet<Conductor *>{p1, p2, branch, p3}));
+				// the size: through the valve and straight on through the tee,
+				// never into its branch; stopped by the reducer
+			QVERIFY(set(p1->inlineRun()) == (QSet<Conductor *>{p1, p2, p3}));
 			QVERIFY(set(p1->inlineRun(Reach::Size)) == set(p1->inlineRun()));
+			QCOMPARE(branch->inlineRun(Reach::Size), QList<Conductor *>{branch});
 				// through the spec break, stopped by the reducer and the tank
 			QVERIFY(set(p5->inlineRun(Reach::Size)) == (QSet<Conductor *>{p4, p5, p6}));
 				// the spec: through the reducer too, stopped by the spec break
@@ -3095,10 +3105,11 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(flow(aside_pipe).isEmpty());
 		}
 
-			// A reducing tee is an equal tee with a reducer against its N3
-			// (step 5l-1j, j1): each side of the reducer sizes its own line,
-			// and a change of the main line does not go into the branch
-		void aReducerAgainstTheBranchOfAnEqualTee()
+			// The branch of a tee has a size of its own (step 6b-1c, which
+			// revises 5l-1j, j1): a reducer against its N3 is no more needed
+			// for a reducing tee; one placed there sizes the branch only, and
+			// the main line keeps its size
+		void aReducerAgainstTheBranchOfATee()
 		{
 			QETProject project;
 			Diagram *folio = project.addNewDiagram();
@@ -3144,16 +3155,207 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(dn(branch), 50);
 			QCOMPARE(dn(before), 100);
 			QCOMPARE(dn(after), 100);
-				// the big side, against the tee: the main line, through the tee
+				// the big side, against the branch of the tee: the size of
+				// the branch, which nothing marks; the main line keeps its own
 			QLineEdit *large = tab.fieldFor(QStringLiteral("N1"));
 			large->setText(QStringLiteral("150"));
 			emit large->textEdited(large->text());
 			emit large->editingFinished();
+			QCOMPARE(dn(before), 100);
+			QCOMPARE(dn(after), 100);
+			QCOMPARE(dn(branch), 50);
+			QCOMPARE(n3->diameter().value(), 150.0);
+			QVERIFY(!big->hasDiameterGap());
+			QVERIFY(!n3->hasDiameterGap());
+			QVERIFY(!terminal(tee, QStringLiteral("N1"))->hasDiameterGap());
+			QCOMPARE(folio->undoStack().count(), steps + 2);
+		}
+
+			// The size goes straight on through a tee (step 6b-1c, which
+			// revises 5l-1d): its branch has a size of its own, with no
+			// reducer and no mark. A pipe drawn from the branch starts with
+			// the size of the line, an equal tee until told otherwise; the
+			// size a nozzle has for sure goes before that default.
+		void theSizeGoesStraightOnThroughATee()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			const ElementsLocation tee_symbol = addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" "));
+			Element *left = place(folio, tank);
+			Element *tee = place(folio, tee_symbol);
+			Element *right = place(folio, tank);
+			Element *below = place(folio, tank);
+			QVERIFY(left && tee && right && below);
+			left->setPos(0, 200);
+			tee->setPos(400, 200);
+			right->setPos(800, 200);
+			below->setPos(400, 600);
+			Terminal *n1 = terminal(tee, QStringLiteral("N1"));
+			Terminal *n2 = terminal(tee, QStringLiteral("N2"));
+			Terminal *n3 = terminal(tee, QStringLiteral("N3"));
+				// N2 of a tank has no size: the pipes have none either
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+			QVERIFY(before);
+			QCOMPARE(dn(before), 0);
+			setDn(before, 100);
+				// the free nozzles: the line straight on, the branch by default
+			QCOMPARE(n2->diameter().value(), 100.0);
+			QCOMPARE(n3->diameter().value(), 100.0);
+			QVERIFY(!n3->diameter(false).isSet());
+				// a new pipe: straight on the size of the line; from the
+				// branch too, to a nozzle without a size
+			Conductor *after = connect(folio, tee, QStringLiteral("N2"), right, QStringLiteral("N2"));
+			Conductor *branch = connect(folio, tee, QStringLiteral("N3"), below, QStringLiteral("N2"));
+			QVERIFY(after && branch);
+			QCOMPARE(dn(after), 100);
+			QCOMPARE(dn(branch), 100);
+
+				// the branch given another size: no mark anywhere
+			setDn(branch, 50);
+			for (const Terminal *nozzle : {n1, n2, n3}) {
+				QVERIFY2(!nozzle->hasDiameterGap(), qPrintable(nozzle->name()));
+			}
+			QCOMPARE(n3->diameter().value(), 50.0);
+			QCOMPARE(n1->diameter().value(), 100.0);
+			QCOMPARE(before->inlineRun(), (QList<Conductor *>{before, after}));
+			QCOMPARE(branch->inlineRun(), QList<Conductor *>{branch});
+
+				// the line resized in the panel: the branch keeps its size
+			PipePropertiesWidget page({before});
+			auto *field = page.findChild<QLineEdit *>(QStringLiteral("diameter"));
+			QVERIFY(field);
+			field->setText(QStringLiteral("150"));
+			field->setModified(true);
+			emit field->editingFinished();
 			QCOMPARE(dn(before), 150);
 			QCOMPARE(dn(after), 150);
 			QCOMPARE(dn(branch), 50);
-			QVERIFY(!big->hasDiameterGap());
-			QCOMPARE(folio->undoStack().count(), steps + 2);
+				// and the branch resized: the line keeps its own
+			PipePropertiesWidget branch_page({branch});
+			auto *branch_field = branch_page.findChild<QLineEdit *>(QStringLiteral("diameter"));
+			branch_field->setText(QStringLiteral("25"));
+			branch_field->setModified(true);
+			emit branch_field->editingFinished();
+			QCOMPARE(dn(branch), 25);
+			QCOMPARE(dn(before), 150);
+			QCOMPARE(dn(after), 150);
+				// the two sides of the line with two sizes: marked, as on a valve
+			setDn(after, 80);
+			QVERIFY(n1->hasDiameterGap());
+			QVERIFY(n2->hasDiameterGap());
+			QVERIFY(!n3->hasDiameterGap());
+
+				// ---- the size a nozzle has for sure, before the default ----
+				// N1 of a tank is DN 80: from the branch of a tee on a DN 100
+				// line to it, and from it to the branch, a pipe is DN 80
+			for (const bool from_tee : {true, false})
+			{
+				Element *start = place(folio, tank);
+				Element *tee2 = place(folio, tee_symbol);
+				Element *aside = place(folio, tank);
+				QVERIFY(start && tee2 && aside);
+				const qreal y = from_tee ? 1000 : 1600;
+				start->setPos(0, y);
+				tee2->setPos(400, y);
+				aside->setPos(400, y + 400);
+				Conductor *line = connect(folio, start, QStringLiteral("N2"), tee2, QStringLiteral("N1"));
+				QVERIFY(line);
+				setDn(line, 100);
+				Conductor *to_nozzle = from_tee
+						? connect(folio, tee2, QStringLiteral("N3"), aside, QStringLiteral("N1"))
+						: connect(folio, aside, QStringLiteral("N1"), tee2, QStringLiteral("N3"));
+				QVERIFY(to_nozzle);
+				QCOMPARE(dn(to_nozzle), 80);
+				QVERIFY(!terminal(tee2, QStringLiteral("N3"))->hasDiameterGap());
+				QVERIFY(!terminal(aside, QStringLiteral("N1"))->hasDiameterGap());
+				QCOMPARE(dn(line), 100);
+			}
+
+				// ---- a valve against the branch, without a pipe ----
+				// the pipe beyond it starts with the size of the line too,
+				// and takes another one without a mark
+			Element *start = place(folio, tank);
+			Element *tee3 = place(folio, tee_symbol);
+			Element *valve = place(folio, addValve(project));
+			Element *aside = place(folio, tank);
+			QVERIFY(start && tee3 && valve && aside);
+			start->setPos(0, 2200);
+			tee3->setPos(400, 2200);
+			aside->setPos(800, 2600);
+			Terminal *t3 = terminal(tee3, QStringLiteral("N3"));
+			Terminal *v1 = terminal(valve, QStringLiteral("N1"));
+			Terminal *v2 = terminal(valve, QStringLiteral("N2"));
+			valve->setPos(valve->pos() + t3->dockConductor() - v1->dockConductor());
+			QCOMPARE(v1->contactNozzle(), t3);
+			Conductor *line = connect(folio, start, QStringLiteral("N2"), tee3, QStringLiteral("N1"));
+			QVERIFY(line);
+			setDn(line, 100);
+			Conductor *beyond = connect(folio, valve, QStringLiteral("N2"), aside, QStringLiteral("N2"));
+			QVERIFY(beyond);
+			QCOMPARE(dn(beyond), 100);
+			setDn(beyond, 50);
+			QCOMPARE(t3->diameter().value(), 50.0);
+			QCOMPARE(v1->diameter().value(), 50.0);
+			for (const Terminal *nozzle : {t3, v1, v2, terminal(tee3, QStringLiteral("N1"))}) {
+				QVERIFY2(!nozzle->hasDiameterGap(), qPrintable(nozzle->name()));
+			}
+			QCOMPARE(line->inlineRun(), QList<Conductor *>{line});
+			QCOMPARE(beyond->inlineRun(), QList<Conductor *>{beyond});
+		}
+
+			// Pipes without a size (step 5l-1aa) take the size given to a
+			// nozzle of their line straight on through a tee only: a branch
+			// without a size stays empty, and a size given on the branch
+			// never fills the line (step 6b-1c)
+		void aBranchWithoutASizeStaysEmpty()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *left = place(folio, tank);
+			Element *tee = place(folio, addSymbol(
+						project, QStringLiteral("equal.elmt"),
+						QStringLiteral("{7b666666-6666-6666-6666-666666666666}"), 0,
+						QStringLiteral("pid_run=\"N1 N2 N3\" three=\"true\" ")));
+			Element *right = place(folio, tank);
+			Element *below = place(folio, tank);
+			QVERIFY(left && tee && right && below);
+			left->setPos(0, 200);
+			tee->setPos(400, 200);
+			right->setPos(800, 200);
+			below->setPos(400, 600);
+			Conductor *before = connect(folio, left, QStringLiteral("N2"), tee, QStringLiteral("N1"));
+			Conductor *after = connect(folio, tee, QStringLiteral("N2"), right, QStringLiteral("N2"));
+			Conductor *branch = connect(folio, tee, QStringLiteral("N3"), below, QStringLiteral("N2"));
+			QVERIFY(before && after && branch);
+			QCOMPARE(dn(before), 0);
+			QCOMPARE(dn(after), 0);
+			QCOMPARE(dn(branch), 0);
+			QCOMPARE(before->unsizedRun().size(), 2);
+			QCOMPARE(branch->unsizedRun(), QList<Conductor *>{branch});
+
+			auto pipesOf = [](const QList<FillUnsizedPipesCommand::Fill> &fills) {
+				QSet<Conductor *> pipes;
+				for (const FillUnsizedPipesCommand::Fill &fill : fills) {
+					pipes << fill.pipe.data();
+				}
+				return pipes;
+			};
+				// a size on the branch: the branch alone
+			const Terminal *branch_end = terminal(below, QStringLiteral("N2"));
+			using Sizes = QList<FillUnsizedPipesCommand::NozzleSize>;
+			QVERIFY(pipesOf(FillUnsizedPipesCommand::plan(
+								Sizes{qMakePair(branch_end, PipeDiameter::nominal(50))}))
+					== (QSet<Conductor *>{branch}));
+				// a size on the line: both sides of the tee, not its branch
+			const Terminal *line_end = terminal(left, QStringLiteral("N2"));
+			QVERIFY(pipesOf(FillUnsizedPipesCommand::plan(
+								Sizes{qMakePair(line_end, PipeDiameter::nominal(100))}))
+					== (QSet<Conductor *>{before, after}));
 		}
 
 			// The P&ID tab, the Nozzles section with the others, is never

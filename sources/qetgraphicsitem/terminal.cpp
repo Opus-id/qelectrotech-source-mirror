@@ -1588,6 +1588,23 @@ QList<Terminal *> Terminal::runSiblings() const
 	return siblings;
 }
 
+QList<Terminal *> Terminal::lineSiblings() const
+{
+	const QList<Terminal *> siblings = runSiblings();
+		//A valve: the other nozzle, wherever it is
+	if (siblings.size() < 2) {
+		return siblings;
+	}
+		//A tee, a cross: the line goes on straight, a branch is another line
+	QList<Terminal *> straight;
+	for (Terminal *sibling : siblings) {
+		if (Qet::isOpposed(orientation(), sibling->orientation())) {
+			straight << sibling;
+		}
+	}
+	return straight;
+}
+
 bool Terminal::followsPipe() const
 {
 	if (d->m_medium != TerminalData::Pipe || !parent_element_) {
@@ -1926,7 +1943,8 @@ QList<Conductor *> Terminal::nearestPipes() const
 				pipes << pipe;
 			}
 		}
-		for (const Terminal *sibling : against->runSiblings()) {
+			//Straight on through a tee: its branch has a size of its own
+		for (const Terminal *sibling : against->lineSiblings()) {
 			if (!seen.contains(sibling)) {
 				seen << sibling;
 				todo << sibling;
@@ -1937,9 +1955,14 @@ QList<Conductor *> Terminal::nearestPipes() const
 }
 
 PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Terminal *> seen,
-									bool pipes_only, const Conductor **pipe_found)
+									bool pipes_only, const Conductor **pipe_found,
+									bool by_default)
 {
 	seen << todo;
+		//Straight on through a tee; by default through its branch too
+	const auto siblingsOf = [by_default](const Terminal *nozzle) {
+		return by_default ? nozzle->runSiblings() : nozzle->lineSiblings();
+	};
 	auto add = [&todo, &seen](const QList<Terminal *> &nozzles) {
 		for (const Terminal *nozzle : nozzles) {
 			if (!seen.contains(nozzle)) {
@@ -1963,14 +1986,14 @@ PipeDiameter Terminal::lineDiameter(QList<const Terminal *> todo, QList<const Te
 			if (own.isSet() && !pipes_only) {
 				return own;
 			}
-			add(against->runSiblings());
+			add(siblingsOf(against));
 		}
-		add(nozzle->runSiblings());
+		add(siblingsOf(nozzle));
 	}
 	return PipeDiameter();
 }
 
-PipeDiameter Terminal::facingDiameter(const Conductor **pipe) const
+PipeDiameter Terminal::facingDiameter(const Conductor **pipe, bool by_default) const
 {
 	const PipeDiameter connected = connectedDiameter(pipe);
 	if (connected.isSet()) {
@@ -1994,34 +2017,49 @@ PipeDiameter Terminal::facingDiameter(const Conductor **pipe) const
 			//The size lives on the line: a nozzle which follows a line
 			//with a size keeps it, and the nozzle against it marks the
 			//difference; without one, it has the size of that nozzle
-		const PipeDiameter mine = lineDiameter(constList(runSiblings()), {this, against}, true, pipe);
+		const PipeDiameter mine = lineDiameter(constList(lineSiblings()), {this, against}, true, pipe);
 		return mine.isSet() ? mine : own;
 	}
-		//The line beyond the symbol placed against this nozzle
-	return lineDiameter(constList(against->runSiblings()), {this, against}, false, pipe);
+		//The line beyond the symbol placed against this nozzle: straight
+		//on through a tee, by default through its branch too
+	return lineDiameter(constList(by_default ? against->runSiblings() : against->lineSiblings()),
+						{this, against}, false, pipe, by_default);
 }
 
-PipeDiameter Terminal::pipeDiameter(const Conductor **pipe) const
+PipeDiameter Terminal::pipeDiameter(const Conductor **pipe, bool with_default) const
 {
-	const PipeDiameter facing = facingDiameter(pipe);
-	if (facing.isSet()) {
-		return facing;
-	}
-		//What is brought to another nozzle of its run
-	QList<const Terminal *> siblings;
-	for (const Terminal *sibling : runSiblings()) {
-		siblings << sibling;
-	}
 	QList<const Terminal *> seen{this};
 	if (const Terminal *against = contactNozzle()) {
 		seen << against;
 	}
-	return lineDiameter(siblings, seen, false, pipe);
+		//The size of its line first; then the one a tee has by default: its
+		//branch the size of its line, a line without a size that of its
+		//branch (step 6b-1c)
+	for (const bool by_default : {false, true})
+	{
+		if (by_default && !with_default) {
+			break;
+		}
+		const PipeDiameter facing = facingDiameter(pipe, by_default);
+		if (facing.isSet()) {
+			return facing;
+		}
+			//What is brought to another nozzle of its run
+		QList<const Terminal *> siblings;
+		for (const Terminal *sibling : by_default ? runSiblings() : lineSiblings()) {
+			siblings << sibling;
+		}
+		const PipeDiameter line = lineDiameter(siblings, seen, false, pipe, by_default);
+		if (line.isSet()) {
+			return line;
+		}
+	}
+	return PipeDiameter();
 }
 
 const Terminal *Terminal::runSiblingOtherThan(const PipeDiameter &pipe) const
 {
-	for (const Terminal *sibling : runSiblings()) {
+	for (const Terminal *sibling : lineSiblings()) {
 		if (compareDiameters(pipe, sibling->facingDiameter()) != PidCodification::DiameterMatch::Same) {
 			return sibling;
 		}
@@ -2099,10 +2137,10 @@ bool Terminal::marksContactGap() const
 	return against && (hasDiameterGap() || against->hasDiameterGap());
 }
 
-PipeDiameter Terminal::diameter() const
+PipeDiameter Terminal::diameter(bool with_default) const
 {
 	const PipeDiameter own = ownDiameter();
-	return own.isSet() ? own : pipeDiameter();
+	return own.isSet() ? own : pipeDiameter(nullptr, with_default);
 }
 
 PidCodification::DiameterMatch Terminal::compareDiameters(const PipeDiameter &a,
@@ -2158,8 +2196,9 @@ bool Terminal::reducesNothing() const
 	if (!other) {
 		return false;
 	}
-	const PipeDiameter mine = diameter();
-	const PipeDiameter theirs = other->diameter();
+		//Never the size a tee has by default: nothing says it is the one
+	const PipeDiameter mine = diameter(false);
+	const PipeDiameter theirs = other->diameter(false);
 	return mine.isSet() && theirs.isSet()
 			&& compareDiameters(mine, theirs) == PidCodification::DiameterMatch::Same;
 }
@@ -2191,8 +2230,8 @@ bool Terminal::reducerReversed() const
 	const Diagram *folio = diagram();
 	const PidCodification &codification = folio && folio->project() ? folio->project()->pidCodification()
 																	 : without_project;
-	const PipeDiameter dn_large = codification.lineNominal(large->diameter());
-	const PipeDiameter dn_small = codification.lineNominal(small->diameter());
+	const PipeDiameter dn_large = codification.lineNominal(large->diameter(false));
+	const PipeDiameter dn_small = codification.lineNominal(small->diameter(false));
 	if (!dn_large.isSet() || !dn_small.isSet()
 		|| codification.compare(dn_large, dn_small) == PidCodification::DiameterMatch::Same) {
 		return false;

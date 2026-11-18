@@ -265,7 +265,9 @@ void Conductor::takeLineSpec()
 	@brief Conductor::takeNozzleDiameter
 	A new pipe without a size takes the one of a nozzle at its ends, the
 	nozzle it starts from first: given to it, or on a valve that of the pipe
-	on the other side. A DN is the size of the line; with it goes the outside
+	on the other side; on the branch of a tee, when neither end has one,
+	that of the line of the tee (an equal tee until told otherwise).
+	A DN is the size of the line; with it goes the outside
 	diameter of the material of the pipe, when it has one only for this DN,
 	or a default one among several. An outside diameter is kept as the
 	second value, with the DN the sizes of the materials join to it, when
@@ -283,15 +285,24 @@ void Conductor::takeNozzleDiameter()
 	if (pipe.m_pipe.hasSize()) {
 		return;
 	}
-	const PipeDiameter start = terminal1 ? terminal1->diameter() : PipeDiameter();
-	PipeDiameter taken = start.isSet() ? start
-									   : (terminal2 ? terminal2->diameter() : PipeDiameter());
+		//The size an end has for sure goes before the one the branch of a
+		//tee only has by default, that of its line (Terminal::pipeDiameter()):
+		//drawn from the branch of a tee on a DN 50 line to a DN 25 nozzle,
+		//a pipe is DN 25; to a nozzle without a size, DN 50 (step 6b-1c)
+	PipeDiameter taken;
+	for (const bool with_default : {false, true}) {
+		for (const Terminal *end : {terminal1, terminal2}) {
+			if (end && !taken.isSet()) {
+				taken = end->diameter(with_default);
+			}
+		}
+	}
 		//A pipe of no length, between two symbols placed against each
 		//other, is of the line: the size of the end which follows a line
 		//goes before the size of a nozzle of equipment
 	if (endsTouch() && !terminal1->followsPipe() && terminal2->followsPipe()
-		&& terminal2->diameter().isSet()) {
-		taken = terminal2->diameter();
+		&& terminal2->diameter(false).isSet()) {
+		taken = terminal2->diameter(false);
 	}
 	if (taken.isThread()) {
 		taken = taken.threadNominal();
@@ -3459,7 +3470,9 @@ void Conductor::updateFittings() const
 	pipe, continues through the run of that one (Terminal::contactNozzle()).
 	@param reach : LineReach::Size, the pipes the size of this one passes
 	to: reducers and equipment stop it, a spec break (Element::isSpecBreak())
-	does not. LineReach::Spec, the pipes its material, piping class and
+	does not; through a tee or a cross, straight on only, as the line number:
+	the branch of a tee has a size of its own (step 6b-1c, which revises
+	5l-1d). LineReach::Spec, the pipes its material, piping class and
 	nominal pressure pass to: on through reducers too, from one side to the
 	other (Terminal::reducerOtherSide()); spec breaks and equipment stop it.
 	LineReach::Fluid, the pipes its fluid passes to: as the spec, on through
@@ -3509,23 +3522,15 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 		}
 		seen << terminal;
 		QList<Terminal *> siblings = terminal->runSiblings();
-			//A tee, a cross: three nozzles or more on the run
-		if (siblings.size() >= 2)
-		{
-				//The flow parts there, on every side
-			if (reach == LineReach::Flow) {
-				continue;
-			}
-				//The line goes on straight, a branch is another line
-			if (reach == LineReach::LineNumber) {
-				QList<Terminal *> straight;
-				for (Terminal *sibling : std::as_const(siblings)) {
-					if (Qet::isOpposed(terminal->orientation(), sibling->orientation())) {
-						straight << sibling;
-					}
-				}
-				siblings = straight;
-			}
+			//A tee, a cross (three nozzles or more on the run): the flow
+			//parts there, on every side
+		if (reach == LineReach::Flow && siblings.size() >= 2) {
+			continue;
+		}
+			//Through a tee or a cross the line goes on straight, with its
+			//size and its number: a branch is another line
+		if (reach == LineReach::Size || reach == LineReach::LineNumber) {
+			siblings = terminal->lineSiblings();
 		}
 		if (reach != LineReach::Size)
 		{

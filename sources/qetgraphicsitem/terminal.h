@@ -93,6 +93,12 @@ class Terminal : public QGraphicsObject
 			/// other nozzle of a valve, the others of a tee; none for a
 			/// nozzle out of a run and for any other medium
 		QList<Terminal *> runSiblings() const;
+			/// The nozzles of its run its line goes on to, with its size,
+			/// its line number and its kind of line: the other one of a run
+			/// of two (a valve); in a run of three or more (a tee, a cross),
+			/// the one opposite only: a branch is another line, of a size
+			/// of its own
+		QList<Terminal *> lineSiblings() const;
 			/// This nozzle has no size of its own: it has the one of its
 			/// line, so that nothing goes out of date when the line is
 			/// given another size. A nozzle of a run (a valve, an inline
@@ -101,8 +107,9 @@ class Terminal : public QGraphicsObject
 			/// it is ignored. Any other nozzle (of equipment, of a reducer,
 			/// the outlet of a safety valve) may have a size of its own.
 		bool followsPipe() const;
-			/// Another nozzle of its run which is not brought the size
-			/// @p pipe (facingDiameter()); nullptr if none
+			/// Another nozzle of its run, on its line (lineSiblings()),
+			/// which is not brought the size @p pipe (facingDiameter());
+			/// nullptr if none
 		const Terminal *runSiblingOtherThan(const PipeDiameter &pipe) const;
 			/// The nozzle of another symbol placed against this one:
 			/// with no pipe on either, or joined to this one by a pipe of
@@ -124,9 +131,10 @@ class Terminal : public QGraphicsObject
 			/// The pipes nearest to this nozzle on its line, from which a
 			/// change of size goes on (Conductor::inlineRun()): its own pipe;
 			/// without one, across the symbols placed against it which
-			/// follow their line (a valve, a tee), the first pipes beyond
-			/// them. None beyond a nozzle with a size of its own (equipment,
-			/// another reducer), nor for any other medium.
+			/// follow their line (a valve, a tee straight on), the first
+			/// pipes beyond them. None beyond a nozzle with a size of its
+			/// own (equipment, another reducer), nor across the branch of a
+			/// tee, nor for any other medium.
 		QList<Conductor *> nearestPipes() const;
 			/// The size brought to this nozzle from outside its symbol:
 			/// that of its pipe; without one, or with a pipe of no length
@@ -135,8 +143,11 @@ class Terminal : public QGraphicsObject
 			/// own size, which gives way to the size of the line of this
 			/// nozzle (the size lives on the line). None for none.
 			/// @p pipe, if given, is the pipe this size is of, when it is
-			/// the size of a pipe.
-		PipeDiameter facingDiameter(const Conductor **pipe = nullptr) const;
+			/// the size of a pipe. A size goes straight on through a tee
+			/// (lineSiblings()); with @p by_default, into and out of its
+			/// branch too, see pipeDiameter().
+		PipeDiameter facingDiameter(const Conductor **pipe = nullptr,
+									bool by_default = false) const;
 			/// To call when this nozzle may have come against another one
 			/// or left it (its symbol moved, a pipe came or went): the
 			/// sizes shown on both sides are drawn again
@@ -152,13 +163,19 @@ class Terminal : public QGraphicsObject
 		PipeDiameter ownDiameter() const;
 			/// The diameter of the line of this nozzle: the one brought to
 			/// it (facingDiameter()); else, in a run, the one brought to
-			/// another nozzle of the run. None for none. @p pipe as for
-			/// facingDiameter().
-		PipeDiameter pipeDiameter(const Conductor **pipe = nullptr) const;
+			/// another nozzle of its line (lineSiblings()). Without any,
+			/// and with @p with_default, the one a tee has by default: the
+			/// size of the line for its branch, the size of its branch for
+			/// a line without one (an equal tee until told otherwise).
+			/// None for none. @p pipe as for facingDiameter().
+		PipeDiameter pipeDiameter(const Conductor **pipe = nullptr,
+								  bool with_default = true) const;
 			/// The diameter of this nozzle: its own, else that of its pipe
-		PipeDiameter diameter() const;
+			/// (pipeDiameter(), @p with_default as there)
+		PipeDiameter diameter(bool with_default = true) const;
 			/// The nozzle has a diameter of its own, its pipe another one; or
-			/// the pipes of its run have two diameters, with no reducer; or
+			/// the pipes of its line have two diameters, with no reducer (the
+			/// branch of a tee has any size, step 6b-1c); or
 			/// it is one of a reducer which reduces nothing or is laid the
 			/// wrong way.
 			/// A nozzle placed against it counts as a pipe.
@@ -345,11 +362,14 @@ class Terminal : public QGraphicsObject
 			/// that of its pipe, else the own size of the nozzle placed
 			/// against it, else further through the runs and the contacts;
 			/// never back through @p seen. With @p pipes_only, the size of
-			/// a pipe only. @p pipe as for connectedDiameter().
+			/// a pipe only. @p pipe as for connectedDiameter(). Straight on
+			/// through a tee (lineSiblings()); with @p by_default, through
+			/// its branch too.
 		static PipeDiameter lineDiameter(QList<const Terminal *> todo,
 										 QList<const Terminal *> seen,
 										 bool pipes_only = false,
-										 const Conductor **pipe = nullptr);
+										 const Conductor **pipe = nullptr,
+										 bool by_default = false);
 			/// The mark of two sizes is drawn here: at a contact there is
 			/// no pipe to draw it (Conductor::drawDiameterGaps())
 		bool marksContactGap() const;
