@@ -135,6 +135,15 @@ class PartTerminal : public CustomElementGraphicPart
 			/// undo of the editor changes
 		QString connectionWord() const {return PipeConnection::toString(d->m_connection);}
 		void setConnectionWord(const QString &word) {setConnection(PipeConnection::fromString(word));}
+			/// The mark of the connection of this nozzle, as a placed symbol
+			/// draws it when its project draws the connections
+			/// (Terminal::drawConnectionMark()), in the coordinates of this
+			/// part: its lines, and in @p fills its dots. On the nozzle, or
+			/// 1 mm beyond it on a symbol a line runs through. Nothing for a
+			/// plain end, for the flange of a symbol a line runs through
+			/// (its side stands for it), on a spec break and for any other
+			/// terminal.
+		QPainterPath connectionMark(QPainterPath *fills = nullptr) const;
 			/// The text shown at the terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 			/// The size labelText() writes under the name of a nozzle; nothing
@@ -198,6 +207,10 @@ class PartTerminal : public CustomElementGraphicPart
 		void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
 	private:
+			/// The room of this terminal and of its name, without the mark
+			/// of the connection of a nozzle: what boundingRect() was, and
+			/// what counts in the frame of the symbol (sceneGeometricRect())
+		QRectF ownRect() const;
 		void updateSecondPoint();
 		TerminalData* d; // pointer to the terminal data
 

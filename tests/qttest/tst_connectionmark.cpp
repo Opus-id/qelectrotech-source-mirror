@@ -18,6 +18,8 @@
 #include "qetapptest.h"
 
 #include "diagram.h"
+#include "editor/elementscene.h"
+#include "editor/graphicspart/partterminal.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
@@ -1027,6 +1029,83 @@ class tst_connectionmark : public QObject
 			QVERIFY(pipe->pipeStartAt(v1) > 0);
 			const QImage flanged = render(folio, QPointF(310, 200));
 			QVERIFY2(qGray(flanged.pixel(41, 38)) >= 192, "the pipe shows in the valve");
+		}
+
+			// ---- in the element editor (lot c3 of the step 6b-1c) ----
+			// The editor draws on a nozzle the mark of the connection chosen
+			// for it, as a placed symbol does when its project draws it. The
+			// mark is no part of the symbol: its frame does not change.
+		void theEditorDrawsTheMarkOfANozzle()
+		{
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<terminal x=\"40\" y=\"40\" name=\"N1\" orientation=\"e\" type=\"Generic\" "
+				"medium=\"pipe\"/>"));
+			QGraphicsScene scene(QRectF(0, 0, 80, 80));
+			PartTerminal part(nullptr);
+			part.fromXml(doc.documentElement());
+			scene.addItem(&part);
+			const QRectF frame = part.sceneGeometricRect();
+			auto drawn = [&scene]() {
+				QImage image(80, 80, QImage::Format_RGB32);
+				image.fill(Qt::white);
+				QPainter painter(&image);
+				scene.render(&painter, QRectF(0, 0, 80, 80), QRectF(0, 0, 80, 80));
+				painter.end();
+				return image;
+			};
+				// a flange, the default: a line across the end of the nozzle,
+				// from y 30 to 50 at x 40
+			QPainterPath dots;
+			QCOMPARE(part.connectionMark(&dots).boundingRect(), QRectF(0, -10, 0, 20));
+			QVERIFY(dots.isEmpty());
+			QVERIFY(dark(drawn(), 40, 33));
+			QVERIFY(part.boundingRect().contains(QPointF(0, -10)));
+				// a socket opens towards the pipe; facing west, to the west
+			part.setConnection(PipeConnection::Socket);
+			QCOMPARE(part.connectionMark().boundingRect(), QRectF(0, -10, 10, 20));
+			QVERIFY(dark(drawn(), 46, 30) || dark(drawn(), 46, 29));
+			part.setOrientation(Qet::West);
+			QCOMPARE(part.connectionMark().boundingRect(), QRectF(-10, -10, 10, 20));
+			part.setOrientation(Qet::East);
+				// a butt weld: a dot on the end of the nozzle
+			part.setConnection(PipeConnection::ButtWeld);
+			QVERIFY(part.connectionMark(&dots).isEmpty());
+			QCOMPARE(dots.boundingRect(), QRectF(-4, -4, 8, 8));
+				// a plain end: nothing, as before
+			part.setConnection(PipeConnection::PlainEnd);
+			QVERIFY(part.connectionMark(&dots).isEmpty() && dots.isEmpty());
+			QVERIFY(!dark(drawn(), 40, 33));
+				// the frame of the symbol never counted the mark
+			QCOMPARE(part.sceneGeometricRect(), frame);
+				// any other terminal: nothing
+			part.setConnection(PipeConnection::Flange);
+			part.setMedium(TerminalData::Electrical);
+			QVERIFY(part.connectionMark(&dots).isEmpty() && dots.isEmpty());
+			QVERIFY(!dark(drawn(), 40, 33));
+			scene.removeItem(&part);
+
+				// a symbol a line runs through, a valve: its side stands for
+				// its flange, nothing is drawn; any other mark 1 mm beyond
+				// the nozzle, on the side of the pipe
+			QDomDocument valve;
+			valve.setContent(symbol(true));
+			ElementScene editor(nullptr);
+			editor.fromXml(valve, QPointF(), true);
+			PartTerminal *n1 = nullptr, *n2 = nullptr;
+			for (QGraphicsItem *item : editor.items()) {
+				if (auto *terminal = qgraphicsitem_cast<PartTerminal *>(item)) {
+					if (terminal->terminalName() == QLatin1String("N1")) n1 = terminal;
+					if (terminal->terminalName() == QLatin1String("N2")) n2 = terminal;
+				}
+			}
+			QVERIFY(n1 && n2);
+			QCOMPARE(n1->connection(), PipeConnection::Flange);
+			QVERIFY(n1->connectionMark().isEmpty());
+				// N2, a plain end facing east, made a socket
+			n2->setConnection(PipeConnection::Socket);
+			QCOMPARE(n2->connectionMark().boundingRect(),
+					 QRectF(PipeConnection::inlineMarkDistance, -10, 10, 20));
 		}
 
 			// ---- on paper ----

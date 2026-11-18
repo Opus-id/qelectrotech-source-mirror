@@ -21,6 +21,21 @@
 #include <QPropertyUndoCommand/qpropertyundocommand.h>
 #include <qetgraphicsitem/terminal.h>
 
+namespace {
+		/// From the frame of PipeConnection::markShapes(), along the pipe, to
+		/// that of a part whose nozzle faces @p orientation
+	QTransform markFrame(Qet::Orientation orientation)
+	{
+		switch (orientation) {
+			case Qet::East:  return QTransform();
+			case Qet::South: return QTransform().rotate(90);
+			case Qet::West:  return QTransform().rotate(180);
+			case Qet::North: return QTransform().rotate(270);
+		}
+		return QTransform();
+	}
+}
+
 /**
 	@brief PartTerminal::PartTerminal
 	@param editor :
@@ -104,6 +119,26 @@ void PartTerminal::paint(
 	t.setColor(swap_colors ? Terminal::neutralColor : Terminal::stemColor(d->m_medium));
 	painter -> setPen(t);
 	painter -> drawLine(QPointF(0.0, 0.0), d -> m_second_point);
+
+		//The mark of the connection of a nozzle, as a placed symbol draws
+		//it, in the colour of the nozzle: it is no part of the drawing of
+		//the symbol
+	if (d->m_medium == TerminalData::Pipe) {
+		QPainterPath dots;
+		const QPainterPath lines = connectionMark(&dots);
+		if (!lines.isEmpty() || !dots.isEmpty()) {
+			QPen mark(t.color(), 1.0, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+			mark.setCosmetic(t.isCosmetic());
+			painter -> setRenderHint(QPainter::Antialiasing, true);
+			painter -> setPen(mark);
+			painter -> setBrush(Qt::NoBrush);
+			painter -> drawPath(lines);
+			painter -> setPen(Qt::NoPen);
+			painter -> setBrush(t.color());
+			painter -> drawPath(dots);
+			painter -> setRenderHint(QPainter::Antialiasing, false);
+		}
+	}
 
 	// dessin du point d'amarrage au conducteur en bleu
 	t.setColor(isSelected() ? Qt::red : Terminal::neutralColor);
@@ -240,6 +275,23 @@ QPainterPath PartTerminal::shadowShape() const
 */
 QRectF PartTerminal::boundingRect() const
 {
+	QRectF br = ownRect();
+		//A nozzle: the room of the mark of any connection, on the nozzle
+		//or beyond it, so that the room does not change with the symbol
+	if (d->m_medium == TerminalData::Pipe) {
+		const qreal h = PipeConnection::markHalfHeight + 1;
+		br = br.united(markFrame(d->m_orientation).mapRect(
+						   QRectF(-5, -h, PipeConnection::inlineMarkDistance + 16, 2 * h)));
+	}
+	return(br);
+}
+
+/**
+	@brief PartTerminal::ownRect
+	See the declaration
+*/
+QRectF PartTerminal::ownRect() const
+{
 	QRectF br(QPointF(0, 0), d -> m_second_point);
 	br = br.normalized();
 
@@ -251,6 +303,44 @@ QRectF PartTerminal::boundingRect() const
 	}
 
 	return(br);
+}
+
+/**
+	@brief PartTerminal::connectionMark
+	See the declaration
+*/
+QPainterPath PartTerminal::connectionMark(QPainterPath *fills) const
+{
+	QPainterPath lines, dots;
+	if (d->m_medium == TerminalData::Pipe && PipeConnection::hasOwnMark(d->m_connection))
+	{
+			//As Element::isPipeInline() and isSpecBreak() of a placed symbol
+		bool in_line = false, spec_break = false;
+		if (auto *scene = qobject_cast<ElementScene *>(QGraphicsItem::scene())) {
+			const ElementData data = scene->elementData();
+			spec_break = data.m_pid_role == QLatin1String("spec_break");
+			if (data.m_pipe_inline) {
+				int nozzles = 0;
+				for (QGraphicsItem *item : scene->items()) {
+					const auto *other = qgraphicsitem_cast<PartTerminal *>(item);
+					if (other && other->d->m_medium == TerminalData::Pipe) {
+						++nozzles;
+					}
+				}
+				in_line = nozzles == 2;
+			}
+		}
+		if (!spec_break && !(in_line && d->m_connection == PipeConnection::Flange)) {
+			PipeConnection::markShapes(d->m_connection,
+									   in_line ? PipeConnection::inlineMarkDistance : 0,
+									   &lines, &dots);
+		}
+	}
+	const QTransform frame = markFrame(d->m_orientation);
+	if (fills) {
+		*fills = frame.map(dots);
+	}
+	return frame.map(lines);
 }
 
 /**
@@ -487,6 +577,8 @@ void PartTerminal::setConnection(PipeConnection::Type connection)
 		return;
 	}
 	d->m_connection = connection;
+		//its mark is drawn on the nozzle
+	update();
 	emit connectionChanged();
 }
 
@@ -702,10 +794,12 @@ bool PartTerminal::isUseless() const
 	coordinates. It is different from boundingRect() because it is not supposed
 	to imply any margin, and it is different from shape because it is a regular
 	rectangle, not a complex shape.
+	As before for any terminal: the mark of the connection of a nozzle is
+	no part of the symbol and does not count in its frame.
 */
 QRectF PartTerminal::sceneGeometricRect() const
 {
-	return(sceneBoundingRect());
+	return(sceneTransform().mapRect(ownRect()));
 }
 
 /**
