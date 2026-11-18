@@ -3501,7 +3501,8 @@ void Conductor::updateFittings() const
 	only straight on, from a nozzle to the one opposite, never into nor out
 	of a branch (step 5l-1k). LineReach::Flow, the pipes its flow passes
 	to: as the fluid, but a tee or a cross stops it on every side, the flow
-	parting there.
+	parting there, and so does any junction (Element::isJunction()): beyond
+	an injection point the flow is no more the same (step 6b-1c).
 	Pipes only: a signal line or a wire never goes on.
 */
 QList<Conductor *> Conductor::inlineRun(LineReach reach)
@@ -3540,9 +3541,12 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 		}
 		seen << terminal;
 		QList<Terminal *> siblings = terminal->runSiblings();
+		const Element *element = terminal->parentElement();
 			//A tee, a cross (three nozzles or more on the run): the flow
-			//parts there, on every side
-		if (reach == LineReach::Flow && siblings.size() >= 2) {
+			//parts there, on every side. Any junction stops it: beyond an
+			//injection point it is the flow of the line plus the reagent
+		if (reach == LineReach::Flow
+			&& (siblings.size() >= 2 || (element && element->isJunction()))) {
 			continue;
 		}
 			//Through a tee or a cross the line goes on straight, with its
@@ -3552,7 +3556,6 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 		}
 		if (reach != LineReach::Size)
 		{
-			const Element *element = terminal->parentElement();
 				//The material of the line changes there, not its fluid
 			if (reach == LineReach::Spec && element && element->isSpecBreak()) {
 				continue;

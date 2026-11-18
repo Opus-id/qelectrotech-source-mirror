@@ -357,7 +357,8 @@ void PipePropertiesWidget::buildUi()
 	connect(m_automatic_color, &QToolButton::clicked, this, [this]() { setManualColor(QColor()); });
 
 	layout->addRow(PidSection::title(tr("Other data", "section of the page of a pipe"), this));
-		//The flow of the line up to its tees, where it parts (step 5l-1k)
+		//The flow of the line up to its tees, where it parts (step 5l-1k),
+		//and to its injection points (step 6b-1c)
 	addTextField(QStringLiteral("flow"), tr("Flow:"),
 				 [](const PipeProperties &p) { return p.flow; },
 				 [](PipeProperties &p, const QString &t) { p.flow = t; }, Reach::Flow);
@@ -1237,8 +1238,8 @@ QString PipePropertiesWidget::lineNote(const std::function<QString(const PipePro
 			//Every pipe changed had another kind: nothing more to say
 	} else if (replaced && reach == Reach::Flow) {
 		note += QLatin1Char(' ')
-				+ tr("%n of them had another flow (%1): only a tee or equipment keeps two "
-					 "flows apart.", "", replaced)
+				+ tr("%n of them had another flow (%1): only a tee, an injection point or "
+					 "equipment keeps two flows apart.", "", replaced)
 				  .arg(values.join(QStringLiteral(", ")));
 	} else if (replaced) {
 		note += QLatin1Char(' ')

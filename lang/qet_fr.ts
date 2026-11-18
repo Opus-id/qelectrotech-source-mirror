@@ -14621,10 +14621,10 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message numerus="yes">
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="1225"/>
-        <source>%n of them had another flow (%1): only a tee or equipment keeps two flows apart.</source>
+        <source>%n of them had another flow (%1): only a tee, an injection point or equipment keeps two flows apart.</source>
         <translation>
-            <numerusform>Dont %n qui avait un autre débit (%1) : seuls un Té ou un équipement séparent deux débits.</numerusform>
-            <numerusform>Dont %n qui avaient un autre débit (%1) : seuls un Té ou un équipement séparent deux débits.</numerusform>
+            <numerusform>Dont %n qui avait un autre débit (%1) : seuls un Té, un piquage d&apos;injection ou un équipement séparent deux débits.</numerusform>
+            <numerusform>Dont %n qui avaient un autre débit (%1) : seuls un Té, un piquage d&apos;injection ou un équipement séparent deux débits.</numerusform>
         </translation>
     </message>
     <message>

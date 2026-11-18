@@ -3210,6 +3210,67 @@ class tst_nozzlediameter : public QObject
 			delete again;
 		}
 
+			// The flow stops at any junction (step 6b-1c): at an injection
+			// point too, beyond which it is the flow of the line plus the
+			// reagent. The size and the line number still go through it.
+		void theFlowStopsAtAnInjectionPoint()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *left = place(folio, tank);
+			Element *point = place(folio, addSymbol(
+						project, QStringLiteral("injection.elmt"),
+						QStringLiteral("{7b888888-8888-8888-8888-888888888882}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"junction\" "
+									   "pid_run=\"N1 N2\" three=\"true\" ")));
+			Element *dosing = place(folio, tank);
+			Element *right = place(folio, tank);
+			QVERIFY(left && point && dosing && right);
+			QVERIFY(point->isJunction());
+			QCOMPARE(point->pipeRun().size(), 2);
+			left->setPos(0, 200);
+			point->setPos(400, 200);
+			dosing->setPos(400, 600);
+			right->setPos(800, 200);
+			auto line_number = [](const Conductor *pipe) { return pipe->properties().m_pipe.line_number; };
+			auto flow = [](const Conductor *pipe) { return pipe->properties().m_pipe.flow; };
+
+			Conductor *p1 = connect(folio, left, QStringLiteral("N2"), point, QStringLiteral("N1"));
+			QVERIFY(p1);
+			ConductorProperties first = p1->properties();
+			first.m_pipe.line_number = QStringLiteral("L-01");
+			first.m_pipe.flow = QStringLiteral("120 m3/h");
+			p1->setProperties(first);
+				// a new pipe beyond the point: the number, not the flow
+			Conductor *p2 = connect(folio, point, QStringLiteral("N2"), right, QStringLiteral("N1"));
+			Conductor *reagent = connect(folio, dosing, QStringLiteral("N1"), point, QStringLiteral("N3"));
+			QVERIFY(p2 && reagent);
+			QCOMPARE(line_number(p2), QStringLiteral("L-01"));
+			QVERIFY(flow(p2).isEmpty());
+			QVERIFY(line_number(reagent).isEmpty());
+			QVERIFY(flow(reagent).isEmpty());
+
+			using Reach = Conductor::LineReach;
+			QCOMPARE(p1->inlineRun(Reach::Flow), QList<Conductor *>{p1});
+			QCOMPARE(p2->inlineRun(Reach::Flow), QList<Conductor *>{p2});
+			QCOMPARE(reagent->inlineRun(Reach::Flow), QList<Conductor *>{reagent});
+			QCOMPARE(p1->inlineRun(Reach::LineNumber), (QList<Conductor *>{p1, p2}));
+			QCOMPARE(p1->inlineRun(Reach::Size), (QList<Conductor *>{p1, p2}));
+
+				// in the panel: the flow of this side only, nothing to say
+			PipePropertiesWidget page({p1});
+			auto *flow_edit = page.findChild<QLineEdit *>(QStringLiteral("flow"));
+			QVERIFY(flow_edit);
+			flow_edit->setText(QStringLiteral("150 m3/h"));
+			flow_edit->setModified(true);
+			emit flow_edit->editingFinished();
+			QCOMPARE(flow(p1), QStringLiteral("150 m3/h"));
+			QVERIFY(flow(p2).isEmpty());
+			QVERIFY(flow(reagent).isEmpty());
+			QVERIFY(page.diameterMessage().isEmpty());
+		}
+
 			// The branch of a tee has a size of its own (step 6b-1c, which
 			// revises 5l-1j, j1): a reducer against its N3 is no more needed
 			// for a reducing tee; one placed there sizes the branch only, and
