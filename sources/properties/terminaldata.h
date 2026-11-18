@@ -169,12 +169,17 @@ class TerminalData : public PropertiesInterface
 			/// beyond the largest mark of a connection, drawn or not, so that
 			/// they keep their place whatever the project draws
 		static constexpr qreal nozzleLabelGap = PipeConnection::markHalfHeight + 2;
+			/// How far the texts of a nozzle begin from its end, along its
+			/// pipe: 1 mm, so that they touch nothing of the symbol drawn at
+			/// the end of the nozzle (the cover of a manhole)
+		static constexpr qreal nozzleLabelAway = 4;
 			/// The NozzleLabels of a nozzle whose pipe leaves towards
 			/// @p leaving on the sheet, of texts of the sizes @p name and
 			/// @p size (empty for a text not written). Along a horizontal
-			/// pipe, from the end of the nozzle: the name above, the size
-			/// under it. Along a vertical one, the same turned to read from
-			/// the right of the sheet (the name on the left); or, when
+			/// pipe, nozzleLabelAway from the end of the nozzle: the name
+			/// above, the size under it. Along a vertical one, the same
+			/// turned to read from the right of the sheet (the name on the
+			/// left); or, when
 			/// @p turn_vertical is false (a project keeping the texts of its
 			/// symbols horizontal), on the right of the pipe, the name above
 			/// the size, beside its start.
@@ -182,10 +187,12 @@ class TerminalData : public PropertiesInterface
 										 const QSizeF &name, const QSizeF &size)
 		{
 			const qreal gap = nozzleLabelGap;
+			const qreal away = nozzleLabelAway;
 			NozzleLabels labels;
 			const bool vertical = leaving == Qet::North || leaving == Qet::South;
 			if (vertical && !turn_vertical) {
-				const qreal top = leaving == Qet::North ? -(name.height() + size.height()) : 0;
+				const qreal top = leaving == Qet::North ? -away - (name.height() + size.height())
+														: away;
 				labels.name = QRectF(QPointF(gap, top), name);
 				labels.size = QRectF(QPointF(gap, top + name.height()), size);
 				return labels;
@@ -194,8 +201,8 @@ class TerminalData : public PropertiesInterface
 				//a pipe going north runs along it as one going east
 			labels.rotation = vertical ? -90 : 0;
 			const bool forward = leaving == Qet::East || leaving == Qet::North;
-			labels.name = QRectF(QPointF(forward ? 0 : -name.width(), -gap - name.height()), name);
-			labels.size = QRectF(QPointF(forward ? 0 : -size.width(), gap), size);
+			labels.name = QRectF(QPointF(forward ? away : -away - name.width(), -gap - name.height()), name);
+			labels.size = QRectF(QPointF(forward ? away : -away - size.width(), gap), size);
 			return labels;
 		}
 		static QString namePrefix(TerminalData::Medium medium);
