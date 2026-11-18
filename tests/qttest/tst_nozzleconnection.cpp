@@ -526,6 +526,69 @@ class tst_nozzleconnection : public QObject
 			QCOMPARE(tab.sameConnectionLink()->icon().name(), QStringLiteral("chain-linked"));
 		}
 
+			// The nozzles are listed by name, N10 after N9, wherever they are
+			// on the symbol, whose terminals come from the top then from the
+			// left (lot c3 of the step 6b-1c)
+		void theNozzlesAreListedByName()
+		{
+			QETProject project;
+			project.setPidCodification(codification());
+			Diagram *folio = project.addNewDiagram();
+				// from the top: N10, N9, N2, N1
+			QString nozzles;
+			const QStringList names{QStringLiteral("N10"), QStringLiteral("N9"),
+									QStringLiteral("N2"), QStringLiteral("N1")};
+			for (int i = 0 ; i < names.size() ; ++i) {
+				nozzles += QStringLiteral(
+					"<terminal uuid=\"{7c000000-0000-0000-0000-00000000010%1}\" name=\"%2\" x=\"20\" "
+					"y=\"%3\" orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>")
+						.arg(i).arg(names.at(i)).arg(-30 + 20 * i);
+			}
+			QDomDocument doc;
+			doc.setContent(QStringLiteral(
+				"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+				"width=\"60\" height=\"80\" hotspot_x=\"30\" hotspot_y=\"40\">"
+				"<uuid uuid=\"{7c111112-1111-1111-1111-111111111111}\"/>"
+				"<names><name lang=\"en\">Column</name></names><description>"
+				"<line x1=\"0\" y1=\"-30\" x2=\"0\" y2=\"30\" end1=\"none\" end2=\"none\" "
+				"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
+				"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>")
+				+ nozzles + QStringLiteral("</description></definition>"));
+			project.embeddedElementCollection()->createDir(
+						QStringLiteral("import"), QStringLiteral("nozzles"), NamesList());
+			project.embeddedElementCollection()->addElementDefinition(
+						QStringLiteral("import/nozzles"), QStringLiteral("column.elmt"), doc.documentElement());
+			const ElementsLocation location(QStringLiteral("embed://import/nozzles/column.elmt"), &project);
+			int state = 0;
+			Element *column = ElementFactory::Instance()->createElement(location, nullptr, &state);
+			QVERIFY(column && !state);
+			folio->addItem(column);
+				// the element has them as its symbol places them
+			QStringList placed;
+			for (const Terminal *t : column->terminals()) {
+				placed << t->baseName();
+			}
+			QCOMPARE(placed, names);
+
+			ElementNozzlesWidget tab(column);
+			QStringList listed;
+			for (const QLabel *label : tab.findChildren<QLabel *>()) {
+				if (label->text().startsWith(QLatin1Char('N')) && label->text().endsWith(QLatin1Char(':'))) {
+					listed << label->text();
+				}
+			}
+			QCOMPARE(listed, QStringList({QStringLiteral("N1:"), QStringLiteral("N2:"),
+										  QStringLiteral("N9:"), QStringLiteral("N10:")}));
+				// the first nozzle, which gives its values to the others when
+				// linked, is the first by name
+			tab.setLiveEdit(true);
+			tab.sameConnectionLink()->setChecked(true);
+			pick(tab.connectionFor(QStringLiteral("N1")), PipeConnection::Thread);
+			for (const QString &name : names) {
+				QCOMPARE(terminal(column, name)->connection(), PipeConnection::Thread);
+			}
+		}
+
 			// A valve has the size of its line (step 5l-1j): no box "one size
 			// for all", no size kept, the DN of its symbol ignored
 		void aValveHasNoBoxForOneSize()

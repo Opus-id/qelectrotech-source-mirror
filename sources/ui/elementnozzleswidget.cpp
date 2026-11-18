@@ -26,6 +26,7 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/terminal.h"
 #include "../undocommand/changenozzlediameterscommand.h"
+#include "../utils/qetutils.h"
 #include "diameterlist.h"
 #include "pipepropertieswidget.h"
 
@@ -47,6 +48,23 @@ namespace {
 bool linked(const QToolButton *link)
 {
 	return link && link->isChecked();
+}
+
+	/// The named nozzles of @p element by name, N10 after N9: its terminals
+	/// come in the order of their place in its symbol, from the top then
+	/// from the left
+QList<Terminal *> nozzlesByName(const Element *element)
+{
+	QList<Terminal *> nozzles;
+	for (Terminal *terminal : element->terminals()) {
+		if (terminal->medium() == TerminalData::Pipe && !terminal->baseName().isEmpty()) {
+			nozzles << terminal;
+		}
+	}
+	std::stable_sort(nozzles.begin(), nozzles.end(), [](const Terminal *a, const Terminal *b) {
+		return QETUtils::naturalLessThan(a->baseName(), b->baseName());
+	});
+	return nozzles;
 }
 }
 
@@ -112,7 +130,8 @@ void ElementNozzlesWidget::setElement(Element *element)
 
 /**
 	@brief ElementNozzlesWidget::buildFields
-	Make one field per named nozzle, in the order of the terminals
+	Make one field per named nozzle, by name (nozzlesByName()): the first
+	nozzle, which gives its values to the others, is the first by name
 */
 void ElementNozzlesWidget::buildFields()
 {
@@ -135,17 +154,14 @@ void ElementNozzlesWidget::buildFields()
 		//or more with a size of their own: of the size. A valve, a tee have
 		//none of the size: their nozzles have the size of the line; the two
 		//sides of a reducer differ by nature
-	int nozzles = 0, sized = 0;
-	for (const Terminal *terminal : m_element->terminals()) {
-		if (terminal->medium() != TerminalData::Pipe || terminal->baseName().isEmpty()) {
-			continue;
-		}
-		++nozzles;
+	const QList<Terminal *> named = nozzlesByName(m_element);
+	int sized = 0;
+	for (const Terminal *terminal : named) {
 		if (!terminal->followsPipe()) {
 			++sized;
 		}
 	}
-	const bool links = nozzles >= 2;
+	const bool links = named.size() >= 2;
 	const bool size_link = sized >= 2 && !m_element->isReducer();
 		//The headers, even without a link: the columns are named alike
 	m_same_connection = addHeader(1, tr("Connection", "header of a column of the nozzles"),
@@ -170,12 +186,9 @@ void ElementNozzlesWidget::buildFields()
 		//Counted here: the row count of a grid never goes down once its
 		//items are taken away
 	int row = 1;
-	for (const Terminal *terminal : m_element->terminals())
+	for (const Terminal *terminal : named)
 	{
 		const QString name = terminal->baseName();
-		if (terminal->medium() != TerminalData::Pipe || name.isEmpty()) {
-			continue;
-		}
 		auto *connection = new QComboBox(this);
 		connection->setObjectName(QStringLiteral("connection_list"));
 		for (PipeConnection::Type type : PipeConnection::all()) {
