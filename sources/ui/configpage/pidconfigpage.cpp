@@ -414,14 +414,21 @@ void PidConfigPage::initWidgets()
 	m_add_entry->setObjectName(QStringLiteral("add_entry"));
 	m_remove_entry = new QPushButton(tr("Remove"), this);
 	m_remove_entry->setObjectName(QStringLiteral("remove_entry"));
+		//A file holds any part of the page: read and written under all the
+		//tabs, where the page says what was read
 	m_import = new QPushButton(tr("Import a CSV file..."), this);
+	m_import->setObjectName(QStringLiteral("import_csv"));
+	m_import->setToolTip(wrapped(tr("Reads into this page what the file has: codes, sizes of materials, "
+							"colors, texts, connections, marks of the signal lines. What the "
+							"file has not stays as it is.")));
 	m_export = new QPushButton(tr("Export as a CSV file..."), this);
+	m_export->setObjectName(QStringLiteral("export_csv"));
 	m_export->setToolTip(wrapped(tr("The codes, the colors and the texts of this page, which another "
 							"project can import.")));
 	m_code_message = new QLabel(this);
 	m_code_message->setObjectName(QStringLiteral("codification_message"));
 	m_code_message->setWordWrap(true);
-		//The buttons under the tabs act on the tab shown
+		//The buttons under the lists of codes act on the list shown
 	connect(m_add_entry, &QPushButton::clicked, this, &PidConfigPage::addEntry);
 	connect(m_remove_entry, &QPushButton::clicked, this, &PidConfigPage::removeSelectedEntries);
 	connect(m_import, &QPushButton::clicked, this, [this]() {
@@ -772,10 +779,7 @@ void PidConfigPage::initLayout()
 	code_buttons->addWidget(m_add_entry);
 	code_buttons->addWidget(m_remove_entry);
 	code_buttons->addStretch();
-	code_buttons->addWidget(m_import);
-	code_buttons->addWidget(m_export);
 	codes_layout->addLayout(code_buttons);
-	codes_layout->addWidget(m_code_message);
 
 	auto *tabs = new QTabWidget(this);
 	tabs->addTab(codes_tab, tr("Codification"));
@@ -809,6 +813,14 @@ void PidConfigPage::initLayout()
 	signal_layout->addStretch();
 	tabs->addTab(signal_tab, tr("Signal lines"));
 
+		//Under the tabs, what acts on the whole page: a file read or
+		//written, which may hold a part of any tab, and what the page says
+		//of it; then the defaults of the new projects
+	auto *files = new QHBoxLayout();
+	files->addWidget(m_import);
+	files->addWidget(m_export);
+	files->addStretch();
+
 	auto *defaults = new QHBoxLayout();
 	defaults->addStretch();
 	defaults->addWidget(m_default_saved);
@@ -817,6 +829,8 @@ void PidConfigPage::initLayout()
 
 	auto *page_layout = new QVBoxLayout(this);
 	page_layout->addWidget(tabs);
+	page_layout->addLayout(files);
+	page_layout->addWidget(m_code_message);
 	page_layout->addLayout(defaults);
 }
 

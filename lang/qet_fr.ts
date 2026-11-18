@@ -14084,6 +14084,7 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message><source>A signal line is drawn with the mark of its type of signal, repeated along it. By default the marks of ISO 14617, and those of ANSI/ISA-5.1 for the two types it has not.</source><translation>Une ligne de signal est dessinée avec la marque de son type de signal, répétée le long du trait. Par défaut, les marques de l&apos;ISO 14617, et celles de l&apos;ANSI/ISA-5.1 pour les deux types qu&apos;elle ne connaît pas.</translation></message>
     <message><source>%1:</source><comment>a type of signal, before the list of its marks</comment><translation>%1 :</translation></message>
     <message><source>the marks of the signal lines</source><translation>les marques des lignes de signal</translation></message>
+    <message><source>Reads into this page what the file has: codes, sizes of materials, colors, texts, connections, marks of the signal lines. What the file has not stays as it is.</source><translation>Lit dans cette page ce que le fichier contient : codes, tailles des matériaux, couleurs, textes, raccords, marques des lignes de signal. Ce que le fichier ne contient pas reste tel quel.</translation></message>
 </context>
 <context>
     <name>SignalMark</name>

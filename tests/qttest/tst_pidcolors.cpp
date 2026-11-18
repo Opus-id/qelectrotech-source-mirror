@@ -28,7 +28,11 @@
 #include <QImage>
 #include <QListWidget>
 #include <QPainter>
+#include <algorithm>
+
+#include <QLabel>
 #include <QPushButton>
+#include <QTabWidget>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTextDocument>
@@ -872,6 +876,30 @@ class tst_pidcolors : public QObject
 			QVERIFY(!page.codeMessage().contains(QStringLiteral("fluids")));
 			page.applyProjectConf();
 			QVERIFY(project.pidCodification().drawsConnection(PipeConnection::Flange));
+		}
+
+			// A file may hold a part of any tab: what reads it, what writes it
+			// and what the page says of it are under the tabs, in none of them
+		void theFilesAreReadAndWrittenFromAnyTab()
+		{
+			QETProject project;
+			PidConfigPage page(&project);
+			auto *import = page.findChild<QPushButton *>(QStringLiteral("import_csv"));
+			auto *export_csv = page.findChild<QPushButton *>(QStringLiteral("export_csv"));
+			auto *message = page.findChild<QLabel *>(QStringLiteral("codification_message"));
+			QVERIFY(import && export_csv && message);
+			const QList<QTabWidget *> tabs = page.findChildren<QTabWidget *>();
+			QVERIFY(!tabs.isEmpty());
+			for (const QTabWidget *tab : tabs) {
+				QVERIFY(!tab->isAncestorOf(import));
+				QVERIFY(!tab->isAncestorOf(export_csv));
+				QVERIFY(!tab->isAncestorOf(message));
+			}
+				// what is under the lists of codes stays in their tab
+			auto *add = page.findChild<QPushButton *>(QStringLiteral("add_entry"));
+			QVERIFY(add);
+			QVERIFY(std::any_of(tabs.cbegin(), tabs.cend(),
+								[add](const QTabWidget *tab) { return tab->isAncestorOf(add); }));
 		}
 
 			// Step 5l-1v: the long tool tips of the page are cut on several lines
