@@ -19,8 +19,9 @@ object**: it is an ordinary QElectroTech conductor that carries a
 - `electrical` -- the default, not written in the files: every existing
   symbol and project is read and saved exactly as before;
 - `pipe` -- the nozzles of process symbols and the pipes between them;
-- `signal` and `drive` -- reserved for signal lines and shafts (not drawn
-  yet).
+- `signal` -- the signal terminals of instruments and the signal lines
+  between them;
+- `drive` -- reserved for shafts (nothing uses it yet).
 
 So a pipe gets, for free, what a wire already has: drawing, routing,
 selection, undo, copy and paste, saving in `.qet`, `.qetz` and `.qetdb`
@@ -154,7 +155,8 @@ line.*
   presentation* (colors, texts, connections drawn, models of tags), saved
   apart. A new project starts from both; projects that already exist do
   not change.
-- **A status of works** on pipes and P&ID symbols: to be built, the default,
+- **A status of works** on pipes, signal lines and P&ID symbols: to be
+  built, the default,
   existing and kept, to be demolished. Its color, set for the project,
   comes before any other. Chosen on the page of the object, or for a whole
   selection in its context menu, in one undo step. On a symbol it is kept
@@ -177,12 +179,51 @@ line.*
 - **Select by criteria…** (*Edit* menu, context menu of the folio): a
   window that stays open beside the folio, with a tree of boxes: symbols
   by family, symbol, functional unit or status; pipes by size, fluid,
-  material, line number, piping class… A branch appears only when an
+  material, line number, piping class…; signal lines by type of signal or
+  status. A branch appears only when an
   object bears the data, and has a *No size*, *No fluid*… box: the pipes
   without a size are found there. The search runs in the selection or in
   the whole folio and replaces, extends or reduces the selection;
   rectangles drawn on the folio while the window is open follow the same
   action.
+- **Words**: a pipe and a signal line are never called conductors. The
+  status bar names what the mouse points at (`Pipe W01-L · DN 100`,
+  `Signal line: Pneumatic`), the undo captions count pipes and signal
+  lines apart, and the labels that stand for wires, pipes and signal
+  lines together say *lines and conductors* (selection filter,
+  *Display > Show*, contexts of the shortcut bar). A wire is called a
+  conductor as before.
+
+**Signal lines**
+- A conductor drawn between two signal terminals is a **signal line**. It
+  is not a pipe (no size, fluid nor material) and not a wire (no number, no
+  potential, no wire fields), even when the signal is an electrical one.
+- **Type of signal**: undefined (the default), pneumatic, electrical,
+  hydraulic, capillary, guided electromagnetic, data link
+  (`pid_signal_type`, written only when chosen). It stays on its line: it
+  is never passed on to the lines connected to it.
+- **Drawn after its type**: a thin line (0.25 mm, 1 unit) in the color the
+  project gives the signal lines (`object_color;signal;#rrggbb`), with the
+  mark of its type repeated every 12 mm along each straight run, read from
+  the bottom or from the right. The catalogue of eleven marks is fixed in
+  the code (plain line, dashes, one to three oblique bars, the letter-like
+  marks of the pneumatic, electrical and hydraulic signals, cross, wave,
+  circle). **Which mark each type takes is set for the project** (*Signal
+  lines* tab of the *P&ID* page, CSV line `signal_mark;type;mark`); by
+  default the mark ISO 14617 gives the type, else that of ANSI/ISA-5.1.
+- **Drawn with the tool of the pipes** (key `P`): a click near a signal
+  terminal starts a signal line, a click near a signal terminal of another
+  symbol ends it, with the same magnet. `T` (Shift + `T` backwards) turns
+  the type of signal of the lines drawn; the preview shows its mark. The
+  context menu of a symbol offers *Draw a signal line from here*. For now
+  a signal line ends at a signal terminal only, and a signal terminal
+  takes several lines.
+- **A page of its own** in the properties panel, and in the dialog a double
+  click opens: type of signal and status of works, for one signal line or
+  several, in one undo step.
+- **Status of works** as on a pipe (`pid_status`): its color comes before
+  that of the signal lines.
+- A tee is never placed on a signal line: the tool says why.
 
 **Sizes: the size lives on the pipe**
 - The way of working: draw, connect, place the fittings, **size at the
@@ -352,7 +393,8 @@ QElectroTech are saved byte for byte as by master.
 
 - The line designation shown along a pipe.
 - Flow direction, crossings as ISO 10628-1 draws them.
-- Signal lines, drive links, equipment data tables.
+- A signal line from or to a pipe or an empty place (the tap of an
+  instrument), instrument bubbles, drive links, equipment data tables.
 - Piping classes (material, pressure, wall thickness), the pressure rating
   (PN) of the nozzles.
 - Equipment drawn to size (a tank that stretches).
@@ -394,7 +436,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_fluid`, `pid_material`, `pid_flow`, `pid_line_number`, `pid_piping_class`, `pid_nominal_pressure`, `pid_spool`, `pid_external_finish` | text (a code of the codification, or free) | empty | set |
 | `.qet`, `<conductor>` | `pid_line_kind` | `secondary`, `auxiliary` | `main` | not main |
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
-| `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | not to be built |
+| `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | a pipe or a signal line not to be built |
 | `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link` | undefined | a signal line whose type is chosen |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end` or `tee`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee | a symbol is chosen for the role |
