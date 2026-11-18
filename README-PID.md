@@ -74,6 +74,14 @@ line.*
   refuses it (*Refuse to join terminals of different media*, with the other
   conductors-per-terminal rules). Automatic wiring never joins two media.
 - A nozzle takes **one** pipe: a branch is made with a tee symbol.
+- **A junction** (a tee, a cross, an injection point: `pid_role` =
+  `junction`) draws none of its lines. The folio draws one from the origin
+  of the symbol to each nozzle, as the pipe of that nozzle: its width, its
+  dashes, its colour. A nozzle without a pipe is drawn as the first pipe of
+  the junction, else as a main line: a tee without its branch is printed
+  too. The arrow head of an injection point, the only thing its symbol
+  draws, takes the colour of the reagent line. In the collection, the
+  thumbnail of a junction shows its lines.
 
 **Pipes**
 - Drawn by dragging from a nozzle, as a wire; released near a free nozzle
@@ -324,7 +332,10 @@ line.*
   each shown when it applies. An electrical symbol has no such tab.
 - **Change type**: right-click a placed symbol, *Change type* lists the
   symbols of the same collection folder that have the same size, hotspot
-  and terminals (name, place and medium). The symbol is swapped in place,
+  and terminals (name, place and medium), and through which the lines go
+  the same way: the same run, a reducer for a reducer, a spec break for a
+  spec break. A tee, whose branch is of the line, is never offered for an
+  injection point, whose reagent is not. The symbol is swapped in place,
   keeping its position, information and connections; undoable. A generic
   symbol (a valve, a pump) can be placed first and made precise later. A
   P&ID symbol keeps its texts (its tag) and takes the identifier of the new
@@ -332,7 +343,7 @@ line.*
   thumbnail of each symbol.
 - **Symbols that play a role for the lines** (`pid_role`, chosen in the
   *Piping* block of the element editor, with the family, the run and the
-  large side): a reducer, a free end, a spec break. An end closure (blind
+  large side): a reducer, a free end, a spec break, a junction. An end closure (blind
   flange, cap) needs none: a symbol of the `pipe` family with one nozzle
   takes the free end of a line and follows its size.
 - **Tags made of fields**: a P&ID symbol may give the identifier of its
@@ -419,7 +430,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<definition>` | `pid_family` | `equipment`, `valve`, `instrument`, `pipe` | none: not a P&ID symbol | the symbol has a family |
 | `.elmt`, `<definition>` | `pid_inline` | `true` | a line does not run through it | a line runs through its two nozzles (valve) |
 | `.elmt`, `<definition>` | `pid_run` | names of nozzles, space separated (`N1 N2 N3`) | the two nozzles of a `pid_inline` symbol | a tee or a three-way valve |
-| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break` | none | the symbol plays that role for the lines |
+| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break`, `junction` | none | the symbol plays that role for the lines |
 | `.elmt`, `<definition>` | `pid_large` | name of a nozzle (`N1`) | none: the way of the reducer is not checked | a reducer names its large side; a large side smaller than the other one is marked |
 | `.elmt`, `<definition>` | `prefix` | identifier of the tag (`PC`) | that of the collection folder | the symbol gives one |
 | `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
