@@ -294,7 +294,8 @@ line.*
   shown and the project shows the sizes; the word `DN` can be left out
   (*Texts* tab). Both are written 1 mm from the end of the nozzle, along its
   pipe and clear of the mark of its connection: the name above and the
-  size below a horizontal pipe; beside a vertical one, upright or turned
+  size below a horizontal pipe, their letters 3 mm from its axis; beside
+  a vertical one, upright or turned
   as the project keeps the texts of rotated elements horizontal or not.
 
 **Connections of the nozzles**
