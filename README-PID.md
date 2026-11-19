@@ -242,6 +242,13 @@ line.*
   status bar says so when the line did not end with a flange. A blind
   flange placed this way goes with the pipe it closes; one placed by hand
   stays. One undo step.
+- **Closures** (blind flange, dished end, cap: `pid_role="closure"`): the
+  signal terminal of a closure takes one line, a process connection,
+  whatever the type the tool draws or a drag gives; another type is
+  refused there. A closure deleted alone leaves its line open again: the
+  free end of the project where it was, the pipe and its data kept, its
+  process connection gone with it (without a free end set, the pipe goes
+  too, as before).
 - **A page of its own** in the properties panel, and in the dialog a double
   click opens: type of signal and status of works, for one signal line or
   several, in one undo step.
@@ -460,7 +467,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<definition>` | `pid_family` | `equipment`, `valve`, `instrument`, `pipe` | none: not a P&ID symbol | the symbol has a family |
 | `.elmt`, `<definition>` | `pid_inline` | `true` | a line does not run through it | a line runs through its two nozzles (valve) |
 | `.elmt`, `<definition>` | `pid_run` | names of nozzles, space separated (`N1 N2 N3`) | the two nozzles of a `pid_inline` symbol | a tee or a three-way valve |
-| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break`, `junction` | none | the symbol plays that role for the lines |
+| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break`, `junction`, `closure` | none | the symbol plays that role for the lines |
 | `.elmt`, `<definition>` | `pid_large` | name of a nozzle (`N1`) | none: the way of the reducer is not checked | a reducer names its large side; a large side smaller than the other one is marked |
 | `.elmt`, `<definition>` | `prefix` | identifier of the tag (`PC`) | that of the collection folder | the symbol gives one |
 | `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
