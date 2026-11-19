@@ -55,6 +55,7 @@ class TerminalEditor : public ElementItemEditor
 
 	private:
 		void init();
+		void updateJunctionVisibility();
 		void posEdited();
 		void orientationEdited();
 		void nameEdited();

@@ -1988,6 +1988,12 @@ projectDataBase::PotentialGroups projectDataBase::potentialGroupsOf(const QSqlDa
 					join(own->first(), a);
 				if (isolating.contains(element))
 					isolated << own->first();
+			} else if (kind & ElementData::Junction) {
+				//A junction joins its own terminals into one potential -- the
+				//pass-through a wire is drawn for -- but it isolates nothing:
+				//its terminals are one node, so there is no separation to keep
+				for (int a : *own)
+					join(own->first(), a);
 			}
 		}
 	}
@@ -5663,7 +5669,8 @@ static ElementData::Types allElementTypes()
 		   | ElementData::Slave
 		   | ElementData::Terminal
 		   | ElementData::Thumbnail
-		   | ElementData::ConductorDefinition;
+		   | ElementData::ConductorDefinition
+		   | ElementData::Junction;
 }
 
 /**

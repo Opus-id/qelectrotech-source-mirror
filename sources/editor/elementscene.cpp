@@ -592,6 +592,7 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 		type_ == ElementData::Master ||
 		type_ == ElementData::Slave ||
 		type_ == ElementData::Terminal ||
+		type_ == ElementData::Junction ||
 		type_ == ElementData::Thumbnail)
 	{
 		QDomElement element_info = xml_document.createElement("elementInformations");
@@ -1074,7 +1075,20 @@ QStringList ElementScene::pipeNozzleNames() const
 */
 void  ElementScene::slot_editProperties()
 {
+		//A junction asks which of the symbol's connections the wire comes in
+		//at and which ones it goes on to. The dialog is modal, so the symbol
+		//cannot change while it is open and they are read once, here.
+	QList<ElementPropertiesEditorWidget::Connection> connections;
+	for (QGraphicsItem *qgi : items()) {
+		if (auto *terminal = qgraphicsitem_cast<PartTerminal *>(qgi)) {
+			connections << ElementPropertiesEditorWidget::Connection{
+				terminal->uuid(), terminal->terminalName(), terminal->scenePos(),
+				Qet::orientationToString(terminal->orientation()), terminal};
+		}
+	}
+
 	ElementPropertiesEditorWidget epew(m_element_data);
+	epew.setConnections(connections);
 	epew.exec();
 
 	if (m_element_data != epew.editedData())
