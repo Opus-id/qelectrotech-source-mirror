@@ -14145,6 +14145,7 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message><source>Capillary</source><comment>type of signal</comment><translation>Capillaire</translation></message>
     <message><source>Guided electromagnetic</source><comment>type of signal</comment><translation>Électromagnétique guidé</translation></message>
     <message><source>Data link</source><comment>type of signal</comment><translation>Liaison de données</translation></message>
+    <message><source>Process connection</source><comment>type of signal: links an instrument to the process</comment><translation>Liaison au procédé</translation></message>
 </context>
 <context>
     <name>SignalPropertiesWidget</name>

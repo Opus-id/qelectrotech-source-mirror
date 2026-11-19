@@ -35,6 +35,7 @@ QString SignalProperties::typeToString(SignalType type)
 		case Capillary:             return QStringLiteral("capillary");
 		case GuidedElectromagnetic: return QStringLiteral("guided_electromagnetic");
 		case DataLink:              return QStringLiteral("data_link");
+		case ProcessConnection:     return QStringLiteral("process_connection");
 	}
 	return QStringLiteral("undefined");
 }
@@ -55,17 +56,20 @@ SignalProperties::SignalType SignalProperties::typeFromString(const QString &str
 	if (string == QLatin1String("capillary")) return Capillary;
 	if (string == QLatin1String("guided_electromagnetic")) return GuidedElectromagnetic;
 	if (string == QLatin1String("data_link")) return DataLink;
+	if (string == QLatin1String("process_connection")) return ProcessConnection;
 	return Undefined;
 }
 
 /**
 	@brief SignalProperties::types
-	@return every type of signal, in the order they are offered to the user
+	@return every type of signal, in the order they are offered to the user:
+	the connection to the process just after the undefined type, as it is
+	the one most drawn around an instrument
 */
 QList<SignalProperties::SignalType> SignalProperties::types()
 {
-	return {Undefined, Pneumatic, Electrical, Hydraulic, Capillary,
-			GuidedElectromagnetic, DataLink};
+	return {Undefined, ProcessConnection, Pneumatic, Electrical, Hydraulic,
+			Capillary, GuidedElectromagnetic, DataLink};
 }
 
 /**
@@ -92,6 +96,9 @@ QString SignalProperties::typeName(SignalType type)
 											   "type of signal");
 		case DataLink:
 			return QCoreApplication::translate("SignalProperties", "Data link", "type of signal");
+		case ProcessConnection:
+			return QCoreApplication::translate("SignalProperties", "Process connection",
+											   "type of signal: links an instrument to the process");
 	}
 	return QString();
 }

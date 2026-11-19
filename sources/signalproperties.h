@@ -41,8 +41,12 @@ class SignalProperties
 			/// The types of signal a line can carry: those of DEXPI
 			/// (SignalConveyingTypeClassification: pneumatic, electrical,
 			/// hydraulic, capillary and, for the guided electromagnetic
-			/// signal, "conducted radiation") and the data link of
-			/// ANSI/ISA-5.1-2009, table 5.3.2.
+			/// signal, "conducted radiation"), the data link of
+			/// ANSI/ISA-5.1-2009, table 5.3.2, and the connection of an
+			/// instrument to the process of its table 5.3.1.
+			/// The files hold words, not these numbers (typeToString()), and
+			/// the lists offer them in the order of types(): a new type is
+			/// added at the end here, wherever it is offered.
 			/// Not yet: the supply lines, the unguided (wireless) signal,
 			/// the mechanical link, the four kinds of communication link (a
 			/// single DataLink for now), nor the direction of the signal.
@@ -58,7 +62,12 @@ class SignalProperties
 				/// Guided electromagnetic or sonic signal, optical fibre
 			GuidedElectromagnetic,
 				/// Communication link between devices and systems
-			DataLink
+			DataLink,
+				/// What links an instrument to the process it measures:
+				/// from a nozzle, a blind flange or a pipe to the bubble.
+				/// Not a pipe: it carries no data of a pipe, and ends on
+				/// signal terminals as any signal line.
+			ProcessConnection
 		};
 
 			/// Type of signal, undefined by default

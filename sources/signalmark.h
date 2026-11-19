@@ -70,7 +70,8 @@ class SignalMark
 			/// says: ISO 14617 (7.1.2) for the undefined, pneumatic,
 			/// electrical, hydraulic and capillary signals, ANSI/ISA-5.1-2009
 			/// (table 5.3.2) for the guided electromagnetic signal and the
-			/// data link, which ISO 14617 has not
+			/// data link, which ISO 14617 has not, and a plain line for the
+			/// connection to the process (ISA-5.1-2009, table 5.3.1)
 		static Mark defaultMark(SignalProperties::SignalType type);
 
 			/// The sizes, in drawing units, four to a millimetre. No standard

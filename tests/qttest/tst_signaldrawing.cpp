@@ -307,8 +307,14 @@ class tst_signaldrawing : public QObject
 				setType(line, type);
 				QCOMPARE(int(line->signalMark()), int(SignalMark::defaultMark(type)));
 				const Picture p = picture(line);
-				QVERIFY2(p.inkedOffTheLine(y) > 0,
-						 qPrintable(SignalProperties::typeToString(type)));
+				if (SignalMark::isRepeated(SignalMark::defaultMark(type))) {
+					QVERIFY2(p.inkedOffTheLine(y) > 0,
+							 qPrintable(SignalProperties::typeToString(type)));
+				} else {
+						// the connection to the process: a plain line
+					QCOMPARE(int(type), int(SignalProperties::ProcessConnection));
+					QCOMPARE(p.inkedOffTheLine(y), 0);
+				}
 				for (const QImage &other : std::as_const(pictures)) {
 					QVERIFY2(p.image != other, qPrintable(SignalProperties::typeToString(type)));
 				}

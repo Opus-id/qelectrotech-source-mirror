@@ -87,6 +87,8 @@ class tst_signalmark : public QObject
 			QCOMPARE(int(SignalMark::defaultMark(S::Capillary)), int(SignalMark::Cross));
 			QCOMPARE(int(SignalMark::defaultMark(S::GuidedElectromagnetic)), int(SignalMark::Wave));
 			QCOMPARE(int(SignalMark::defaultMark(S::DataLink)), int(SignalMark::Circle));
+				// ISA-5.1-2009, table 5.3.1: a thin plain line
+			QCOMPARE(int(SignalMark::defaultMark(S::ProcessConnection)), int(SignalMark::None));
 				// each type is told from the others
 			QSet<int> marks;
 			for (S::SignalType type : S::types()) {

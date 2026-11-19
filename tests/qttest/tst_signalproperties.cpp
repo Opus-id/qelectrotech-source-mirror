@@ -45,6 +45,8 @@ class tst_signalproperties : public QObject
 			<< int(SignalProperties::GuidedElectromagnetic) << "guided_electromagnetic";
 		QTest::newRow("data link")
 			<< int(SignalProperties::DataLink) << "data_link";
+		QTest::newRow("process connection")
+			<< int(SignalProperties::ProcessConnection) << "process_connection";
 	}
 
 private slots:
@@ -90,7 +92,7 @@ private slots:
 
 			// Start from another type, to see the value is read, not kept
 		SignalProperties loaded;
-		loaded.signal_type = SignalProperties::SignalType((type + 1) % 7);
+		loaded.signal_type = SignalProperties::SignalType((type + 1) % 8);
 		loaded.fromXml(e);
 		QCOMPARE(loaded, saved);
 	}
@@ -134,12 +136,14 @@ private slots:
 		QCOMPARE(int(p.signal_type), int(SignalProperties::Undefined));
 	}
 
-		// Every type is offered once, the undefined one first, with a name
+		// Every type is offered once, with a name: the undefined one first,
+		// then the connection to the process, the most drawn one (6b-3)
 	void everyTypeIsOfferedWithAName()
 	{
 		const QList<SignalProperties::SignalType> types = SignalProperties::types();
-		QCOMPARE(types.size(), 7);
-		QCOMPARE(int(types.first()), int(SignalProperties::Undefined));
+		QCOMPARE(types.size(), 8);
+		QCOMPARE(int(types.at(0)), int(SignalProperties::Undefined));
+		QCOMPARE(int(types.at(1)), int(SignalProperties::ProcessConnection));
 		QSet<int> seen;
 		QSet<QString> names;
 		for (SignalProperties::SignalType type : types) {
@@ -147,8 +151,8 @@ private slots:
 			QVERIFY(!SignalProperties::typeName(type).isEmpty());
 			names << SignalProperties::typeName(type);
 		}
-		QCOMPARE(seen.size(), 7);
-		QCOMPARE(names.size(), 7);
+		QCOMPARE(seen.size(), 8);
+		QCOMPARE(names.size(), 8);
 	}
 
 	void comparisonSeesTheType()

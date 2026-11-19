@@ -1149,15 +1149,19 @@ class tst_pipetool : public QObject
 			click(nearBelow(from));
 			QVERIFY(m_tool->handlesShortcutOverride(&override_t));
 			key(Qt::Key_T);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::ProcessConnection));
+			key(Qt::Key_T);
 			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Pneumatic));
 			key(Qt::Key_T);
 			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Electrical));
 				// Shift+T: the one before; from the first one, the last one
 			key(Qt::Key_T, Qt::ShiftModifier);
 			key(Qt::Key_T, Qt::ShiftModifier);
+			key(Qt::Key_T, Qt::ShiftModifier);
 			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Undefined));
 			key(Qt::Key_T, Qt::ShiftModifier);
 			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::DataLink));
+			key(Qt::Key_T);
 			key(Qt::Key_T);
 			key(Qt::Key_T);
 			key(Qt::Key_T);
@@ -1222,6 +1226,12 @@ class tst_pipetool : public QObject
 			QCOMPARE(route.constFirst(), from->dockConductor());
 			QCOMPARE(route.constLast(), to->dockConductor());
 			QCOMPARE(m_tool->signalPreview(), lineWithMarks(route, undefined));
+				// the connection to the process: a plain line, on the same route
+			key(Qt::Key_T);
+			QCOMPARE(int(codification.signalMark(SignalProperties::ProcessConnection)),
+					 int(SignalMark::None));
+			QCOMPARE(m_tool->signalPreviewRoute(), route);
+			QCOMPARE(m_tool->signalPreview(), lineWithMarks(route, SignalMark::None));
 				// another type: its mark, on the same route
 			key(Qt::Key_T);
 			QCOMPARE(m_tool->signalPreviewRoute(), route);

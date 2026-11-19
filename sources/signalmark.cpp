@@ -130,6 +130,7 @@ SignalMark::Mark SignalMark::defaultMark(SignalProperties::SignalType type)
 		case SignalProperties::Capillary:             return Cross;
 		case SignalProperties::GuidedElectromagnetic: return Wave;
 		case SignalProperties::DataLink:              return Circle;
+		case SignalProperties::ProcessConnection:     return None;
 	}
 	return Bar1;
 }
