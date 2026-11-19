@@ -622,6 +622,10 @@ void Element::setOptionChoices(const ElementOptions::Choices &choices)
 	}
 	m_option_choices = choices;
 	takePictures();
+		//A terminal may depend on the options too (Terminal::isHiddenByOptions())
+	for (Terminal *terminal : std::as_const(m_terminals)) {
+		terminal->update();
+	}
 	emit optionChoicesChanged();
 }
 

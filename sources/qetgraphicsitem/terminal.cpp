@@ -35,6 +35,7 @@
 #include <pidtee.h>
 #include <pidfreeend.h>
 #include <pipeconnection.h>
+#include <properties/elementoptions.h>
 
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
@@ -305,6 +306,9 @@ void Terminal::paint(
 			&& options->levelOfDetailFromTransform(painter->worldTransform()) < 0.5;
 	const bool electrical = d->m_medium == TerminalData::Electrical;
 	if (low_zoom && electrical)
+		return;
+		//Hidden by the options of its symbol, and free: nothing to show
+	if (m_conductors_list.isEmpty() && isHiddenByOptions())
 		return;
 	painter -> save();
 
@@ -770,6 +774,8 @@ Terminal* Terminal::alignedWithTerminal() const
 */
 void Terminal::hoverEnterEvent(QGraphicsSceneHoverEvent *)
 {
+	if (m_conductors_list.isEmpty() && isHiddenByOptions())
+		return;
 	m_hovered = true;
 	update();
 }
@@ -807,7 +813,8 @@ namespace {
 */
 void Terminal::mousePressEvent(QGraphicsSceneMouseEvent *e)
 {
-	if (wiredAutomatically(this)) {
+	if (wiredAutomatically(this)
+			|| (m_conductors_list.isEmpty() && isHiddenByOptions())) {
 		e->ignore();
 		return;
 	}
@@ -829,7 +836,9 @@ namespace {
 	{
 		const QList<QGraphicsItem *> items = diagram->items(pos);
 		for (QGraphicsItem *item : items) {
-			if (auto *terminal = qgraphicsitem_cast<Terminal *>(item))
+			auto *terminal = qgraphicsitem_cast<Terminal *>(item);
+				//A free terminal the options of its symbol hide is not there
+			if (terminal && !(terminal->conductors().isEmpty() && terminal->isHiddenByOptions()))
 				return terminal;
 		}
 		return nullptr;
@@ -1064,8 +1073,10 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 	{
 			//Say why when it is the wire limit (discussion #1158): a red
 			//terminal alone does not tell the user what to do instead.
-		const Terminal *full = !hasRoomForWire() ? this
-							 : !other_terminal->hasRoomForWire() ? other_terminal
+			//(not a terminal the options of its symbol hide: it is not full)
+		const Terminal *full = !hasRoomForWire() && !isHiddenByOptions() ? this
+							 : !other_terminal->hasRoomForWire()
+							   && !other_terminal->isHiddenByOptions() ? other_terminal
 							 : nullptr;
 		if (full && full->medium() == TerminalData::Pipe) {
 			QToolTip::showText(e->screenPos(),
@@ -1339,7 +1350,29 @@ int Terminal::wireLimit() const
 */
 bool Terminal::hasRoomForWire() const
 {
+	if (isHiddenByOptions()) {
+		return false;
+	}
 	return WiringRules::hasRoom(wireLimit(), conductorsCount());
+}
+
+/**
+	@brief Terminal::isHiddenByOptions
+	A terminal may depend on the options of its symbol, as a part of its
+	drawing does (attribute show_if, ElementOptions::isShown()): the signal
+	terminal of a valve is there for a motor, not for a hand lever. A hidden
+	terminal is still a terminal of the symbol (Change type keeps it), but it
+	takes no new wire and, while free, is not drawn and lets the mouse through.
+	A wire already connected stays, and so does the terminal it ends on.
+	@return true if the options chosen for the element hide this terminal
+*/
+bool Terminal::isHiddenByOptions() const
+{
+	if (d->m_show_if.isEmpty()) {
+		return false;
+	}
+	const Element *element = parentElement();
+	return element && !ElementOptions::isShown(d->m_show_if, element->resolvedOptions());
 }
 
 /**

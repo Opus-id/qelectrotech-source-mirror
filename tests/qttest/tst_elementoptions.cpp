@@ -20,12 +20,15 @@
 #include "diagram.h"
 #include "editor/elementscene.h"
 #include "editor/graphicspart/partline.h"
+#include "editor/graphicspart/partterminal.h"
 #include "editor/graphicspart/parttext.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "factory/elementpicturefactory.h"
 #include "properties/elementoptions.h"
+#include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
+#include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 #include "qetresult.h"
 #include "ui/elementoptionswidget.h"
@@ -156,6 +159,62 @@ class tst_elementoptions : public QObject
 					QStringLiteral("import/options"), QStringLiteral("pump.elmt"),
 					pumpDefinition(doc));
 		return ElementsLocation(QStringLiteral("embed://import/options/pump.elmt"), &project);
+	}
+
+		// A valve (step 6b-2): two nozzles always there, and a signal terminal
+		// S1 at the top for a motor only, not for a hand lever nor for none
+	static ElementsLocation addValve(QETProject &project)
+	{
+		project.embeddedElementCollection()->createDir(
+					QStringLiteral("import"), QStringLiteral("valves"), NamesList());
+		QDomDocument doc;
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+			"<uuid uuid=\"{7a222222-2222-2222-2222-222222222222}\"/>"
+			"<names><name lang=\"en\">Valve</name></names>"
+			"<options><option name=\"command\" default=\"none\">"
+			"<value name=\"none\"/><value name=\"manual\"/><value name=\"motor\"/>"
+			"</option></options>"
+			"<description>"
+			"<line x1=\"-10\" y1=\"0\" x2=\"10\" y2=\"0\" end1=\"none\" end2=\"none\" "
+			"length1=\"1.5\" length2=\"1.5\" style=\"line-weight:normal\" antialias=\"false\"/>"
+			"<terminal x=\"-20\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"pipe\" name=\"N1\" "
+			"uuid=\"{7a222222-0000-0000-0000-000000000001}\"/>"
+			"<terminal x=\"20\" y=\"0\" orientation=\"e\" type=\"Generic\" medium=\"pipe\" name=\"N2\" "
+			"uuid=\"{7a222222-0000-0000-0000-000000000002}\"/>"
+			"<terminal x=\"0\" y=\"-20\" orientation=\"n\" type=\"Generic\" medium=\"signal\" name=\"S1\" "
+			"show_if=\"command=motor\" uuid=\"{7a222222-0000-0000-0000-000000000003}\"/>"
+			"</description></definition>"));
+		project.embeddedElementCollection()->addElementDefinition(
+					QStringLiteral("import/valves"), QStringLiteral("valve.elmt"),
+					doc.documentElement());
+		return ElementsLocation(QStringLiteral("embed://import/valves/valve.elmt"), &project);
+	}
+
+	static Terminal *terminalNamed(const Element *element, const QString &name)
+	{
+		for (Terminal *terminal : element->terminals()) {
+			if (terminal->name() == name) return terminal;
+		}
+		return nullptr;
+	}
+
+		// Whether @p terminal draws anything, on a folio which draws terminals
+	static bool drawn(Terminal *terminal)
+	{
+		QImage image(80, 80, QImage::Format_ARGB32);
+		image.fill(Qt::white);
+		QPainter painter(&image);
+		painter.translate(40, 40);
+		terminal->paint(&painter, nullptr, nullptr);
+		painter.end();
+		for (int y = 0 ; y < image.height() ; ++y) {
+			for (int x = 0 ; x < image.width() ; ++x) {
+				if (image.pixel(x, y) != qRgb(255, 255, 255)) return true;
+			}
+		}
+		return false;
 	}
 
 	private slots:
@@ -340,6 +399,105 @@ class tst_elementoptions : public QObject
 				// back to the default
 			a->setOptionChoices({});
 			QCOMPARE(motorOf(render(a)), QStringLiteral("none"));
+		}
+
+			// ---- a terminal which depends on the options ----
+		void aTerminalFollowsTheChoices()
+		{
+			QETProject project;
+			const ElementsLocation location = addValve(project);
+			QVERIFY(location.exist());
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			QVERIFY(a && b);
+			Terminal *a_signal = terminalNamed(a, QStringLiteral("S1"));
+			Terminal *b_signal = terminalNamed(b, QStringLiteral("S1"));
+			Terminal *nozzle = terminalNamed(a, QStringLiteral("N1"));
+			QVERIFY(a_signal && b_signal && nozzle);
+			QCOMPARE(a_signal->showIf(), QStringLiteral("command=motor"));
+				// the terminal is there whatever the options: Change type keeps it
+			QCOMPARE(a->terminals().size(), 3);
+				// no motor by default: hidden, it takes no wire
+			QVERIFY(a_signal->isHiddenByOptions());
+			QVERIFY(!a_signal->hasRoomForWire());
+			QVERIFY(!a_signal->canBeLinkedTo(b_signal));
+			QVERIFY(!b_signal->canBeLinkedTo(a_signal));
+				// a terminal without condition is never hidden
+			QVERIFY(nozzle->showIf().isEmpty());
+			QVERIFY(!nozzle->isHiddenByOptions());
+
+			a->setOptionChoices({{QStringLiteral("command"), QStringLiteral("motor")}});
+			QVERIFY(!a_signal->isHiddenByOptions());
+			QVERIFY(a_signal->hasRoomForWire());
+				// the other end still hidden: still refused
+			QVERIFY(!a_signal->canBeLinkedTo(b_signal));
+			b->setOptionChoices({{QStringLiteral("command"), QStringLiteral("motor")}});
+			QVERIFY(a_signal->canBeLinkedTo(b_signal));
+				// a hand lever has no signal
+			a->setOptionChoices({{QStringLiteral("command"), QStringLiteral("manual")}});
+			QVERIFY(a_signal->isHiddenByOptions());
+			QVERIFY(!a_signal->canBeLinkedTo(b_signal));
+		}
+
+		void aHiddenTerminalIsNotDrawnWhileFree()
+		{
+			QETProject project;
+			const ElementsLocation location = addValve(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			QVERIFY(a);
+			Terminal *signal = terminalNamed(a, QStringLiteral("S1"));
+			Terminal *nozzle = terminalNamed(a, QStringLiteral("N1"));
+			QVERIFY(signal && nozzle);
+			QVERIFY(!drawn(signal));
+			QVERIFY(drawn(nozzle));
+			a->setOptionChoices({{QStringLiteral("command"), QStringLiteral("motor")}});
+			QVERIFY(drawn(signal));
+		}
+
+		void aWireStaysOnATerminalHiddenAfterIt()
+		{
+			QETProject project;
+			const ElementsLocation location = addValve(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			QVERIFY(a && b);
+			b->setPos(400, 200);
+			const ElementOptions::Choices motor{{QStringLiteral("command"), QStringLiteral("motor")}};
+			a->setOptionChoices(motor);
+			b->setOptionChoices(motor);
+			Terminal *a_signal = terminalNamed(a, QStringLiteral("S1"));
+			Terminal *b_signal = terminalNamed(b, QStringLiteral("S1"));
+			auto *signal_line = new Conductor(a_signal, b_signal);
+			folio->addItem(signal_line);
+			QCOMPARE(a_signal->conductorsCount(), 1);
+				// the motor taken off: the line and its end stay, drawn, no new one
+			a->setOptionChoices({});
+			QVERIFY(a_signal->isHiddenByOptions());
+			QCOMPARE(a_signal->conductorsCount(), 1);
+			QVERIFY(drawn(a_signal));
+			QVERIFY(!a_signal->hasRoomForWire());
+		}
+
+		void theEditorKeepsTheConditionOfATerminal()
+		{
+			QDomDocument doc;
+			QVERIFY(doc.setContent(QStringLiteral(
+				"<terminal x=\"0\" y=\"-20\" orientation=\"n\" type=\"Generic\" medium=\"signal\" "
+				"name=\"S1\" show_if=\"command=motor\"/>")));
+			PartTerminal terminal(nullptr);
+			terminal.fromXml(doc.documentElement());
+			QDomDocument out;
+			QCOMPARE(terminal.toXml(out).attribute(QStringLiteral("show_if")),
+					 QStringLiteral("command=motor"));
+				// none written for a terminal always there
+			QVERIFY(doc.setContent(QStringLiteral(
+				"<terminal x=\"0\" y=\"-20\" orientation=\"n\" type=\"Generic\" name=\"1\"/>")));
+			PartTerminal plain(nullptr);
+			plain.fromXml(doc.documentElement());
+			QVERIFY(!plain.toXml(out).hasAttribute(QStringLiteral("show_if")));
 		}
 
 		void theChoicesAreSavedWithTheProject_data()

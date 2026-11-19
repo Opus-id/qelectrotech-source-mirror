@@ -130,6 +130,9 @@ QDomElement TerminalData::toXml(QDomDocument &xml_document) const
 	if (m_medium == Pipe && m_connection != PipeConnection::Flange)
 		xml_element.setAttribute(QStringLiteral("pid_connection"),
 					 PipeConnection::toString(m_connection));
+		//Written only when the terminal depends on the options of the symbol
+	if (!m_show_if.isEmpty())
+		xml_element.setAttribute(QStringLiteral("show_if"), m_show_if);
 
 	if (m_show_name) {
 		xml_element.setAttribute("show_name", "true");
@@ -209,6 +212,7 @@ bool TerminalData::fromXml (const QDomElement &xml_element)
 	if (fitted.isSet()) {
 		m_diameter = fitted;
 	}
+	m_show_if = xml_element.attribute(QStringLiteral("show_if"));
 
 	m_show_name = (xml_element.attribute("show_name") == QLatin1String("true"));
 	if (m_show_name) {

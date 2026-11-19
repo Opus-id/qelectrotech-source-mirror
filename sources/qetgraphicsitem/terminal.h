@@ -289,6 +289,8 @@ class Terminal : public QGraphicsObject
 		bool canBeLinkedTo(Terminal *);
 		int wireLimit() const;
 		bool hasRoomForWire() const;
+		QString showIf() const { return d->m_show_if; }
+		bool isHiddenByOptions() const;
 		bool sameMediumAs(const Terminal *other) const;
 		bool refusesMediumOf(const Terminal *other) const;
 			/// The nozzle a pipe drawn from this nozzle is caught by when it

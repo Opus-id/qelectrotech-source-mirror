@@ -302,6 +302,10 @@ class TerminalData : public PropertiesInterface
 		PipeDiameter m_diameter;
 			/// How a pipe is joined to a nozzle; a flange by default
 		PipeConnection::Type m_connection = PipeConnection::Flange;
+			/// The condition on the options of the symbol under which the
+			/// terminal is shown, as the show_if of a part of the drawing
+			/// (ElementOptions::isShown()); empty: always shown
+		QString m_show_if;
 
 		/// Whether to display the terminal name as a text label
 		bool m_show_name = false;
