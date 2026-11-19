@@ -467,7 +467,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_line_kind` | `secondary`, `auxiliary` | `main` | not main |
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | a pipe or a signal line not to be built |
-| `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link` | undefined | a signal line whose type is chosen |
+| `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link`, `process_connection` | undefined | a signal line whose type is chosen |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end` or `tee`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee | a symbol is chosen for the role |
 | `.qet`, `<pid_codification>` | `<signal_mark type mark/>` | `type` = a type of signal (`undefined` and those of `pid_signal_type`); `mark` = `none`, `dashes`, `bar1`, `bar2`, `bar3`, `a_mark`, `e_mark`, `l_mark`, `cross`, `wave`, `circle` | the mark of ISO 14617 for the type, else that of ANSI/ISA-5.1 | the project gives the type another mark than the default one |
