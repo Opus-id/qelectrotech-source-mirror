@@ -48,6 +48,13 @@ namespace QETInformation
 		//followed by _N for the wires of the Nth connection point only
 		//(@sa terminalConductorInfoKeys)
 	static QString ELMT_CONDUCTOR_TEXT               = "conductor_text";
+		//Not stored: the two parts of the tag of a P&ID symbol, for a text
+		//of their own (an instrument bubble, ISA 5.1 annex B.3.1: the
+		//letters in its upper half, the rest in its lower half). The
+		//identifier (the letters of an instrument), and the tag its model
+		//makes without it (@sa Element::pidTagPart)
+	static QString PID_TAG_ID                        = "pid_tag_id";
+	static QString PID_TAG_REST                      = "pid_tag_rest";
 	static QString ELMT_FORMULA                      = "formula";
 	/**
 		Uuid of the project's element numbering scheme the element's
@@ -196,6 +203,7 @@ namespace QETInformation
 								 QString *property = nullptr,
 								 int *connection = nullptr);
 	bool usesTerminalConductorInfo(const QString &composite_text);
+	QStringList pidTagPartKeys();
 	QString elementInfoToVar(const QString &info);
 
 	bool isNumericInfoKey(const QString &key);

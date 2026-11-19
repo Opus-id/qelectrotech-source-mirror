@@ -238,6 +238,23 @@ QString PidTag::label(const QString &model,
 	return lines.join(QLatin1Char('\n'));
 }
 
+QString PidTag::labelWithoutIdentifier(const QString &model,
+									   const QString &unit,
+									   const QString &train,
+									   const QString &order)
+{
+	static const QRegularExpression id(QStringLiteral("\\{id(?::\\d{1,2})?\\}"));
+	static const QRegularExpression ends(QStringLiteral("^[-._/ ]+|[-._/ ]+$"));
+	QString without = model;
+	without.remove(id);
+	QStringList lines = label(without, unit, QString(), train, order).split(QLatin1Char('\n'));
+	for (QString &line : lines) {
+		line.remove(ends);
+	}
+	lines.removeAll(QString());
+	return lines.join(QLatin1Char(' '));
+}
+
 int PidTag::nextOrder(QETProject *project,
 					  const QString &unit,
 					  const QString &id,

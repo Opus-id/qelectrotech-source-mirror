@@ -282,6 +282,19 @@ bool QETInformation::usesTerminalConductorInfo(const QString &composite_text)
 }
 
 /**
+	@brief QETInformation::pidTagPartKeys
+	@return the parts of the tag of a P&ID symbol a text field can read
+	(PID_TAG_ID, PID_TAG_REST). Nothing of it is stored: the tag stays
+	one label, in the order of the bill of materials ("U01 LIT 105"),
+	and a text can show its identifier alone ("LIT") or the rest ("U01
+	105"), as an instrument bubble writes them (ISA 5.1 annex B.3.1).
+*/
+QStringList QETInformation::pidTagPartKeys()
+{
+	return {PID_TAG_ID, PID_TAG_REST};
+}
+
+/**
  * @brief QETInformation::elementInfoToVar
  * @param info
  * @return The info to a variable or %{void} if @info
@@ -475,6 +488,8 @@ QString QETInformation::translatedInfoKey(const QString &info)
 	else if (info == ELMT_XREF)                          return QObject::tr("Cross-reference");
 	else if (info == QLatin1String("exclude_from_bom"))  return QObject::tr("Exclude from the bill of materials");
 	else if (info == ELMT_CONDUCTOR_TEXT)                return QObject::tr("Wire number");
+	else if (info == PID_TAG_ID)                         return QObject::tr("Tag, identifier (letters)");
+	else if (info == PID_TAG_REST)                       return QObject::tr("Tag, without its identifier");
 
 	QString property;
 	int connection = 0;

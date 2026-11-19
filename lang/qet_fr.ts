@@ -23104,6 +23104,16 @@ Voulez-vous la remplacer ?</translation>
         <translation>Numéro de fil</translation>
     </message>
     <message>
+        <location filename="../sources/qetinformation.cpp" line="478"/>
+        <source>Tag, identifier (letters)</source>
+        <translation>Repère, identifiant (lettres)</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetinformation.cpp" line="479"/>
+        <source>Tag, without its identifier</source>
+        <translation>Repère, sans l&apos;identifiant</translation>
+    </message>
+    <message>
         <location filename="../sources/qetinformation.cpp" line="456"/>
         <source>%1, connection point %2</source>
         <translation>%1, point de connexion %2</translation>

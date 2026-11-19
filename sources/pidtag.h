@@ -83,6 +83,18 @@ namespace PidTag
 				  const QString &order);
 
 		/**
+			The label @p model gives without its identifier ({id} left out),
+			for the lower half of an instrument bubble (ISA 5.1 annex B.3.1:
+			the letters above, the rest below): "{unit} {id} {train}{order:2}"
+			gives "U01 105". The separators the identifier leaves at the ends
+			("-", ".", "_", "/") go with it.
+		*/
+	QString labelWithoutIdentifier(const QString &model,
+								   const QString &unit,
+								   const QString &train,
+								   const QString &order);
+
+		/**
 			The order the next element of @p unit, @p id and @p train gets in
 			@p project: one more than the highest order these hold, 1 when
 			there is none. A number freed by a deletion is not given again

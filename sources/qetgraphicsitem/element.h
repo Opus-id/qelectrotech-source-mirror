@@ -221,6 +221,15 @@ class Element : public QetGraphicsItem
 		QString conductorTextForDisplay();
 		QString conductorInfoForDisplay(const QString &info_name);
 		void addDisplayValues(DiagramContext &dc);
+			/**
+				The part @p key (QETInformation::pidTagPartKeys()) of the
+				tag of this P&ID symbol, for a text of its own: its
+				identifier (PID_TAG_ID: the letters of an instrument), or
+				the label its model makes without it (PID_TAG_REST). With
+				no model or no field, the label typed by hand: its first
+				line, then the others. Display only, nothing is stored.
+			*/
+		QString pidTagPart(const QString &key);
 		QString infoForDisplay(const QString &info_name);
 		bool hasTerminalNumberText() const;
 		bool labelShown() const;

@@ -10,6 +10,7 @@
 #include "pidtag.h"
 #include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
+#include "qetinformation.h"
 #include "qetproject.h"
 #include "qetresult.h"
 #include "ui/elementinfopartwidget.h"
@@ -32,19 +33,23 @@ class tst_elementtag : public QObject
 {
 	Q_OBJECT
 
-		// A symbol of 40 x 40 with two terminals and a text showing the label;
+		// A symbol of 40 x 40 with two terminals and a text showing the label
+		// (or one text for each information of @p infos: label_line_1...);
 		// @p attributes go in <definition> (pid_family, prefix...)
 	static QDomElement definition(QDomDocument &doc, const QString &uuid, const QString &name,
-								  const QString &attributes, bool with_text = true)
+								  const QString &attributes, bool with_text = true,
+								  const QStringList &infos = {QStringLiteral("label")})
 	{
-		const QString text = with_text
-				? QStringLiteral("<dynamic_text x=\"0\" y=\"25\" z=\"100\" text_width=\"-1\" "
-								 "Halignment=\"AlignHCenter\" Valignment=\"AlignTop\" frame=\"false\" "
-								 "rotation=\"0\" keep_visual_rotation=\"true\" text_from=\"ElementInfo\" "
-								 "uuid=\"{%1}\" font=\"Liberation Sans,9,-1,5,50,0,0,0,0,0,Regular\">"
-								 "<text></text><info_name>label</info_name></dynamic_text>")
-					  .arg(QUuid::createUuid().toString(QUuid::WithoutBraces))
-				: QString();
+		QString text;
+		for (const QString &info : infos) {
+			if (!with_text) break;
+			text += QStringLiteral("<dynamic_text x=\"0\" y=\"25\" z=\"100\" text_width=\"-1\" "
+								   "Halignment=\"AlignHCenter\" Valignment=\"AlignTop\" frame=\"false\" "
+								   "rotation=\"0\" keep_visual_rotation=\"true\" text_from=\"ElementInfo\" "
+								   "uuid=\"{%1}\" font=\"Liberation Sans,9,-1,5,50,0,0,0,0,0,Regular\">"
+								   "<text></text><info_name>%2</info_name></dynamic_text>")
+					.arg(QUuid::createUuid().toString(QUuid::WithoutBraces), info);
+		}
 		doc.setContent(QStringLiteral(
 			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" %1 "
 			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
@@ -76,12 +81,20 @@ class tst_elementtag : public QObject
 		return element;
 	}
 
-	static QString shownLabel(Element *element)
+	static QString shownLabel(Element *element, const QString &info = QStringLiteral("label"))
 	{
 		for (DynamicElementTextItem *text : element->dynamicTextItems()) {
-			if (text->infoName() == QLatin1String("label")) return text->toPlainText();
+			if (text->infoName() == info) return text->toPlainText();
 		}
 		return QStringLiteral("<no text>");
+	}
+
+	static DynamicElementTextItem *textOf(Element *element, const QString &info)
+	{
+		for (DynamicElementTextItem *text : element->dynamicTextItems()) {
+			if (text->infoName() == info) return text;
+		}
+		return nullptr;
 	}
 
 		// Give @p element a tag, its label made by the model of its project
@@ -840,6 +853,76 @@ class tst_elementtag : public QObject
 			const int unloaded = back.unloadedFolioCount();
 			QCOMPARE(PidTag::nextOrder(&back, "U01", "FT", "1", nullptr, PidTag::instrumentFamily()), 13);
 			QCOMPARE(back.unloadedFolioCount(), unloaded);   // nothing built
+		}
+
+			// The tag without its identifier, for the lower half of an
+			// instrument bubble (step 6b-3d2, ISA 5.1 annex B.3.1)
+		void theTagWithoutItsIdentifier_data()
+		{
+			QTest::addColumn<QString>("model");
+			QTest::addColumn<QString>("unit");
+			QTest::addColumn<QString>("train");
+			QTest::addColumn<QString>("order");
+			QTest::addColumn<QString>("rest");
+			QTest::newRow("SIR") << "{unit} {id} {train}{order:2}" << "REL" << "1" << "2" << "REL 102";
+			QTest::newRow("C01") << "{id} {train}.{order:2}" << "" << "4712" << "1" << "4712.01";
+			QTest::newRow("no train, no dot") << "{id} {train}.{order:2}" << "" << "" << "3" << "03";
+			QTest::newRow("separators") << "{id}-{unit}-{order:3}" << "U01" << "" << "7" << "U01-007";
+			QTest::newRow("three lines") << "{unit}\\n{id}\\n{train}{order:2}" << "REL" << "1" << "5" << "REL 105";
+			QTest::newRow("nothing but the identifier") << "{id}" << "REL" << "1" << "5" << "";
+		}
+
+		void theTagWithoutItsIdentifier()
+		{
+			QFETCH(QString, model);
+			QFETCH(QString, unit);
+			QFETCH(QString, train);
+			QFETCH(QString, order);
+			QFETCH(QString, rest);
+			QCOMPARE(PidTag::labelWithoutIdentifier(model, unit, train, order), rest);
+		}
+
+			// The instrument bubble writes its tag in two texts: the letters
+			// above, the rest below; the tag stays one label, in the order of
+			// the bill of materials
+		void theBubbleWritesItsTagInTwoTexts()
+		{
+			m_project->setPidCodification(instruments());   // {unit} {id} {train}{order:2}
+			QDomDocument dl;
+			const ElementsLocation bubble = add(*m_project, "l.elmt",
+				definition(dl, "77777777-7777-7777-7777-777777777777", "L",
+						   QStringLiteral("pid_family=\"instrument\""), true,
+						   QETInformation::pidTagPartKeys()));
+			Element *i = instrument(place(m_folio, bubble), "LIT", "REL", "1", "2");
+			QVERIFY(i);
+			QCOMPARE(i->elementInformations().value(QStringLiteral("label")).toString(),
+					 QStringLiteral("REL LIT 102"));
+			QCOMPARE(shownLabel(i, QETInformation::PID_TAG_ID), QStringLiteral("LIT"));
+			QCOMPARE(shownLabel(i, QETInformation::PID_TAG_REST), QStringLiteral("REL 102"));
+
+				// the letters change, the text follows
+			DiagramContext information = i->elementInformations();
+			information.addValue(PidTag::lettersKey(), QStringLiteral("PT"));
+			i->setElementInformations(i->withPidLabel(information));
+			QCOMPARE(shownLabel(i, QETInformation::PID_TAG_ID), QStringLiteral("PT"));
+			QCOMPARE(shownLabel(i, QETInformation::PID_TAG_REST), QStringLiteral("REL 102"));
+
+				// no field: the label typed by hand, its first line above
+			Element *hand = place(m_folio, bubble);
+			QVERIFY(hand);
+			DiagramContext typed = hand->elementInformations();
+			typed.addValue(QStringLiteral("label"), QStringLiteral("PI\n4712.01"));
+			hand->setElementInformations(typed);
+			QCOMPARE(shownLabel(hand, QETInformation::PID_TAG_ID), QStringLiteral("PI"));
+			QCOMPARE(shownLabel(hand, QETInformation::PID_TAG_REST), QStringLiteral("4712.01"));
+
+				// the texts read the tag, nothing more is saved
+			QVERIFY(textOf(i, QETInformation::PID_TAG_ID));
+			const QString saved = m_folio->toXml().toString();
+			QVERIFY(saved.contains(QStringLiteral("<info_name>pid_tag_rest</info_name>")));
+			QVERIFY(!saved.contains(QStringLiteral("name=\"pid_tag_")));
+				// a name in the lists of the information
+			QVERIFY(!QETInformation::translatedInfoKey(QETInformation::PID_TAG_REST).isEmpty());
 		}
 };
 

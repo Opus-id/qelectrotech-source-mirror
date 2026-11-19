@@ -4360,6 +4360,9 @@ QString Element::infoForDisplay(const QString &info_name)
 	if (info_name == QETInformation::ELMT_CONDUCTOR_TEXT) {
 		return conductorTextForDisplay();
 	}
+	if (QETInformation::pidTagPartKeys().contains(info_name)) {
+		return pidTagPart(info_name);
+	}
 	if (m_data.m_type == ElementData::Terminal
 		&& QETInformation::isTerminalConductorInfo(info_name)) {
 		return conductorInfoForDisplay(info_name);
@@ -4417,12 +4420,46 @@ QString Element::conductorInfoForDisplay(const QString &info_name)
 }
 
 /**
+	@brief Element::pidTagPart
+	See the declaration
+*/
+QString Element::pidTagPart(const QString &key)
+{
+	const QString model = pidTagModel();
+	if (model.isEmpty() || !PidTag::hasFields(m_data.m_informations)) {
+			//A label typed by hand: its first line, then the others
+		QStringList lines = labelForDisplay().split(QLatin1Char('\n'));
+		const QString first = lines.takeFirst().trimmed();
+		if (key == QETInformation::PID_TAG_ID) {
+			return first;
+		}
+		for (QString &line : lines) {
+			line = line.trimmed();
+		}
+		lines.removeAll(QString());
+		return lines.join(QLatin1Char(' '));
+	}
+	if (key == QETInformation::PID_TAG_ID) {
+		return PidTag::identifier(m_data.m_informations, getPrefix());
+	}
+	return PidTag::labelWithoutIdentifier(model,
+										  m_data.m_informations.value(PidTag::unitKey()).toString(),
+										  m_data.m_informations.value(PidTag::trainKey()).toString(),
+										  m_data.m_informations.value(PidTag::orderKey()).toString());
+}
+
+/**
 	@brief Element::addDisplayValues
 	Add to @p dc the values a text shows differently from how they are stored.
 */
 void Element::addDisplayValues(DiagramContext &dc)
 {
 	dc.addValue(QETInformation::ELMT_LABEL,            labelForDisplay());
+	if (!m_data.m_pid_family.isEmpty()) {
+		for (const QString &key : QETInformation::pidTagPartKeys()) {
+			dc.addValue(key, pidTagPart(key));
+		}
+	}
 	dc.addValue(QETInformation::ELMT_TERMINAL_NUMBER, terminalNumberForDisplay());
 	dc.addValue(QETInformation::ELMT_CONDUCTOR_TEXT,  conductorTextForDisplay());
 

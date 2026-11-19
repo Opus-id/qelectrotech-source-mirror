@@ -295,6 +295,16 @@ void DynamicTextFieldEditor::fillInfoComboBox()
 			strl.prepend(QETInformation::ELMT_XREF);
 		}
 
+			//The parts of the tag of a P&ID symbol, never stored: right
+			//after the label
+		const int label = strl.indexOf(QETInformation::ELMT_LABEL);
+		if (label >= 0 && !ed.m_pid_family.isEmpty()) {
+			const QStringList parts = QETInformation::pidTagPartKeys();
+			for (int i = 0; i < parts.size(); ++i) {
+				strl.insert(label + 1 + i, parts.at(i));
+			}
+		}
+
 			//Read from the wires, never stored (#1585)
 		if (type == ElementData::Terminal) {
 			strl << QETInformation::terminalConductorInfoKeys(terminalCount());

@@ -2092,6 +2092,11 @@ QStringList DynamicTextItemDelegate::availableInfo(
 		{
 			if(dc.contains(info))
 				qstrl << info;
+					//The parts of the tag of a P&ID symbol, never stored:
+				//right after the label
+			if (info == QETInformation::ELMT_LABEL && dc.contains(info)
+					&& !elmt->elementData().m_pid_family.isEmpty())
+				qstrl << QETInformation::pidTagPartKeys();
 		}
 		qstrl << QETInformation::elementCustomInfoKeys(dc.keys());
 
