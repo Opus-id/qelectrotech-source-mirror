@@ -76,8 +76,8 @@ line.*
   refuses it (*Refuse to join terminals of different media*, with the other
   conductors-per-terminal rules). Automatic wiring never joins two media.
 - A nozzle takes **one** pipe: a branch is made with a tee symbol.
-- **A junction** (a tee, a cross, an injection point: `pid_role` =
-  `junction`) draws none of its lines. The folio draws one from the origin
+- **A junction** (a tee, a cross, an injection point, the tap of an
+  instrument on a pipe: `pid_role` = `junction`) draws none of its lines. The folio draws one from the origin
   of the symbol to each nozzle, as the pipe of that nozzle: its width, its
   dashes, its colour. A nozzle without a pipe is drawn as the first pipe of
   the junction, else as a main line: a tee without its branch is printed
@@ -227,9 +227,9 @@ line.*
   terminal starts a signal line, a click near a signal terminal of another
   symbol ends it, with the same magnet. `T` (Shift + `T` backwards) turns
   the type of signal of the lines drawn; the preview shows its mark. The
-  context menu of a symbol offers *Draw a signal line from here*. For now
-  a signal line ends at a signal terminal only, and a signal terminal
-  takes several lines.
+  context menu of a symbol offers *Draw a signal line from here*. But for
+  a process connection (below), a signal line ends at a signal terminal,
+  and a signal terminal takes several lines (that of a closure, one).
 - **Process connection** (the line from the process to an instrument
   bubble), drawn in one gesture with the same tool: from a signal terminal
   while the type is *Process connection*, to a free nozzle or a free end;
@@ -372,9 +372,10 @@ line.*
   each shown when it applies. An electrical symbol has no such tab.
 - **Change type**: right-click a placed symbol, *Change type* lists the
   symbols of the same collection folder that have the same size, hotspot
-  and terminals (name, place and medium), and through which the lines go
+  and terminals (name, place, direction and medium: two terminals may
+  share a place when they face apart), and through which the lines go
   the same way: the same run, a reducer for a reducer, a spec break for a
-  spec break. A tee, whose branch is of the line, is never offered for an
+  spec break, a closure for a closure. A tee, whose branch is of the line, is never offered for an
   injection point, whose reagent is not. The symbol is swapped in place,
   keeping its position, information and connections; undoable. A generic
   symbol (a valve, a pump) can be placed first and made precise later. A
@@ -383,9 +384,10 @@ line.*
   thumbnail of each symbol.
 - **Symbols that play a role for the lines** (`pid_role`, chosen in the
   *Piping* block of the element editor, with the family, the run and the
-  large side): a reducer, a free end, a spec break, a junction. An end closure (blind
-  flange, cap) needs none: a symbol of the `pipe` family with one nozzle
-  takes the free end of a line and follows its size.
+  large side): a reducer, a free end, a spec break, a junction, a closure
+  (blind flange, dished end, cap: its signal terminal takes the process
+  connection). Any symbol of the `pipe` family with one nozzle takes the
+  free end of a line and follows its size.
 - **Tags made of fields**: a P&ID symbol may give the identifier of its
   type (`prefix` attribute of `<definition>`, e.g. `PC`). A placed
   equipment or valve has a *Tag* section in its *P&ID* tab: functional
@@ -412,6 +414,9 @@ line.*
   Two information a text field can show, never saved, do it (*Tag,
   identifier (letters)* and *Tag, without its identifier*); without a
   model, the first line of the label typed by hand goes above.
+  A bubble is not meant to be rotated: its texts stay level but their
+  places turn with it and overlap. Draw its signal lines from the
+  terminal on the side wanted instead.
 - **Tags numbered automatically**: the order is one more than the highest
   held by the same functional unit, identifier and train in the project
   (a number freed below it is not given again; no counter is saved, the
@@ -441,7 +446,12 @@ line.*
   three symbols. A terminal may depend on the options too: the signal
   terminal of a valve is shown, and takes a signal line, for an automatic
   actuator only; it stays a terminal of the symbol (*Change type* keeps
-  it), and a line already connected to it stays. A placed symbol saves its choices in its `<element>`
+  it), and a line already connected to it stays, unless the terminal
+  shown in its place replaces it (`replaces` attribute of `<terminal>`,
+  either way): the line then moves to that one, routed as when the symbol
+  moves, in the same undo step (an oval bubble takes the lines of the
+  round one), never when a file is opened.
+  A placed symbol saves its choices in its `<element>`
   block, only when it has some; they are chosen in the *Type and options*
   section of its *P&ID* tab or in the *Options* submenu of its context
   menu (undoable) and kept by *Change type*. A `.qetdb` file
@@ -472,8 +482,9 @@ QElectroTech are saved byte for byte as by master.
 
 - The line designation shown along a pipe.
 - Flow direction, crossings as ISO 10628-1 draws them.
-- A signal line from or to a pipe or an empty place (the tap of an
-  instrument), equipment data tables.
+- A signal line ending in an empty place, or taken from a pipe where it
+  has no symbol (an instrument tap, a junction, is placed on the pipe for
+  now); equipment data tables.
 - Piping classes (material, pressure, wall thickness), the pressure rating
   (PN) of the nozzles.
 - Equipment drawn to size (a tank that stretches).
@@ -490,7 +501,7 @@ Every P&ID addition is written only when it is set, so a file without one
 is saved as by master. A name added for the P&ID starts with `pid_`; what
 is inside a `pid_` block keeps short names. `medium` keeps its name, and
 the additions that are not P&ID-only keep plain names (`prefix`,
-`<options>`, `show_if`, `line-cap` / `line-join`). Booleans are `true` /
+`<options>`, `show_if`, `replaces`, `line-cap` / `line-join`). Booleans are `true` /
 `false`.
 
 | Where | Name | Values | Default | Written when |
@@ -507,6 +518,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<dynamic_text>` | `<info_name>` `pid_tag_id`, `pid_tag_rest` | the identifier of the tag; the tag without it (read when drawn, never saved) | — | a text of the symbol shows a part of its tag (instrument bubble) |
 | `.elmt`, `<terminal>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.elmt`, `<terminal>` | `show_if` | as for a part | always shown, takes lines | the terminal belongs to some values |
+| `.elmt`, `<terminal>` | `replaces` | name of another terminal of the symbol (`S3`) | none: a line stays on its terminal | an option shows this terminal and hides that one, or the reverse: the lines move to the terminal shown |
 | `.elmt`, `<terminal>` | `pid_dn`, `pid_od`, `pid_thread` | DN; outside diameter to the tenth; inches (`1 1/2`) | the size of its pipe | a nozzle with a size of its own |
 | `.elmt`, `<terminal>` | `pid_connection` | `plain_end`, `socket`, `thread`, `butt_weld`, `grooved`, `quick_coupling` | `flange` | not a flange |
 | `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
