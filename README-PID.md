@@ -230,6 +230,18 @@ line.*
   context menu of a symbol offers *Draw a signal line from here*. For now
   a signal line ends at a signal terminal only, and a signal terminal
   takes several lines.
+- **Process connection** (the line from the process to an instrument
+  bubble), drawn in one gesture with the same tool: from a signal terminal
+  while the type is *Process connection*, to a free nozzle or a free end;
+  or from a free nozzle or a free end to a signal terminal, whatever the
+  type. On a free nozzle (equipment, valve, tee...) the line ends on the
+  nozzle itself, which takes no pipe any more. A free end (the line ends on
+  nothing) is closed by the **blind flange** set for the project (*P&ID*
+  page, *Connections*, CSV line `tool_symbol;blind_flange;…`), placed where
+  the free end was, and the line leaves from its signal terminal; the
+  status bar says so when the line did not end with a flange. A blind
+  flange placed this way goes with the pipe it closes; one placed by hand
+  stays. One undo step.
 - **A page of its own** in the properties panel, and in the dialog a double
   click opens: type of signal and status of works, for one signal line or
   several, in one undo step.
@@ -461,6 +473,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
 | `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never`; on the block, `same_connection`, `same_size`, `same_mark` = `false` | those of the symbol and the project; nozzles linked | a nozzle of the placed symbol is changed, or a link undone |
 | `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
+| `.qet`, `<element>` | `pid_tool_placed` | `true` | `false`: placed by the user | a blind flange the pipe tool placed on a free end; it goes with the pipe it closes |
 | `.qet`, `<conductor>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
 | `.qet`, `<conductor>` | `pid_fluid`, `pid_material`, `pid_flow`, `pid_line_number`, `pid_piping_class`, `pid_nominal_pressure`, `pid_spool`, `pid_external_finish` | text (a code of the codification, or free) | empty | set |
@@ -469,7 +482,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | a pipe or a signal line not to be built |
 | `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link`, `process_connection` | undefined | a signal line whose type is chosen |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
-| `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end` or `tee`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee | a symbol is chosen for the role |
+| `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee` or `blind_flange`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end | a symbol is chosen for the role |
 | `.qet`, `<pid_codification>` | `<signal_mark type mark/>` | `type` = a type of signal (`undefined` and those of `pid_signal_type`); `mark` = `none`, `dashes`, `bar1`, `bar2`, `bar3`, `a_mark`, `e_mark`, `l_mark`, `cross`, `wave`, `circle` | the mark of ISO 14617 for the type, else that of ANSI/ISA-5.1 | the project gives the type another mark than the default one |
 
 A `medium` this version does not know is read as electrical and said in the
