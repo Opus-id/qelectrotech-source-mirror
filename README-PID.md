@@ -392,7 +392,10 @@ line.*
   block, each option with named values and a default) and draw some parts
   only for some values (`show_if` attribute). Example: one pump symbol
   with a *motor* option (none, fixed speed, variable speed) instead of
-  three symbols. A placed symbol saves its choices in its `<element>`
+  three symbols. A terminal may depend on the options too: the signal
+  terminal of a valve is shown, and takes a signal line, for an automatic
+  actuator only; it stays a terminal of the symbol (*Change type* keeps
+  it), and a line already connected to it stays. A placed symbol saves its choices in its `<element>`
   block, only when it has some; they are chosen in the *Type and options*
   section of its *P&ID* tab or in the *Options* submenu of its context
   menu (undoable) and kept by *Change type*. A `.qetdb` file
@@ -450,6 +453,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, a part | `show_if` | `option=value,value`, conditions separated by `;` | always drawn | the part belongs to some values |
 | `.elmt`, a part | `line-cap`, `line-join` in `style` | `round`, `flat` / `miter`, `round`, `bevel` | square ends, default corners | not the default |
 | `.elmt`, `<terminal>` | `medium` | `pipe`, `signal`, `drive` | `electrical` | not electrical |
+| `.elmt`, `<terminal>` | `show_if` | as for a part | always shown, takes lines | the terminal belongs to some values |
 | `.elmt`, `<terminal>` | `pid_dn`, `pid_od`, `pid_thread` | DN; outside diameter to the tenth; inches (`1 1/2`) | the size of its pipe | a nozzle with a size of its own |
 | `.elmt`, `<terminal>` | `pid_connection` | `plain_end`, `socket`, `thread`, `butt_weld`, `grooved`, `quick_coupling` | `flange` | not a flange |
 | `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
