@@ -91,11 +91,12 @@ class DiagramEventAddElement : public DiagramEventInterface
 			/// Links of the tab of the nozzles undone in every copy, see
 			/// setLike()
 		NozzleLinks m_like_unlinked;
-			/// Functional unit and train of the P&ID tag every copy takes,
-			/// with the next order (see setLike()); none when m_like_unit
-			/// is empty
+			/// Functional unit, train and letters (an instrument) of the
+			/// P&ID tag every copy takes, with the next order (see
+			/// setLike()); none when m_like_unit is empty
 		QString m_like_unit;
 		QString m_like_train;
+		QString m_like_letters;
 		QPointer<QStatusBar> m_status_bar;
 		std::function<void(Element *, QUndoCommand *)> m_placed;
 

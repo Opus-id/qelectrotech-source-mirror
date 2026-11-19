@@ -85,7 +85,8 @@ ChangePidCodificationCommand::ChangePidCodificationCommand(
 int ChangePidCodificationCommand::usersOf(QETProject *project, PidCodification::List list,
 										  const QString &code)
 {
-	if (!project || code.isEmpty()) {
+		//The letters of the instruments are a help to type: no tag bears them
+	if (!project || code.isEmpty() || list == PidCodification::List::Letters) {
 		return 0;
 	}
 	int users = 0;

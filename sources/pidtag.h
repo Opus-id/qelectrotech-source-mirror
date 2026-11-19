@@ -34,7 +34,10 @@ class QETProject;
 
 	The unit, the train and the order are information of the placed element
 	(its elementInformations, saved as any other); the identifier comes from
-	the symbol, so that changing the type of the element changes it. A model
+	the symbol, so that changing the type of the element changes it. An
+	instrument has letters of identification instead ("PT", "LIC"), typed
+	on the placed element (lettersKey()), as its symbol, a bubble, may be
+	any instrument: typed, they are its identifier. A model
 	belongs to the project (PidCodification::tag_models), one for each family
 	of objects: QElectroTech has none, and without one the label is written
 	by hand, as before.
@@ -45,9 +48,20 @@ namespace PidTag
 	QString unitKey();
 	QString trainKey();
 	QString orderKey();
+		/// The letters of identification of an instrument
+	QString lettersKey();
+
+		/// The family of the symbols which have letters (ElementData::m_pid_family)
+	QString instrumentFamily();
 
 		/// @p information holds at least one field of a tag
 	bool hasFields(const DiagramContext &information);
+
+		/// The identifier of the tag of an element of @p information whose
+		/// symbol gives @p prefix: its letters when it has some, else @p prefix
+	QString identifier(const DiagramContext &information, const QString &prefix);
+		/// The identifier of the tag of @p element (identifier() above)
+	QString identifier(const Element *element);
 
 		/// @p model shows the train ({train} or {train:N}): then a tag with
 		/// an order always has a train, 0 when there is none, so that all
@@ -78,17 +92,26 @@ namespace PidTag
 			@p besides, the element being numbered, is left out. The folios
 			not built yet (lazy folios) count, read from the project database.
 			No counter is kept anywhere: the project is read each time.
+			The instruments (@p family instrumentFamily()) are numbered by
+			loop (ANSI/ISA-5.1, annex A.6), a number being that of a loop which
+			several instruments share (PT 105, PIC 105): their order is
+			counted by unit and train whatever their letters (in series), or
+			by unit, train and measured variable, the first letter, when the
+			project says so (PidCodification::parallel_numbering).
 		*/
 	int nextOrder(QETProject *project,
 				  const QString &unit,
 				  const QString &id,
 				  const QString &train,
-				  const Element *besides = nullptr);
+				  const Element *besides = nullptr,
+				  const QString &family = QString());
 
 		/**
 			After a paste or the copy of a folio: a pasted element whose tag
 			(unit, identifier, train, order) another element of @p project
-			holds gets the next order (nextOrder()), when @p renumber; one
+			holds gets the next order (nextOrder(), by loop for an
+			instrument: the instruments of a loop copied whole get the same
+			new order), when @p renumber; one
 			which holds it alone keeps it (a cut and paste). Folio by folio,
 			then from left to right and from top to bottom. Every pasted
 			element with a tag and a model then writes its label again, which

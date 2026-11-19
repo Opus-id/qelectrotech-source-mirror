@@ -131,13 +131,18 @@ class PidCodification
 		};
 
 			/// The lists of codes
-		enum class List { Fluids, Materials, Units };
+		enum class List { Fluids, Materials, Units, Letters };
 
 		QList<Entry> fluids;
 		QList<Entry> materials;
 			/// The functional units of the plant, which the tags of its
 			/// symbols name (PidTag): each project has its own
 		QList<Entry> functional_units;
+			/// The letters of identification of the instruments the project
+			/// uses ("PT", pressure transmitter), offered while the letters of
+			/// a tag are typed (PidTag::lettersKey()): a help only, a tag may
+			/// have others, and a code changed or removed here changes no tag
+		QList<Entry> instrument_letters;
 
 		QList<Entry> &entries(List list);
 		const QList<Entry> &entries(List list) const;
@@ -282,6 +287,12 @@ class PidCodification
 			/// valve, instrument), see PidTag::label(): a convention of the
 			/// company, kept with the colours in the palette
 		QMap<QString, QString> tag_models;
+			/// How the loops of the instruments are numbered (ANSI/ISA-5.1,
+			/// annex A.6): in parallel, a sequence for each measured variable,
+			/// the first letter (F-101, L-101 and P-101 side by side; PT 101
+			/// and PIC 101 in the same loop); without, in series, one
+			/// sequence whatever the letters. Written only when it is true.
+		bool parallel_numbering = false;
 			/// The colour of a family of fluids (Entry::family)
 		QMap<QString, QColor> fluid_family_colors;
 			/// The colour of a family of objects, see objectFamilies()
@@ -392,7 +403,8 @@ class PidCodification
 
 		bool hasCodes() const { return hasCodeLists() || !equal_nominals.isEmpty(); }
 		bool hasCodeLists() const {
-			return !fluids.isEmpty() || !materials.isEmpty() || !functional_units.isEmpty();
+			return !fluids.isEmpty() || !materials.isEmpty() || !functional_units.isEmpty()
+					|| !instrument_letters.isEmpty();
 		}
 		bool hasColors() const {
 			return !fluid_family_colors.isEmpty() || !object_colors.isEmpty()
@@ -401,6 +413,7 @@ class PidCodification
 		bool hasTextSettings() const {
 			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
+					|| parallel_numbering
 					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty();
 		}
 		bool isEmpty() const {
@@ -437,7 +450,8 @@ class PidCodification
 		void fromXml(const QDomElement &parent);
 
 			/// Reads a text file of lines "kind;code;name;family", kind being
-			/// "fluid", "material" or "unit" (a functional unit; or their
+			/// "fluid", "material", "unit" (a functional unit) or "letters"
+			/// (letters of identification of an instrument; or their
 			/// French words), the last field of a material being "od" (or
 			/// "Ø") when its pipes are named by their outside diameter, of
 			/// lines "size;M05;125;100" ("taille": a size of a material,
@@ -449,7 +463,10 @@ class PidCodification
 			/// lines "dn_equal;60;65" ("dn_equivalent": two DN which are the
 			/// same size of line), of
 			/// lines "tag_model;family;model"
-			/// ("modele_repere"), and of lines
+			/// ("modele_repere"), of the line
+			/// "tag_option;instrument_numbering;parallel" ("option_repere";
+			/// "serial", the default, or "parallel", or their French words "série"
+			/// and "parallèle": parallel_numbering), and of lines
 			/// "kind;key;color", kind being "fluid_color", "object_color" or
 			/// "status_color" ("couleur_fluide", "couleur_objet",
 			/// "couleur_statut"), key a family or a status, of lines

@@ -289,11 +289,13 @@ void DiagramEventAddElement::setLike(const Element *source)
 	m_element->setRotation(source->rotation());
 	m_like_unit.clear();
 	m_like_train.clear();
+	m_like_letters.clear();
 	if (!source->pidTagModel().isEmpty())
 	{
 		const DiagramContext &information = source->elementInformations();
 		m_like_unit = information.value(PidTag::unitKey()).toString().trimmed();
 		m_like_train = information.value(PidTag::trainKey()).toString().trimmed();
+		m_like_letters = information.value(PidTag::lettersKey()).toString().trimmed();
 	}
 }
 
@@ -323,6 +325,9 @@ void DiagramEventAddElement::tagLike(const QList<Element *> &elements) const
 		}
 		DiagramContext information = element->elementInformations();
 		information.addValue(PidTag::unitKey(), m_like_unit);
+		if (!m_like_letters.isEmpty()) {
+			information.addValue(PidTag::lettersKey(), m_like_letters);
+		}
 		information.addValue(PidTag::trainKey(), train);
 		information.addValue(PidTag::orderKey(), QString());
 		element->setElementInformations(information);

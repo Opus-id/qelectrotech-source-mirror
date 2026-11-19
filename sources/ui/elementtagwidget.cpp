@@ -26,6 +26,7 @@
 #include <undocommand/changeelementinformationcommand.h>
 
 #include <QComboBox>
+#include <QCompleter>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -53,7 +54,18 @@ ElementTagWidget::ElementTagWidget(Element *element, QWidget *parent) :
 
 	m_identifier = new QLabel(this);
 	m_identifier->setToolTip(tr("The identifier of the type of the element, given by its symbol"));
-	layout->addRow(tr("Identifier:"), m_identifier);
+	m_identifier_title = new QLabel(tr("Identifier:"), this);
+	layout->addRow(m_identifier_title, m_identifier);
+
+		//An instrument: its letters, typed, those of the project offered
+	m_letters = new QComboBox(this);
+	m_letters->setObjectName(QStringLiteral("letters"));
+	m_letters->setEditable(true);
+	m_letters->setInsertPolicy(QComboBox::NoInsert);
+	m_letters->setToolTip(tr("The letters of identification of the instrument (PT, LIC...), typed "
+							 "in capitals; those of the codification of the project are offered"));
+	m_letters_title = new QLabel(tr("Letters:"), this);
+	layout->addRow(m_letters_title, m_letters);
 
 	const auto *digits = new QRegularExpressionValidator(
 				QRegularExpression(QStringLiteral("[0-9]*")), this);
@@ -87,6 +99,18 @@ ElementTagWidget::ElementTagWidget(Element *element, QWidget *parent) :
 
 	connect(m_unit, &QComboBox::activated, this, &ElementTagWidget::keyFieldDone);
 	connect(m_unit->lineEdit(), &QLineEdit::editingFinished, this, &ElementTagWidget::keyFieldDone);
+	connect(m_letters, &QComboBox::activated, this, &ElementTagWidget::keyFieldDone);
+	connect(m_letters->lineEdit(), &QLineEdit::editingFinished, this, &ElementTagWidget::keyFieldDone);
+		//Capitals as they are typed, the cursor staying where it is
+	connect(m_letters->lineEdit(), &QLineEdit::textEdited, this, [this](const QString &text) {
+		const QString upper = text.toUpper();
+		if (upper != text) {
+			QLineEdit *field = m_letters->lineEdit();
+			const int cursor = field->cursorPosition();
+			field->setText(upper);
+			field->setCursorPosition(cursor);
+		}
+	});
 	connect(m_train, &QLineEdit::editingFinished, this, &ElementTagWidget::keyFieldDone);
 	connect(m_order, &QLineEdit::editingFinished, this, &ElementTagWidget::applyIfLive);
 		//An order typed is the user's: it no longer follows the unit
@@ -96,7 +120,7 @@ ElementTagWidget::ElementTagWidget(Element *element, QWidget *parent) :
 		applyIfLive();
 	});
 		//The label follows what is typed, before it is applied
-	for (QLineEdit *field : {m_unit->lineEdit(), m_train, m_order}) {
+	for (QLineEdit *field : {m_unit->lineEdit(), m_letters->lineEdit(), m_train, m_order}) {
 		connect(field, &QLineEdit::textEdited, this, [this]() { showLabel(edited()); });
 	}
 
@@ -115,7 +139,16 @@ bool ElementTagWidget::isWanted(const Element *element)
 	const QString family = element->elementData().m_pid_family;
 	return family == QLatin1String("equipment")
 			|| family == QLatin1String("valve")
-			|| family == QLatin1String("instrument");
+			|| family == PidTag::instrumentFamily();
+}
+
+/**
+	@brief ElementTagWidget::asksLetters
+	See the declaration
+*/
+bool ElementTagWidget::asksLetters() const
+{
+	return m_element && m_element->pidFamily() == PidTag::instrumentFamily();
 }
 
 /**
@@ -141,11 +174,54 @@ void ElementTagWidget::setElement(Element *element)
 	if (m_project) {
 		connect(m_project, &QETProject::pidCodificationChanged, this, [this]() {
 			fillUnits();
+			fillLetters();
 			updateUi();
 		});
 	}
 	fillUnits();
+	fillLetters();
 	updateUi();
+}
+
+/**
+	@brief ElementTagWidget::fillLetters
+	The letters of the instruments of the project, offered while letters are
+	typed: those which begin as the text typed
+*/
+void ElementTagWidget::fillLetters()
+{
+	const QSignalBlocker blocker(m_letters);
+	const QString typed = m_letters->currentText();
+	m_letters->clear();
+	m_letters->addItem(QString(), QString());
+	if (m_project && asksLetters()) {
+		for (const PidCodification::Entry &letters : m_project->pidCodification().instrument_letters) {
+			m_letters->addItem(letters.name.isEmpty() ? letters.code
+													  : QStringLiteral("%1 – %2").arg(letters.code, letters.name),
+							   letters.code);
+		}
+	}
+	m_letters->setEditText(typed);
+		//The list of what begins as the text typed, not the first one written
+		//in the field
+	if (QCompleter *completer = m_letters->completer()) {
+		completer->setCompletionMode(QCompleter::PopupCompletion);
+		completer->setCaseSensitivity(Qt::CaseInsensitive);
+	}
+}
+
+/**
+	@brief ElementTagWidget::lettersCode
+	@return the letters picked, or those typed, in capitals
+*/
+QString ElementTagWidget::lettersCode() const
+{
+	const QString text = m_letters->currentText().trimmed();
+	const int index = m_letters->findText(text);
+	if (index > 0) {
+		return m_letters->itemData(index).toString();
+	}
+	return text.toUpper();
 }
 
 /**
@@ -210,6 +286,9 @@ DiagramContext ElementTagWidget::edited() const
 		train = QStringLiteral("0");
 	}
 	information.addValue(PidTag::unitKey(), unitCode());
+	if (asksLetters()) {
+		information.addValue(PidTag::lettersKey(), lettersCode());
+	}
 	information.addValue(PidTag::trainKey(), train);
 	information.addValue(PidTag::orderKey(), order);
 	return m_element->withPidLabel(information);
@@ -249,7 +328,14 @@ void ElementTagWidget::updateUi()
 	}
 	const DiagramContext information = m_element->elementInformations();
 	{
-		const QSignalBlocker b1(m_unit), b2(m_train), b3(m_order);
+		const QSignalBlocker b1(m_unit), b2(m_train), b3(m_order), b4(m_letters);
+		const QString letters = information.value(PidTag::lettersKey()).toString();
+		const int letters_index = letters.isEmpty() ? -1 : m_letters->findData(letters);
+		if (letters_index > 0) {
+			m_letters->setCurrentIndex(letters_index);
+		} else {
+			m_letters->setEditText(letters);
+		}
 		const QString unit = information.value(PidTag::unitKey()).toString();
 		int index = -1;
 		for (int i = 1 ; i < m_unit->count() ; ++i) {
@@ -265,6 +351,14 @@ void ElementTagWidget::updateUi()
 	}
 	const QString identifier = m_element->getPrefix();
 	m_identifier->setText(identifier.isEmpty() ? tr("(none: the symbol gives none)") : identifier);
+		//An instrument: its letters instead of the identifier of its symbol,
+		//which stands for them while there are none
+	const bool letters = asksLetters();
+	m_identifier_title->setVisible(!letters);
+	m_identifier->setVisible(!letters);
+	m_letters_title->setVisible(letters);
+	m_letters->setVisible(letters);
+	m_letters->lineEdit()->setPlaceholderText(identifier);
 	m_next->setEnabled(!m_element->pidTagModel().isEmpty());
 	showLabel(information);
 }
@@ -299,8 +393,9 @@ void ElementTagWidget::fillOrder(bool asked)
 			return;
 		}
 	}
-	m_auto_order = QString::number(PidTag::nextOrder(m_project, unit, m_element->getPrefix(),
-													 m_train->text(), m_element));
+	m_auto_order = QString::number(PidTag::nextOrder(m_project, unit,
+													 PidTag::identifier(edited(), m_element->getPrefix()),
+													 m_train->text(), m_element, m_element->pidFamily()));
 	m_order->setText(m_auto_order);
 	if (m_train->text().trimmed().isEmpty() && PidTag::showsTrain(m_element->pidTagModel())) {
 		m_train->setText(QStringLiteral("0"));
@@ -332,7 +427,8 @@ QUndoCommand *ElementTagWidget::associatedUndo() const
 	const DiagramContext old_information = m_element->elementInformations();
 	DiagramContext new_information = edited();
 		//Fields left empty are not written, as a symbol that has no tag
-	for (const QString &key : {PidTag::unitKey(), PidTag::trainKey(), PidTag::orderKey()}) {
+	for (const QString &key : {PidTag::unitKey(), PidTag::trainKey(), PidTag::orderKey(),
+							   PidTag::lettersKey()}) {
 		if (new_information.value(key).toString().isEmpty() && !old_information.contains(key)) {
 			new_information.remove(key);
 		}

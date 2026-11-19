@@ -998,7 +998,7 @@ DiagramContext Element::withPidLabel(const DiagramContext &information) const
 	result.addValue(QStringLiteral("label"),
 					PidTag::label(model,
 								  information.value(PidTag::unitKey()).toString(),
-								  getPrefix(),
+								  PidTag::identifier(information, getPrefix()),
 								  information.value(PidTag::trainKey()).toString(),
 								  information.value(PidTag::orderKey()).toString()));
 		//A formula would make another label (actualLabel())

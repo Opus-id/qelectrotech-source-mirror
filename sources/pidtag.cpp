@@ -17,9 +17,11 @@
 */
 #include "pidtag.h"
 
+#include "ElementsCollection/elementslocation.h"
 #include "dataBase/projectdatabase.h"
 #include "diagram.h"
 #include "diagramcontext.h"
+#include "pidcodification.h"
 #include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/elementtextitemgroup.h"
@@ -42,6 +44,7 @@ struct Held
 	QString id;
 	QString train;
 	QString order;
+	QString family;
 };
 
 	/// A number as its value ("05" is "5"), any other text trimmed
@@ -59,6 +62,24 @@ QString keyOf(const QString &unit, const QString &id, const QString &train)
 	const QString train_number = normalized(train);
 	return unit.trimmed() + QChar(0x1f) + id.trimmed() + QChar(0x1f)
 			+ (train_number.isEmpty() ? QStringLiteral("0") : train_number);
+}
+
+	/// What counts the orders of a tag of @p family in @p project: as
+	/// keyOf(), but an instrument counts by loop (ANSI/ISA-5.1, A.6): with
+	/// all the instruments of its unit and train in series, with those of
+	/// its measured variable, its first letter, in parallel
+QString counterOf(const QETProject *project, const QString &unit, const QString &id,
+				  const QString &train, const QString &family)
+{
+	if (family != PidTag::instrumentFamily() || !project) {
+		return keyOf(unit, id, train);
+	}
+		//No identifier begins with this character: no other tag shares the key
+	QString loop(QChar(0x1e));
+	if (project->pidCodification().parallel_numbering) {
+		loop += id.trimmed().left(1).toUpper();
+	}
+	return keyOf(unit, loop, train);
 }
 
 	/// Every tag of @p project, folios not built included
@@ -86,9 +107,10 @@ QList<Held> heldTags(QETProject *project)
 			if (!PidTag::hasFields(information)) continue;
 			list << Held{element,
 						 information.value(PidTag::unitKey()).toString(),
-						 element->getPrefix(),
+						 PidTag::identifier(information, element->getPrefix()),
 						 information.value(PidTag::trainKey()).toString(),
-						 information.value(PidTag::orderKey()).toString()};
+						 information.value(PidTag::orderKey()).toString(),
+						 element->pidFamily()};
 		}
 	}
 	if (unbuilt.isEmpty()) {
@@ -102,6 +124,8 @@ QList<Held> heldTags(QETProject *project)
 		return list;
 	}
 	const QList<projectDataBase::FolioSymbol> symbols = base->symbolsOnFolios(unbuilt);
+		//The family of a symbol, read once by definition
+	QHash<QString, QString> families;
 	for (const projectDataBase::FolioSymbol &symbol : symbols)
 	{
 		const DiagramContext information = base->elementInformation(symbol.uuid);
@@ -111,11 +135,18 @@ QList<Held> heldTags(QETProject *project)
 		for (const projectDataBase::ProjectSetting &value : values) {
 			if (value.name == QLatin1String("prefix")) id = value.value;
 		}
+		auto family = families.constFind(symbol.location);
+		if (family == families.constEnd()) {
+			family = families.insert(symbol.location,
+									 ElementsLocation(symbol.location, project).xml()
+									 .attribute(QStringLiteral("pid_family")));
+		}
 		list << Held{nullptr,
 					 information.value(PidTag::unitKey()).toString(),
-					 id,
+					 PidTag::identifier(information, id),
 					 information.value(PidTag::trainKey()).toString(),
-					 information.value(PidTag::orderKey()).toString()};
+					 information.value(PidTag::orderKey()).toString(),
+					 *family};
 	}
 	return list;
 }
@@ -139,6 +170,19 @@ void setInformation(Element *element, const DiagramContext &information)
 QString PidTag::unitKey()  { return QStringLiteral("pid_unit"); }
 QString PidTag::trainKey() { return QStringLiteral("pid_train"); }
 QString PidTag::orderKey() { return QStringLiteral("pid_order"); }
+QString PidTag::lettersKey() { return QStringLiteral("pid_letters"); }
+QString PidTag::instrumentFamily() { return QStringLiteral("instrument"); }
+
+QString PidTag::identifier(const DiagramContext &information, const QString &prefix)
+{
+	const QString letters = information.value(lettersKey()).toString().trimmed();
+	return letters.isEmpty() ? prefix : letters;
+}
+
+QString PidTag::identifier(const Element *element)
+{
+	return element ? identifier(element->elementInformations(), element->getPrefix()) : QString();
+}
 
 bool PidTag::showsTrain(const QString &model)
 {
@@ -148,7 +192,7 @@ bool PidTag::showsTrain(const QString &model)
 
 bool PidTag::hasFields(const DiagramContext &information)
 {
-	for (const QString &key : {unitKey(), trainKey(), orderKey()}) {
+	for (const QString &key : {unitKey(), trainKey(), orderKey(), lettersKey()}) {
 		if (!information.value(key).toString().trimmed().isEmpty()) {
 			return true;
 		}
@@ -198,14 +242,15 @@ int PidTag::nextOrder(QETProject *project,
 					  const QString &unit,
 					  const QString &id,
 					  const QString &train,
-					  const Element *besides)
+					  const Element *besides,
+					  const QString &family)
 {
-	const QString key = keyOf(unit, id, train);
+	const QString key = counterOf(project, unit, id, train, family);
 	int highest = 0;
 	for (const Held &held : heldTags(project))
 	{
 		if (besides && held.element == besides) continue;
-		if (keyOf(held.unit, held.id, held.train) != key) continue;
+		if (counterOf(project, held.unit, held.id, held.train, held.family) != key) continue;
 		bool number = false;
 		const int order = held.order.trimmed().toInt(&number);
 		if (number && order > highest) highest = order;
@@ -242,20 +287,32 @@ int PidTag::numberPasted(QETProject *project,
 		return a->pos().y() < b->pos().y();
 	});
 
+		//A tag is held by its unit, identifier and train (keyOf()); its order
+		//is counted with others for an instrument numbered by loop
+		//(counterOf()): PT 105 and PIC 105 do not clash, yet the next is 106
 	QHash<QString, QSet<QString>> held;   //orders held, by key
-	QHash<QString, int> highest;          //highest numeric order, by key
-	auto hold = [&held, &highest](const QString &key, const QString &order) {
+	QHash<QString, int> highest;          //highest numeric order, by counter
+	auto hold = [&held, &highest](const QString &key, const QString &counter, const QString &order) {
 		held[key].insert(normalized(order));
 		bool number = false;
 		const int value = order.trimmed().toInt(&number);
-		if (number && value > highest.value(key)) highest.insert(key, value);
+		if (number && value > highest.value(counter)) highest.insert(counter, value);
 	};
 	const QSet<const Element *> pasted_set(pasted.cbegin(), pasted.cend());
 	for (const Held &tag : heldTags(project)) {
 		if (tag.element && pasted_set.contains(tag.element)) continue;
 		if (tag.order.trimmed().isEmpty()) continue;
-		hold(keyOf(tag.unit, tag.id, tag.train), tag.order);
+		hold(keyOf(tag.unit, tag.id, tag.train),
+			 counterOf(project, tag.unit, tag.id, tag.train, tag.family), tag.order);
 	}
+	auto keysOf = [project](const Element *element, QString *counter) {
+		const DiagramContext &information = element->elementInformations();
+		const QString unit = information.value(unitKey()).toString();
+		const QString id = identifier(element);
+		const QString train = information.value(trainKey()).toString();
+		*counter = counterOf(project, unit, id, train, element->pidFamily());
+		return keyOf(unit, id, train);
+	};
 
 		//The pasted elements that keep their order come first, so that a
 		//new number goes past theirs
@@ -270,25 +327,34 @@ int PidTag::numberPasted(QETProject *project,
 		const DiagramContext &information = element->elementInformations();
 		const QString order = information.value(orderKey()).toString();
 		if (order.trimmed().isEmpty()) continue;
-		const QString key = keyOf(information.value(unitKey()).toString(),
-								  element->getPrefix(),
-								  information.value(trainKey()).toString());
+		QString counter;
+		const QString key = keysOf(element, &counter);
 		if (renumber && held.value(key).contains(normalized(order))) {
 			clashing << element;
 		} else {
-			hold(key, order);
+			hold(key, counter, order);
 		}
 	}
 
 	QHash<Element *, QString> new_orders;
+		//A loop copied whole stays one loop: its instruments which had the
+		//same order get the same new one (PT 105, PIC 105 -> PT 106, PIC 106)
+	QHash<QString, QString> loops;
 	for (Element *element : std::as_const(clashing))
 	{
-		const DiagramContext &information = element->elementInformations();
-		const QString key = keyOf(information.value(unitKey()).toString(),
-								  element->getPrefix(),
-								  information.value(trainKey()).toString());
-		const QString order = QString::number(highest.value(key) + 1);
-		hold(key, order);
+		QString counter;
+		const QString key = keysOf(element, &counter);
+		const QString old_order = element->elementInformations().value(orderKey()).toString();
+		const bool by_loop = counter != key && !fresh && !old_order.trimmed().isEmpty();
+		const QString loop = counter + QChar(0x1f) + normalized(old_order);
+		QString order = by_loop ? loops.value(loop) : QString();
+		if (order.isEmpty() || held.value(key).contains(order)) {
+			order = QString::number(highest.value(counter) + 1);
+		}
+		hold(key, counter, order);
+		if (by_loop) {
+			loops.insert(loop, order);
+		}
 		new_orders.insert(element, order);
 	}
 

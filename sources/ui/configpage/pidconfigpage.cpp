@@ -123,7 +123,8 @@ namespace {
 
 	const QList<PidCodification::List> code_lists{PidCodification::List::Fluids,
 												  PidCodification::List::Materials,
-												  PidCodification::List::Units};
+												  PidCodification::List::Units,
+												  PidCodification::List::Letters};
 
 	QString codeOf(const QTableWidget *table, int row)
 	{
@@ -281,9 +282,10 @@ void PidConfigPage::initWidgets()
 {
 	m_code_tabs = new QTabWidget(this);
 	m_code_tabs->setObjectName(QStringLiteral("code_lists"));
-	const QStringList list_names{tr("Fluids"), tr("Materials"), tr("Functional units")};
+	const QStringList list_names{tr("Fluids"), tr("Materials"), tr("Functional units"),
+								 tr("Instrument letters")};
 	const QStringList object_names{QStringLiteral("fluids"), QStringLiteral("materials"),
-								   QStringLiteral("units")};
+								   QStringLiteral("units"), QStringLiteral("letters")};
 	for (int i = 0 ; i < code_lists.size() ; ++i)
 	{
 		const PidCodification::List list = code_lists.at(i);
@@ -294,7 +296,15 @@ void PidConfigPage::initWidgets()
 		table->setHorizontalHeaderLabels(
 					fluids ? QStringList{tr("Code"), tr("Name"), tr("Family")}
 						   : materials ? QStringList{tr("Code"), tr("Name"), tr("Named by"), tr("Sizes")}
-									   : QStringList{tr("Code"), tr("Name")});
+									   : list == PidCodification::List::Letters
+										 ? QStringList{tr("Letters"), tr("Meaning")}
+										 : QStringList{tr("Code"), tr("Name")});
+		if (list == PidCodification::List::Letters) {
+			table->setToolTip(wrapped(tr("The letters of identification of the instruments, offered "
+										 "while the letters of a tag are typed: a help only. A tag may "
+										 "have others, and changing or removing letters here changes "
+										 "no tag.")));
+		}
 		if (materials) {
 			table->horizontalHeaderItem(2)->setToolTip(wrapped(
 						tr("Checked: the pipes of this material are named by their outside diameter "
@@ -1422,7 +1432,9 @@ void PidConfigPage::codeItemChanged(QTableWidgetItem *item)
 		}
 		table->scrollToItem(item);
 		const QString original = item->data(original_role).toString();
+			//Letters of instruments: no tag bears them
 		m_code_message->setText(!original.isEmpty() && original != code
+								&& list != PidCodification::List::Letters
 								? tr("The pipes and the symbols bearing the code %1 will take the code %2 "
 									 "when this page is applied.").arg(original, code)
 								: QString());
@@ -1818,6 +1830,10 @@ ChangePidCodificationCommand::CodeChanges PidConfigPage::codeChanges() const
 	ChangePidCodificationCommand::CodeChanges changes;
 	for (PidCodification::List list : code_lists)
 	{
+			//Letters of instruments: no tag bears them
+		if (list == PidCodification::List::Letters) {
+			continue;
+		}
 		const QTableWidget *table = m_code_tables.value(list);
 		QMap<QString, QString> &map = list == PidCodification::List::Fluids ? changes.fluids
 									: list == PidCodification::List::Materials ? changes.materials
@@ -1896,16 +1912,17 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 		m_code_message->setText(
 					unknown.isEmpty()
 					? tr("Nothing could be read from %1. Each line is expected as: "
-						 "kind;code;name;family, kind being \"fluid\", \"material\" "
-						 "or \"unit\".").arg(path)
+						 "kind;code;name;family, kind being \"fluid\", \"material\", "
+						 "\"unit\" or \"letters\".").arg(path)
 					: tr("%1 gives sizes to materials this page has not: %2. Nothing changed.")
 					  .arg(path, unknown.join(QStringLiteral(", "))));
 		return false;
 	}
 	if (read.hasCodeLists() && m_codification.hasCodeLists()
-		&& !confirm(tr("Replace the codes of this page with %1 fluids, %2 materials and %3 "
-					   "functional units?").arg(read.fluids.size()).arg(read.materials.size())
-					.arg(read.functional_units.size()))) {
+		&& !confirm(tr("Replace the codes of this page with %1 fluids, %2 materials, %3 "
+					   "functional units and %4 instrument letters?").arg(read.fluids.size())
+					.arg(read.materials.size()).arg(read.functional_units.size())
+					.arg(read.instrument_letters.size()))) {
 		return false;
 	}
 	if (replaced && !confirm(tr("Replace the sizes of %n material(s) of this page?", "", replaced))) {
@@ -1943,9 +1960,9 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 	const bool presentation = read.hasColors() || read.hasTextSettings();
 	QStringList what;
 	if (read.hasCodeLists() || (sizes_alone.isEmpty() && !presentation && !signal_marks)) {
-		what << tr("%1 fluids, %2 materials and %3 functional units")
+		what << tr("%1 fluids, %2 materials, %3 functional units and %4 instrument letters")
 				.arg(read.fluids.size()).arg(read.materials.size())
-				.arg(read.functional_units.size());
+				.arg(read.functional_units.size()).arg(read.instrument_letters.size());
 	} else if (!sizes_alone.isEmpty()) {
 		what << tr("the sizes of %n material(s)", "", int(sizes_alone.size()));
 	}

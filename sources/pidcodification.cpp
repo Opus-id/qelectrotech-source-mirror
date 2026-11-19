@@ -40,6 +40,12 @@ namespace
 	const QString equal_tag = QStringLiteral("equal_dn");
 	const QString tool_symbol_tag = QStringLiteral("tool_symbol");
 	const QString signal_mark_tag = QStringLiteral("signal_mark");
+	const QString letters_tag = QStringLiteral("instrument_letters");
+	const QString numbering_word = QStringLiteral("instrument_numbering");
+	const QString tag_option_kind = QStringLiteral("tag_option");
+	const QString serial_word = QStringLiteral("serial");
+	const QString parallel_word = QStringLiteral("parallel");
+	const QString letters_word = QStringLiteral("letters");
 
 		/// @p word is the word of a type of signal this version knows,
 		/// written in @p type if given
@@ -996,6 +1002,7 @@ QList<PidCodification::Entry> &PidCodification::entries(List list)
 		case List::Fluids:    return fluids;
 		case List::Materials: return materials;
 		case List::Units:     return functional_units;
+		case List::Letters:   return instrument_letters;
 	}
 	return functional_units;
 }
@@ -1060,7 +1067,7 @@ bool PidCodification::codeLessThan(const QString &a, const QString &b)
 */
 void PidCodification::sortCodes()
 {
-	for (List list : {List::Fluids, List::Materials, List::Units}) {
+	for (List list : {List::Fluids, List::Materials, List::Units, List::Letters}) {
 		QList<Entry> &codes = entries(list);
 		std::stable_sort(codes.begin(), codes.end(), [](const Entry &a, const Entry &b) {
 			return codeLessThan(a.code, b.code);
@@ -1176,6 +1183,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.fluids = other.fluids;
 		result.materials = other.materials;
 		result.functional_units = other.functional_units;
+		result.instrument_letters = other.instrument_letters;
 			//A file may say the equal DN only
 		if (equal_nominals.isEmpty()) {
 			result.equal_nominals = other.equal_nominals;
@@ -1194,6 +1202,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.nozzle_dn_prefix = other.nozzle_dn_prefix;
 		result.decimal = other.decimal;
 		result.tag_models = other.tag_models;
+		result.parallel_numbering = other.parallel_numbering;
 		result.drawn_connections = other.drawn_connections;
 		result.drawn_families = other.drawn_families;
 		result.tool_symbols = other.tool_symbols;
@@ -1221,6 +1230,7 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	writeList(document, block, QStringLiteral("fluid"), fluids);
 	writeList(document, block, QStringLiteral("material"), materials);
 	writeList(document, block, QStringLiteral("functional_unit"), functional_units);
+	writeList(document, block, letters_tag, instrument_letters);
 	for (const QPair<int, int> &pair : equal_nominals)
 	{
 		QDomElement e = document.createElement(equal_tag);
@@ -1234,6 +1244,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 		e.setAttribute(QStringLiteral("family"), it.key());
 		e.setAttribute(QStringLiteral("value"), it.value());
 		block.appendChild(e);
+	}
+	if (parallel_numbering) {
+		block.setAttribute(numbering_word, parallel_word);
 	}
 	writeColors(document, block, QStringLiteral("fluid_family"), fluid_family_colors);
 	writeColors(document, block, QStringLiteral("object"), object_colors);
@@ -1302,6 +1315,7 @@ void PidCodification::fromXml(const QDomElement &parent)
 	fluids = readList(block, QStringLiteral("fluid"));
 	materials = readList(block, QStringLiteral("material"));
 	functional_units = readList(block, QStringLiteral("functional_unit"));
+	instrument_letters = readList(block, letters_tag);
 	equal_nominals.clear();
 	for (QDomElement e = block.firstChildElement(equal_tag) ; !e.isNull() ;
 		 e = e.nextSiblingElement(equal_tag))
@@ -1320,6 +1334,7 @@ void PidCodification::fromXml(const QDomElement &parent)
 			tag_models.insert(family, model);
 		}
 	}
+	parallel_numbering = block.attribute(numbering_word) == parallel_word;
 	fluid_family_colors = readColors(block, QStringLiteral("fluid_family"));
 	object_colors = readColors(block, QStringLiteral("object"));
 	status_colors = readColors(block, QStringLiteral("status"));
@@ -1416,6 +1431,10 @@ QString PidCodification::presentationToCsv() const
 	for (auto it = tag_models.cbegin() ; it != tag_models.cend() ; ++it) {
 		text += QStringLiteral("tag_model;") + it.key() + QLatin1Char(';') + it.value() + QLatin1Char('\n');
 	}
+	if (parallel_numbering) {
+		text += tag_option_kind + QLatin1Char(';') + numbering_word + QLatin1Char(';')
+				+ parallel_word + QLatin1Char('\n');
+	}
 	for (auto it = tool_symbols.cbegin() ; it != tool_symbols.cend() ; ++it) {
 		text += tool_symbol_tag + QLatin1Char(';') + it.key() + QLatin1Char(';')
 				+ csvField(it.value()) + QLatin1Char('\n');
@@ -1463,6 +1482,7 @@ QString PidCodification::codesToCsv() const
 	write(QStringLiteral("fluid"), fluids);
 	write(QStringLiteral("material"), materials);
 	write(QStringLiteral("unit"), functional_units);
+	write(letters_word, instrument_letters);
 		//A size of a material by line: its outside diameter, then its DN
 	for (const Entry &entry : materials) {
 		for (const Size &size : entry.sizes) {
@@ -1528,7 +1548,7 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 {
 	PidCodification codification;
 	int left_out = 0;
-	QSet<QString> fluid_codes, material_codes, unit_codes;
+	QSet<QString> fluid_codes, material_codes, unit_codes, letter_codes;
 		//The sizes read, with the code of their material, which may come
 		//after them
 	struct SizeLine { QString code; int outside; int nominal; bool by_default; };
@@ -1662,6 +1682,23 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 			}
 			continue;
 		}
+		if (kind == tag_option_kind || kind == QStringLiteral("option_repère")
+			|| kind == QLatin1String("option_repere"))
+		{
+			const QString value = fields.value(2).trimmed().toLower();
+			if (fields.value(1).trimmed() != numbering_word) {
+				++left_out;
+			} else if (value == parallel_word || value == QStringLiteral("parallèle")
+					   || value == QLatin1String("parallele")) {
+				codification.parallel_numbering = true;
+			} else if (value == serial_word || value == QStringLiteral("série")
+					   || value == QLatin1String("serie")) {
+				codification.parallel_numbering = false;
+			} else {
+				++left_out;
+			}
+			continue;
+		}
 		if (kind == tool_symbol_tag || kind == QLatin1String("symbole_outil"))
 		{
 			const QString role = fields.value(1).trimmed().toLower();
@@ -1695,6 +1732,8 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 							 || kind == QStringLiteral("unité") || kind == QLatin1String("unite")
 							 || kind == QStringLiteral("unité_fonctionnelle")
 							 || kind == QLatin1String("unite_fonctionnelle");
+		const bool is_letters = kind == letters_word || kind == QLatin1String("lettres")
+								|| kind == QLatin1String("instrument_letters");
 		Entry entry;
 		entry.code = fields.value(1);
 		entry.name = fields.value(2);
@@ -1710,24 +1749,32 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 									 || named.startsWith(QLatin1String("ext"));
 			entry.family.clear();
 		}
-		if ((!is_fluid && !is_material && !is_unit) || entry.code.isEmpty())
+		const bool is_list = is_fluid || is_material || is_unit || is_letters;
+		if (!is_list || entry.code.isEmpty())
 		{
 				//A line naming the columns is not a line left out: the
 				//first one, or that of a file read after another
 			const bool header = kind == QLatin1String("kind");
-			if (!header && (i > 0 || is_fluid || is_material || is_unit)) {
+			if (!header && (i > 0 || is_list)) {
 				++left_out;
 			}
 			continue;
 		}
-		QSet<QString> &codes = is_fluid ? fluid_codes : is_material ? material_codes : unit_codes;
+			//Letters have a meaning, no family
+		if (is_letters) {
+			entry.family.clear();
+		}
+		QSet<QString> &codes = is_fluid ? fluid_codes : is_material ? material_codes
+										: is_unit ? unit_codes : letter_codes;
 		if (codes.contains(entry.code)) {
 			++left_out;
 			continue;
 		}
 		codes.insert(entry.code);
 		(is_fluid ? codification.fluids
-				  : is_material ? codification.materials : codification.functional_units) << entry;
+				  : is_material ? codification.materials
+								: is_unit ? codification.functional_units
+										  : codification.instrument_letters) << entry;
 	}
 		//Each size to its material; those of a material the file does not
 		//list are kept apart for who asks them
@@ -1764,8 +1811,10 @@ bool PidCodification::operator==(const PidCodification &other) const
 {
 	return fluids == other.fluids && materials == other.materials
 			&& functional_units == other.functional_units
+			&& instrument_letters == other.instrument_letters
 			&& equal_nominals == other.equal_nominals
 			&& tag_models == other.tag_models
+			&& parallel_numbering == other.parallel_numbering
 			&& fluid_family_colors == other.fluid_family_colors
 			&& object_colors == other.object_colors
 			&& status_colors == other.status_colors

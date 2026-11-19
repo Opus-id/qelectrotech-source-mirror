@@ -6877,6 +6877,16 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>Identifiant :</translation>
     </message>
     <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="64"/>
+        <source>The letters of identification of the instrument (PT, LIC...), typed in capitals; those of the codification of the project are offered</source>
+        <translation>Les lettres d&apos;identification de l&apos;instrument (PT, LIC…), saisies en capitales ; celles de la codification du projet sont proposées</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementtagwidget.cpp" line="66"/>
+        <source>Letters:</source>
+        <translation>Lettres :</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementtagwidget.cpp" line="60"/>
         <source>The number of the train, 0 when there is none</source>
         <translation>Le numéro de file, 0 s&apos;il n&apos;y en a pas</translation>
@@ -13675,18 +13685,38 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
-        <source>Nothing could be read from %1. Each line is expected as: kind;code;name;family, kind being &quot;fluid&quot;, &quot;material&quot; or &quot;unit&quot;.</source>
-        <translation>Rien n&apos;a pu être lu dans %1. Chaque ligne doit avoir la forme : genre;code;nom;famille, le genre étant « fluid », « material » ou « unit ».</translation>
+        <source>Nothing could be read from %1. Each line is expected as: kind;code;name;family, kind being &quot;fluid&quot;, &quot;material&quot;, &quot;unit&quot; or &quot;letters&quot;.</source>
+        <translation>Rien n&apos;a pu être lu dans %1. Chaque ligne doit avoir la forme : genre;code;nom;famille, le genre étant « fluid », « material », « unit » ou « letters ».</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
-        <source>Replace the codes of this page with %1 fluids, %2 materials and %3 functional units?</source>
-        <translation>Remplacer les codes de cette page par %1 fluides, %2 matériaux et %3 unités fonctionnelles ?</translation>
+        <source>Replace the codes of this page with %1 fluids, %2 materials, %3 functional units and %4 instrument letters?</source>
+        <translation>Remplacer les codes de cette page par %1 fluides, %2 matériaux, %3 unités fonctionnelles et %4 lettres d&apos;instrument ?</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
-        <source>%1 fluids, %2 materials and %3 functional units</source>
-        <translation>%1 fluides, %2 matériaux et %3 unités fonctionnelles</translation>
+        <source>%1 fluids, %2 materials, %3 functional units and %4 instrument letters</source>
+        <translation>%1 fluides, %2 matériaux, %3 unités fonctionnelles et %4 lettres d&apos;instrument</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="287"/>
+        <source>Instrument letters</source>
+        <translation>Lettres d&apos;instrument</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="300"/>
+        <source>Letters</source>
+        <translation>Lettres</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="300"/>
+        <source>Meaning</source>
+        <translation>Signification</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="303"/>
+        <source>The letters of identification of the instruments, offered while the letters of a tag are typed: a help only. A tag may have others, and changing or removing letters here changes no tag.</source>
+        <translation>Les lettres d&apos;identification des instruments, proposées pendant la saisie des lettres d&apos;un repère : une simple aide. Un repère peut en avoir d&apos;autres, et modifier ou supprimer des lettres ici ne change aucun repère.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="153"/>

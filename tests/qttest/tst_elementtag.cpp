@@ -134,6 +134,32 @@ class tst_elementtag : public QObject
 	QETProject *m_project = nullptr;
 	Diagram *m_folio = nullptr;
 	ElementsLocation m_a, m_b, m_n, m_e, m_f;
+		// i: an instrument bubble, whose symbol gives no identifier
+	ElementsLocation m_i;
+
+		// A project numbering the loops of its instruments in series (the
+		// default) or in @p parallel, with the model "{unit} {id}
+		// {train}{order:2}", letters PT and LIC offered
+	static PidCodification instruments(bool parallel = false)
+	{
+		PidCodification codification = withModel(QStringLiteral("{unit} {id} {train}{order:2}"));
+		codification.tag_models.insert(QStringLiteral("instrument"), QStringLiteral("{unit} {id} {train}{order:2}"));
+		codification.instrument_letters
+				<< PidCodification::Entry{QStringLiteral("LIC"), QStringLiteral("Level indicating controller"), QString()}
+				<< PidCodification::Entry{QStringLiteral("PT"), QStringLiteral("Pressure transmitter"), QString()};
+		codification.parallel_numbering = parallel;
+		return codification;
+	}
+
+		// Give the instrument @p element the letters @p letters and a tag
+	static Element *instrument(Element *element, const QString &letters,
+							   const QString &unit, const QString &train, const QString &order)
+	{
+		DiagramContext information = element->elementInformations();
+		information.addValue(PidTag::lettersKey(), letters);
+		element->setElementInformations(information);
+		return tag(element, unit, train, order);
+	}
 
 	private slots:
 		void init()
@@ -150,7 +176,10 @@ class tst_elementtag : public QObject
 							QStringLiteral("pid_family=\"equipment\"")));
 			m_e = add(*m_project, "e.elmt", definition(de, "44444444-4444-4444-4444-444444444444", "E", QString()));
 			m_f = add(*m_project, "f.elmt", definition(df, "55555555-5555-5555-5555-555555555555", "F", QString()));
-			QVERIFY(m_a.exist() && m_b.exist() && m_n.exist() && m_e.exist() && m_f.exist());
+			QDomDocument di;
+			m_i = add(*m_project, "i.elmt", definition(di, "66666666-6666-6666-6666-666666666666", "I",
+							QStringLiteral("pid_family=\"instrument\"")));
+			QVERIFY(m_a.exist() && m_b.exist() && m_n.exist() && m_e.exist() && m_f.exist() && m_i.exist());
 			m_folio = m_project->addNewDiagram();
 		}
 
@@ -648,6 +677,169 @@ class tst_elementtag : public QObject
 			QVERIFY(label && label->findChild<QLineEdit *>());
 			QVERIFY(!label->findChild<QLineEdit *>()->isEnabled());
 			QVERIFY(!label->toolTip().isEmpty());
+		}
+
+			// 6b-3d1: the letters of the instruments the project offers, and
+			// its numbering of the loops in parallel (in series without), are
+			// saved: the letters with the codes, the numbering with the models
+		void theCodificationKeepsLettersAndNumbering()
+		{
+			PidCodification codification = instruments(true);
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			holder.appendChild(codification.toXml(doc));
+			PidCodification back;
+			back.fromXml(holder);
+			QCOMPARE(back, codification);
+			QVERIFY(back.parallel_numbering);
+			QCOMPARE(back.instrument_letters.size(), 2);
+
+				// in series, the default: nothing written
+			codification.parallel_numbering = false;
+			QDomDocument plain;
+			QVERIFY(!codification.toXml(plain).hasAttribute(QStringLiteral("instrument_numbering")));
+			QVERIFY(!codification.presentationToCsv().contains(QStringLiteral("instrument_numbering")));
+
+			int skipped = -1;
+			const PidCodification read = PidCodification::fromCsv(QStringLiteral(
+				"kind;code;name;family\n"
+				"letters;PT;Pressure transmitter\n"
+				"lettres;FT;Flow transmitter\n"
+				"letters;PT;Again\n"
+				"option_repere;instrument_numbering;parallèle\n"
+				"tag_option;instrument_numbering;sometimes\n"), &skipped);
+			QCOMPARE(skipped, 2);
+			QCOMPARE(read.instrument_letters.size(), 2);
+			QCOMPARE(read.instrument_letters.at(1).code, QStringLiteral("FT"));
+			QCOMPARE(read.instrument_letters.at(1).name, QStringLiteral("Flow transmitter"));
+			QVERIFY(read.parallel_numbering);
+			QVERIFY(read.codesToCsv().contains(QStringLiteral("letters;FT;Flow transmitter")));
+			QVERIFY(read.presentationToCsv().contains(QStringLiteral("tag_option;instrument_numbering;parallel")));
+			QVERIFY(!read.presentationToCsv().contains(QStringLiteral("FT")));
+			QCOMPARE(PidCodification::fromCsv(read.toCsv()), read);
+				// "serial" says the default
+			QVERIFY(!PidCodification::fromCsv(QStringLiteral(
+				"tag_option;instrument_numbering;serial\n")).parallel_numbering);
+		}
+
+			// An instrument has letters, typed in capitals, instead of the
+			// identifier of its symbol; those of the project are offered
+		void theLettersOfAnInstrumentAreItsIdentifier()
+		{
+			m_project->setPidCodification(instruments());
+			Element *i = place(m_folio, m_i);
+			Element *a = place(m_folio, m_a);
+			QVERIFY(i && a);
+			ElementTagWidget equipment(a);
+			QVERIFY(!equipment.asksLetters());
+			QVERIFY(equipment.lettersField()->isHidden());
+
+			ElementTagWidget tab(i);
+			QVERIFY(tab.asksLetters());
+			QVERIFY(!tab.lettersField()->isHidden());
+			QCOMPARE(tab.lettersField()->count(), 3);   // nothing, LIC, PT
+			QCOMPARE(tab.lettersField()->itemData(2).toString(), QStringLiteral("PT"));
+			tab.setLiveEdit(true);
+			QLineEdit *typed = tab.lettersField()->lineEdit();
+			typed->setText(QStringLiteral("pt"));
+			emit typed->textEdited(QStringLiteral("pt"));
+			QCOMPARE(typed->text(), QStringLiteral("PT"));
+			emit typed->editingFinished();
+			QCOMPARE(i->elementInformations().value(PidTag::lettersKey()).toString(), QStringLiteral("PT"));
+			QCOMPARE(shownLabel(i), QStringLiteral("PT"));
+
+				// the unit numbers it
+			tab.unitField()->setCurrentIndex(1);             // U01
+			emit tab.unitField()->activated(1);
+			QCOMPARE(tab.orderField()->text(), QStringLiteral("1"));
+			QCOMPARE(shownLabel(i), QStringLiteral("U01 PT 001"));
+				// the changes of the tag of an element make one step
+				// (ChangeElementInformationCommand::mergeWith())
+			m_folio->undoStack().undo();
+			QCOMPARE(shownLabel(i), QString());
+			m_folio->undoStack().redo();
+			QCOMPARE(shownLabel(i), QStringLiteral("U01 PT 001"));
+
+				// other letters, the order stays
+			typed->setText(QStringLiteral("LIC"));
+			emit typed->editingFinished();
+			QCOMPARE(shownLabel(i), QStringLiteral("U01 LIC 001"));
+			QCOMPARE(PidTag::identifier(i), QStringLiteral("LIC"));
+				// the letters of an equipment are not asked, nor written
+			QVERIFY(!equipment.edited().contains(PidTag::lettersKey()));
+		}
+
+			// The loops of the instruments (ANSI/ISA-5.1, A.6): in series (the
+			// default), an instrument is numbered with all those of its unit
+			// and train, whatever their letters; in parallel, with those of
+			// its measured variable, its first letter. An equipment keeps its
+			// own counter, by identifier.
+		void instrumentsAreNumberedByLoop()
+		{
+			m_project->setPidCodification(instruments());
+			instrument(place(m_folio, m_i), "PT", "U01", "1", "5");
+			instrument(place(m_folio, m_i), "LIC", "U01", "1", "7");
+			tag(place(m_folio, m_a), "U01", "1", "20");   // an equipment: its own counter
+			const QString family = PidTag::instrumentFamily();
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "FT", "1", nullptr, family), 8);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "PT", "1", nullptr, family), 8);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "PT", "2", nullptr, family), 1);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", "1"), 21);
+
+			m_project->setPidCodification(instruments(true));
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "FT", "1", nullptr, family), 1);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "PT", "1", nullptr, family), 6);
+				// the loop P counts PT and PIC together
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "PIC", "1", nullptr, family), 6);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "LSH", "1", nullptr, family), 8);
+			QCOMPARE(PidTag::nextOrder(m_project, "U01", "AA", "1"), 21);
+		}
+
+			// A loop copied whole stays one loop: one new order for all its
+			// instruments; two instruments of a loop do not clash
+		void aLoopCopiedWholeStaysOneLoop()
+		{
+			m_project->setPidCodification(instruments());
+			Element *pt = instrument(place(m_folio, m_i), "PT", "U01", "1", "5");
+			Element *lic = instrument(place(m_folio, m_i), "LIC", "U01", "1", "5");
+			lic->setPos(100, 0);
+			instrument(place(m_folio, m_i), "FT", "U01", "1", "6")->setPos(200, 0);
+
+			const QList<Element *> copied = paste({pt, lic}, QPointF(0, 500));
+			QCOMPARE(copied.size(), 2);
+			QStringList labels;
+			for (Element *element : copied) labels << shownLabel(element);
+			labels.sort();
+			QCOMPARE(labels, QStringList({"U01 LIC 107", "U01 PT 107"}));
+
+				// in parallel: the loops P and L, each its own counter
+			m_project->setPidCodification(instruments(true));
+			const QList<Element *> again = paste({pt, lic}, QPointF(0, 800));
+			labels.clear();
+			for (Element *element : again) labels << shownLabel(element);
+			labels.sort();
+			QCOMPARE(labels, QStringList({"U01 LIC 108", "U01 PT 108"}));
+		}
+
+			// The loops count the folios not built yet, the family of their
+			// symbols read from the collection of the project
+		void theLoopsCountTheFoliosNotBuilt()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString path = dir.filePath(QStringLiteral("loops.qetdb"));
+			m_project->setPidCodification(instruments());
+			instrument(place(m_folio, m_i), "PT", "U01", "1", "3");
+			Diagram *second = m_project->addNewDiagram();
+			instrument(place(second, m_i), "LIC", "U01", "1", "12");
+			m_project->setFilePath(path);
+			QVERIFY(m_project->write().isOk());
+
+			QETProject back(path);
+			QVERIFY(back.unloadedFolioCount() > 0);
+			const int unloaded = back.unloadedFolioCount();
+			QCOMPARE(PidTag::nextOrder(&back, "U01", "FT", "1", nullptr, PidTag::instrumentFamily()), 13);
+			QCOMPARE(back.unloadedFolioCount(), unloaded);   // nothing built
 		}
 };
 

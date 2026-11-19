@@ -71,7 +71,8 @@ class ChangePidCodificationCommand : public QUndoCommand
 			/// How many pipe lines bear the fluid or the material @p code, or
 			/// how many symbols the functional unit @p code; a fluid counts
 			/// the valves whose tag starts with it too. All the folios of the
-			/// project are built for that.
+			/// project are built for that. Letters of instruments: none, a
+			/// help to type that no tag bears (PidCodification::instrument_letters).
 		static int usersOf(QETProject *project, PidCodification::List list, const QString &code);
 
 	private:

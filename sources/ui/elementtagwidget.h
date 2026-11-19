@@ -35,7 +35,9 @@ class QETProject;
 	The tab of the properties of a placed P&ID symbol where its tag is made
 	(PidTag): its functional unit, picked in the list of its project or
 	typed, its train and its order; the identifier comes from the symbol.
-	The tab shows the label the model of the project makes of them, and
+	An instrument has letters of identification instead (PidTag::lettersKey()),
+	typed in capitals, those of its project offered while they are typed
+	(PidCodification::instrument_letters). The tab shows the label the model of the project makes of them, and
 	tells when another element of the project already has it. Live, a field
 	is applied when it is left, with undo.
 
@@ -68,6 +70,9 @@ class ElementTagWidget : public AbstractElementPropertiesEditorWidget
 		DiagramContext edited() const;
 
 		QComboBox *unitField() const { return m_unit; }
+		QComboBox *lettersField() const { return m_letters; }
+			/// The letters are asked: the element is an instrument
+		bool asksLetters() const;
 		QLineEdit *trainField() const { return m_train; }
 		QLineEdit *orderField() const { return m_order; }
 		QPushButton *nextButton() const { return m_next; }
@@ -76,7 +81,9 @@ class ElementTagWidget : public AbstractElementPropertiesEditorWidget
 
 	private:
 		void fillUnits();
+		void fillLetters();
 		QString unitCode() const;
+		QString lettersCode() const;
 		void showLabel(const DiagramContext &information);
 		void applyIfLive();
 		void fillOrder(bool asked);
@@ -84,6 +91,9 @@ class ElementTagWidget : public AbstractElementPropertiesEditorWidget
 
 		QComboBox *m_unit = nullptr;
 		QLabel *m_identifier = nullptr;
+		QLabel *m_identifier_title = nullptr;
+		QComboBox *m_letters = nullptr;
+		QLabel *m_letters_title = nullptr;
 		QLineEdit *m_train = nullptr;
 		QLineEdit *m_order = nullptr;
 		QPushButton *m_next = nullptr;
