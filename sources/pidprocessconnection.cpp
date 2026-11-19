@@ -124,6 +124,16 @@ ElementsLocation PidProcessConnection::blindFlangeSymbol(const Diagram *diagram)
 }
 
 /**
+	@brief PidProcessConnection::isClosureSignal
+	See the declaration
+*/
+bool PidProcessConnection::isClosureSignal(const Terminal *terminal)
+{
+	return terminal && terminal->medium() == TerminalData::Signal && terminal->parentElement()
+			&& terminal->parentElement()->isClosure();
+}
+
+/**
 	@brief PidProcessConnection::isProcessEnd
 	See the declaration
 */

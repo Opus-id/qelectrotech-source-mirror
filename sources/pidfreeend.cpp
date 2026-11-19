@@ -19,8 +19,11 @@
 
 #include "diagram.h"
 #include "diagramcontent.h"
+#include "factory/elementfactory.h"
+#include "pidcodification.h"
 #include "pidnozzlemagnet.h"
 #include "pipeconnection.h"
+#include "qetproject.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
@@ -365,6 +368,85 @@ Conductor *PidFreeEnd::close(Diagram *diagram, Terminal *nozzle, Terminal *closu
 	if (parent->text().isEmpty()) {
 		parent->setText(add->text());
 	}
+	return pipe;
+}
+
+/**
+	@brief PidFreeEnd::symbol
+	See the declaration
+*/
+ElementsLocation PidFreeEnd::symbol(const Diagram *diagram)
+{
+	QETProject *project = diagram ? diagram->project() : nullptr;
+	if (!project) return ElementsLocation();
+	const QString path = project->pidCodification().toolSymbol(PidCodification::freeEndRole());
+	if (path.isEmpty()) return ElementsLocation();
+		//A project given turns any path into one of its own collection
+	const ElementsLocation location = path.startsWith(QLatin1String("embed://"))
+			? ElementsLocation(path, project) : ElementsLocation(path);
+	return location.isElement() && location.exist() ? location : ElementsLocation();
+}
+
+/**
+	@brief PidFreeEnd::reopen
+	See the declaration
+*/
+Conductor *PidFreeEnd::reopen(Diagram *diagram, Terminal *nozzle, QUndoCommand *parent)
+{
+	if (!diagram || !diagram->project() || !parent || !nozzle
+		|| nozzle->medium() != TerminalData::Pipe) {
+		return nullptr;
+	}
+	Conductor *held = nullptr;
+	for (Conductor *c : nozzle->conductors()) {
+		if (c->medium() == TerminalData::Pipe) {
+			held = c;
+			break;
+		}
+	}
+	Terminal *far = farEnd(held, nozzle);
+	const ElementsLocation location = symbol(diagram);
+	if (!far || !location.isElement()) return nullptr;
+
+	ElementsLocation used = location;
+	if (!(location.isProject() && location.project() == diagram->project())) {
+		used = diagram->project()->importElement(used);
+	}
+	int state = 0;
+	Element *free_end = used.exist() ? ElementFactory::Instance()->createElement(used, nullptr, &state)
+									 : nullptr;
+	Terminal *end = nullptr;
+	if (free_end && !state) {
+		for (Terminal *t : free_end->terminals()) {
+			if (t->medium() == TerminalData::Pipe) {
+				end = t;
+				break;
+			}
+		}
+	}
+	if (!end) {
+		delete free_end;
+		return nullptr;
+	}
+		//Where the nozzle of the closure is, facing the same way
+	free_end->takeLabelSize(diagram->project()->pidCodification());
+	const int turns = (int(nozzle->orientation()) - int(end->orientation()) + 4) % 4;
+	free_end->setRotation(90.0 * turns);
+	free_end->setPos(QPointF());
+	free_end->setPos(nozzle->dockConductor() - end->dockConductor());
+
+	auto *pipe = new Conductor(far, end);
+	if (!pipe->isValid()) {
+		delete pipe;
+		delete free_end;
+		return nullptr;
+	}
+	pipe->setProperties(held->properties());
+	pipe->takeNozzleDiameter();
+		//The route kept, even moved by hand
+	pipe->setPathPoints(cleaned(pathTo(held, nozzle)));
+	new AddGraphicsObjectCommand(free_end, diagram, free_end->pos(), parent);
+	new AddGraphicsObjectCommand(pipe, diagram, QPointF(), parent);
 	return pipe;
 }
 

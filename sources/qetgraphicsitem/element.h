@@ -312,6 +312,13 @@ class Element : public QetGraphicsItem
 			/// Whether this symbol goes when the pipe it ends is deleted: a free
 			/// end, or a symbol a tool placed there (isToolPlaced())
 		bool goesWithItsPipe() const { return isFreeEnd() || m_tool_placed; }
+			/// True for a closure of a line (pid_role="closure": blind flange,
+			/// dished end, cap), or a symbol a tool placed to close one: deleted
+			/// alone, it leaves its pipe on a free end; its signal terminal
+			/// takes one process connection only (6b-3c2)
+		bool isClosure() const {
+			return m_data.m_pid_role == QLatin1String("closure") || m_tool_placed;
+		}
 			/// True for a spec break (pid_role="spec_break"): the mark where
 			/// the material, piping class and nominal pressure of a line
 			/// change; its size goes on through it

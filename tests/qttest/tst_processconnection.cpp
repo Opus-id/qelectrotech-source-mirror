@@ -71,7 +71,7 @@ class tst_processconnection : public QObject
 	{
 		doc.setContent(QStringLiteral(
 			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
-			"pid_family=\"pipe\" width=\"20\" height=\"20\" hotspot_x=\"10\" hotspot_y=\"10\">"
+			"pid_family=\"pipe\" pid_role=\"closure\" width=\"20\" height=\"20\" hotspot_x=\"10\" hotspot_y=\"10\">"
 			"<uuid uuid=\"{a5555555-5555-5555-5555-555555555555}\"/>"
 			"<names><name lang=\"en\">Blind flange</name></names>"
 			"<description>"
@@ -95,6 +95,31 @@ class tst_processconnection : public QObject
 			codification.tool_symbols.insert(PidCodification::blindFlangeRole(), path);
 		}
 		m_project->setPidCodification(codification);
+	}
+
+		// The free end of the project: that of the tests, or none
+	void setFreeEnd(bool set)
+	{
+		PidCodification codification = m_project->pidCodification();
+		if (set) {
+			codification.tool_symbols.insert(PidCodification::freeEndRole(),
+											 QStringLiteral("embed://import/process/freeend.elmt"));
+		} else {
+			codification.tool_symbols.remove(PidCodification::freeEndRole());
+		}
+		m_project->setPidCodification(codification);
+	}
+
+		// The free end on the folio whose nozzle is at @p dock
+	Element *freeEndAt(const QPointF &dock) const
+	{
+		for (Element *element : m_folio->elements()) {
+			if (element->isFreeEnd()
+				&& QLineF(element->terminals().first()->dockConductor(), dock).length() < 0.5) {
+				return element;
+			}
+		}
+		return nullptr;
 	}
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -138,6 +163,26 @@ class tst_processconnection : public QObject
 		if (line.pipe) {
 			ConductorProperties properties = line.pipe->properties();
 			properties.m_pipe.line_number = QStringLiteral("W01");
+			line.pipe->setProperties(properties);
+		}
+		return line;
+	}
+
+		// A blind flange placed by hand (free_end holds it), its nozzle
+		// piped from a symbol 100 to the west, a bubble above it; on a row
+		// of their own. The pipe has the line number W02.
+	Line lineWithAFlange()
+	{
+		m_next_y += 200;
+		Line line;
+		line.symbol = place(m_pipe, QPointF(0, m_next_y));
+		line.free_end = place(m_flange, QPointF(110, m_next_y));
+		line.bubble = place(m_signal, QPointF(150, m_next_y - 80));
+		if (!line.symbol || !line.free_end || !line.bubble) return line;
+		line.pipe = line.symbol->terminals().at(1)->connectTo(terminalOf(line.free_end, TerminalData::Pipe));
+		if (line.pipe) {
+			ConductorProperties properties = line.pipe->properties();
+			properties.m_pipe.line_number = QStringLiteral("W02");
 			line.pipe->setProperties(properties);
 		}
 		return line;
@@ -254,6 +299,7 @@ class tst_processconnection : public QObject
 		{
 			m_folio->clearEventInterface();
 			QVERIFY(!m_tool);
+			setFreeEnd(false);
 		}
 
 			// The blind flange: a symbol a tool places, set by the project
@@ -497,6 +543,113 @@ class tst_processconnection : public QObject
 			QVERIFY(!flange->isToolPlaced());
 			removeAsTheUser({pipe});
 			QVERIFY(flange->scene());
+		}
+
+			// The blind flange the tool placed, deleted alone, leaves the line
+			// open again: a free end where it was, the same pipe to it; its
+			// process connection goes with it. One step to undo.
+		void deletingTheToolFlangeReopensTheLine()
+		{
+			setFreeEnd(true);
+			const Line line = lineWithAFreeEnd();
+			QVERIFY(line.pipe);
+			const QPointF dock = line.nozzle()->dockConductor();
+			Terminal *start = line.symbol->terminals().at(1);
+			Element *flange = closeFromTheBubble(line);
+			QVERIFY(flange);
+			const int steps = m_folio->undoStack().index();
+
+			removeAsTheUser({flange});
+			QVERIFY(!flange->scene());
+			Element *free_end = freeEndAt(dock);
+			QVERIFY(free_end);
+			Terminal *nozzle = free_end->terminals().first();
+			QCOMPARE(nozzle->orientation(), Qet::West);
+			QVERIFY(start->isLinkedTo(nozzle));
+			QCOMPARE(start->conductors().first()->properties().m_pipe.line_number, QStringLiteral("W01"));
+			QCOMPARE(line.signal()->conductors().size(), 0);
+
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+			m_folio->undoStack().undo();
+			QVERIFY(flange->scene());
+			QVERIFY(!free_end->scene());
+			QVERIFY(start->isLinkedTo(terminalOf(flange, TerminalData::Pipe)));
+			QCOMPARE(line.signal()->conductors().size(), 1);
+		}
+
+			// A closure placed by hand the same; without a free end set, the
+			// pipe goes with it, as before; picked with its pipe, both go
+		void deletingAClosureReopensTheLine()
+		{
+			setFreeEnd(true);
+			Line line = lineWithAFlange();
+			QVERIFY(line.pipe);
+			Terminal *start = line.symbol->terminals().at(1);
+			const QPointF dock = terminalOf(line.free_end, TerminalData::Pipe)->dockConductor();
+			removeAsTheUser({line.free_end});
+			Element *free_end = freeEndAt(dock);
+			QVERIFY(free_end);
+			QVERIFY(start->isLinkedTo(free_end->terminals().first()));
+			QCOMPARE(start->conductors().first()->properties().m_pipe.line_number, QStringLiteral("W02"));
+
+			line = lineWithAFlange();
+			QVERIFY(line.pipe);
+			removeAsTheUser({line.free_end, line.pipe});
+			QCOMPARE(line.symbol->terminals().at(1)->conductors().size(), 0);
+			QVERIFY(!freeEndAt(terminalOf(line.free_end, TerminalData::Pipe)->dockConductor()));
+
+			setFreeEnd(false);
+			line = lineWithAFlange();
+			QVERIFY(line.pipe);
+			removeAsTheUser({line.free_end});
+			QCOMPARE(line.symbol->terminals().at(1)->conductors().size(), 0);
+		}
+
+			// The signal terminal of a closure takes one line, a process
+			// connection: another type is refused there, said in the status bar
+		void theSignalTerminalOfAClosureTakesOneProcessConnection()
+		{
+			const Line line = lineWithAFlange();
+			QVERIFY(line.pipe);
+			Terminal *s1 = terminalOf(line.free_end, TerminalData::Signal);
+
+			m_tool->setSignalType(SignalProperties::Pneumatic);
+			click(nearBelow(line.signal()));
+			click(nearBelow(s1));
+			QCOMPARE(s1->conductors().size(), 0);
+			QVERIFY(m_tool->drawsSignalLine());
+			key(Qt::Key_Escape);
+
+			m_tool->setSignalType(SignalProperties::ProcessConnection);
+			click(nearBelow(line.signal()));
+			click(nearBelow(s1));
+			QCOMPARE(s1->conductors().size(), 1);
+			QVERIFY(isProcessConnection(s1->conductors().first()));
+				// full: no second line
+			QVERIFY(!DiagramEventAddPipe::isFreeSignalTerminal(s1));
+			QVERIFY(!line.bubble->terminals().at(0)->canBeLinkedTo(s1));
+		}
+
+			// From the signal terminal of a closure, the tool draws a process
+			// connection; a drag to it gives one too
+		void fromAClosureTheLineIsAProcessConnection()
+		{
+			Line line = lineWithAFlange();
+			QVERIFY(line.pipe);
+			Terminal *s1 = terminalOf(line.free_end, TerminalData::Signal);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::Undefined));
+			click(nearBelow(s1));
+			QCOMPARE(m_tool->startNozzle(), s1);
+			QCOMPARE(int(m_tool->signalType()), int(SignalProperties::ProcessConnection));
+			click(nearBelow(line.signal()));
+			QCOMPARE(s1->conductors().size(), 1);
+			QVERIFY(isProcessConnection(s1->conductors().first()));
+
+			line = lineWithAFlange();
+			QVERIFY(line.pipe);
+			s1 = terminalOf(line.free_end, TerminalData::Signal);
+			Conductor *dragged = line.signal()->connectTo(s1);
+			QVERIFY(isProcessConnection(dragged));
 		}
 
 			// The mark of the flange placed by the tool, saved only when set

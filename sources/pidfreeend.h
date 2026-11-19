@@ -18,6 +18,7 @@
 #ifndef PIDFREEEND_H
 #define PIDFREEEND_H
 
+#include "ElementsCollection/elementslocation.h"
 #include "pipeproperties.h"
 #include "qet.h"
 
@@ -97,6 +98,19 @@ class PidFreeEnd
 			/// pipe, nullptr when nothing was done
 		static Conductor *close(Diagram *diagram, Terminal *nozzle, Terminal *closure,
 								QUndoCommand *parent);
+			/// The symbol of free end of the project of @p diagram
+			/// (PidCodification::freeEndRole()), a null location when it has
+			/// none or when it is not found
+		static ElementsLocation symbol(const Diagram *diagram);
+			/// The reverse of close(): the pipe ending on @p nozzle, the nozzle
+			/// of a closure (Element::isClosure()) about to be removed, open
+			/// again on a free end of the project placed where the nozzle is,
+			/// facing the same way, as children of @p parent: the free end
+			/// added, the same pipe to it added, its route and its data kept.
+			/// Nothing removed: the caller removes the closure and its pipe.
+			/// @return the new pipe; nullptr when the project has no free end,
+			/// or when @p nozzle holds no pipe
+		static Conductor *reopen(Diagram *diagram, Terminal *nozzle, QUndoCommand *parent);
 			/// While a preview reaches the free end of @p nozzle: its symbol
 			/// hidden (@p hide) but its nozzle drawn, lit as hovered; shown
 			/// again when @p hide is false

@@ -277,6 +277,10 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// it catches the line, else to the mouse at @p scene_pos
 		void showSignalPreview(Terminal *target, const QPointF &scene_pos);
 		void clearSignalPreview();
+			/// Whether a signal line of the type of the tool may end on
+			/// @p terminal: anything but the signal terminal of a closure,
+			/// which takes a process connection only (true for nullptr)
+		bool takesTheType(const Terminal *terminal) const;
 		bool hasStart() const { return m_start || m_start_free || m_start_tee || m_start_end; }
 		QPointF startScenePoint() const;
 		qreal teeArm();

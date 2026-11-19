@@ -36,6 +36,7 @@
 #include <pidfreeend.h>
 #include <pipeconnection.h>
 #include <properties/elementoptions.h>
+#include <signalproperties.h>
 
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
@@ -1135,6 +1136,20 @@ Conductor *Terminal::connectTo(Terminal *other_terminal)
 
 	//Create conductor
 	Conductor *new_conductor = new Conductor(this, other_terminal);
+		//To or from the signal terminal of a closure: a process connection,
+		//whatever the type the line would take (P&ID, 6b-3c2)
+	if (new_conductor->medium() == TerminalData::Signal) {
+		for (const Terminal *end : {static_cast<const Terminal *>(this),
+									static_cast<const Terminal *>(other_terminal)}) {
+			if (end->medium() == TerminalData::Signal && end->parentElement()
+				&& end->parentElement()->isClosure()) {
+				ConductorProperties process = new_conductor->properties();
+				process.m_signal.signal_type = SignalProperties::ProcessConnection;
+				new_conductor->setProperties(process);
+				break;
+			}
+		}
+	}
 
 	//Get all conductors at the same potential of new conductors
 	QSet <Conductor *> conductors_list = new_conductor->relatedPotentialConductors();
@@ -1337,6 +1352,11 @@ Terminal *Terminal::magnetTarget(const QPointF &scene_pos, qreal radius)
 int Terminal::wireLimit() const
 {
 	if (d->m_medium == TerminalData::Pipe) {
+		return 1;
+	}
+		//The signal terminal of a closure: one process connection, from the
+		//place of measure to its instrument (P&ID, 6b-3c2)
+	if (d->m_medium == TerminalData::Signal && parentElement() && parentElement()->isClosure()) {
 		return 1;
 	}
 	const Diagram *parent_diagram = diagram();

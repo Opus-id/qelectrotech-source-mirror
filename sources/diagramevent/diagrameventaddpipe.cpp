@@ -273,6 +273,10 @@ void DiagramEventAddPipe::startFrom(Terminal *nozzle)
 	m_start = nozzle;
 	m_start_free = false;
 	hover(nullptr, QColor());
+		//From the signal terminal of a closure: a process connection
+	if (PidProcessConnection::isClosureSignal(nozzle)) {
+		m_signal_type = SignalProperties::ProcessConnection;
+	}
 	if (drawsSignalLine()) {
 			//A signal line has a preview of its own, with its marks
 		showSignalPreview(nullptr, nozzle->dockConductor());
@@ -347,8 +351,11 @@ void DiagramEventAddPipe::showSignalPreview(Terminal *target, const QPointF &sce
 	}
 	m_signal_route = route;
 
-	const SignalProperties::SignalType type = drawsSignalLine() ? m_signal_type
-																: SignalProperties::ProcessConnection;
+		//To or from a closure, a process connection whatever the type
+	const bool process = !drawsSignalLine() || PidProcessConnection::isClosureSignal(start)
+			|| PidProcessConnection::isClosureSignal(target);
+	const SignalProperties::SignalType type = process ? SignalProperties::ProcessConnection
+													  : m_signal_type;
 	const QETProject *project = m_diagram->project();
 	const SignalMark::Mark mark = project ? project->pidCodification().signalMark(type)
 										  : SignalMark::defaultMark(type);
@@ -388,6 +395,16 @@ void DiagramEventAddPipe::showSignalPreview(Terminal *target, const QPointF &sce
 	}
 	m_signal_preview->setPen(pen);
 	m_signal_preview->setPath(path);
+}
+
+/**
+	@brief DiagramEventAddPipe::takesTheType
+	See the declaration
+*/
+bool DiagramEventAddPipe::takesTheType(const Terminal *terminal) const
+{
+	return m_signal_type == SignalProperties::ProcessConnection
+			|| !PidProcessConnection::isClosureSignal(terminal);
 }
 
 /**
@@ -487,8 +504,13 @@ void DiagramEventAddPipe::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	{
 			//A signal line ends at a signal terminal of another symbol only
 			//(a free end for it, or a tap on a pipe: later)
+		Terminal *closure = freeSignalTerminalNear(m_diagram, pos, radius);
 		if (Terminal *signal_target = targetNear(pos, radius)) {
 			finishAt(signal_target, snap);
+		} else if (closure && closure != m_start && !takesTheType(closure)) {
+			refuse(event, tr("The signal terminal of a closure takes a process connection only: "
+							 "T, type of signal \"%1\".", "pipe drawing tool")
+						   .arg(SignalProperties::typeName(SignalProperties::ProcessConnection)));
 		} else if (PidTee::conductorAt(m_diagram, pos)) {
 			refuse(event, tr("A signal line ends at a signal terminal: not on a pipe, a wire "
 							 "nor another line.", "pipe drawing tool"));
@@ -558,14 +580,7 @@ bool DiagramEventAddPipe::isEmptyPlace(const QPointF &scene_pos) const
 */
 ElementsLocation DiagramEventAddPipe::freeEndSymbol(const Diagram *diagram)
 {
-	QETProject *project = diagram ? diagram->project() : nullptr;
-	if (!project) return ElementsLocation();
-	const QString path = project->pidCodification().toolSymbol(PidCodification::freeEndRole());
-	if (path.isEmpty()) return ElementsLocation();
-		//A project given turns any path into one of its own collection
-	const ElementsLocation location = path.startsWith(QLatin1String("embed://"))
-			? ElementsLocation(path, project) : ElementsLocation(path);
-	return location.isElement() && location.exist() ? location : ElementsLocation();
+	return PidFreeEnd::symbol(diagram);
 }
 
 /**
@@ -900,9 +915,12 @@ void DiagramEventAddPipe::drawPipe(Terminal *start, const QPointF &start_point,
 			}
 		} else {
 			Conductor *line = start->connectTo(target);
-				//A signal line takes the type of signal of the tool
+				//A signal line takes the type of signal of the tool; to or from
+				//a closure, a process connection (Terminal::connectTo())
 			if (line && line->medium() == TerminalData::Signal
-					&& m_signal_type != SignalProperties::Undefined) {
+					&& m_signal_type != SignalProperties::Undefined
+					&& !PidProcessConnection::isClosureSignal(start)
+					&& !PidProcessConnection::isClosureSignal(target)) {
 				ConductorProperties properties = line->properties();
 				properties.m_signal.signal_type = m_signal_type;
 				line->setProperties(properties);
@@ -1201,6 +1219,10 @@ Terminal *DiagramEventAddPipe::targetNear(const QPointF &scene_pos, qreal radius
 	Terminal *nozzle = nullptr;
 	if (m_start) {
 		nozzle = m_start->magnetTarget(scene_pos, radius);
+			//The signal terminal of a closure takes a process connection only
+		if (drawsSignalLine() && !takesTheType(nozzle)) {
+			nozzle = nullptr;
+		}
 	} else {
 		nozzle = freeNozzleNear(m_diagram, scene_pos, radius);
 		if (nozzle && m_start_end && !PidFreeEnd::mayJoin(m_start_end, nozzle)) {

@@ -57,6 +57,9 @@ class PidProcessConnection
 			/// The blind flange of the project of @p diagram, a null location
 			/// when it has none or when it is not found
 		static ElementsLocation blindFlangeSymbol(const Diagram *diagram);
+			/// Whether @p terminal is the signal terminal of a closure
+			/// (Element::isClosure()): it takes one process connection only
+		static bool isClosureSignal(const Terminal *terminal);
 			/// Whether a process connection may end on @p terminal on the side
 			/// of the process: the nozzle of a free end holding its pipe
 			/// (closed by a blind flange) or a free nozzle

@@ -32,6 +32,7 @@
 #include <shownkinds.h>
 #include <qetgraphicsitem/terminal.h>
 #include "addelementtextcommand.h"
+#include <pidfreeend.h>
 #include <TerminalStrip/realterminal.h>
 #include <TerminalStrip/physicalterminal.h>
 
@@ -108,6 +109,7 @@ DeleteQGraphicsItemCommand::DeleteQGraphicsItemCommand(
 	m_removed_contents.m_texts_groups.clear();
 	setPotentialsOfRemovedElements();
 	rejoinPipesOfRemovedElements();
+	reopenPipesOfRemovedClosures();
 
 		//Get all linkeds table of removed table.
 	for (auto table : m_removed_contents.m_tables)
@@ -641,6 +643,50 @@ void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
 						QStringLiteral("conductor"), ends.join(QLatin1Char('\n'))));
 			}
 			new AddGraphicsObjectCommand(pipe, m_diagram, QPointF(), this);
+		}
+	}
+}
+
+/**
+	@brief DeleteQGraphicsItemCommand::reopenPipesOfRemovedClosures
+	A closure of a line (a blind flange, a dished end, a cap) taken away
+	alone leaves the line open, as it was before it was closed: its pipe
+	goes on to a free end of the project, placed where the closure was, its
+	route and its data kept (PidFreeEnd::reopen()). Its process connection
+	goes with it. A pipe the user picked along with it goes as asked, and
+	so does one whose other end goes too. Without a free end set for the
+	project, the pipe goes, as before.
+*/
+void DeleteQGraphicsItemCommand::reopenPipesOfRemovedClosures()
+{
+	const QList<Element *> &removed = m_removed_contents.m_elements;
+	if (removed.isEmpty()) {
+		return;
+	}
+	const QList<Conductor *> gone = m_removed_contents.conductors(DiagramContent::AnyConductor);
+	const QSet<const Conductor *> picked = pickedConductors(m_removed_contents);
+	for (Element *element : removed)
+	{
+		if (!element->isClosure()) {
+			continue;
+		}
+		for (Terminal *nozzle : element->terminals())
+		{
+			if (nozzle->medium() != TerminalData::Pipe) {
+				continue;
+			}
+			for (Conductor *pipe : nozzle->conductors())
+			{
+				if (pipe->medium() != TerminalData::Pipe || !gone.contains(pipe) || picked.contains(pipe)) {
+					continue;
+				}
+				Terminal *far = pipe->terminal1 == nozzle ? pipe->terminal2 : pipe->terminal1;
+				if (!far || !far->parentElement() || removed.contains(far->parentElement())) {
+					continue;
+				}
+				PidFreeEnd::reopen(m_diagram, nozzle, this);
+				break;
+			}
 		}
 	}
 }

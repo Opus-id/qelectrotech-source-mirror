@@ -4406,6 +4406,12 @@ Continuer ?</translation>
         <translation>près d&apos;une borne de signal : liaison au procédé</translation>
     </message>
     <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="490"/>
+        <source>The signal terminal of a closure takes a process connection only: T, type of signal &quot;%1&quot;.</source>
+        <comment>pipe drawing tool</comment>
+        <translation>La borne de signal d&apos;une fermeture ne prend qu&apos;une liaison au procédé : T, type de signal « %1 ».</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="828"/>
         <source>Click near a free nozzle or a free end (its line goes on), on a pipe (tee) or in an empty place: start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>

@@ -47,6 +47,9 @@ class DeleteQGraphicsItemCommand : public QUndoCommand
 		void setPotentialsOfRemovedElements();
 		Terminal *terminalInSamePotential(Terminal *terminal, Conductor *conductor_to_exclude);
 		void rejoinPipesOfRemovedElements();
+			/// A closure removed alone (Element::isClosure()) leaves its pipe
+			/// on a free end of the project (PidFreeEnd::reopen(), 6b-3c2)
+		void reopenPipesOfRemovedClosures();
 
 	public:
 		void undo() override;
