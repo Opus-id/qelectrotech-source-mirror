@@ -399,6 +399,12 @@ line.*
   The functional units come with the codification of the project (CSV line
   `unit;U01;Lifting`), the models with its presentation (CSV line
   `tag_model;equipment;...`).
+- **Letters of an instrument**: an instrument bubble may be any instrument,
+  so its *Tag* section asks its letters of identification (`PT`, `LIC`),
+  typed in capitals, instead of the identifier of its symbol; they take the
+  place of `{id}` in the model. The letters the project uses are offered
+  while they are typed: a list of the codification, *Instrument letters*
+  (CSV line `letters;PT;Pressure transmitter`), a help only.
 - **Tags numbered automatically**: the order is one more than the highest
   held by the same functional unit, identifier and train in the project
   (a number freed below it is not given again; no counter is saved, the
@@ -407,6 +413,12 @@ line.*
   typed is never changed. When the model shows the train, a numbered tag
   always has one (0 for none). A pasted copy whose tag is taken gets the
   next order (a cut and paste keeps its own).
+  Instruments are numbered by loop, as ANSI/ISA-5.1 (annex A) does: in
+  series by default, one sequence for all of them whatever their letters
+  (PT 105 and PIC 105 are the loop 105); in parallel when the presentation
+  says so (`tag_option;instrument_numbering;parallel`), one sequence for
+  each measured variable, their first letter. A loop copied whole gets one
+  new number. Equipment and valves keep a sequence of their own.
 - **Create similar**: right-click a placed symbol, *Create similar* starts
   the usual placement mode with the same symbol, options, status of works
   and rotation. Device information is not copied; a P&ID tag takes the
@@ -448,7 +460,7 @@ QElectroTech are saved byte for byte as by master.
 - The line designation shown along a pipe.
 - Flow direction, crossings as ISO 10628-1 draws them.
 - A signal line from or to a pipe or an empty place (the tap of an
-  instrument), instrument bubbles, equipment data tables.
+  instrument), the texts of a bubble one by line, equipment data tables.
 - Piping classes (material, pressure, wall thickness), the pressure rating
   (PN) of the nozzles.
 - Equipment drawn to size (a tank that stretches).
@@ -486,6 +498,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
 | `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never`; on the block, `same_connection`, `same_size`, `same_mark` = `false` | those of the symbol and the project; nozzles linked | a nozzle of the placed symbol is changed, or a link undone |
 | `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
+| `.qet`, `<element>` | information `pid_letters` | letters of identification of an instrument (`PT`) | the identifier of its symbol | the letters of an instrument are typed |
 | `.qet`, `<element>` | `pid_tool_placed` | `true` | `false`: placed by the user | a blind flange the pipe tool placed on a free end; it goes with the pipe it closes |
 | `.qet`, `<conductor>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
@@ -494,7 +507,8 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | a pipe or a signal line not to be built |
 | `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link`, `process_connection` | undefined | a signal line whose type is chosen |
-| `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
+| `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, instrument letters (`<instrument_letters code name/>`), equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
+| `.qet`, `<pid_codification>` | `instrument_numbering` | `parallel` | in series | the loops of the instruments are numbered in parallel |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee` or `blind_flange`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end | a symbol is chosen for the role |
 | `.qet`, `<pid_codification>` | `<signal_mark type mark/>` | `type` = a type of signal (`undefined` and those of `pid_signal_type`); `mark` = `none`, `dashes`, `bar1`, `bar2`, `bar3`, `a_mark`, `e_mark`, `l_mark`, `cross`, `wave`, `circle` | the mark of ISO 14617 for the type, else that of ANSI/ISA-5.1 | the project gives the type another mark than the default one |
 
