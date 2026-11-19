@@ -249,6 +249,12 @@ line.*
   free end of the project where it was, the pipe and its data kept, its
   process connection gone with it (without a free end set, the pipe goes
   too, as before).
+- **An end of a line turns by itself**: a symbol of the pipe family with
+  one free nozzle (free end, arrow, vent, closure...) dropped or moved
+  with its nozzle on a free end turns the same way and takes the line on;
+  on a free nozzle of another symbol, it turns to face it, the two
+  touching. Another symbol facing away from a free end is only placed:
+  the line is never lost.
 - **A page of its own** in the properties panel, and in the dialog a double
   click opens: type of signal and status of works, for one signal line or
   several, in one undo step.
