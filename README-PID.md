@@ -393,7 +393,7 @@ line.*
   saved as information of the element. The model of its family in the
   project, for instance `{unit} {id} {train}{order:2}`, makes its label
   (`U01 PC 105`); `\n`
-  starts a new line, for the three lines of an instrument bubble. The label
+  starts a new line. The label
   follows a change of model or of type, and a label held twice in the
   project is told. Without a model, the label is typed by hand as before.
   The functional units come with the codification of the project (CSV line
@@ -405,6 +405,13 @@ line.*
   place of `{id}` in the model. The letters the project uses are offered
   while they are typed: a list of the codification, *Instrument letters*
   (CSV line `letters;PT;Pressure transmitter`), a help only.
+  The bubble writes its tag in two texts, as ANSI/ISA-5.1 (annex B.3.1)
+  does: the letters in its upper half, the rest of the tag (the model
+  without `{id}`) in its lower half. `U01 LIT 102` stays one label, in the
+  order of the bill of materials, and is drawn `LIT` above `U01 102`.
+  Two information a text field can show, never saved, do it (*Tag,
+  identifier (letters)* and *Tag, without its identifier*); without a
+  model, the first line of the label typed by hand goes above.
 - **Tags numbered automatically**: the order is one more than the highest
   held by the same functional unit, identifier and train in the project
   (a number freed below it is not given again; no counter is saved, the
@@ -460,7 +467,7 @@ QElectroTech are saved byte for byte as by master.
 - The line designation shown along a pipe.
 - Flow direction, crossings as ISO 10628-1 draws them.
 - A signal line from or to a pipe or an empty place (the tap of an
-  instrument), the texts of a bubble one by line, equipment data tables.
+  instrument), equipment data tables.
 - Piping classes (material, pressure, wall thickness), the pressure rating
   (PN) of the nozzles.
 - Equipment drawn to size (a tank that stretches).
@@ -491,6 +498,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
 | `.elmt`, a part | `show_if` | `option=value,value`, conditions separated by `;` | always drawn | the part belongs to some values |
 | `.elmt`, a part | `line-cap`, `line-join` in `style` | `round`, `flat` / `miter`, `round`, `bevel` | square ends, default corners | not the default |
+| `.elmt`, `<dynamic_text>` | `<info_name>` `pid_tag_id`, `pid_tag_rest` | the identifier of the tag; the tag without it (read when drawn, never saved) | — | a text of the symbol shows a part of its tag (instrument bubble) |
 | `.elmt`, `<terminal>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.elmt`, `<terminal>` | `show_if` | as for a part | always shown, takes lines | the terminal belongs to some values |
 | `.elmt`, `<terminal>` | `pid_dn`, `pid_od`, `pid_thread` | DN; outside diameter to the tenth; inches (`1 1/2`) | the size of its pipe | a nozzle with a size of its own |
