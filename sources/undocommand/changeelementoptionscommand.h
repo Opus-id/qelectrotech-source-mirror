@@ -20,16 +20,22 @@
 
 #include "../properties/elementoptions.h"
 
+#include <QList>
 #include <QPointer>
 #include <QUndoCommand>
 
+class Conductor;
 class Element;
+class Terminal;
 
 /**
 	@brief The ChangeElementOptionsCommand class
 	Give the options of the symbol of a placed element other values, such as
 	another motor for a pump (see ElementOptions, Element::setOptionChoices()),
 	and give them back on undo.
+	A wire on a terminal the new values hide goes over to the terminal they
+	show in its place (Terminal::replacement()), when that one has room for
+	it; otherwise it stays where it is. Undone in the same step.
 */
 class ChangeElementOptionsCommand : public QUndoCommand
 {
@@ -41,8 +47,20 @@ class ChangeElementOptionsCommand : public QUndoCommand
 		void redo() override;
 
 	private:
+		void moveWires();
+
+			/// A wire moved from one terminal to another
+		struct WireMove {
+			QPointer<Conductor> conductor;
+			QPointer<Terminal> from, to;
+		};
+
 		QPointer<Element> m_element;
 		ElementOptions::Choices m_old_choices, m_new_choices;
+			/// The wires moved by the first redo, moved the same way again
+			/// by the next ones
+		QList<WireMove> m_moves;
+		bool m_moves_known = false;
 };
 
 #endif // CHANGEELEMENTOPTIONSCOMMAND_H

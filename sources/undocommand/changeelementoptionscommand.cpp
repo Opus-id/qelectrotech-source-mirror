@@ -17,7 +17,9 @@
 */
 #include "changeelementoptionscommand.h"
 
+#include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/element.h"
+#include "../qetgraphicsitem/terminal.h"
 
 ChangeElementOptionsCommand::ChangeElementOptionsCommand(
 		Element *element,
@@ -33,6 +35,12 @@ ChangeElementOptionsCommand::ChangeElementOptionsCommand(
 
 void ChangeElementOptionsCommand::undo()
 {
+		//The wires back first, the last moved first
+	for (auto it = m_moves.crbegin() ; it != m_moves.crend() ; ++it) {
+		if (it->conductor && it->from && it->to) {
+			it->conductor->moveEnd(it->to, it->from);
+		}
+	}
 	if (m_element) {
 		m_element->setOptionChoices(m_old_choices);
 	}
@@ -40,7 +48,43 @@ void ChangeElementOptionsCommand::undo()
 
 void ChangeElementOptionsCommand::redo()
 {
-	if (m_element) {
-		m_element->setOptionChoices(m_new_choices);
+	if (!m_element) {
+		return;
+	}
+	m_element->setOptionChoices(m_new_choices);
+	if (!m_moves_known) {
+		moveWires();
+		m_moves_known = true;
+		return;
+	}
+	for (const WireMove &move : std::as_const(m_moves)) {
+		if (move.conductor && move.from && move.to) {
+			move.conductor->moveEnd(move.from, move.to);
+		}
+	}
+}
+
+/**
+	@brief ChangeElementOptionsCommand::moveWires
+	Move each wire of a terminal the options now hide to the terminal shown
+	in its place, while that one has room for it, and keep what was moved.
+*/
+void ChangeElementOptionsCommand::moveWires()
+{
+	for (Terminal *hidden : m_element->terminals())
+	{
+		Terminal *shown = hidden->replacement();
+		if (!shown) {
+			continue;
+		}
+		for (Conductor *conductor : hidden->conductors())
+		{
+			if (!shown->hasRoomForWire()) {
+				break;
+			}
+			if (conductor->moveEnd(hidden, shown)) {
+				m_moves.append({conductor, hidden, shown});
+			}
+		}
 	}
 }

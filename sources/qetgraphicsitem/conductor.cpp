@@ -412,6 +412,60 @@ void Conductor::updatePath(const QRectF &rect) {
 }
 
 /**
+	@brief Conductor::moveEnd
+	Move the end of this conductor on @p from to @p to, as when an option of
+	their symbol hides @p from and shows @p to in its place
+	(Terminal::replacement(), ChangeElementOptionsCommand). The conductor goes
+	on, with its properties and its texts; its path follows its new end as it
+	follows a moved element (updatePath()). Neither the options nor the room
+	left on @p to are checked: the caller does that, and an undo moves the
+	end back the same way.
+	@return false, and nothing done, when this conductor does not end on
+	@p from, or when a conductor already joins @p to to its other end
+*/
+bool Conductor::moveEnd(Terminal *from, Terminal *to)
+{
+	if (!from || !to || from == to) {
+		return false;
+	}
+	const bool first = terminal1 == from;
+	if (!first && terminal2 != from) {
+		return false;
+	}
+	Terminal *other = first ? terminal2 : terminal1;
+	if (other == to || to->isLinkedTo(other)) {
+		return false;
+	}
+		//On a folio, as a conductor removed and added again (Diagram::removeItem(),
+		//Diagram::addItem()), without leaving it: the rows of the project
+		//database name its terminals
+	Diagram *folio = diagram();
+	projectDataBase *db = folio && folio->project() ? folio->project()->dataBase() : nullptr;
+	if (db) {
+		db->removeConductor(this);
+	}
+	from->removeConductor(this);
+	updateFittings();
+	if (first) {
+		terminal1 = to;
+		m_terminal1_alive = to;
+	} else {
+		terminal2 = to;
+		m_terminal2_alive = to;
+	}
+	to->addConductor(this);
+	updatePath();
+	updateFittings();
+	if (folio) {
+		folio->refreshTerminalStrips();
+	}
+	if (db) {
+		db->addConductor(this);
+	}
+	return true;
+}
+
+/**
 	@brief Conductor::segmentsToPath
 	Generate the QPainterPath from the list of points
 */

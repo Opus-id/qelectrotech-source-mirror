@@ -32,6 +32,7 @@
 #include "qetproject.h"
 #include "qetresult.h"
 #include "ui/elementoptionswidget.h"
+#include "undocommand/changeelementoptionscommand.h"
 
 #include <QAbstractItemView>
 #include <QComboBox>
@@ -190,6 +191,54 @@ class tst_elementoptions : public QObject
 					QStringLiteral("import/valves"), QStringLiteral("valve.elmt"),
 					doc.documentElement());
 		return ElementsLocation(QStringLiteral("embed://import/valves/valve.elmt"), &project);
+	}
+
+		// A bubble (step 6b-3a): round or oval. A signal terminal S1 at the
+		// top always; S3 on the left side of the round one, S5 on the left
+		// side of the oval one in its place; nozzles P3 and P5 the same way
+		// at the bottom, a nozzle taking one pipe only
+	static ElementsLocation addBubble(QETProject &project)
+	{
+		project.embeddedElementCollection()->createDir(
+					QStringLiteral("import"), QStringLiteral("bubbles"), NamesList());
+		QDomDocument doc;
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"width=\"80\" height=\"80\" hotspot_x=\"40\" hotspot_y=\"40\">"
+			"<uuid uuid=\"{7a333333-3333-3333-3333-333333333333}\"/>"
+			"<names><name lang=\"en\">Bubble</name></names>"
+			"<options><option name=\"shape\" default=\"round\">"
+			"<value name=\"round\"/><value name=\"oval\"/>"
+			"</option></options>"
+			"<description>"
+			"<line x1=\"-10\" y1=\"0\" x2=\"10\" y2=\"0\" end1=\"none\" end2=\"none\" "
+			"length1=\"1.5\" length2=\"1.5\" style=\"line-weight:normal\" antialias=\"false\"/>"
+			"<terminal x=\"0\" y=\"-20\" orientation=\"n\" type=\"Generic\" medium=\"signal\" name=\"S1\" "
+			"uuid=\"{7a333333-0000-0000-0000-000000000001}\"/>"
+			"<terminal x=\"-20\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"signal\" name=\"S3\" "
+			"show_if=\"shape=round\" uuid=\"{7a333333-0000-0000-0000-000000000003}\"/>"
+			"<terminal x=\"-30\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"signal\" name=\"S5\" "
+			"show_if=\"shape=oval\" replaces=\"S3\" uuid=\"{7a333333-0000-0000-0000-000000000005}\"/>"
+			"<terminal x=\"-10\" y=\"20\" orientation=\"s\" type=\"Generic\" medium=\"pipe\" name=\"P3\" "
+			"show_if=\"shape=round\" uuid=\"{7a333333-0000-0000-0000-000000000013}\"/>"
+			"<terminal x=\"10\" y=\"20\" orientation=\"s\" type=\"Generic\" medium=\"pipe\" name=\"P5\" "
+			"show_if=\"shape=oval\" replaces=\"P3\" uuid=\"{7a333333-0000-0000-0000-000000000015}\"/>"
+			"</description></definition>"));
+		project.embeddedElementCollection()->addElementDefinition(
+					QStringLiteral("import/bubbles"), QStringLiteral("bubble.elmt"),
+					doc.documentElement());
+		return ElementsLocation(QStringLiteral("embed://import/bubbles/bubble.elmt"), &project);
+	}
+
+		// The end of @p conductor on @p terminal is drawn there
+	static bool endsOn(const Conductor *conductor, const Terminal *terminal)
+	{
+		const QPainterPath path = conductor->path();
+		if (path.elementCount() < 2) return false;
+		const QPointF end = conductor->terminal1 == terminal
+				? QPointF(path.elementAt(0))
+				: QPointF(path.elementAt(path.elementCount() - 1));
+		return QLineF(conductor->mapToScene(end), terminal->dockConductor()).length() < 0.01;
 	}
 
 	static Terminal *terminalNamed(const Element *element, const QString &name)
@@ -498,6 +547,116 @@ class tst_elementoptions : public QObject
 			PartTerminal plain(nullptr);
 			plain.fromXml(doc.documentElement());
 			QVERIFY(!plain.toXml(out).hasAttribute(QStringLiteral("show_if")));
+		}
+
+			// ---- a terminal in the place of another (step 6b-3a) ----
+		void theEditorKeepsTheTerminalReplaced()
+		{
+			QDomDocument doc;
+			QVERIFY(doc.setContent(QStringLiteral(
+				"<terminal x=\"-30\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"signal\" "
+				"name=\"S5\" show_if=\"shape=oval\" replaces=\"S3\"/>")));
+			PartTerminal terminal(nullptr);
+			terminal.fromXml(doc.documentElement());
+			QDomDocument out;
+			QCOMPARE(terminal.toXml(out).attribute(QStringLiteral("replaces")), QStringLiteral("S3"));
+				// none written for a terminal in the place of none
+			QVERIFY(doc.setContent(QStringLiteral(
+				"<terminal x=\"0\" y=\"-20\" orientation=\"n\" type=\"Generic\" name=\"1\"/>")));
+			PartTerminal plain(nullptr);
+			plain.fromXml(doc.documentElement());
+			QVERIFY(!plain.toXml(out).hasAttribute(QStringLiteral("replaces")));
+		}
+
+		void aWireGoesOverToTheTerminalShownInItsPlace()
+		{
+			QETProject project;
+			const ElementsLocation location = addBubble(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			QVERIFY(a && b);
+			b->setPos(400, 400);
+			Terminal *a_round = terminalNamed(a, QStringLiteral("S3"));
+			Terminal *a_oval = terminalNamed(a, QStringLiteral("S5"));
+			Terminal *b_top = terminalNamed(b, QStringLiteral("S1"));
+			QVERIFY(a_round && a_oval && b_top);
+			QCOMPARE(a_oval->replaces(), QStringLiteral("S3"));
+				// one takes the place of the other while hidden only
+			QCOMPARE(a_round->replacement(), static_cast<Terminal *>(nullptr));
+			QCOMPARE(a_oval->replacement(), a_round);
+			auto *line = new Conductor(a_round, b_top);
+			folio->addItem(line);
+			QVERIFY(endsOn(line, a_round));
+
+			QUndoStack stack;
+			stack.push(new ChangeElementOptionsCommand(
+						   a, {{QStringLiteral("shape"), QStringLiteral("oval")}}));
+				// the same line, now on the side of the oval, drawn there
+			QCOMPARE(a_round->replacement(), a_oval);
+			QCOMPARE(line->terminal1, a_oval);
+			QCOMPARE(line->terminal2, b_top);
+			QCOMPARE(a_round->conductorsCount(), 0);
+			QCOMPARE(a_oval->conductors(), QList<Conductor *>{line});
+			QCOMPARE(b_top->conductors(), QList<Conductor *>{line});
+			QCOMPARE(line->diagram(), folio);
+			QVERIFY(endsOn(line, a_oval));
+			QVERIFY(!drawn(a_round));
+				// one undo: round again, and the line back
+			stack.undo();
+			QVERIFY(a->optionChoices().isEmpty());
+			QCOMPARE(line->terminal1, a_round);
+			QCOMPARE(a_oval->conductorsCount(), 0);
+			QCOMPARE(a_round->conductors(), QList<Conductor *>{line});
+			QVERIFY(endsOn(line, a_round));
+			stack.redo();
+			QCOMPARE(line->terminal1, a_oval);
+			QVERIFY(endsOn(line, a_oval));
+				// and the other way: round again, the line on the round side
+			stack.push(new ChangeElementOptionsCommand(a, {}));
+			QCOMPARE(line->terminal1, a_round);
+			QCOMPARE(a_oval->conductorsCount(), 0);
+			QVERIFY(endsOn(line, a_round));
+		}
+
+		void aWireStaysWhenThePlaceIsTaken()
+		{
+			QETProject project;
+			const ElementsLocation location = addBubble(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			Element *c = place(folio, location);
+			QVERIFY(a && b && c);
+			b->setPos(400, 400);
+			c->setPos(0, 400);
+			const ElementOptions::Choices oval{{QStringLiteral("shape"), QStringLiteral("oval")}};
+			a->setOptionChoices(oval);
+			b->setOptionChoices(oval);
+			c->setOptionChoices(oval);
+			Terminal *a_round = terminalNamed(a, QStringLiteral("P3"));
+			Terminal *a_oval = terminalNamed(a, QStringLiteral("P5"));
+			QVERIFY(a_round && a_oval);
+			auto *first = new Conductor(a_oval, terminalNamed(b, QStringLiteral("P5")));
+			folio->addItem(first);
+				// round with no command: the pipe stays on the oval's nozzle
+			a->setOptionChoices({});
+			auto *second = new Conductor(a_round, terminalNamed(c, QStringLiteral("P5")));
+			folio->addItem(second);
+			QCOMPARE(a_oval->conductorsCount(), 1);
+			QCOMPARE(a_round->conductorsCount(), 1);
+				// oval again: its nozzle takes one pipe only, it has it
+			QUndoStack stack;
+			stack.push(new ChangeElementOptionsCommand(a, oval));
+			QCOMPARE(a->optionChoices(), oval);
+			QCOMPARE(second->terminal1, a_round);
+			QCOMPARE(first->terminal1, a_oval);
+			QCOMPARE(a_round->conductors(), QList<Conductor *>{second});
+			QCOMPARE(a_oval->conductors(), QList<Conductor *>{first});
+			stack.undo();
+			QVERIFY(a->optionChoices().isEmpty());
+			QCOMPARE(second->terminal1, a_round);
+			QCOMPARE(first->terminal1, a_oval);
 		}
 
 		void theChoicesAreSavedWithTheProject_data()

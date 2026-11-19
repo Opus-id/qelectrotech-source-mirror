@@ -304,6 +304,11 @@ class TerminalData : public PropertiesInterface
 			/// terminal is shown, as the show_if of a part of the drawing
 			/// (ElementOptions::isShown()); empty: always shown
 		QString m_show_if;
+			/// The name of the terminal of the same symbol this one takes the
+			/// place of when an option hides that one and shows this one (and
+			/// the other way round): the wires go over (Terminal::replacement());
+			/// empty: none
+		QString m_replaces;
 
 		/// Whether to display the terminal name as a text label
 		bool m_show_name = false;

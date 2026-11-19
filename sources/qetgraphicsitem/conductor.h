@@ -93,6 +93,9 @@ class Conductor : public QGraphicsObject
 		void newUuid();	//create new uuid for this conductor
 		void setUuid(const QUuid &uuid);	//saved from now on
 		void updatePath(const QRectF & = QRectF());
+			/// Move the end of this conductor on @p from to @p to, the same
+			/// conductor going on (see the definition)
+		bool moveEnd(Terminal *from, Terminal *to);
 
 		//This method do nothing, it's only made to be used with Q_PROPERTY
 		//It's used to anim the path when is change

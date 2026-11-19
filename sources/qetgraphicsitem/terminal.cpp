@@ -1374,6 +1374,39 @@ bool Terminal::isHiddenByOptions() const
 }
 
 /**
+	@brief Terminal::replacement
+	A terminal hidden by the options of its symbol may have another terminal
+	of the symbol in its place: the side terminal of an oval bubble, where
+	the round one had its own. Either of the two names the other (attribute
+	replaces), the same pair serving both ways. The wires of the hidden one
+	go over to it when an option is changed (ChangeElementOptionsCommand).
+	@return that terminal when it is shown; nullptr when there is none, or
+	when this terminal is not hidden
+*/
+Terminal *Terminal::replacement() const
+{
+	if (!isHiddenByOptions()) {
+		return nullptr;
+	}
+	const Element *element = parentElement();
+	if (!element) {
+		return nullptr;
+	}
+	for (Terminal *other : element->terminals())
+	{
+		if (other == this || other->isHiddenByOptions()) {
+			continue;
+		}
+		const bool paired = (!d->m_replaces.isEmpty() && d->m_replaces == other->baseName())
+				|| (!other->replaces().isEmpty() && other->replaces() == d->m_name);
+		if (paired) {
+			return other;
+		}
+	}
+	return nullptr;
+}
+
+/**
 	@brief Terminal::conductors
 	@return La liste des conducteurs lies a cette borne
 */
