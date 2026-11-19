@@ -194,7 +194,7 @@ namespace DuplicateLabels
 				pending.append(bridgedTerminals(terminal));
 				for (Conductor* part : terminal->conductors())
 				{
-					// A potential is electrical: a pipe, a signal or a drive
+					// A potential is electrical: a pipe or a signal
 					// line is never part of one, even on the same terminal.
 					if (part->medium() != TerminalData::Electrical) continue;
 					if (connected.contains(part)

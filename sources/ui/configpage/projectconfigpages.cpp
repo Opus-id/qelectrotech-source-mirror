@@ -369,7 +369,7 @@ void ProjectMainConfigPage::initWidgets()
 											 "tooltip"));
 	refuse_mixed_media_cb_ = new QCheckBox(tr("Refuse to join terminals of different media", "checkbox label"));
 	refuse_mixed_media_cb_ -> setToolTip(tr("A terminal connects a medium: electrical, or for a process symbol a "
-											"pipe, a signal or a drive. Ticked, two terminals of different media "
+											"pipe or a signal. Ticked, two terminals of different media "
 											"are not joined; unticked, they are, and QElectroTech only says so.",
 											"tooltip"));
 	wiring_rules_off_label_ = new QLabel(tr("These rules are turned off for every project "

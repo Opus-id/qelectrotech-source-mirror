@@ -57,7 +57,7 @@ ConductorAutoNumerotation::ConductorAutoNumerotation(
 void ConductorAutoNumerotation::numerate()
 {
 	if (!m_conductor) return;
-		//A wire number is for a wire: a pipe, a signal or a drive gets none
+		//A wire number is for a wire: a pipe or a signal gets none
 	if (m_conductor->medium() != TerminalData::Electrical) return;
 	if (conductor_list.size() >= 1 ) numeratePotential();
 	else if (m_conductor -> properties().type == ConductorProperties::Multi)

@@ -276,9 +276,9 @@ QString TerminalData::typeToString(TerminalData::Type type)
 	@brief TerminalData::namePrefix
 	@param medium
 	@return the letter the names of the terminals of @p medium begin with by
-	convention: N for a nozzle (N1, N2... as DEXPI numbers them), E for a
-	drive (entraînement), S for a signal; none for an electrical terminal,
-	whose names are free (1, 2, A1, 13...)
+	convention: N for a nozzle (N1, N2... as DEXPI numbers them), S for a
+	signal; none for an electrical terminal, whose names are free (1, 2, A1,
+	13...)
 */
 QString TerminalData::namePrefix(TerminalData::Medium medium)
 {
@@ -286,7 +286,6 @@ QString TerminalData::namePrefix(TerminalData::Medium medium)
 		case Electrical: return QString();
 		case Pipe:       return QStringLiteral("N");
 		case Signal:     return QStringLiteral("S");
-		case Drive:      return QStringLiteral("E");
 	}
 	return QString();
 }
@@ -295,9 +294,9 @@ QString TerminalData::namePrefix(TerminalData::Medium medium)
 	@brief TerminalData::suggestedName
 	The name a terminal gets when its medium becomes @p medium in the element
 	editor. A name that follows the convention of another medium (a letter
-	N, E or S then a number, like E1) or no name at all is replaced by the
-	first free name of the new medium, so that a drive E1 turned into a
-	nozzle is not left called E1. Any other name, chosen by the author of
+	N or S then a number, like S1) or no name at all is replaced by the
+	first free name of the new medium, so that a signal S1 turned into a
+	nozzle is not left called S1. Any other name, chosen by the author of
 	the symbol ("Suction", "1"...), is kept; so is every name when the
 	terminal becomes electrical, as electrical names follow no convention.
 	@param medium the new medium of the terminal
@@ -314,7 +313,7 @@ QString TerminalData::suggestedName(TerminalData::Medium medium,
 		return current;
 	}
 
-	static const QRegularExpression conventional(QStringLiteral("^([NES])[0-9]+$"));
+	static const QRegularExpression conventional(QStringLiteral("^([NS])[0-9]+$"));
 	const QRegularExpressionMatch match = conventional.match(current);
 	const bool replaceable = current.isEmpty()
 			|| (match.hasMatch() && match.captured(1) != prefix);

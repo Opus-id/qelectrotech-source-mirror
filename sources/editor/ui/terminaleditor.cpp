@@ -266,7 +266,6 @@ void TerminalEditor::init()
 	ui->m_medium_cb->addItem(tr("Electrical", "terminal medium"),      TerminalData::Electrical);
 	ui->m_medium_cb->addItem(tr("Pipe (nozzle)", "terminal medium"),   TerminalData::Pipe);
 	ui->m_medium_cb->addItem(tr("Signal", "terminal medium"),          TerminalData::Signal);
-	ui->m_medium_cb->addItem(tr("Drive (shaft)", "terminal medium"),   TerminalData::Drive);
 
 	for (PipeConnection::Type type : PipeConnection::all()) {
 		ui->m_connection_cb->addItem(PipeConnection::name(type), int(type));
@@ -513,7 +512,7 @@ void TerminalEditor::connectionEdited()
 /**
 	@brief TerminalEditor::mediumEdited
 	The medium the terminal connects: electrical, or for a process symbol a
-	pipe, a signal or a drive
+	pipe or a signal
 */
 void TerminalEditor::mediumEdited()
 {
@@ -525,8 +524,8 @@ void TerminalEditor::mediumEdited()
 	const auto medium = ui->m_medium_cb->currentData();
 	if (medium != m_part->medium())
 	{
-			//A name that follows the convention of another medium (E1 for
-			//a drive turned into a nozzle) or no name takes the first free
+			//A name that follows the convention of another medium (S1 for
+			//a signal turned into a nozzle) or no name takes the first free
 			//name of the new medium, in the same undo step
 		QStringList taken;
 		if (elementEditor() && elementEditor()->elementScene()) {

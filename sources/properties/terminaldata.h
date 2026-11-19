@@ -61,13 +61,13 @@ class TerminalData : public PropertiesInterface
 			/// connected to it. Electrical, the only medium QET knew, is the
 			/// default and is not written: a terminal that says nothing keeps
 			/// behaving as it always did. The others belong to process
-			/// symbols: a nozzle connects a pipe, an instrument a signal,
-			/// a machine shaft its drive.
+			/// symbols: a nozzle connects a pipe, an instrument a signal.
+			/// (No medium for a drive shaft: a motor is drawn in its symbol,
+			/// and a mechanical link would be a type of signal line.)
 		enum Medium {
 			Electrical,
 			Pipe,
-			Signal,
-			Drive
+			Signal
 		};
 		Q_ENUM(Medium)
 
@@ -96,7 +96,6 @@ class TerminalData : public PropertiesInterface
 				case Electrical: return QStringLiteral("electrical");
 				case Pipe:       return QStringLiteral("pipe");
 				case Signal:     return QStringLiteral("signal");
-				case Drive:      return QStringLiteral("drive");
 			}
 			return QStringLiteral("electrical");
 		}
@@ -109,7 +108,6 @@ class TerminalData : public PropertiesInterface
 		{
 			if (string == QLatin1String("pipe"))   return Pipe;
 			if (string == QLatin1String("signal")) return Signal;
-			if (string == QLatin1String("drive"))  return Drive;
 			if (!string.isEmpty() && string != QLatin1String("electrical")) {
 				qWarning().noquote() << QStringLiteral("Unknown medium \"%1\", read as electrical")
 										.arg(string);

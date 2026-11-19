@@ -532,7 +532,7 @@ void PartTerminal::setTerminalType(TerminalData::Type type)
 /**
 	@brief PartTerminal::setMedium
 	Set the medium this terminal connects: electrical, or for a process
-	symbol a pipe, a signal or a drive
+	symbol a pipe or a signal
 	@param medium
 */
 void PartTerminal::setMedium(TerminalData::Medium medium)

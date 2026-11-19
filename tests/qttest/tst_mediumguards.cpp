@@ -22,7 +22,7 @@
 /**
 	The functions of wires that came with upstream after the medium was
 	added leave the pipes alone, as every other function of wires does: a
-	potential is electrical, and a pipe, a signal or a drive line is never
+	potential is electrical, and a pipe or a signal line is never
 	part of one (Conductor::relatedPotentialConductors()).
 	- Renumber conductors gives no pipe a wire number, and the text of a
 	  pipe on a folio not chosen keeps no wire number from being given.

@@ -115,8 +115,8 @@ QString ConductorCreator::create(Diagram *d, const QPolygonF &polygon)
 	@brief ConductorCreator::create
 	Connect @p terminals, chosen together by the lasso of the folio.
 	The electrical terminals get an electrical potential between them, as
-	they always did. The terminals of another medium (nozzles, signal,
-	drive) are never joined to a terminal of another medium, nor all to
+	they always did. The terminals of another medium (nozzles, signal)
+	are never joined to a terminal of another medium, nor all to
 	one of them: that is a potential, which only wires have. Two terminals
 	of a medium get one conductor between them; more than two, none, since
 	which one goes with which cannot be guessed.

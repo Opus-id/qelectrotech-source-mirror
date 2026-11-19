@@ -88,7 +88,7 @@
    <item row="4" column="1">
     <widget class="QComboBox" name="m_medium_cb">
      <property name="toolTip">
-      <string>The medium this terminal connects. Electrical is the default; the other media are for process symbols: a nozzle connects a pipe, an instrument a signal, a machine shaft its drive.</string>
+      <string>The medium this terminal connects. Electrical is the default; the other media are for process symbols: a nozzle connects a pipe, an instrument a signal.</string>
      </property>
     </widget>
    </item>

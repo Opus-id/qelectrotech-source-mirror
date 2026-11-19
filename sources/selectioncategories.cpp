@@ -213,7 +213,7 @@ namespace {
 		/// symbols, in the order of the tree; the signal lines make a
 		/// leaf of that kind when none holds a type or a status
 	enum class Kind {
-		Signal, Drive, Conductor,
+		Signal, Conductor,
 		FreeText, SymbolText, LineText,
 		Image, Shape, Dimension, Table, TerminalStrip, Other
 	};
@@ -234,7 +234,6 @@ SelectionCategories::SelectionCategories(const QList<QGraphicsItem *> &items,
 			switch (conductor->medium()) {
 				case TerminalData::Pipe:   pipes << item; break;
 				case TerminalData::Signal: signal_lines << item; break;
-				case TerminalData::Drive:  others[int(Kind::Drive)] << item; break;
 				default:                   others[int(Kind::Conductor)] << item; break;
 			}
 		}
@@ -282,7 +281,6 @@ SelectionCategories::SelectionCategories(const QList<QGraphicsItem *> &items,
 	}
 
 	const QHash<int, QString> labels {
-		{int(Kind::Drive),        tr("Drive lines")},
 		{int(Kind::Conductor),     tr("Conductors")},
 		{int(Kind::FreeText),      tr("Free texts")},
 		{int(Kind::SymbolText),    tr("Symbol texts")},
@@ -305,10 +303,8 @@ SelectionCategories::SelectionCategories(const QList<QGraphicsItem *> &items,
 		}
 		return leaf;
 	};
-	for (Kind kind : {Kind::Drive, Kind::Conductor}) {
-		if (others.contains(int(kind))) {
-			m_tree << leaf_of(kind);
-		}
+	if (others.contains(int(Kind::Conductor))) {
+		m_tree << leaf_of(Kind::Conductor);
 	}
 		//The texts together
 	Node texts;

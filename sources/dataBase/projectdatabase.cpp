@@ -2058,7 +2058,7 @@ QSet<QUuid> projectDataBase::otherMediumWires() const
 */
 bool projectDataBase::refreshPotentialMembersOf(QSqlDatabase db, QHash<int, QStringList> *conflicts)
 {
-		//A pipe, a signal or a drive line has no potential: it is no member
+		//A pipe or a signal line has no potential: it is no member
 		//of one, so potential_view never lists it
 	const QSet<QUuid> other_media = otherMediumWiresOf(db);
 	const PotentialGroups groups = potentialGroupsOf(db, &other_media);

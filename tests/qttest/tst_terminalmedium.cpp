@@ -16,7 +16,7 @@
 #include <QSignalSpy>
 
 // The medium a terminal connects: electrical, as QET always did, or for a
-// process symbol a pipe, a signal or a drive. The attribute "medium" of a
+// process symbol a pipe or a signal. The attribute "medium" of a
 // <terminal> says it and is only written when it is not electrical, so an
 // element that says nothing is read and saved exactly as before.
 class tst_terminalmedium : public QObject
@@ -97,7 +97,8 @@ class tst_terminalmedium : public QObject
 			QTest::newRow("electrical")  << "electrical" << int(TerminalData::Electrical);
 			QTest::newRow("pipe")        << "pipe"       << int(TerminalData::Pipe);
 			QTest::newRow("signal")      << "signal"     << int(TerminalData::Signal);
-			QTest::newRow("drive")       << "drive"      << int(TerminalData::Drive);
+				// a medium of the trials, withdrawn (step 6b-2): an unknown word
+			QTest::newRow("drive")       << "drive"      << int(TerminalData::Electrical);
 				// a word of a later version, or a typo: what QET always did
 			QTest::newRow("unknown")     << "steam"      << int(TerminalData::Electrical);
 			QTest::newRow("capitalised") << "Pipe"       << int(TerminalData::Electrical);
@@ -127,7 +128,6 @@ class tst_terminalmedium : public QObject
 				 QStringLiteral("electrical"));
 			QCOMPARE(TerminalData::mediumToString(TerminalData::Pipe), QStringLiteral("pipe"));
 			QCOMPARE(TerminalData::mediumToString(TerminalData::Signal), QStringLiteral("signal"));
-			QCOMPARE(TerminalData::mediumToString(TerminalData::Drive), QStringLiteral("drive"));
 		}
 
 		void writesTheMediumOnlyWhenNotElectrical_data()
@@ -137,7 +137,6 @@ class tst_terminalmedium : public QObject
 			QTest::newRow("electrical") << int(TerminalData::Electrical) << QString();
 			QTest::newRow("pipe")       << int(TerminalData::Pipe)       << "pipe";
 			QTest::newRow("signal")     << int(TerminalData::Signal)     << "signal";
-			QTest::newRow("drive")      << int(TerminalData::Drive)      << "drive";
 		}
 
 		void writesTheMediumOnlyWhenNotElectrical()
@@ -159,7 +158,7 @@ class tst_terminalmedium : public QObject
 		void roundTrip()
 		{
 			for (TerminalData::Medium m : {TerminalData::Electrical, TerminalData::Pipe,
-						       TerminalData::Signal, TerminalData::Drive}) {
+						       TerminalData::Signal}) {
 				Holder holder;
 				TerminalData out(&holder);
 				out.m_medium = m;
@@ -176,11 +175,11 @@ class tst_terminalmedium : public QObject
 		{
 			QDomDocument doc;
 			doc.setContent(QStringLiteral(
-				"<terminal name=\"E1\" x=\"0\" y=\"-15\" orientation=\"n\" "
-				"type=\"Generic\" medium=\"drive\"/>"));
+				"<terminal name=\"S1\" x=\"0\" y=\"-15\" orientation=\"n\" "
+				"type=\"Generic\" medium=\"signal\"/>"));
 			PartTerminal part(nullptr);
 			part.fromXml(doc.documentElement());
-			QCOMPARE(part.medium(), TerminalData::Drive);
+			QCOMPARE(part.medium(), TerminalData::Signal);
 
 				// through the property of the QObject, as the undo command of
 				// the editor (QPropertyUndoCommand) sets it
@@ -198,7 +197,7 @@ class tst_terminalmedium : public QObject
 			QDomDocument out2;
 			QVERIFY(!part.toXml(out2).hasAttribute(QStringLiteral("medium")));
 				// the name and the type are untouched
-			QCOMPARE(part.terminalName(), QStringLiteral("E1"));
+			QCOMPARE(part.terminalName(), QStringLiteral("S1"));
 			QCOMPARE(part.terminalType(), TerminalData::Generic);
 		}
 
@@ -210,14 +209,16 @@ class tst_terminalmedium : public QObject
 			QTest::addColumn<QStringList>("taken");
 			QTest::addColumn<QString>("expected");
 			const int e = TerminalData::Electrical, p = TerminalData::Pipe,
-				  s = TerminalData::Signal, d = TerminalData::Drive;
-			QTest::newRow("drive E1 becomes a nozzle")
-					<< p << "E1" << QStringList{"N1", "N2"} << "N3";
+				  s = TerminalData::Signal;
+			QTest::newRow("signal S1 becomes a nozzle")
+					<< p << "S1" << QStringList{"N1", "N2"} << "N3";
 			QTest::newRow("no name, nozzle")       << p << "" << QStringList{} << "N1";
-			QTest::newRow("no name, drive")        << d << "" << QStringList{"N1"} << "E1";
 			QTest::newRow("no name, signal")       << s << "" << QStringList{} << "S1";
-			QTest::newRow("nozzle N2 becomes a drive")
-					<< d << "N2" << QStringList{"N1", "E1"} << "E2";
+			QTest::newRow("nozzle N2 becomes a signal")
+					<< s << "N2" << QStringList{"N1", "S1"} << "S2";
+				// E was the letter of the drive, withdrawn (step 6b-2): a name
+				// of the author now
+			QTest::newRow("E1 kept")               << p << "E1" << QStringList{} << "E1";
 			QTest::newRow("nozzle becomes a signal")
 					<< s << "N1" << QStringList{"N2"} << "S1";
 				// already following the new convention: kept
@@ -250,8 +251,7 @@ class tst_terminalmedium : public QObject
 			const QList<QColor> colors{
 				Terminal::stemColor(TerminalData::Electrical),
 				Terminal::stemColor(TerminalData::Pipe),
-				Terminal::stemColor(TerminalData::Signal),
-				Terminal::stemColor(TerminalData::Drive)};
+				Terminal::stemColor(TerminalData::Signal)};
 			for (int i = 0; i < colors.size(); ++i) {
 				for (int j = i + 1; j < colors.size(); ++j)
 					QVERIFY2(colors.at(i) != colors.at(j), "two media share a color");

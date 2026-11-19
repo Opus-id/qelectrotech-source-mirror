@@ -2926,7 +2926,7 @@ ConductorProperties Conductor::properties() const
 /**
 	@brief Conductor::medium
 	@return the medium this conductor carries: electrical, or a pipe, a
-	signal, a drive (ConductorProperties::m_medium)
+	signal (ConductorProperties::m_medium)
 */
 TerminalData::Medium Conductor::medium() const
 {
@@ -3099,7 +3099,7 @@ void Conductor::setCableReference(const QString &label,
 								  const QUuid &cable_uuid,
 								  int slot)
 {
-		//A cable is made of wires: a pipe, a signal or a drive is no core
+		//A cable is made of wires: a pipe or a signal is no core
 	if (m_properties.m_medium != TerminalData::Electrical) return;
 	if (m_properties.m_cable == label
 		&& m_properties.m_cable_uuid == cable_uuid
@@ -3196,7 +3196,7 @@ void Conductor::displayedTextChanged()
 	conductors of both its sides are returned as one potential. Only
 	functionSeparatedConductors() passes true.
 	A potential is electrical: a conductor of another medium (a pipe, a
-	signal, a drive) has none, and the search never goes through one, even
+	signal) has none, and the search never goes through one, even
 	when it shares a terminal with an electrical wire. Every use of the
 	potential -- numbering, properties shared over a potential, cables,
 	bridges, search and replace... -- leaves such a conductor alone.

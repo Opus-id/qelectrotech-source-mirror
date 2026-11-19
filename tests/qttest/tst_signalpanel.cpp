@@ -142,8 +142,7 @@ class tst_signalpanel : public QObject
 			QCOMPARE(plain.attribute(QStringLiteral("medium")), QStringLiteral("signal"));
 			QVERIFY(!plain.hasAttribute(QStringLiteral("pid_signal_type")));
 
-			for (TerminalData::Medium medium : {TerminalData::Electrical, TerminalData::Pipe,
-												TerminalData::Drive}) {
+			for (TerminalData::Medium medium : {TerminalData::Electrical, TerminalData::Pipe}) {
 				QDomElement other = doc.createElement(QStringLiteral("conductor"));
 				properties(medium, SignalProperties::Pneumatic).toXml(other);
 				QVERIFY(!other.hasAttribute(QStringLiteral("pid_signal_type")));

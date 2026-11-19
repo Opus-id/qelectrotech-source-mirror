@@ -87,7 +87,6 @@ QColor Terminal::stemColor(TerminalData::Medium medium)
 		case TerminalData::Electrical: return QColor(Qt::red);
 		case TerminalData::Pipe:       return QColor(0x00, 0x80, 0x80); // teal
 		case TerminalData::Signal:     return QColor(0xc0, 0x00, 0xc0); // magenta
-		case TerminalData::Drive:      return QColor(0x8b, 0x45, 0x13); // brown
 	}
 	return QColor(Qt::red);
 }
@@ -104,7 +103,6 @@ QString Terminal::mediumName(TerminalData::Medium medium)
 		case TerminalData::Electrical: return tr("electrical", "medium of a terminal, in a sentence");
 		case TerminalData::Pipe:       return tr("pipe", "medium of a terminal, in a sentence");
 		case TerminalData::Signal:     return tr("signal", "medium of a terminal, in a sentence");
-		case TerminalData::Drive:      return tr("drive", "medium of a terminal, in a sentence");
 	}
 	return tr("electrical", "medium of a terminal, in a sentence");
 }
@@ -2520,8 +2518,8 @@ TerminalData::Type Terminal::terminalType() const
 
 /**
 	@brief Terminal::medium
-	@return the medium this terminal connects (electrical, pipe, signal,
-	drive), as its symbol defines it
+	@return the medium this terminal connects (electrical, pipe, signal),
+	as its symbol defines it
 */
 TerminalData::Medium Terminal::medium() const
 {

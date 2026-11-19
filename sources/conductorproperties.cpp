@@ -1059,7 +1059,7 @@ ConductorProperties ConductorProperties::defaultProperties()
 	@brief ConductorProperties::defaultsFor
 	The properties a new conductor of @p medium starts with. An electrical
 	conductor takes @p electrical, the defaults of its folio, as it always
-	did. A conductor of another medium (a pipe, a signal, a drive) takes
+	did. A conductor of another medium (a pipe, a signal) takes
 	none of them: they are made for wires (a wire number, its color, its
 	section...). It is drawn as a plain black line, without text.
 	@param medium : the medium of the new conductor
@@ -1150,7 +1150,7 @@ bool ConductorProperties::usesDashPattern() const
 	definition mark, the cable, the wire color, section and type, the
 	potential type, the voltage / protocol, the bus, the function and the
 	second color of a bicolor wire.
-	What a pipe, a signal or a drive uses too -- the color and style of the
+	What a pipe or a signal uses too -- the color and style of the
 	line, its width, its text and formula -- is kept.
 	@return the properties a conductor of another medium may have
 */

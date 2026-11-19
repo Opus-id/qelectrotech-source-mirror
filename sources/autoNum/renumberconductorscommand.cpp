@@ -95,7 +95,7 @@ RenumberConductorsCommand::Plan RenumberConductorsCommand::plan(
 		QList<Conductor *> wires = d->conductors();
 		std::sort(wires.begin(), wires.end(), readsBefore);
 		for (Conductor *wire : std::as_const(wires)) {
-				//A potential is electrical: a pipe, a signal or a drive
+				//A potential is electrical: a pipe or a signal
 				//line has no wire number to renumber
 			if (wire->medium() != TerminalData::Electrical) continue;
 			if (seen.contains(wire)) continue;
@@ -151,7 +151,7 @@ RenumberConductorsCommand::Plan RenumberConductorsCommand::plan(
 		QSet<QString> chosen_uuids;
 		for (Diagram *d : std::as_const(order))
 			chosen_uuids.insert(d->uuid().toString());
-			//The text of a pipe, a signal or a drive line is no wire number
+			//The text of a pipe or a signal line is no wire number
 		const QSet<QUuid> other_media = db->otherMediumWires();
 		QString error;
 		QSqlQuery query = db->newQuery(QStringLiteral(

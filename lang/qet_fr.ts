@@ -9751,8 +9751,8 @@ Vous pouvez spécifier ici la valeur par défaut de ce champ pour les éléments
     </message>
     <message>
         <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="194"/>
-        <source>A terminal connects a medium: electrical, or for a process symbol a pipe, a signal or a drive. Ticked, two terminals of different media are not joined; unticked, they are, and QElectroTech only says so.</source>
-        <translation>Une borne raccorde un médium : électrique, ou pour un symbole de procédé une tuyauterie, un signal ou un entraînement. Coché, deux bornes de médiums différents ne sont pas reliées ; décoché, elles le sont, et QElectroTech le signale seulement.</translation>
+        <source>A terminal connects a medium: electrical, or for a process symbol a pipe or a signal. Ticked, two terminals of different media are not joined; unticked, they are, and QElectroTech only says so.</source>
+        <translation>Une borne raccorde un médium : électrique, ou pour un symbole de procédé une tuyauterie ou un signal. Coché, deux bornes de médiums différents ne sont pas reliées ; décoché, elles le sont, et QElectroTech le signale seulement.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="197"/>
@@ -14158,7 +14158,6 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
 <context>
     <name>SelectionCategories</name>
     <message><source>Signal lines</source><translation>Lignes de signal</translation></message>
-    <message><source>Drive lines</source><translation>Lignes d&apos;entraînement</translation></message>
     <message><source>Conductors</source><translation>Conducteurs</translation></message>
     <message><source>Free texts</source><translation>Textes libres</translation></message>
     <message><source>Symbol texts</source><translation>Textes de symboles</translation></message>
@@ -15965,9 +15964,9 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
     </message>
     <message>
         <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="342"/>
-        <source>A terminal connects a medium: electrical, or for a process symbol a pipe, a signal or a drive. Ticked, two terminals of different media are not joined; unticked, they are, and QElectroTech only says so.</source>
+        <source>A terminal connects a medium: electrical, or for a process symbol a pipe or a signal. Ticked, two terminals of different media are not joined; unticked, they are, and QElectroTech only says so.</source>
         <comment>tooltip</comment>
-        <translation>Une borne raccorde un médium : électrique, ou pour un symbole de procédé une tuyauterie, un signal ou un entraînement. Coché, deux bornes de médiums différents ne sont pas reliées ; décoché, elles le sont, et QElectroTech le signale seulement.</translation>
+        <translation>Une borne raccorde un médium : électrique, ou pour un symbole de procédé une tuyauterie ou un signal. Coché, deux bornes de médiums différents ne sont pas reliées ; décoché, elles le sont, et QElectroTech le signale seulement.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="336"/>
@@ -29351,12 +29350,6 @@ Les autres champs ne sont pas utilisés.</translation>
         <comment>medium of a terminal, in a sentence</comment>
         <translation>signal</translation>
     </message>
-    <message>
-        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="78"/>
-        <source>drive</source>
-        <comment>medium of a terminal, in a sentence</comment>
-        <translation>entraînement</translation>
-    </message>
 </context>
 <context>
     <name>PipingBlockWidget</name>
@@ -29565,12 +29558,6 @@ Les autres champs ne sont pas utilisés.</translation>
         <translation>Signal</translation>
     </message>
     <message>
-        <location filename="../sources/editor/ui/terminaleditor.cpp" line="202"/>
-        <source>Drive (shaft)</source>
-        <comment>terminal medium</comment>
-        <translation>Entraînement (arbre)</translation>
-    </message>
-    <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="82"/>
         <source>Medium:</source>
         <translation>Médium :</translation>
@@ -29642,8 +29629,8 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.ui" line="90"/>
-        <source>The medium this terminal connects. Electrical is the default; the other media are for process symbols: a nozzle connects a pipe, an instrument a signal, a machine shaft its drive.</source>
-        <translation>Le médium que raccorde cette borne. Électrique par défaut ; les autres médiums servent aux symboles de procédé : un piquage raccorde une tuyauterie, un instrument un signal, un arbre de machine son entraînement.</translation>
+        <source>The medium this terminal connects. Electrical is the default; the other media are for process symbols: a nozzle connects a pipe, an instrument a signal.</source>
+        <translation>Le médium que raccorde cette borne. Électrique par défaut ; les autres médiums servent aux symboles de procédé : un piquage raccorde une tuyauterie, un instrument un signal.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="319"/>
