@@ -19,9 +19,11 @@ object**: it is an ordinary QElectroTech conductor that carries a
 - `electrical` -- the default, not written in the files: every existing
   symbol and project is read and saved exactly as before;
 - `pipe` -- the nozzles of process symbols and the pipes between them;
-- `signal` -- the signal terminals of instruments and the signal lines
-  between them;
-- `drive` -- reserved for shafts (nothing uses it yet).
+- `signal` -- the signal terminals of instruments and actuators and the
+  signal lines between them.
+
+There is no medium for a drive shaft: a motor is drawn in its symbol, and
+a mechanical link would be a type of signal line.
 
 So a pipe gets, for free, what a wire already has: drawing, routing,
 selection, undo, copy and paste, saving in `.qet`, `.qetz` and `.qetdb`
@@ -62,13 +64,13 @@ line.*
 ## What works today
 
 **Terminals**
-- A terminal of a symbol may connect the `pipe`, `signal` or `drive`
+- A terminal of a symbol may connect the `pipe` or `signal`
   medium (attribute `medium` of `<terminal>` in the `.elmt`, written only
   when it is not electrical).
 - Element editor: a *Medium* list in the terminal properties. The stem of a
   terminal takes the color of its medium; *Type* and *Potential* are
   hidden for a non-electrical terminal; its name follows its medium (N1,
-  N2… for nozzles, S1… for signals, E1… for drives).
+  N2… for nozzles, S1… for signals).
 - Joining two terminals of different media by hand is allowed but
   signalled (orange terminal, tooltip). A wiring rule, **off by default**,
   refuses it (*Refuse to join terminals of different media*, with the other
@@ -421,7 +423,7 @@ QElectroTech are saved byte for byte as by master.
 - The line designation shown along a pipe.
 - Flow direction, crossings as ISO 10628-1 draws them.
 - A signal line from or to a pipe or an empty place (the tap of an
-  instrument), instrument bubbles, drive links, equipment data tables.
+  instrument), instrument bubbles, equipment data tables.
 - Piping classes (material, pressure, wall thickness), the pressure rating
   (PN) of the nozzles.
 - Equipment drawn to size (a tank that stretches).
@@ -452,14 +454,14 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
 | `.elmt`, a part | `show_if` | `option=value,value`, conditions separated by `;` | always drawn | the part belongs to some values |
 | `.elmt`, a part | `line-cap`, `line-join` in `style` | `round`, `flat` / `miter`, `round`, `bevel` | square ends, default corners | not the default |
-| `.elmt`, `<terminal>` | `medium` | `pipe`, `signal`, `drive` | `electrical` | not electrical |
+| `.elmt`, `<terminal>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.elmt`, `<terminal>` | `show_if` | as for a part | always shown, takes lines | the terminal belongs to some values |
 | `.elmt`, `<terminal>` | `pid_dn`, `pid_od`, `pid_thread` | DN; outside diameter to the tenth; inches (`1 1/2`) | the size of its pipe | a nozzle with a size of its own |
 | `.elmt`, `<terminal>` | `pid_connection` | `plain_end`, `socket`, `thread`, `butt_weld`, `grooved`, `quick_coupling` | `flange` | not a flange |
 | `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
 | `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never`; on the block, `same_connection`, `same_size`, `same_mark` = `false` | those of the symbol and the project; nozzles linked | a nozzle of the placed symbol is changed, or a link undone |
 | `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
-| `.qet`, `<conductor>` | `medium` | `pipe`, `signal`, `drive` | `electrical` | not electrical |
+| `.qet`, `<conductor>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
 | `.qet`, `<conductor>` | `pid_fluid`, `pid_material`, `pid_flow`, `pid_line_number`, `pid_piping_class`, `pid_nominal_pressure`, `pid_spool`, `pid_external_finish` | text (a code of the codification, or free) | empty | set |
 | `.qet`, `<conductor>` | `pid_line_kind` | `secondary`, `auxiliary` | `main` | not main |
