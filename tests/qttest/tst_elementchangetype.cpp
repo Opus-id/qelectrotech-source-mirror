@@ -490,6 +490,98 @@ class tst_elementchangetype : public QObject
 			QVERIFY(an_arrow->canChangeLocationTo(free_end));
 		}
 
+			// Two terminals at one place, facing apart (step 6b-3c1): the
+			// nozzle of a closure, towards its pipe, and the signal terminal
+			// of the instrument on it, outwards. Both are found by their place
+			// and the way they face, as when a project is read back
+		void twoTerminalsMayShareAPlaceFacingApart()
+		{
+			const auto closure = [this](const QString &file, const QString &uuid,
+										const QString &attributes, const QString &terminals) {
+				QDomDocument doc;
+				doc.setContent(QStringLiteral(
+					"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+					"pid_family=\"pipe\" %2 width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+					"<uuid uuid=\"{%1}\"/><names><name lang=\"en\">Closure</name></names>"
+					"<description>%3</description></definition>").arg(uuid, attributes, terminals));
+				return add(file, doc.documentElement());
+			};
+			const QString nozzle = QStringLiteral(
+				"<terminal uuid=\"{%1}\" name=\"N1\" x=\"0\" y=\"0\" orientation=\"w\" "
+				"type=\"Generic\" medium=\"pipe\"/>");
+			const QString signal = QStringLiteral(
+				"<terminal uuid=\"{%1}\" name=\"S1\" x=\"0\" y=\"0\" orientation=\"%2\" "
+				"type=\"Generic\" medium=\"signal\"/>");
+			const ElementsLocation blind = closure("blind.elmt", "bbbbbbbb-0000-0000-0000-000000000001",
+				QString(), nozzle.arg("b1000000-0000-0000-0000-000000000001")
+						   + signal.arg("b1000000-0000-0000-0000-000000000002", "e"));
+			const ElementsLocation cap = closure("cap.elmt", "bbbbbbbb-0000-0000-0000-000000000002",
+				QString(), nozzle.arg("b2000000-0000-0000-0000-000000000001")
+						   + signal.arg("b2000000-0000-0000-0000-000000000002", "e"));
+				// the signal terminal faces another way: not the same terminals
+			const ElementsLocation turned = closure("turned.elmt", "bbbbbbbb-0000-0000-0000-000000000003",
+				QString(), nozzle.arg("b3000000-0000-0000-0000-000000000001")
+						   + signal.arg("b3000000-0000-0000-0000-000000000002", "n"));
+			const ElementsLocation free_end = closure("free.elmt", "bbbbbbbb-0000-0000-0000-000000000004",
+				QStringLiteral("pid_role=\"free_end\""), nozzle.arg("b4000000-0000-0000-0000-000000000001")
+						   + signal.arg("b4000000-0000-0000-0000-000000000002", "e"));
+				// the nozzle alone: a terminal less, not the same terminals
+			const ElementsLocation bare = closure("bare.elmt", "bbbbbbbb-0000-0000-0000-000000000005",
+				QString(), nozzle.arg("b5000000-0000-0000-0000-000000000001"));
+			QVERIFY(blind.exist() && cap.exist() && turned.exist() && free_end.exist() && bare.exist());
+
+			const auto placed = [this](const ElementsLocation &location, const QPointF &pos) {
+				int state = 0;
+				Element *element = ElementFactory::Instance()->createElement(location, nullptr, &state);
+				if (element) {
+					m_folio->addItem(element);
+					element->setPos(pos);
+				}
+				return element;
+			};
+			const auto terminal = [](Element *element, const QString &name) -> Terminal * {
+				for (Terminal *t : element->terminals())
+					if (t->name() == name) return t;
+				return nullptr;
+			};
+			Element *a_blind = placed(blind, QPointF(600, 300));
+			Element *an_end = placed(free_end, QPointF(600, 500));
+			QVERIFY(a_blind && an_end);
+			QCOMPARE(a_blind->terminals().size(), 2);
+
+				// a free end becomes a closure, and back; closures change type
+				// among themselves; not into a symbol whose signal terminal
+				// faces elsewhere, nor into one without it
+			QVERIFY(an_end->canChangeLocationTo(blind));
+			QVERIFY(a_blind->canChangeLocationTo(free_end));
+			QVERIFY(a_blind->canChangeLocationTo(cap));
+			QVERIFY(!a_blind->canChangeLocationTo(turned));
+			QVERIFY(!a_blind->canChangeLocationTo(bare));
+
+				// a pipe on the nozzle, a signal line on the signal terminal
+			Element *other = placed(blind, QPointF(300, 300));
+			QVERIFY(other);
+			Terminal *nozzle_1 = terminal(a_blind, QStringLiteral("N1"));
+			Terminal *signal_1 = terminal(a_blind, QStringLiteral("S1"));
+			QVERIFY(nozzle_1 && signal_1);
+			auto *pipe = new Conductor(terminal(other, QStringLiteral("N1")), nozzle_1);
+			auto *line = new Conductor(terminal(other, QStringLiteral("S1")), signal_1);
+			m_folio->addItem(pipe);
+			m_folio->addItem(line);
+
+				// each terminal takes the uuid of its own in the new symbol,
+				// which the saved pipe and line name: never both the same one
+			QVERIFY(a_blind->changeLocation(cap));
+			QCOMPARE(nozzle_1->uuid().toString(QUuid::WithoutBraces),
+					 QStringLiteral("b2000000-0000-0000-0000-000000000001"));
+			QCOMPARE(signal_1->uuid().toString(QUuid::WithoutBraces),
+					 QStringLiteral("b2000000-0000-0000-0000-000000000002"));
+			QCOMPARE(pipe->terminal2, nozzle_1);
+			QCOMPARE(line->terminal2, signal_1);
+			QCOMPARE(nozzle_1->conductorsCount(), 1);
+			QCOMPARE(signal_1->conductorsCount(), 1);
+		}
+
 			// A symbol no other of its folder can replace: the list shows its
 			// type, greyed
 		void aTypeAloneIsGreyed()

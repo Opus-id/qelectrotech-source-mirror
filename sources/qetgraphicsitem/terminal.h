@@ -282,6 +282,10 @@ class Terminal : public QGraphicsObject
 
 		QList<Conductor *> conductors() const;
 		Qet::Orientation orientation() const;
+			/// The way it faces in its symbol, as the definition writes
+			/// it: before its element is turned or mirrored (orientation()
+			/// gives the way it faces on the folio)
+		Qet::Orientation symbolOrientation() const;
 		QPointF dockConductor() const;
 		void updateConductor();
 		void shiftInSymbol(const QPointF &offset);

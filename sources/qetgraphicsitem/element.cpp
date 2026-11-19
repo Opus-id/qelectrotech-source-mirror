@@ -4565,9 +4565,13 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 
 		//The names of the terminals must stay where they are as well, and
 		//their media: a nozzle does not become an electrical terminal
-		//under a pipe
-	QHash<QPair<qreal, qreal>, QString> new_names;
-	QHash<QPair<qreal, qreal>, TerminalData::Medium> new_media;
+		//under a pipe. A terminal is found by its place and the way it
+		//faces, as when a project is read back (Terminal::fromXml()): two
+		//terminals may share a place, facing apart (the nozzle of a blind
+		//flange and the signal terminal of its instrument, step 6b-3c1)
+	using Place = QPair<QPair<qreal, qreal>, int>;
+	QHash<Place, QString> new_names;
+	QHash<Place, TerminalData::Medium> new_media;
 	for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
 		 !description.isNull() ;
 		 description = description.nextSiblingElement(QStringLiteral("description")))
@@ -4583,8 +4587,10 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 			if (part.tagName() == QLatin1String("terminal")
 				&& QET::attributeIsAReal(part, QStringLiteral("x"), &x)
 				&& QET::attributeIsAReal(part, QStringLiteral("y"), &y)) {
-				new_names.insert({x, y}, part.attribute(QStringLiteral("name")));
-				new_media.insert({x, y}, TerminalData::mediumFromString(
+				const Place place({x, y}, Qet::orientationFromString(
+									  part.attribute(QStringLiteral("orientation"))));
+				new_names.insert(place, part.attribute(QStringLiteral("name")));
+				new_media.insert(place, TerminalData::mediumFromString(
 								 part.attribute(QStringLiteral("medium"))));
 			}
 		}
@@ -4593,7 +4599,7 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 	for (const Terminal *terminal : m_terminals)
 	{
 		const QPointF pos = mapFromScene(terminal->dockConductor());
-		const auto key = QPair<qreal, qreal>(pos.x(), pos.y());
+		const Place key({pos.x(), pos.y()}, terminal->symbolOrientation());
 		if (!new_names.contains(key)
 			|| new_names.value(key) != terminal->name()
 			|| new_media.value(key) != terminal->medium()) {
@@ -4825,7 +4831,8 @@ bool Element::changeLocation(const ElementsLocation &location)
 
 		//A saved conductor names the uuid of the terminal it ends on, and the
 		//project is read back from the new definition: the terminals take its
-		//uuids, found by where they are
+		//uuids, found by where they are and the way they face (two may share
+		//a place, see canChangeLocationTo())
 	const QDomElement definition = location.xml();
 	for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
 		 !description.isNull() ;
@@ -4842,10 +4849,13 @@ bool Element::changeLocation(const ElementsLocation &location)
 				|| !QET::attributeIsAReal(part, QStringLiteral("y"), &y)) {
 				continue;
 			}
+			const Qet::Orientation facing = Qet::orientationFromString(
+						part.attribute(QStringLiteral("orientation")));
 			for (Terminal *terminal : std::as_const(m_terminals))
 			{
 				const QPointF pos = mapFromScene(terminal->dockConductor());
-				if (qAbs(pos.x() - x) < 0.01 && qAbs(pos.y() - y) < 0.01) {
+				if (qAbs(pos.x() - x) < 0.01 && qAbs(pos.y() - y) < 0.01
+					&& terminal->symbolOrientation() == facing) {
 					terminal->setUuid(uuid);
 					terminal->setSymbolDiameter(TerminalData::symbolDiameterFromXml(part));
 					terminal->setSymbolConnection(TerminalData::connectionFromXml(part));

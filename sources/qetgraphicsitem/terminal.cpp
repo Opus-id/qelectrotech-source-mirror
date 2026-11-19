@@ -242,6 +242,15 @@ Qet::Orientation Terminal::orientation() const
 }
 
 /**
+	@brief Terminal::symbolOrientation
+	See the declaration
+*/
+Qet::Orientation Terminal::symbolOrientation() const
+{
+	return d->m_orientation;
+}
+
+/**
 	@brief Terminal::addConductor
 	Add a conductor to this terminal
 	@param conductor : the conductor to add.
