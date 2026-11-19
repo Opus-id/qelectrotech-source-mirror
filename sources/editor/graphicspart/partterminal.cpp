@@ -608,7 +608,9 @@ TerminalData::NozzleLabels PartTerminal::nozzleLabels() const
 	const QString size = sizeLabelText();
 	return TerminalData::nozzleLabels(d->m_orientation, true,
 									  d->m_name.isEmpty() ? QSizeF() : TerminalData::labelSize(metrics, d->m_name),
-									  size.isEmpty() ? QSizeF() : TerminalData::labelSize(metrics, size));
+									  size.isEmpty() ? QSizeF() : TerminalData::labelSize(metrics, size),
+									  TerminalData::roomUnderLetters(metrics),
+									  TerminalData::roomAboveCapitals(metrics));
 }
 
 /**

@@ -2349,7 +2349,10 @@ TerminalData::NozzleLabels Terminal::nozzleLabelsFor(const QSizeF &name, const Q
 		//A project keeping the texts of its symbols horizontal keeps those
 		//of a vertical nozzle so too
 	const bool upright = parent_element_ && parent_element_->hasUprightSymbolTexts();
-	return TerminalData::nozzleLabels(orientation(), !upright, name, size);
+	const QFontMetrics metrics(labelFont());
+	return TerminalData::nozzleLabels(orientation(), !upright, name, size,
+									  TerminalData::roomUnderLetters(metrics),
+									  TerminalData::roomAboveCapitals(metrics));
 }
 
 QTransform Terminal::nozzleLabelFrame(qreal rotation) const

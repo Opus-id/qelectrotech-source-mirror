@@ -165,10 +165,25 @@ class TerminalData : public PropertiesInterface
 			QRectF name;
 			QRectF size;
 		};
-			/// How far the texts of a nozzle are from the axis of its pipe:
-			/// beyond the largest mark of a connection, drawn or not, so that
-			/// they keep their place whatever the project draws
+			/// How far the letters of the texts of a nozzle are from the axis
+			/// of its pipe (the foot of the letters of the name, the top of
+			/// the capitals of the size): beyond the largest mark of a
+			/// connection, drawn or not, so that they keep their place
+			/// whatever the project draws
 		static constexpr qreal nozzleLabelGap = PipeConnection::markHalfHeight + 2;
+			/// The room the box of a text keeps under the foot of its
+			/// letters in the font of @p metrics: that of the descenders,
+			/// which the name of a nozzle ("N5") seldom has
+		static qreal roomUnderLetters(const QFontMetrics &metrics)
+		{
+			return metrics.descent();
+		}
+			/// The room the box of a text keeps above its capitals and its
+			/// figures in the font of @p metrics: that of the accents
+		static qreal roomAboveCapitals(const QFontMetrics &metrics)
+		{
+			return qMax(0, metrics.ascent() - metrics.capHeight());
+		}
 			/// How far the texts of a nozzle begin from its end, along its
 			/// pipe: 1 mm, so that they touch nothing of the symbol drawn at
 			/// the end of the nozzle (the cover of a manhole)
@@ -183,8 +198,13 @@ class TerminalData : public PropertiesInterface
 			/// @p turn_vertical is false (a project keeping the texts of its
 			/// symbols horizontal), on the right of the pipe, the name above
 			/// the size, beside its start.
+			/// Above and under the pipe the letters, not the boxes, are
+			/// nozzleLabelGap from its axis: the box of the name comes
+			/// nearer by @p name_room (roomUnderLetters()), that of the
+			/// size by @p size_room (roomAboveCapitals()).
 		static NozzleLabels nozzleLabels(Qet::Orientation leaving, bool turn_vertical,
-										 const QSizeF &name, const QSizeF &size)
+										 const QSizeF &name, const QSizeF &size,
+										 qreal name_room = 0, qreal size_room = 0)
 		{
 			const qreal gap = nozzleLabelGap;
 			const qreal away = nozzleLabelAway;
@@ -201,8 +221,9 @@ class TerminalData : public PropertiesInterface
 				//a pipe going north runs along it as one going east
 			labels.rotation = vertical ? -90 : 0;
 			const bool forward = leaving == Qet::East || leaving == Qet::North;
-			labels.name = QRectF(QPointF(forward ? away : -away - name.width(), -gap - name.height()), name);
-			labels.size = QRectF(QPointF(forward ? away : -away - size.width(), gap), size);
+			labels.name = QRectF(QPointF(forward ? away : -away - name.width(),
+										 -gap - name.height() + name_room), name);
+			labels.size = QRectF(QPointF(forward ? away : -away - size.width(), gap - size_room), size);
 			return labels;
 		}
 		static QString namePrefix(TerminalData::Medium medium);

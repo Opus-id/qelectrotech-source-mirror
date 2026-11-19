@@ -325,6 +325,26 @@ class tst_nozzlediameter : public QObject
 				// a size alone takes the place of the pair
 			labels = TerminalData::nozzleLabels(Qet::North, false, QSizeF(), size);
 			QCOMPARE(labels.size, QRectF(gap, -away - 10, 30, 10));
+
+				// the letters, not the boxes, are 3 mm from the axis: the box
+				// of the name keeps 3 under the foot of its letters, that of
+				// the size 2 above its capitals, and each comes nearer by it
+			labels = TerminalData::nozzleLabels(Qet::East, true, name, size, 3, 2);
+			QCOMPARE(labels.name, QRectF(away, -gap - 10 + 3, 20, 10));
+			QCOMPARE(labels.size, QRectF(away, gap - 2, 30, 10));
+			labels = TerminalData::nozzleLabels(Qet::South, true, name, size, 3, 2);
+			QCOMPARE(labels.name, QRectF(-away - 20, -gap - 10 + 3, 20, 10));
+			QCOMPARE(labels.size, QRectF(-away - 30, gap - 2, 30, 10));
+				// beside a vertical pipe, texts kept horizontal: as before
+			labels = TerminalData::nozzleLabels(Qet::South, false, name, size, 3, 2);
+			QCOMPARE(labels.name, QRectF(gap, away, 20, 10));
+				// the rooms of a font: its descenders, and what it keeps above
+				// its capitals
+			const QFontMetrics metrics{QFont()};
+			QCOMPARE(TerminalData::roomUnderLetters(metrics), qreal(metrics.descent()));
+			QCOMPARE(TerminalData::roomAboveCapitals(metrics),
+					 qreal(metrics.ascent() - metrics.capHeight()));
+			QVERIFY(TerminalData::roomAboveCapitals(metrics) >= 0);
 		}
 
 			// On a placed symbol the texts of a nozzle follow its pipe on the
@@ -348,6 +368,12 @@ class tst_nozzlediameter : public QObject
 			Terminal *e1 = terminal(tank, QStringLiteral("E1"));
 			QCOMPARE(n1->sizeLabelText(), QStringLiteral("DN 80"));
 			const QFontMetrics metrics{n1->labelFont()};
+				// the foot of the letters of the name and the top of the
+				// capitals of the size are gap from the axis: their boxes
+				// nearer by what they keep beyond the letters
+			const qreal above = gap - TerminalData::roomUnderLetters(metrics);
+			const qreal under = gap - TerminalData::roomAboveCapitals(metrics);
+			QVERIFY(above < gap && under <= gap);
 			auto onSheet = [&metrics](const Terminal *t) {
 				const TerminalData::NozzleLabels labels = t->nozzleLabelsFor(
 							TerminalData::labelSize(metrics, t->name()),
@@ -367,8 +393,8 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(n1->orientation(), Qet::West);
 			QPointF end = n1->dockConductor();
 			auto [name, size] = onSheet(n1);
-			QVERIFY(near(name.right(), end.x() - away) && near(name.bottom(), end.y() - gap));
-			QVERIFY(near(size.right(), end.x() - away) && near(size.top(), end.y() + gap));
+			QVERIFY(near(name.right(), end.x() - away) && near(name.bottom(), end.y() - above));
+			QVERIFY(near(size.right(), end.x() - away) && near(size.top(), end.y() + under));
 			QVERIFY(holds(n1, name) && holds(n1, size));
 				// the pipe between the two texts stays the pipe's to click
 			QVERIFY(!n1->shape().contains(n1->mapFromScene(end + QPointF(-15, 0))));
@@ -380,8 +406,8 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(n1->orientation(), Qet::North);
 			end = n1->dockConductor();
 			std::tie(name, size) = onSheet(n1);
-			QVERIFY(near(name.right(), end.x() - gap) && near(name.bottom(), end.y() - away));
-			QVERIFY(near(size.left(), end.x() + gap) && near(size.bottom(), end.y() - away));
+			QVERIFY(near(name.right(), end.x() - above) && near(name.bottom(), end.y() - away));
+			QVERIFY(near(size.left(), end.x() + under) && near(size.bottom(), end.y() - away));
 			QVERIFY(holds(n1, name) && holds(n1, size));
 				// texts kept horizontal by the project: on the right of the pipe
 			project.setUprightSymbolTexts(true);
@@ -399,8 +425,8 @@ class tst_nozzlediameter : public QObject
 			QCOMPARE(n1->orientation(), Qet::East);
 			end = n1->dockConductor();
 			std::tie(name, size) = onSheet(n1);
-			QVERIFY(near(name.left(), end.x() + away) && near(name.bottom(), end.y() - gap));
-			QVERIFY(near(size.left(), end.x() + away) && near(size.top(), end.y() + gap));
+			QVERIFY(near(name.left(), end.x() + away) && near(name.bottom(), end.y() - above));
+			QVERIFY(near(size.left(), end.x() + away) && near(size.top(), end.y() + under));
 			QVERIFY(holds(n1, name) && holds(n1, size));
 			const QTransform to_sheet = n1->nozzleLabelFrame(0) * n1->sceneTransform();
 			QVERIFY(to_sheet.type() <= QTransform::TxTranslate);
@@ -423,7 +449,9 @@ class tst_nozzlediameter : public QObject
 			const TerminalData::NozzleLabels labels = part.nozzleLabels();
 			QCOMPARE(labels.rotation, 0.0);
 			QCOMPARE(labels.name.right(), -TerminalData::nozzleLabelAway);
-			QCOMPARE(labels.size.top(), TerminalData::nozzleLabelGap);
+				// the top of the capitals of the size, 3 mm from the axis
+			QCOMPARE(labels.size.top(), TerminalData::nozzleLabelGap
+					 - TerminalData::roomAboveCapitals(QFontMetrics(part.labelFont())));
 				// the place the symbol gives the name is not read
 			const QRectF room = part.labelRect();
 			QVERIFY(room.contains(labels.name) && room.contains(labels.size));
