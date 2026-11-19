@@ -251,6 +251,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidtee.h
   ${QET_DIR}/sources/pidfreeend.cpp
   ${QET_DIR}/sources/pidfreeend.h
+  ${QET_DIR}/sources/pidprocessconnection.cpp
+  ${QET_DIR}/sources/pidprocessconnection.h
   ${QET_DIR}/sources/pidnozzlemagnet.cpp
   ${QET_DIR}/sources/pidnozzlemagnet.h
   ${QET_DIR}/sources/conductormultiedit.h

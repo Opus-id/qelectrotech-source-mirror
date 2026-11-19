@@ -332,6 +332,43 @@ Conductor *PidFreeEnd::carryOn(Terminal *from, Terminal *to, QString *message)
 }
 
 /**
+	@brief PidFreeEnd::close
+	See the declaration
+*/
+Conductor *PidFreeEnd::close(Diagram *diagram, Terminal *nozzle, Terminal *closure,
+							 QUndoCommand *parent)
+{
+	Conductor *held = pipeOf(nozzle);
+	if (!diagram || !parent || !held || !closure || !closure->parentElement()
+		|| closure->medium() != TerminalData::Pipe || closure->parentElement() == nozzle->parentElement()
+		|| QLineF(nozzle->dockConductor(), closure->dockConductor()).length() >= PidNozzleMagnet::kSamePoint) {
+		return nullptr;
+	}
+	Terminal *far = farEnd(held, nozzle);
+	if (!far) return nullptr;
+
+	auto *pipe = new Conductor(far, closure);
+	if (!pipe->isValid()) {
+		delete pipe;
+		return nullptr;
+	}
+	pipe->setProperties(held->properties());
+	pipe->takeNozzleDiameter();
+		//The route kept, even moved by hand: it ends where the free end was
+	pipe->setPathPoints(cleaned(pathTo(held, nozzle)));
+
+	DiagramContent content;
+	content.m_elements << nozzle->parentElement();
+	content.m_other_conductors << held;
+	new DeleteQGraphicsItemCommand(diagram, content, parent);
+	auto *add = new AddGraphicsObjectCommand(pipe, diagram, QPointF(), parent);
+	if (parent->text().isEmpty()) {
+		parent->setText(add->text());
+	}
+	return pipe;
+}
+
+/**
 	@brief PidFreeEnd::conceal
 	See the declaration
 */

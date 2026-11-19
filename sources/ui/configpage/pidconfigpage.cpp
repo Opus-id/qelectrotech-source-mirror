@@ -700,11 +700,13 @@ void PidConfigPage::initLayout()
 	auto *tools_help = new QLabel(tr("With the tool \"Draw a pipe\", a click in an empty place starts or "
 									 "ends the pipe on the free end, a click on a pipe on the tee, "
 									 "which is taken into the project; a drag from a nozzle released "
-									 "on a pipe too. None: the tool asks for a nozzle."), tools_box);
+									 "on a pipe too. None: the tool asks for a nozzle. A process "
+									 "connection drawn from or to a free end closes the line with the "
+									 "blind flange."), tools_box);
 	tools_help->setWordWrap(true);
 	tools_layout->addWidget(tools_help);
 	auto *tools_form = new QFormLayout();
-	const QStringList role_names{tr("Free end:"), tr("Tee:")};
+	const QStringList role_names{tr("Free end:"), tr("Tee:"), tr("Blind flange:")};
 	const QStringList &roles = PidCodification::toolSymbolRoles();
 	for (int i = 0 ; i < roles.size() ; ++i) {
 		auto *row = new QHBoxLayout();

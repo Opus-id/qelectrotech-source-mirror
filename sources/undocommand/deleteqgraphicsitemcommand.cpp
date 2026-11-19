@@ -40,6 +40,21 @@
 namespace {
 		//Defined below, beside rejoinPipesOfRemovedElements()
 	void addFreeEndsLeftBySymbols(const DiagramContent &content, QList<Element *> &lonely);
+
+		/// Whether every pipe of @p element is among @p gone: a free end, or
+		/// a blind flange placed by the tool, left alone. Its other lines
+		/// (the process connection of the flange) do not keep it.
+	bool pipesAllGo(const Element *element, const QList<Conductor *> &gone)
+	{
+		for (Terminal *t : element->terminals()) {
+			for (Conductor *c : t->conductors()) {
+				if (c->medium() == TerminalData::Pipe && !gone.contains(c)) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
 }
 
 /**
@@ -179,23 +194,28 @@ int DeleteQGraphicsItemCommand::addLonelyFreeEnds(DiagramContent &content)
 		for (Terminal *end : {pipe->terminal1, pipe->terminal2})
 		{
 			Element *element = end ? end->parentElement() : nullptr;
-			if (!element || !element->isFreeEnd() || content.m_elements.contains(element)
+			if (!element || !element->goesWithItsPipe() || content.m_elements.contains(element)
 				|| lonely.contains(element)) {
 				continue;
 			}
-			bool alone = true;
-			for (Terminal *t : element->terminals()) {
-				for (Conductor *c : t->conductors()) {
-					alone = alone && gone.contains(c);
-				}
-			}
-			if (alone) {
+			if (pipesAllGo(element, gone)) {
 				lonely << element;
 			}
 		}
 	}
 	addFreeEndsLeftBySymbols(content, lonely);
 	content.m_elements << lonely;
+		//Their other lines go with them: the process connection of a blind
+		//flange placed by the tool (6b-3c2)
+	for (Element *element : std::as_const(lonely)) {
+		for (Terminal *t : element->terminals()) {
+			for (Conductor *c : t->conductors()) {
+				if (!gone.contains(c) && !content.m_other_conductors.contains(c)) {
+					content.m_other_conductors << c;
+				}
+			}
+		}
+	}
 	return int(lonely.size());
 }
 
@@ -498,17 +518,11 @@ namespace {
 					}
 					Terminal *far = pipe->terminal1 == nozzle ? pipe->terminal2 : pipe->terminal1;
 					Element *free_end = far ? far->parentElement() : nullptr;
-					if (!free_end || !free_end->isFreeEnd() || removed.contains(free_end)
+					if (!free_end || !free_end->goesWithItsPipe() || removed.contains(free_end)
 						|| lonely.contains(free_end)) {
 						continue;
 					}
-					bool alone = true;
-					for (Terminal *t : free_end->terminals()) {
-						for (Conductor *c : t->conductors()) {
-							alone = alone && gone.contains(c);
-						}
-					}
-					if (!alone) {
+					if (!pipesAllGo(free_end, gone)) {
 						continue;
 					}
 						//Joined again to the other side of the symbol: it

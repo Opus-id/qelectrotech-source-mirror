@@ -85,6 +85,13 @@ class QGraphicsPathItem;
 	a thin line, shows the mark the project gives that type
 	(PidCodification::signalMark()), and the type stays for the next lines
 	while the tool runs.
+
+	A process connection (PidProcessConnection, 6b-3c2) is drawn in one
+	gesture too: from a signal terminal, while the type of signal is
+	"Process connection", to a free nozzle or a free end, or from a free
+	nozzle or a free end to a signal terminal, whatever that type: the
+	preview of the pipe then turns into the thin line. A free end is closed
+	by the blind flange of the project, the line leaving from it.
 */
 class DiagramEventAddPipe : public DiagramEventInterface
 {
@@ -310,6 +317,9 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// The preview of the signal line being drawn, nullptr when none
 		QGraphicsPathItem *m_signal_preview = nullptr;
 		QList<QPointF> m_signal_route;
+			/// A pipe started from a nozzle or a free end shows, in place of
+			/// its preview, the process connection a signal terminal catches
+		bool m_process_preview = false;
 };
 
 #endif // DIAGRAMEVENTADDPIPE_H

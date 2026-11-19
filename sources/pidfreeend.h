@@ -89,6 +89,14 @@ class PidFreeEnd
 							   QString *message = nullptr);
 			/// join() in an undo step of its own
 		static Conductor *carryOn(Terminal *from, Terminal *to, QString *message = nullptr);
+			/// The line ending on the free end of @p nozzle (pipeOf()) closed
+			/// by @p closure, a nozzle of a symbol on the folio at the place
+			/// of that nozzle (a blind flange, 6b-3c2), as children of
+			/// @p parent: the free end and its pipe removed, the same pipe to
+			/// @p closure added, its route and its data kept. @return the new
+			/// pipe, nullptr when nothing was done
+		static Conductor *close(Diagram *diagram, Terminal *nozzle, Terminal *closure,
+								QUndoCommand *parent);
 			/// While a preview reaches the free end of @p nozzle: its symbol
 			/// hidden (@p hide) but its nozzle drawn, lit as hovered; shown
 			/// again when @p hide is false

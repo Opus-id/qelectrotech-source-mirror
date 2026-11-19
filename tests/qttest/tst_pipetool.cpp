@@ -1047,7 +1047,8 @@ class tst_pipetool : public QObject
 			// a pipe never ends at a signal terminal
 		void aSignalLineEndsAtASignalTerminalOnly()
 		{
-				// a pipe near a signal terminal: not caught
+				// a pipe near a signal terminal: never a pipe; since step
+				// 6b-3c2, a process connection (tst_processconnection)
 			const auto back = row(m_pipe, m_signal);
 			QVERIFY(back.first && back.second);
 			Terminal *nozzle_from = back.first->terminals().at(1);
@@ -1055,8 +1056,10 @@ class tst_pipetool : public QObject
 			QCOMPARE(m_tool->startNozzle(), nozzle_from);
 			QVERIFY(!m_tool->drawsSignalLine());
 			click(nearBelow(back.second->terminals().at(0)));
-			QCOMPARE(nozzle_from->conductors().size(), 0);
-			key(Qt::Key_Escape);
+			QCOMPARE(nozzle_from->conductors().size(), 1);
+			QCOMPARE(int(nozzle_from->conductors().first()->medium()), int(TerminalData::Signal));
+			QCOMPARE(int(nozzle_from->conductors().first()->properties().m_signal.signal_type),
+					 int(SignalProperties::ProcessConnection));
 			QCOMPARE(m_tool->startNozzle(), nullptr);
 
 				// a signal line near a nozzle: not caught, it waits

@@ -303,6 +303,15 @@ class Element : public QetGraphicsItem
 		bool isFreeEnd() const {
 			return m_data.m_pid_role == QLatin1String("free_end");
 		}
+			/// True for a symbol a tool placed by itself where the user did not
+			/// place one: the blind flange which closes a free end a process
+			/// connection is drawn from (PidProcessConnection). Saved as
+			/// pid_tool_placed="true", only when set
+		bool isToolPlaced() const { return m_tool_placed; }
+		void setToolPlaced(bool placed) { m_tool_placed = placed; }
+			/// Whether this symbol goes when the pipe it ends is deleted: a free
+			/// end, or a symbol a tool placed there (isToolPlaced())
+		bool goesWithItsPipe() const { return isFreeEnd() || m_tool_placed; }
 			/// True for a spec break (pid_role="spec_break"): the mark where
 			/// the material, piping class and nominal pressure of a line
 			/// change; its size goes on through it
@@ -540,6 +549,7 @@ class Element : public QetGraphicsItem
 		autonum::sequentialNumbers m_autoNum_seq;
 		bool m_freeze_label = false;
 		bool m_shown_as_dot = false;
+		bool m_tool_placed = false;
 		void drawAsDot(QPainter *painter, const QPointF &meet) const;
 		QHash<QUuid, QString> m_potential_sources;
 		QString m_F_str;

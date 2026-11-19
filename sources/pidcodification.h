@@ -341,13 +341,16 @@ class PidCodification
 		QMap<QString, QString> tool_symbols;
 			/// The roles of the symbols a tool may place: the free end of a
 			/// pipe drawn from or to an empty place (DiagramEventAddPipe),
-			/// the tee of a pipe drawn from or to a pipe (PidTee)
+			/// the tee of a pipe drawn from or to a pipe (PidTee), the blind
+			/// flange which closes a free end a process connection is drawn
+			/// from or to (PidProcessConnection)
 		static const QStringList &toolSymbolRoles() {
-			static const QStringList roles{freeEndRole(), teeRole()};
+			static const QStringList roles{freeEndRole(), teeRole(), blindFlangeRole()};
 			return roles;
 		}
 		static QString freeEndRole() { return QStringLiteral("free_end"); }
 		static QString teeRole() { return QStringLiteral("tee"); }
+		static QString blindFlangeRole() { return QStringLiteral("blind_flange"); }
 		QString toolSymbol(const QString &role) const { return tool_symbols.value(role); }
 			/// The mark of the signal lines of a type of signal (SignalMark),
 			/// where the project says it: the word of the type

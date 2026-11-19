@@ -4394,6 +4394,18 @@ Continuer ?</translation>
         <translation>près d&apos;une borne de signal : commencer une ligne de signal</translation>
     </message>
     <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="1531"/>
+        <source>Click or release near another signal terminal, a free nozzle or a free end (closed by the blind flange of the project): end the process connection; T: type of signal (%1); right click or Esc: cancel</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Cliquez ou relâchez près d&apos;une autre borne de signal, d&apos;un piquage libre ou d&apos;une extrémité libre (fermée par la bride pleine du projet) : finir la liaison au procédé ; T : type de signal (%1) ; clic droit ou Échap : annuler</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="1532"/>
+        <source>near a signal terminal: process connection</source>
+        <comment>pipe drawing tool</comment>
+        <translation>près d&apos;une borne de signal : liaison au procédé</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="828"/>
         <source>Click near a free nozzle or a free end (its line goes on), on a pipe (tee) or in an empty place: start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>
@@ -4457,6 +4469,35 @@ Continuer ?</translation>
         <location filename="../sources/pidfreeend.cpp" line="291"/>
         <source>Lines joined: the data of the line drawn from are kept; set aside from the other one: %1.</source>
         <translation>Lignes réunies : les données de la ligne de départ sont gardées ; écartées de l&apos;autre : %1.</translation>
+    </message>
+</context>
+<context>
+    <name>PidProcessConnection</name>
+    <message>
+        <location filename="../sources/pidprocessconnection.cpp" line="40"/>
+        <source>properties of the project, P&amp;ID, Connections</source>
+        <translation>propriétés du projet, P&amp;ID, Raccords</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidprocessconnection.cpp" line="54"/>
+        <source>No blind flange is set to close a free end: choose one (%1).</source>
+        <translation>Aucune bride pleine n&apos;est réglée pour fermer une extrémité libre : choisissez-en une (%1).</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidprocessconnection.cpp" line="95"/>
+        <source>The blind flange of the project needs a nozzle and a signal terminal: choose another one (%1).</source>
+        <translation>La bride pleine du projet doit avoir un piquage et une borne de signal : choisissez-en une autre (%1).</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidprocessconnection.cpp" line="185"/>
+        <source>add a process connection</source>
+        <comment>undo caption</comment>
+        <translation>ajouter une liaison au procédé</translation>
+    </message>
+    <message>
+        <location filename="../sources/pidprocessconnection.cpp" line="212"/>
+        <source>A blind flange closes a line which ended with &quot;%1&quot;: change the closure if needed (right click, Change type).</source>
+        <translation>Une bride pleine ferme une ligne qui finissait par « %1 » : changez la fermeture si besoin (clic droit, Changer de type).</translation>
     </message>
 </context>
 <context>
@@ -13903,8 +13944,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="615"/>
-        <source>With the tool &quot;Draw a pipe&quot;, a click in an empty place starts or ends the pipe on the free end, a click on a pipe on the tee, which is taken into the project; a drag from a nozzle released on a pipe too. None: the tool asks for a nozzle.</source>
-        <translation>Avec l&apos;outil « Tracer une tuyauterie », un clic dans un endroit vide commence ou finit la tuyauterie sur l&apos;extrémité libre, un clic sur une tuyauterie sur le Té, importé dans le projet ; de même, un glisser depuis un piquage relâché sur une tuyauterie. Aucun : l&apos;outil demande un piquage.</translation>
+        <source>With the tool &quot;Draw a pipe&quot;, a click in an empty place starts or ends the pipe on the free end, a click on a pipe on the tee, which is taken into the project; a drag from a nozzle released on a pipe too. None: the tool asks for a nozzle. A process connection drawn from or to a free end closes the line with the blind flange.</source>
+        <translation>Avec l&apos;outil « Tracer une tuyauterie », un clic dans un endroit vide commence ou finit la tuyauterie sur l&apos;extrémité libre, un clic sur une tuyauterie sur le Té, importé dans le projet ; de même, un glisser depuis un piquage relâché sur une tuyauterie. Aucun : l&apos;outil demande un piquage. Une liaison au procédé tracée depuis ou vers une extrémité libre ferme la ligne par la bride pleine.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="616"/>
+        <source>Blind flange:</source>
+        <translation>Bride pleine :</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="621"/>

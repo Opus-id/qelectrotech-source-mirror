@@ -2355,6 +2355,7 @@ bool Element::fromXml(QDomElement &e,
 	QString fl = e.attribute(QStringLiteral("freezeLabel"), QStringLiteral("false"));
 	m_freeze_label = fl == QLatin1String("false") ? false : true;
 	m_shown_as_dot = e.attribute(QStringLiteral("shownAsDot")) == QLatin1String("true");
+	m_tool_placed = e.attribute(QStringLiteral("pid_tool_placed")) == QLatin1String("true");
 
 		//Load Sequential Values
 	if (e.hasAttribute(QStringLiteral("sequ_1"))
@@ -2530,6 +2531,9 @@ QDomElement Element::toXml(
 		//a T-junction drawn as a dot; left out otherwise
 	if (m_shown_as_dot)
 		element.setAttribute(QStringLiteral("shownAsDot"), QStringLiteral("true"));
+		//placed by a tool (P&ID): left out otherwise
+	if (m_tool_placed)
+		element.setAttribute(QStringLiteral("pid_tool_placed"), QStringLiteral("true"));
 
 		// sequential num
 	QDomElement seq = m_autoNum_seq.toXml(document);

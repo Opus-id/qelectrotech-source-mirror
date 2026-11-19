@@ -611,6 +611,10 @@ qet_add_app_test(tst_pipedelete tst_pipedelete.cpp)
 # the route already drawn kept, the data of the line, two lines joined; one
 # step to undo; wires as before.
 qet_add_app_test(tst_pipefreeend tst_pipefreeend.cpp)
+# A process connection (6b-3c2): drawn with the tool from a bubble to a free
+# nozzle or a free end, or the other way; a free end closed by the blind
+# flange of the project, which goes with its pipe; one step to undo.
+qet_add_app_test(tst_processconnection tst_processconnection.cpp)
 # The medium of a conductor: taken from the terminal it starts from, kept
 # whatever properties are applied to it, saved only when not electrical.
 qet_add_app_test(tst_conductormedium tst_conductormedium.cpp)

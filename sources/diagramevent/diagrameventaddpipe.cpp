@@ -22,6 +22,7 @@
 #include "../factory/elementfactory.h"
 #include "../pidcodification.h"
 #include "../pidfreeend.h"
+#include "../pidprocessconnection.h"
 #include "../pipeconnection.h"
 #include "../qetapp.h"
 #include "../qetdiagrameditor.h"
@@ -325,25 +326,32 @@ QPainterPath DiagramEventAddPipe::signalPreview() const
 */
 void DiagramEventAddPipe::showSignalPreview(Terminal *target, const QPointF &scene_pos)
 {
-	if (!m_diagram || !m_start) {
+		//From a signal terminal; or, for a process connection, from a nozzle
+		//or a free end
+	Terminal *start = m_start ? m_start.data() : m_start_end.data();
+	if (!m_diagram || !start) {
 		clearSignalPreview();
 		return;
 	}
-	const QPointF from = m_start->dockConductor();
+	const QPointF from = start->dockConductor();
 	QList<QPointF> route;
 	if (target) {
 			//The route of the signal line a click would draw: it leaves its
-			//terminals as a wire does (Conductor::exitRoom())
-		route = Conductor::defaultRoute(from, m_start->orientation(), target->dockConductor(),
-										target->orientation(), 0);
+			//terminals as a wire does (Conductor::exitRoom()), and a free end
+			//past it, out of the blind flange which will close it
+		route = Conductor::defaultRoute(from, PidProcessConnection::wayOut(start),
+										target->dockConductor(),
+										PidProcessConnection::wayOut(target), 0);
 	} else if (QLineF(from, scene_pos).length() >= 0.5) {
 		route << from << scene_pos;
 	}
 	m_signal_route = route;
 
+	const SignalProperties::SignalType type = drawsSignalLine() ? m_signal_type
+																: SignalProperties::ProcessConnection;
 	const QETProject *project = m_diagram->project();
-	const SignalMark::Mark mark = project ? project->pidCodification().signalMark(m_signal_type)
-										  : SignalMark::defaultMark(m_signal_type);
+	const SignalMark::Mark mark = project ? project->pidCodification().signalMark(type)
+										  : SignalMark::defaultMark(type);
 	QPainterPath path;
 	if (route.size() >= 2)
 	{
@@ -1091,6 +1099,25 @@ void DiagramEventAddPipe::updatePreview(const QPointF &scene_pos, bool snap, qre
 	}
 
 	Terminal *target = targetNear(scene_pos, radius);
+		//A signal terminal catches a process connection (6b-3c2): a thin
+		//line in place of the pipe, with the mark of its type
+	if (target && target->medium() == TerminalData::Signal)
+	{
+		if (!m_process_preview) {
+			m_process_preview = true;
+			m_diagram->setConductor(false);
+		}
+		showSignalPreview(target, scene_pos);
+		hover(target, Terminal::allowedColor);
+			//The free end it starts from stays: a blind flange will close it
+		concealFreeEnds(nullptr);
+		return;
+	}
+	if (m_process_preview) {
+		m_process_preview = false;
+		clearSignalPreview();
+		m_diagram->setConductor(true);
+	}
 		//Started in an empty place: moved onto the axis of the nozzle
 		//which would catch the pipe, back when it no longer would
 	const QPointF start_point = m_start_free ? startPointFor(target, snap) : m_start_point;
@@ -1180,11 +1207,29 @@ Terminal *DiagramEventAddPipe::targetNear(const QPointF &scene_pos, qreal radius
 			nozzle = nullptr;
 		}
 	}
-	const Terminal *from = m_start ? m_start.data() : m_start_end.data();
+	Terminal *from = m_start ? m_start.data() : m_start_end.data();
 	Terminal *free_end = PidFreeEnd::nozzleNear(m_diagram, scene_pos, radius, from);
-	if (!nozzle || !free_end) return nozzle ? nozzle : free_end;
-	return QLineF(scene_pos, free_end->dockConductor()).length()
-			< QLineF(scene_pos, nozzle->dockConductor()).length() ? free_end : nozzle;
+		//A process connection (6b-3c2): from a signal terminal, when the tool
+		//draws one, to a free nozzle or a free end; from a nozzle or a free
+		//end, to a signal terminal, whatever the type the tool draws
+	Terminal *process = nullptr;
+	if (from && (!drawsSignalLine() || m_signal_type == SignalProperties::ProcessConnection)) {
+		process = PidProcessConnection::endNear(m_diagram, scene_pos, radius, from);
+	}
+		//The nearest; a nozzle before a free end as near, both before the
+		//end of a process connection
+	Terminal *nearest = nullptr;
+	qreal nearest_distance = 0;
+	for (Terminal *terminal : {nozzle, free_end, process})
+	{
+		if (!terminal) continue;
+		const qreal distance = QLineF(scene_pos, terminal->dockConductor()).length();
+		if (!nearest || distance < nearest_distance) {
+			nearest = terminal;
+			nearest_distance = distance;
+		}
+	}
+	return nearest;
 }
 
 /**
@@ -1194,7 +1239,8 @@ Terminal *DiagramEventAddPipe::targetNear(const QPointF &scene_pos, qreal radius
 void DiagramEventAddPipe::concealFreeEnds(Terminal *target)
 {
 	QList<Terminal *> wanted;
-	if (m_start_end) wanted << m_start_end.data();
+		//Not while a process connection is shown: a blind flange closes it
+	if (m_start_end && !m_process_preview) wanted << m_start_end.data();
 	if (target && target != m_start_end.data() && PidFreeEnd::pipeOf(target)) wanted << target;
 	QList<Terminal *> before;
 	for (const QPointer<Terminal> &t : std::as_const(m_concealed)) {
@@ -1362,7 +1408,20 @@ void DiagramEventAddPipe::finishAt(Terminal *target, bool snap)
 	const QPointF start_point = startPointFor(target, snap);
 	const bool start_tee = m_start_tee && m_start_spot.pipe;
 	const PidTee::Spot start_spot = start_tee ? m_start_spot : PidTee::Spot();
+		//A process connection: from a signal terminal when the tool draws
+		//one, else from a nozzle or a free end to a signal terminal
+	const bool process = start && target && PidProcessConnection::mayJoin(start, target)
+			&& (!drawsSignalLine() || m_signal_type == SignalProperties::ProcessConnection);
 	reset();
+	if (process) {
+		QString message;
+		PidProcessConnection::draw(start, target, &message);
+		refreshMarks();
+		if (!message.isEmpty()) {
+			showHint(message);
+		}
+		return;
+	}
 	if (target && (start || start_free || start_tee)) {
 		drawPipe(start, start_point, start_spot, target, QPointF(), PidTee::Spot());
 	}
@@ -1380,6 +1439,7 @@ void DiagramEventAddPipe::reset()
 		m_diagram->setConductor(false);
 	}
 	clearSignalPreview();
+	m_process_preview = false;
 	m_start.clear();
 	m_start_free = false;
 	m_start_point = QPointF();
@@ -1481,6 +1541,12 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 	QString text;
 	if (!message.isEmpty()) {
 		text = (message);
+	} else if (drawsSignalLine() && m_signal_type == SignalProperties::ProcessConnection) {
+		text = (tr(
+			"Click or release near another signal terminal, a free nozzle or a free end (closed "
+			"by the blind flange of the project): end the process connection; T: type of signal "
+			"(%1); right click or Esc: cancel", "pipe drawing tool")
+				.arg(SignalProperties::typeName(m_signal_type)));
 	} else if (drawsSignalLine()) {
 		text = (tr(
 			"Click or release near another signal terminal: end the signal line; T: type of "
@@ -1528,6 +1594,12 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 	if (message.isEmpty() && hasStart() && !drawsSignalLine() && free_end) {
 		text += QStringLiteral("; ") + (m_s_shape ? tr("Space: route in L", "pipe drawing tool")
 												  : tr("Space: route in S", "pipe drawing tool"));
+	}
+		//From a nozzle or a free end, a signal terminal ends a process
+		//connection (6b-3c2)
+	if (message.isEmpty() && (m_start || m_start_end) && !drawsSignalLine() && m_signal_marks > 0) {
+		text += QStringLiteral("; ") + tr("near a signal terminal: process connection",
+										  "pipe drawing tool");
 	}
 		//A folio with signal terminals: the tool draws the signal lines too
 	if (message.isEmpty() && !hasStart() && m_signal_marks > 0) {
