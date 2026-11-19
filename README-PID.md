@@ -446,7 +446,13 @@ line.*
   section of its *P&ID* tab or in the *Options* submenu of its context
   menu (undoable) and kept by *Change type*. A `.qetdb` file
   does not keep them yet: saving such a project as `.qetdb` is refused
-  with a message.
+  with a message. A project may give an option of a family of P&ID symbols
+  a value of its own (the oval bubbles of a plant: *instrument*, *shape*,
+  *oval*), in the *Symbols* tab of its *P&ID* page or from a placed symbol
+  (*Options*, *Make these choices the defaults of the project*): a symbol
+  placed new from the collection or by a tool takes it, written in its own
+  choices, so that a symbol placed before, a copy and *Change type* keep
+  theirs.
 
 **Scale and paper sizes**
 - P&ID drawings use 4 drawing units per millimetre, close to the 3.78 of
@@ -518,6 +524,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, instrument letters (`<instrument_letters code name/>`), equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
 | `.qet`, `<pid_codification>` | `instrument_numbering` | `parallel` | in series | the loops of the instruments are numbered in parallel |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee` or `blind_flange`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end | a symbol is chosen for the role |
+| `.qet`, `<pid_codification>` | `<option_default family option value/>` | `family` = a `pid_family`; `option`, `value` = names of the `<options>` block of its symbols (`instrument`, `shape`, `oval`) | none: a symbol placed new takes the defaults of its own file | the project gives an option of a family a value (page *P&ID*, *Symbols*; right click, *Options*); only a symbol placed new takes it, written in its own `<options>` |
 | `.qet`, `<pid_codification>` | `<signal_mark type mark/>` | `type` = a type of signal (`undefined` and those of `pid_signal_type`); `mark` = `none`, `dashes`, `bar1`, `bar2`, `bar3`, `a_mark`, `e_mark`, `l_mark`, `cross`, `wave`, `circle` | the mark of ISO 14617 for the type, else that of ANSI/ISA-5.1 | the project gives the type another mark than the default one |
 
 A `medium` this version does not know is read as electrical and said in the
