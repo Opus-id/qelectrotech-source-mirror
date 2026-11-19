@@ -80,6 +80,9 @@ class DiagramEventAddElement : public DiagramEventInterface
 		ElementsLocation m_location;
 		Element *m_element;
 		QString m_integrate_path;
+			/// Every copy is like another symbol (setLike()): it takes its
+			/// options, not the defaults of the project
+		bool m_like = false;
 			/// Options (and status) every copy takes, see setLike()
 		ElementOptions::Choices m_like_choices;
 			/// Diameters of nozzles every copy takes, see setLike()

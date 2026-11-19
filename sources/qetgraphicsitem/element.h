@@ -360,6 +360,11 @@ class Element : public QetGraphicsItem
 			/// Give the labels of this new element the size of its family,
 			/// if @p codification sets one
 		void takeLabelSize(const PidCodification &codification);
+			/// Give this new P&ID element the options its family takes in
+			/// @p codification (PidCodification::newChoices()), written in
+			/// its choices: a change of the project later does not reach it.
+			/// Only for a symbol placed new, not a copy of another one.
+		void takeOptionDefaults(const PidCodification &codification);
 			/// The model of the tags of the family of this P&ID symbol in
 			/// its project (PidTag), empty when there is none
 		QString pidTagModel() const;

@@ -1010,6 +1010,7 @@ void DiagramEventAddPipe::drawPipe(Terminal *start, const QPointF &start_point,
 			return nullptr;
 		}
 		element->takeLabelSize(m_diagram->project()->pidCodification());
+		element->takeOptionDefaults(m_diagram->project()->pidCodification());
 		const int turns = (int(facing) - int(nozzle->orientation()) + 4) % 4;
 		element->setRotation(90.0 * turns);
 		element->setPos(QPointF());

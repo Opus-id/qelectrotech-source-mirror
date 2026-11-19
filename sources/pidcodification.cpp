@@ -39,6 +39,7 @@ namespace
 	const QString size_tag = QStringLiteral("size");
 	const QString equal_tag = QStringLiteral("equal_dn");
 	const QString tool_symbol_tag = QStringLiteral("tool_symbol");
+	const QString option_default_tag = QStringLiteral("option_default");
 	const QString signal_mark_tag = QStringLiteral("signal_mark");
 	const QString letters_tag = QStringLiteral("instrument_letters");
 	const QString numbering_word = QStringLiteral("instrument_numbering");
@@ -1206,6 +1207,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.drawn_connections = other.drawn_connections;
 		result.drawn_families = other.drawn_families;
 		result.tool_symbols = other.tool_symbols;
+		result.option_defaults = other.option_defaults;
 	}
 		//A file which has marks of signal lines says them all
 	if (signal_marks.isEmpty()) {
@@ -1285,6 +1287,17 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 		e.setAttribute(QStringLiteral("role"), it.key());
 		e.setAttribute(QStringLiteral("location"), it.value());
 		block.appendChild(e);
+	}
+	for (auto family = option_defaults.cbegin() ; family != option_defaults.cend() ; ++family)
+	{
+		for (auto it = family.value().cbegin() ; it != family.value().cend() ; ++it)
+		{
+			QDomElement e = document.createElement(option_default_tag);
+			e.setAttribute(QStringLiteral("family"), family.key());
+			e.setAttribute(QStringLiteral("option"), it.key());
+			e.setAttribute(QStringLiteral("value"), it.value());
+			block.appendChild(e);
+		}
 	}
 	for (auto it = signal_marks.cbegin() ; it != signal_marks.cend() ; ++it)
 	{
@@ -1370,6 +1383,17 @@ void PidCodification::fromXml(const QDomElement &parent)
 			tool_symbols.insert(role, location);
 		}
 	}
+	option_defaults.clear();
+	for (QDomElement e = block.firstChildElement(option_default_tag) ; !e.isNull() ;
+		 e = e.nextSiblingElement(option_default_tag))
+	{
+		const QString family = e.attribute(QStringLiteral("family")).trimmed();
+		const QString option = e.attribute(QStringLiteral("option")).trimmed();
+			//The first one said of an option is kept
+		if (!option_defaults.value(family).contains(option)) {
+			setOptionDefault(family, option, e.attribute(QStringLiteral("value")).trimmed());
+		}
+	}
 	signal_marks.clear();
 	for (QDomElement e = block.firstChildElement(signal_mark_tag) ; !e.isNull() ;
 		 e = e.nextSiblingElement(signal_mark_tag))
@@ -1438,6 +1462,12 @@ QString PidCodification::presentationToCsv() const
 	for (auto it = tool_symbols.cbegin() ; it != tool_symbols.cend() ; ++it) {
 		text += tool_symbol_tag + QLatin1Char(';') + it.key() + QLatin1Char(';')
 				+ csvField(it.value()) + QLatin1Char('\n');
+	}
+	for (auto family = option_defaults.cbegin() ; family != option_defaults.cend() ; ++family) {
+		for (auto it = family.value().cbegin() ; it != family.value().cend() ; ++it) {
+			text += option_default_tag + QLatin1Char(';') + family.key() + QLatin1Char(';')
+					+ it.key() + QLatin1Char(';') + it.value() + QLatin1Char('\n');
+		}
 	}
 	for (auto it = signal_marks.cbegin() ; it != signal_marks.cend() ; ++it) {
 		if (!isDefaultSignalMark(it.key(), it.value())) {
@@ -1711,6 +1741,19 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 			}
 			continue;
 		}
+		if (kind == option_default_tag || kind == QStringLiteral("option_défaut")
+			|| kind == QLatin1String("option_defaut"))
+		{
+				//A name that cannot be one, no value, an option said twice
+			const QString family = fields.value(1).trimmed();
+			const QString option = fields.value(2).trimmed();
+			const QString value = fields.value(3).trimmed();
+			if (value.isEmpty() || codification.option_defaults.value(family).contains(option)
+				|| !codification.setOptionDefault(family, option, value)) {
+				++left_out;
+			}
+			continue;
+		}
 		if (kind == signal_mark_tag || kind == QLatin1String("marque_signal"))
 		{
 				//Kept even when it is the default one: the file says it
@@ -1827,5 +1870,69 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& drawn_connections == other.drawn_connections
 			&& drawn_families == other.drawn_families
 			&& tool_symbols == other.tool_symbols
+			&& option_defaults == other.option_defaults
 			&& signal_marks == other.signal_marks;
+}
+
+/**
+	@brief PidCodification::setOptionDefault
+	See the declaration
+*/
+bool PidCodification::setOptionDefault(const QString &family, const QString &option,
+									   const QString &value)
+{
+	if (!ElementOptions::isValidName(family) || !ElementOptions::isValidName(option)
+		|| (!value.isEmpty() && !ElementOptions::isValidName(value))) {
+		return false;
+	}
+	if (value.isEmpty())
+	{
+		auto it = option_defaults.find(family);
+		if (it != option_defaults.end()) {
+			it.value().remove(option);
+				//No family left without an option
+			if (it.value().isEmpty()) {
+				option_defaults.erase(it);
+			}
+		}
+		return true;
+	}
+	option_defaults[family].insert(option, value);
+	return true;
+}
+
+/**
+	@brief PidCodification::setOptionDefaults
+	See the declaration
+*/
+bool PidCodification::setOptionDefaults(const QString &family, const ElementOptions::Choices &choices)
+{
+	const QMap<QString, ElementOptions::Choices> before = option_defaults;
+	for (auto it = choices.cbegin() ; it != choices.cend() ; ++it) {
+		setOptionDefault(family, it.key(), it.value());
+	}
+	return option_defaults != before;
+}
+
+/**
+	@brief PidCodification::newChoices
+	See the declaration
+*/
+ElementOptions::Choices PidCodification::newChoices(const QString &family,
+													const ElementOptions &options) const
+{
+	ElementOptions::Choices choices;
+	if (family.isEmpty()) {
+		return choices;
+	}
+	const ElementOptions::Choices defaults = option_defaults.value(family);
+	for (const ElementOptions::Option &option : options.options())
+	{
+		const QString value = defaults.value(option.name);
+			//Its own default needs no writing
+		if (option.hasValue(value) && value != option.default_value) {
+			choices.insert(option.name, value);
+		}
+	}
+	return choices;
 }

@@ -430,6 +430,7 @@ Conductor *PidFreeEnd::reopen(Diagram *diagram, Terminal *nozzle, QUndoCommand *
 	}
 		//Where the nozzle of the closure is, facing the same way
 	free_end->takeLabelSize(diagram->project()->pidCodification());
+	free_end->takeOptionDefaults(diagram->project()->pidCodification());
 	const int turns = (int(nozzle->orientation()) - int(end->orientation()) + 4) % 4;
 	free_end->setRotation(90.0 * turns);
 	free_end->setPos(QPointF());

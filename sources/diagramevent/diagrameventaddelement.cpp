@@ -276,6 +276,7 @@ void DiagramEventAddElement::setLike(const Element *source)
 	if (!source || !m_element) {
 		return;
 	}
+	m_like = true;
 	m_like_choices = source->optionChoices();
 	m_element->setOptionChoices(m_like_choices);
 	m_like_nozzles = source->nozzleDiameters();
@@ -363,6 +364,7 @@ bool DiagramEventAddElement::buildElement()
 		return(false);
 	}
 	m_element->takeLabelSize(m_diagram->project()->pidCodification());
+	m_element->takeOptionDefaults(m_diagram->project()->pidCodification());
 		//Everything is good
 	return true;
 }
@@ -449,8 +451,12 @@ Element *DiagramEventAddElement::createElement() const
 		delete element;
 		return nullptr;
 	}
-	if (!m_like_choices.isEmpty()) {
+		//A copy like another keeps its choices, those at their default
+		//too: only a symbol placed new takes the defaults of the project
+	if (m_like) {
 		element->setOptionChoices(m_like_choices);
+	} else {
+		element->takeOptionDefaults(m_diagram->project()->pidCodification());
 	}
 	if (!m_like_nozzles.isEmpty()) {
 		element->setNozzleDiameters(m_like_nozzles);

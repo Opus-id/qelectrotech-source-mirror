@@ -25,6 +25,7 @@
 #include "lastusedstyle.h"
 #include "utils/colordialogdoubleclick.h"
 #include "qetproject.h"
+#include "undocommand/changepidcodificationcommand.h"
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 #include "diagramcommands.h"
 #include "cable/addcablecommand.h"
@@ -3810,6 +3811,30 @@ void DiagramView::updateOptionsMenu()
 			});
 		}
 		m_options_menu->addMenu(submenu);
+	}
+
+		//The choices of one P&ID symbol made those its family takes when
+		//placed new (PidCodification::option_defaults)
+	if (elements.size() == 1 && !first->pidFamily().isEmpty() && !m_options_menu->isEmpty())
+	{
+		m_options_menu->addSeparator();
+		QAction *defaults = m_options_menu->addAction(tr("Make these choices the defaults of the project"));
+		defaults->setObjectName(QStringLiteral("make_option_defaults"));
+		defaults->setStatusTip(tr("The symbols of this family placed from now on take these options; "
+								  "those placed before keep theirs"));
+		QPointer<Element> element = first;
+		connect(defaults, &QAction::triggered, this, [this, element]() {
+			if (!element) {
+				return;
+			}
+			QETProject *project = m_diagram->project();
+			PidCodification codification = project->pidCodification();
+			if (codification.setOptionDefaults(element->pidFamily(), element->resolvedOptions())) {
+				auto *undo = new ChangePidCodificationCommand(project, codification);
+				undo->setText(tr("Make the choices of a symbol the defaults of the project"));
+				project->undoStack()->push(undo);
+			}
+		});
 	}
 	m_options_menu->menuAction()->setVisible(!m_options_menu->isEmpty());
 }

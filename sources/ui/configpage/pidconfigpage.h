@@ -133,6 +133,14 @@ class PidConfigPage : public ProjectConfigPage
 			/// Each type of signal takes its default mark again
 			/// (SignalMark::defaultMark())
 		void resetSignalMarks();
+			/// Add a line to the defaults of the options of the symbols placed
+			/// new (PidCodification::option_defaults): the family @p family,
+			/// the option @p option, the value @p value. Without a family, an
+			/// empty line whose family is edited.
+		void addOptionDefault(const QString &family = QString(), const QString &option = QString(),
+							  const QString &value = QString());
+			/// Remove the lines selected of the defaults of the options
+		void removeSelectedOptionDefaults();
 
 	protected:
 		void initWidgets() override;
@@ -150,6 +158,11 @@ class PidConfigPage : public ProjectConfigPage
 		void readConnectionWidgets();
 		void showToolSymbols();
 		void showSignalMarks();
+			/// Fill the table of the defaults of the options from the page
+		void showOptionDefaults();
+			/// Take the defaults of the options from their table: the lines
+			/// whose three words can be names, the others in orange
+		void readOptionDefaultTable();
 		void chooseToolSymbol(const QString &role);
 		void undoLastChange();
 		void redoLastChange();
@@ -223,6 +236,11 @@ class PidConfigPage : public ProjectConfigPage
 			/// list of the marks of the catalogue, each with its picture
 		QMap<SignalProperties::SignalType, QComboBox *> m_signal_marks;
 		QPushButton *m_reset_signal_marks = nullptr;
+			/// The options the symbols of a family take when placed new: a
+			/// line by family and option, their words as in the files
+		QTableWidget *m_option_default_table = nullptr;
+		QPushButton *m_add_option_default = nullptr;
+		QPushButton *m_remove_option_default = nullptr;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
 		std::function<QColor(const QColor &)> m_ask_color;

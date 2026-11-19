@@ -20,6 +20,7 @@
 
 #include "pipeconnection.h"
 #include "pipediameter.h"
+#include "properties/elementoptions.h"
 #include "signalmark.h"
 
 #include <QByteArray>
@@ -363,6 +364,28 @@ class PidCodification
 		static QString teeRole() { return QStringLiteral("tee"); }
 		static QString blindFlangeRole() { return QStringLiteral("blind_flange"); }
 		QString toolSymbol(const QString &role) const { return tool_symbols.value(role); }
+			/// The value a P&ID symbol placed new takes for one of its
+			/// options (ElementOptions), by family of the symbol
+			/// (ElementData::m_pid_family) then name of the option: the oval
+			/// bubbles of a plant, "instrument" -> "shape" -> "oval". Only a
+			/// symbol placed new takes it (newChoices()), and keeps it
+			/// written: a symbol placed before keeps its own. None by
+			/// default; written only when set.
+		QMap<QString, ElementOptions::Choices> option_defaults;
+			/// The symbols of the family @p family placed new take @p value
+			/// for their option @p option; none any more for an empty @p
+			/// value. False, nothing changed, when a name cannot be one
+			/// (ElementOptions::isValidName()).
+		bool setOptionDefault(const QString &family, const QString &option, const QString &value);
+			/// Each option of @p choices becomes a default of the family
+			/// @p family (setOptionDefault()); false when nothing changes
+		bool setOptionDefaults(const QString &family, const ElementOptions::Choices &choices);
+			/// What a new symbol of the family @p family whose options are
+			/// @p options takes from the project: the default of each of
+			/// its options the project has, when it is one of the values
+			/// of the option and not already its own default. None for a
+			/// symbol of no family.
+		ElementOptions::Choices newChoices(const QString &family, const ElementOptions &options) const;
 			/// The mark of the signal lines of a type of signal (SignalMark),
 			/// where the project says it: the word of the type
 			/// (SignalProperties::typeToString()), then that of the mark
@@ -414,7 +437,8 @@ class PidCodification
 			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
 					|| parallel_numbering
-					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty();
+					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty()
+				|| !option_defaults.isEmpty();
 		}
 		bool isEmpty() const {
 			return !hasCodes() && !hasColors() && !hasTextSettings() && signal_marks.isEmpty();
@@ -476,7 +500,9 @@ class PidCodification
 			/// "text_option;drawn_connections;flange butt_weld" (the words
 			/// of PipeConnection, a word not known being left out), and of lines
 			/// "tool_symbol;free_end;custom://folder/symbol.elmt" ("symbole_outil",
-			/// a role of toolSymbolRoles() and the place of its symbol), and of lines
+			/// a role of toolSymbolRoles() and the place of its symbol), of lines
+			/// "option_default;instrument;shape;oval" ("option_défaut": a family
+			/// of symbols, an option and its value, option_defaults), and of lines
 			/// "signal_mark;pneumatic;bar2" ("marque_signal": a type of signal
 			/// and the mark of its lines, by their words of the files; a file
 			/// which has some says them all, a type it leaves out taking the
@@ -491,8 +517,9 @@ class PidCodification
 		static PidCodification fromCsv(const QString &text, int *skipped = nullptr,
 									   QMap<QString, QList<Size>> *loose_sizes = nullptr);
 			/// The presentation: colours, settings of texts, connections
-			/// drawn, models of tags, symbols of the tools and marks of the
-			/// signal lines, as lines fromCsv() reads; what is
+			/// drawn, models of tags, symbols of the tools, defaults of the
+			/// options and marks of the signal lines, as lines fromCsv()
+			/// reads; what is
 			/// kept in the settings, for new projects. The codes stay out,
 			/// kept apart (codesToCsv())
 		QString presentationToCsv() const;

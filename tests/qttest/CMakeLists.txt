@@ -885,6 +885,11 @@ qet_add_app_test(tst_selectionpanelheight tst_selectionpanelheight.cpp)
 # is saved with the project and the element editor keeps both.
 qet_add_app_test(tst_elementoptions tst_elementoptions.cpp)
 
+# The options a P&ID symbol placed new takes from its project, by family and
+# option (the oval bubbles of a plant): kept written in the symbol, saved with
+# the project and in its presentation file, set from a symbol or a table.
+qet_add_app_test(tst_optiondefaults tst_optiondefaults.cpp)
+
 # The nominal diameter of a nozzle: a default in the symbol, shown under the
 # name of the nozzle, that a placed element can change. Saved with the project
 # only when it differs, and never passed on to the pipe connected there.

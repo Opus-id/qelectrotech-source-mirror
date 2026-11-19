@@ -621,6 +621,22 @@ void PidConfigPage::initWidgets()
 	m_reset_signal_marks = new QPushButton(tr("Back to the default marks"), this);
 	m_reset_signal_marks->setObjectName(QStringLiteral("signal_marks_reset"));
 	connect(m_reset_signal_marks, &QPushButton::clicked, this, &PidConfigPage::resetSignalMarks);
+
+		//The options the symbols of a family take when placed new, their
+		//words as in the files of the symbols and of the project
+	m_option_default_table = new QTableWidget(0, 3, this);
+	m_option_default_table->setObjectName(QStringLiteral("option_default_table"));
+	m_option_default_table->setHorizontalHeaderLabels({tr("Family"), tr("Option"), tr("Value")});
+	m_option_default_table->verticalHeader()->hide();
+	m_option_default_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+	m_option_default_table->setSelectionBehavior(QAbstractItemView::SelectRows);
+	connect(m_option_default_table, &QTableWidget::itemChanged, this, &PidConfigPage::readOptionDefaultTable);
+	m_add_option_default = new QPushButton(tr("Add"), this);
+	m_add_option_default->setObjectName(QStringLiteral("add_option_default"));
+	connect(m_add_option_default, &QPushButton::clicked, this, [this]() { addOptionDefault(); });
+	m_remove_option_default = new QPushButton(tr("Remove"), this);
+	m_remove_option_default->setObjectName(QStringLiteral("remove_option_default"));
+	connect(m_remove_option_default, &QPushButton::clicked, this, &PidConfigPage::removeSelectedOptionDefaults);
 }
 
 void PidConfigPage::initLayout()
@@ -825,6 +841,24 @@ void PidConfigPage::initLayout()
 	signal_layout->addStretch();
 	tabs->addTab(signal_tab, tr("Signal lines"));
 
+	auto *symbols_tab = new QWidget(this);
+	auto *symbols_layout = new QVBoxLayout(symbols_tab);
+		//Short: README-PID tells the rest
+	auto *symbols_help = new QLabel(tr("The options a symbol of a family takes when it is placed new, "
+									   "such as instrument / shape / oval: the words of the symbol "
+									   "files. A symbol placed before keeps its own. The simplest way: "
+									   "right click on a symbol placed, Options, \"Make these choices "
+									   "the defaults of the project\"."), symbols_tab);
+	symbols_help->setWordWrap(true);
+	symbols_layout->addWidget(symbols_help);
+	symbols_layout->addWidget(m_option_default_table);
+	auto *option_buttons = new QHBoxLayout();
+	option_buttons->addWidget(m_add_option_default);
+	option_buttons->addWidget(m_remove_option_default);
+	option_buttons->addStretch();
+	symbols_layout->addLayout(option_buttons);
+	tabs->addTab(symbols_tab, tr("Symbols"));
+
 		//Under the tabs, what acts on the whole page: a file read or
 		//written, which may hold a part of any tab, and what the page says
 		//of it; then the defaults of the new projects
@@ -896,6 +930,107 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 	}
 	showToolSymbols();
 	showSignalMarks();
+	showOptionDefaults();
+}
+
+/**
+	@brief PidConfigPage::showOptionDefaults
+	See the declaration
+*/
+void PidConfigPage::showOptionDefaults()
+{
+	const QSignalBlocker blocker(m_option_default_table);
+	m_option_default_table->setRowCount(0);
+	const QMap<QString, ElementOptions::Choices> defaults = m_codification.option_defaults;
+	for (auto family = defaults.cbegin() ; family != defaults.cend() ; ++family) {
+		for (auto it = family.value().cbegin() ; it != family.value().cend() ; ++it)
+		{
+			const int row = m_option_default_table->rowCount();
+			m_option_default_table->insertRow(row);
+			m_option_default_table->setItem(row, 0, new QTableWidgetItem(family.key()));
+			m_option_default_table->setItem(row, 1, new QTableWidgetItem(it.key()));
+			m_option_default_table->setItem(row, 2, new QTableWidgetItem(it.value()));
+		}
+	}
+}
+
+/**
+	@brief PidConfigPage::readOptionDefaultTable
+	See the declaration. A line being typed, not whole yet, is kept in the
+	table and left out of the project.
+*/
+void PidConfigPage::readOptionDefaultTable()
+{
+	const QSignalBlocker blocker(m_option_default_table);
+	m_codification.option_defaults.clear();
+	for (int row = 0 ; row < m_option_default_table->rowCount() ; ++row)
+	{
+		QStringList words;
+		for (int column = 0 ; column < 3 ; ++column) {
+			if (!m_option_default_table->item(row, column)) {
+				m_option_default_table->setItem(row, column, new QTableWidgetItem());
+			}
+			words << m_option_default_table->item(row, column)->text().trimmed();
+		}
+			//The first line of an option is the one kept
+		const bool twice = m_codification.option_defaults.value(words.at(0)).contains(words.at(1));
+		const bool taken = !words.at(2).isEmpty() && !twice
+				&& m_codification.setOptionDefault(words.at(0), words.at(1), words.at(2));
+		const bool empty = words.join(QString()).isEmpty();
+		for (int column = 0 ; column < 3 ; ++column)
+		{
+			QTableWidgetItem *item = m_option_default_table->item(row, column);
+			item->setBackground(taken || empty ? QBrush() : QBrush(QColor(255, 200, 120)));
+			item->setToolTip(taken || empty ? QString()
+											: twice ? wrapped(tr("This option of this family is "
+																 "already given a value above: "
+																 "this line is left out."))
+													: wrapped(tr("A family, an option and a value are "
+																 "needed, in letters, digits, \"_\" "
+																 "and \"-\": this line is left out.")));
+		}
+	}
+}
+
+/**
+	@brief PidConfigPage::addOptionDefault
+	See the declaration
+*/
+void PidConfigPage::addOptionDefault(const QString &family, const QString &option, const QString &value)
+{
+	const int row = m_option_default_table->rowCount();
+	{
+		const QSignalBlocker blocker(m_option_default_table);
+		m_option_default_table->insertRow(row);
+		m_option_default_table->setItem(row, 0, new QTableWidgetItem(family));
+		m_option_default_table->setItem(row, 1, new QTableWidgetItem(option));
+		m_option_default_table->setItem(row, 2, new QTableWidgetItem(value));
+	}
+	readOptionDefaultTable();
+	if (family.isEmpty()) {
+		m_option_default_table->setCurrentCell(row, 0);
+		m_option_default_table->editItem(m_option_default_table->item(row, 0));
+	}
+}
+
+/**
+	@brief PidConfigPage::removeSelectedOptionDefaults
+	See the declaration
+*/
+void PidConfigPage::removeSelectedOptionDefaults()
+{
+	QList<int> rows;
+	for (const QModelIndex &index : m_option_default_table->selectionModel()->selectedRows()) {
+		rows << index.row();
+	}
+	std::sort(rows.begin(), rows.end(), std::greater<int>());
+	{
+		const QSignalBlocker blocker(m_option_default_table);
+		for (int row : std::as_const(rows)) {
+			m_option_default_table->removeRow(row);
+		}
+	}
+	readOptionDefaultTable();
 }
 
 /**
@@ -1034,6 +1169,9 @@ void PidConfigPage::adjustReadOnly()
 		marks->setEnabled(!read_only);
 	}
 	m_reset_signal_marks->setEnabled(!read_only);
+	m_option_default_table->setEditTriggers(m_code_tables.value(PidCodification::List::Fluids)->editTriggers());
+	m_add_option_default->setEnabled(!read_only);
+	m_remove_option_default->setEnabled(!read_only);
 }
 
 /**

@@ -5272,6 +5272,9 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <comment>undo caption</comment>
         <translation>Modifier les propriétés d&apos;un conducteur</translation>
     </message>
+    <message><source>Make these choices the defaults of the project</source><translation>Faire de ces choix les valeurs par défaut du projet</translation></message>
+    <message><source>The symbols of this family placed from now on take these options; those placed before keep theirs</source><translation>Les symboles de cette famille posés désormais prennent ces options ; ceux déjà posés gardent les leurs</translation></message>
+    <message><source>Make the choices of a symbol the defaults of the project</source><translation>Choix d&apos;un symbole devenus valeurs par défaut du projet</translation></message>
 </context>
 <context>
     <name>DialogWaiting</name>
@@ -14203,6 +14206,12 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message><source>%1:</source><comment>a type of signal, before the list of its marks</comment><translation>%1 :</translation></message>
     <message><source>the marks of the signal lines</source><translation>les marques des lignes de signal</translation></message>
     <message><source>Reads into this page what the file has: codes, sizes of materials, colors, texts, connections, marks of the signal lines. What the file has not stays as it is.</source><translation>Lit dans cette page ce que le fichier contient : codes, tailles des matériaux, couleurs, textes, raccords, marques des lignes de signal. Ce que le fichier ne contient pas reste tel quel.</translation></message>
+    <message><source>Option</source><translation>Option</translation></message>
+    <message><source>Value</source><translation>Valeur</translation></message>
+    <message><source>Symbols</source><translation>Symboles</translation></message>
+    <message><source>The options a symbol of a family takes when it is placed new, such as instrument / shape / oval: the words of the symbol files. A symbol placed before keeps its own. The simplest way: right click on a symbol placed, Options, &quot;Make these choices the defaults of the project&quot;.</source><translation>Les options que prend un symbole d&apos;une famille quand il est posé neuf, par exemple instrument / shape / oval : les mots des fichiers de symboles. Un symbole posé avant garde les siennes. Le plus simple : clic droit sur un symbole posé, Options, « Faire de ces choix les valeurs par défaut du projet ».</translation></message>
+    <message><source>This option of this family is already given a value above: this line is left out.</source><translation>Cette option de cette famille a déjà une valeur plus haut : cette ligne n&apos;est pas prise en compte.</translation></message>
+    <message><source>A family, an option and a value are needed, in letters, digits, &quot;_&quot; and &quot;-&quot;: this line is left out.</source><translation>Il faut une famille, une option et une valeur, en lettres, chiffres, « _ » et « - » : cette ligne n&apos;est pas prise en compte.</translation></message>
 </context>
 <context>
     <name>SignalMark</name>

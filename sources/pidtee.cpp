@@ -426,6 +426,7 @@ Element *PidTee::build(Diagram *diagram, QString *error, bool import)
 		return nullptr;
 	}
 	tee->takeLabelSize(diagram->project()->pidCodification());
+	tee->takeOptionDefaults(diagram->project()->pidCodification());
 	return tee;
 }
 

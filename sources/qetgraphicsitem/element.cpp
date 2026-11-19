@@ -972,6 +972,23 @@ void Element::takeLabelSize(const PidCodification &codification)
 }
 
 /**
+	@brief Element::takeOptionDefaults
+	See the declaration
+*/
+void Element::takeOptionDefaults(const PidCodification &codification)
+{
+	const ElementOptions::Choices taken = codification.newChoices(m_data.m_pid_family, m_data.m_options);
+	if (taken.isEmpty()) {
+		return;
+	}
+	ElementOptions::Choices choices = m_option_choices;
+	for (auto it = taken.cbegin() ; it != taken.cend() ; ++it) {
+		choices.insert(it.key(), it.value());
+	}
+	setOptionChoices(choices);
+}
+
+/**
 	@brief Element::pidTagModel
 	See the declaration
 */

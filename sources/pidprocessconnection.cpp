@@ -75,6 +75,7 @@ namespace {
 		if (n1)
 		{
 			flange->takeLabelSize(diagram->project()->pidCodification());
+			flange->takeOptionDefaults(diagram->project()->pidCodification());
 			const int turns = (int(free_end->orientation()) - int(n1->orientation()) + 4) % 4;
 			flange->setRotation(90.0 * turns);
 			flange->setPos(QPointF());
