@@ -27,6 +27,7 @@
 #include "qetgraphicsitem/conductor.h"
 #include "undocommand/addgraphicsobjectcommand.h"
 #include "undocommand/deleteqgraphicsitemcommand.h"
+#include "QPropertyUndoCommand/qpropertyundocommand.h"
 
 #include <QLineF>
 #include <QPainterPath>
@@ -100,6 +101,66 @@ Terminal *freeEndOn(Diagram *diagram, const Element *element, Terminal *nozzle,
 	return nullptr;
 }
 
+	/// An end of a line (a symbol of the pipe family with a single nozzle,
+	/// free: a free end, an arrow, a vent, a closure...) dropped with its
+	/// nozzle on another nozzle turns the way it must (P&ID, 6b-3c2): on a
+	/// free end, the same way, to take its line on (freeEndOn()); on a free
+	/// nozzle of another symbol, facing it, the two touching. Turned about
+	/// its nozzle, in the undo step of @p parent.
+void turnLineEnd(Diagram *diagram, Element *element, QUndoCommand *parent)
+{
+	if (element->pidFamily() != QLatin1String("pipe")) {
+		return;
+	}
+	Terminal *nozzle = nullptr;
+	for (Terminal *t : element->terminals()) {
+		if (t->medium() != TerminalData::Pipe) continue;
+		if (nozzle) return;
+		nozzle = t;
+	}
+	if (!nozzle || !nozzle->hasRoomForWire()) {
+		return;
+	}
+	const QPointF dock = nozzle->dockConductor();
+	const qreal near = PidNozzleMagnet::kSamePoint;
+	const QRectF area(dock.x() - near, dock.y() - near, 2 * near, 2 * near);
+	Terminal *target = nullptr;
+	bool on_free_end = false;
+	for (QGraphicsItem *item : diagram->items(area))
+	{
+		Terminal *other = qgraphicsitem_cast<Terminal *>(item);
+		if (!other || !other->parentElement() || other->parentElement() == element
+			|| other->medium() != TerminalData::Pipe
+			|| QLineF(other->dockConductor(), dock).length() >= near) {
+			continue;
+		}
+		if (PidFreeEnd::pipeOf(other)) {
+			target = other;
+			on_free_end = true;
+			break;
+		}
+		if (!target && other->hasRoomForWire() && other->conductors().isEmpty()) {
+			target = other;
+		}
+	}
+	if (!target) {
+		return;
+	}
+	const Qet::Orientation wanted = on_free_end
+			? target->orientation()
+			: Qet::Orientation((int(target->orientation()) + 2) % 4);
+	if (nozzle->orientation() == wanted) {
+		return;
+	}
+	const int turns = (int(wanted) - int(nozzle->orientation()) + 4) % 4;
+	const qreal old_rotation = element->rotation();
+	const QPointF old_pos = element->pos();
+	element->setRotation(old_rotation + 90.0 * turns);
+	element->setPos(old_pos + dock - nozzle->dockConductor());
+	new QPropertyUndoCommand(element, "rotation", old_rotation, element->rotation(), parent);
+	new QPropertyUndoCommand(element, "pos", old_pos, element->pos(), parent);
+}
+
 } // anonymous namespace
 
 /**
@@ -153,6 +214,9 @@ QSet<Terminal *> autoBreakConductors(
 		//A pipe is always broken by a symbol dropped or moved on it: the
 		//project's switch only rules the other media (a wire, a signal)
 	const bool all_media = diagram->project()->autoBreakConductor();
+
+		//An end of a line dropped on a nozzle turns the way it must first
+	turnLineEnd(diagram, element, parent);
 
 	foreach (Terminal *t, element->terminals())
 	{
@@ -330,6 +394,14 @@ QSet<Terminal *> autoBreakConductors(
 			} else if (other_terminal && (ahead < -PidNozzleMagnet::kSamePoint
 						      || inContact(best_other, other_terminal))) {
 				join_far = false;
+			}
+				//Never the whole line lost: a symbol against one end of it
+				//(a closure facing away from the line, dropped on its free
+				//end) with no nozzle to carry it on, while its far end stays,
+				//is only placed there; the line is left whole (6b-3c2)
+			if (!join_near && !other_terminal && !isFreeEndOf(best_other, line)) {
+				used_terminals.remove(t);
+				continue;
 			}
 		}
 

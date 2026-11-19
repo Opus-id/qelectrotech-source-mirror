@@ -498,6 +498,15 @@ namespace {
 		and the line is not joined again through the symbol (5l-1n), which
 		would leave them a pipe. A strainer or a vent stays.
 	*/
+		/// Whether @p element, removed, leaves @p pipe open on a free end of
+		/// the project (reopenPipesOfRemovedClosures()): a closure, the pipe
+		/// not picked with it, a free end set
+	bool reopens(const Element *element, const Conductor *pipe, const QSet<const Conductor *> &picked)
+	{
+		return element->isClosure() && !picked.contains(pipe)
+				&& PidFreeEnd::symbol(element->diagram()).isElement();
+	}
+
 	void addFreeEndsLeftBySymbols(const DiagramContent &content, QList<Element *> &lonely)
 	{
 		const QList<Element *> &removed = content.m_elements;
@@ -516,6 +525,10 @@ namespace {
 				for (Conductor *pipe : nozzle->conductors())
 				{
 					if (pipe->medium() != TerminalData::Pipe || !gone.contains(pipe)) {
+						continue;
+					}
+						//A closure removed alone: its line stays, open again
+					if (reopens(element, pipe, picked)) {
 						continue;
 					}
 					Terminal *far = pipe->terminal1 == nozzle ? pipe->terminal2 : pipe->terminal1;
@@ -677,7 +690,8 @@ void DeleteQGraphicsItemCommand::reopenPipesOfRemovedClosures()
 			}
 			for (Conductor *pipe : nozzle->conductors())
 			{
-				if (pipe->medium() != TerminalData::Pipe || !gone.contains(pipe) || picked.contains(pipe)) {
+				if (pipe->medium() != TerminalData::Pipe || !gone.contains(pipe)
+					|| !reopens(element, pipe, picked)) {
 					continue;
 				}
 				Terminal *far = pipe->terminal1 == nozzle ? pipe->terminal2 : pipe->terminal1;

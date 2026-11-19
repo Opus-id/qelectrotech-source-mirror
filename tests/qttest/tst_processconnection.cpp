@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "qetapptest.h"
 
+#include "autobreakconductor.h"
+#include "undocommand/addgraphicsobjectcommand.h"
+
 #include "diagram.h"
 #include "diagramcontent.h"
 #include "diagramevent/diagrameventaddpipe.h"
@@ -188,6 +191,46 @@ class tst_processconnection : public QObject
 		return line;
 	}
 
+		// A pipe drawn with the tool from an empty place to another: two
+		// free ends (symbol: the left one, free_end: the right one)
+	Line lineBetweenTwoFreeEnds()
+	{
+		m_next_y += 200;
+		Line line;
+		click(QPointF(0, m_next_y));
+		click(QPointF(200, m_next_y));
+		for (Element *element : m_folio->elements()) {
+			if (!element->isFreeEnd()) continue;
+			const QPointF dock = element->terminals().first()->dockConductor();
+			if (QLineF(dock, QPointF(0, m_next_y)).length() < 0.5) line.symbol = element;
+			if (QLineF(dock, QPointF(200, m_next_y)).length() < 0.5) line.free_end = element;
+		}
+		if (line.symbol && line.free_end && !line.free_end->terminals().first()->conductors().isEmpty()) {
+			line.pipe = line.free_end->terminals().first()->conductors().first();
+		}
+		return line;
+	}
+
+		// A blind flange placed by hand on the free end of @p nozzle, turned
+		// as it, as a double click places a symbol (autoBreakConductors())
+	Element *dropFlange(Terminal *nozzle, int more_turns = 0, const ElementsLocation &symbol = {})
+	{
+		Element *flange = place(symbol.isNull() ? m_flange : symbol, QPointF());
+		if (!flange) return nullptr;
+		Terminal *n1 = terminalOf(flange, TerminalData::Pipe);
+		const int turns = (int(nozzle->orientation()) - int(n1->orientation()) + 4 + more_turns) % 4;
+		flange->setRotation(90.0 * turns);
+		flange->setPos(QPointF());
+		flange->setPos(nozzle->dockConductor() - n1->dockConductor());
+		QList<Conductor *> handled;
+		QSet<Terminal *> used;
+		auto *undo = new QUndoCommand();
+		new AddGraphicsObjectCommand(flange, m_folio, flange->pos(), undo);
+		autoBreakConductors(m_folio, flange, undo, handled, used);
+		m_folio->undoStack().push(undo);
+		return flange;
+	}
+
 		// The blind flange the tool placed whose nozzle is at @p dock
 	Element *toolFlangeAt(const QPointF &dock) const
 	{
@@ -268,7 +311,7 @@ class tst_processconnection : public QObject
 
 	QETProject *m_project = nullptr;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_pipe, m_signal, m_free_end, m_flange;
+	ElementsLocation m_pipe, m_signal, m_free_end, m_flange, m_vessel;
 	qreal m_next_y = 0;
 	QPointer<DiagramEventAddPipe> m_tool;
 
@@ -283,7 +326,18 @@ class tst_processconnection : public QObject
 			m_signal = add("signal.elmt", definition(b, "a4444444-4444-4444-4444-444444444444", "signal"));
 			m_free_end = add("freeend.elmt", freeEndDefinition(c));
 			m_flange = add("blindflange.elmt", blindFlangeDefinition(d));
-			QVERIFY(m_pipe.exist() && m_signal.exist() && m_free_end.exist() && m_flange.exist());
+				// a symbol of the equipment family with one nozzle, facing west
+			QDomDocument e;
+			e.setContent(QStringLiteral(
+				"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+				"pid_family=\"equipment\" width=\"20\" height=\"20\" hotspot_x=\"10\" hotspot_y=\"10\">"
+				"<uuid uuid=\"{a6666666-6666-6666-6666-666666666666}\"/>"
+				"<names><name lang=\"en\">Vessel</name></names><description>"
+				"<terminal name=\"N1\" x=\"0\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
+				"</description></definition>"));
+			m_vessel = add("vessel.elmt", e.documentElement());
+			QVERIFY(m_pipe.exist() && m_signal.exist() && m_free_end.exist() && m_flange.exist()
+					&& m_vessel.exist());
 			m_folio = m_project->addNewDiagram();
 		}
 
@@ -650,6 +704,112 @@ class tst_processconnection : public QObject
 			s1 = terminalOf(line.free_end, TerminalData::Signal);
 			Conductor *dragged = line.signal()->connectTo(s1);
 			QVERIFY(isProcessConnection(dragged));
+		}
+
+			// Bugs found by the user (19/11): a pipe drawn from an empty place
+			// to another (two free ends), a blind flange placed by hand on one
+			// free end (as a double click does), then deleted alone: the line
+			// must stay, open again on a free end
+		void aFlangePlacedOnAFreeEndThenDeletedReopensTheLine()
+		{
+			setFreeEnd(true);
+			const Line line = lineBetweenTwoFreeEnds();
+			QVERIFY(line.pipe);
+			Element *flange = dropFlange(line.free_end->terminals().first());
+			QVERIFY(flange);
+			Terminal *n1 = terminalOf(flange, TerminalData::Pipe);
+			QCOMPARE(n1->conductors().size(), 1);
+			const QPointF dock = n1->dockConductor();
+			Terminal *start = line.symbol->terminals().first();
+
+			removeAsTheUser({flange});
+			QVERIFY(start->scene());
+			QCOMPARE(start->conductors().size(), 1);
+			Element *free_end = freeEndAt(dock);
+			QVERIFY(free_end);
+			QVERIFY(start->isLinkedTo(free_end->terminals().first()));
+		}
+
+			// The same line closed at both ends: one pipe between two flanges
+		void aLineClosedAtBothEnds()
+		{
+			setFreeEnd(true);
+			const Line line = lineBetweenTwoFreeEnds();
+			QVERIFY(line.pipe);
+			Terminal *a = line.symbol->terminals().first();
+			Element *right = dropFlange(line.free_end->terminals().first());
+			QVERIFY(right);
+			Element *left = dropFlange(a);
+			QVERIFY(left);
+			Terminal *left_n1 = terminalOf(left, TerminalData::Pipe);
+			Terminal *right_n1 = terminalOf(right, TerminalData::Pipe);
+			QCOMPARE(left_n1->conductors().size(), 1);
+			QVERIFY(left_n1->isLinkedTo(right_n1));
+		}
+
+			// A flange dropped on a free end facing the other way (not turned
+			// before the double click) turns and takes the line on; one undo
+			// step puts it back as it was dropped
+		void aFlangeFacingAwayTurnsOntoTheFreeEnd()
+		{
+			setFreeEnd(true);
+			const Line line = lineBetweenTwoFreeEnds();
+			QVERIFY(line.pipe);
+			Terminal *a = line.symbol->terminals().first();
+			Terminal *b = line.free_end->terminals().first();
+			Element *right = dropFlange(b);
+			QVERIFY(right);
+			Terminal *right_n1 = terminalOf(right, TerminalData::Pipe);
+				// the left end faces east: a flange facing west there
+			const QPointF dock = a->dockConductor();
+			const int steps = m_folio->undoStack().index();
+			Element *left = dropFlange(a, 2);
+			QVERIFY(left);
+			Terminal *left_n1 = terminalOf(left, TerminalData::Pipe);
+			QCOMPARE(left_n1->orientation(), Qet::East);
+			QVERIFY(QLineF(left_n1->dockConductor(), dock).length() < 0.01);
+			QVERIFY(left_n1->isLinkedTo(right_n1));
+			QVERIFY(!a->parentElement()->scene());
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+			m_folio->undoStack().undo();
+			QCOMPARE(left_n1->orientation(), Qet::West);
+			QVERIFY(a->isLinkedTo(right_n1));
+		}
+
+			// A flange dropped on a free nozzle of a symbol, facing away:
+			// it turns to face it, the two touching, no pipe
+		void aFlangeTurnsToFaceAFreeNozzle()
+		{
+			m_next_y += 200;
+			Element *symbol = place(m_pipe, QPointF(0, m_next_y));
+			QVERIFY(symbol);
+			Terminal *n2 = symbol->terminals().at(1);
+				// N2 faces east: a flange facing east there, turned to west
+			Element *flange = dropFlange(n2, 2);
+			QVERIFY(flange);
+			Terminal *n1 = terminalOf(flange, TerminalData::Pipe);
+			QCOMPARE(n1->orientation(), Qet::West);
+			QVERIFY(QLineF(n1->dockConductor(), n2->dockConductor()).length() < 0.01);
+			QCOMPARE(n1->conductors().size(), 0);
+			QCOMPARE(n2->conductors().size(), 0);
+		}
+
+			// A symbol of another family with one nozzle, facing away from the
+			// free end it is dropped on, is not turned: the line is never lost
+		void aSymbolFacingAwayNeverLosesTheLine()
+		{
+			setFreeEnd(true);
+			const Line line = lineBetweenTwoFreeEnds();
+			QVERIFY(line.pipe);
+			Terminal *a = line.symbol->terminals().first();
+			Terminal *b = line.free_end->terminals().first();
+			Element *right = dropFlange(b);
+			QVERIFY(right);
+			Terminal *right_n1 = terminalOf(right, TerminalData::Pipe);
+			Element *vessel = dropFlange(a, 2, m_vessel);
+			QVERIFY(vessel);
+			QCOMPARE(terminalOf(vessel, TerminalData::Pipe)->orientation(), Qet::West);
+			QVERIFY(a->isLinkedTo(right_n1));
 		}
 
 			// The mark of the flange placed by the tool, saved only when set
