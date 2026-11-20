@@ -371,7 +371,9 @@ class tst_conductormedium : public QObject
 			pipe->setProperties(wireFields());
 			checkNoWireFields(pipe->properties());
 			QCOMPARE(pipe->properties().color, QColor(Qt::blue));
-			QCOMPARE(pipe->properties().text, QStringLiteral("W01"));
+				//Its text is its designation, which the model of the lines
+				//makes: none in this project (step 7b)
+			QVERIFY(pipe->properties().text.isEmpty());
 			QCOMPARE(pipe->properties().cond_size, 2.0);
 			QCOMPARE(pipe->medium(), TerminalData::Pipe);
 
@@ -386,7 +388,8 @@ class tst_conductormedium : public QObject
 				// a wire turned into a pipe loses them
 			wire->setMedium(TerminalData::Pipe);
 			checkNoWireFields(wire->properties());
-			QCOMPARE(wire->properties().text, QStringLiteral("W01"));
+				//and its wire number: its text is now its designation
+			QVERIFY(wire->properties().text.isEmpty());
 		}
 
 			// A cable is made of wires: a pipe is never one of its cores

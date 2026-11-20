@@ -7,6 +7,7 @@
 #include "diagram.h"
 #include "duplicatelabels.h"
 #include "factory/elementfactory.h"
+#include "pidcodification.h"
 #include "qetapptest.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
@@ -67,13 +68,24 @@ class tst_mediumguards : public QObject
 	}
 
 		//A conductor from @p from to @p to, with the text @p text; its medium
-		//is the one of @p from
+		//is the one of @p from. The text of a pipe is its designation: there
+		//its line number, written by the model "{line_number}" (step 7b)
 	static Conductor *draw(Terminal *from, Terminal *to, const QString &text)
 	{
 		auto *c = new Conductor(from, to);
 		from->diagram()->addItem(c);
 		auto p = c->properties();
-		p.text = text;
+		if (c->medium() == TerminalData::Pipe) {
+			QETProject *project = from->diagram()->project();
+			PidCodification codes = project->pidCodification();
+			if (codes.tag_models.value(QStringLiteral("line")).isEmpty()) {
+				codes.tag_models.insert(QStringLiteral("line"), QStringLiteral("{line_number}"));
+				project->setPidCodification(codes);
+			}
+			p.m_pipe.line_number = text;
+		} else {
+			p.text = text;
+		}
 		c->setProperties(p);
 		return c;
 	}
