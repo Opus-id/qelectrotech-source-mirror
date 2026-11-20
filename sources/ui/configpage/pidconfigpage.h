@@ -204,6 +204,9 @@ class PidConfigPage : public ProjectConfigPage
 			/// Whether a DN under a nozzle is written "DN 100" or "100"
 		QCheckBox *m_nozzle_dn_prefix = nullptr;
 		QComboBox *m_decimal = nullptr;
+			/// How the vertical texts of the P&ID symbols read
+			/// (PidCodification::vertical_texts)
+		QComboBox *m_vertical_texts = nullptr;
 
 		QTabWidget *m_code_tabs = nullptr;
 		QMap<PidCodification::List, QTableWidget *> m_code_tables;

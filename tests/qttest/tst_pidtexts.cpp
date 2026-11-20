@@ -17,6 +17,7 @@
 #include "undocommand/changepidcodificationcommand.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDomDocument>
 #include <QImage>
 #include <QPainter>
@@ -341,6 +342,7 @@ class tst_pidtexts : public QObject
 			c.text_sizes.insert("equipment", 11);
 			c.label_color = QColor(0x80, 0, 0);
 			c.colored_designations = true;
+			c.vertical_texts = PidCodification::VerticalTexts::AsTurned;
 			c.nozzle_texts_on_paper = false;
 			{
 				QETProject project;
@@ -745,6 +747,67 @@ class tst_pidtexts : public QObject
 				e->setVerticalMirror(false);
 				e->setRotation(0);
 			}
+		}
+
+			// Step 7k-quater: the project may say how the vertical texts of
+			// its P&ID symbols read, before the setting of the computer
+		void theReadingOfTheProjectComesFirst()
+		{
+			int skipped = -1;
+			const PidCodification read = PidCodification::fromCsv(QStringLiteral(
+				"text_option;vertical_texts;as_turned\n"
+				"text_option;vertical_texts;sideways\n"), &skipped);
+			QCOMPARE(skipped, 1);
+			QCOMPARE(read.vertical_texts, PidCodification::VerticalTexts::AsTurned);
+			QVERIFY(read.hasTextSettings());
+			QCOMPARE(PidCodification::fromCsv(read.presentationToCsv()).vertical_texts,
+					 PidCodification::VerticalTexts::AsTurned);
+
+			const bool was_from_bottom = DynamicElementTextItem::verticalFromBottom();
+			DynamicElementTextItem::setVerticalFromBottom(true);
+			m_project.setUprightSymbolTexts(false);
+			auto restore = qScopeGuard([&]() {
+				DynamicElementTextItem::setVerticalFromBottom(was_from_bottom);
+				m_project.setUprightSymbolTexts(true);
+			});
+			auto readAt = [](const QGraphicsItem *item) {
+				const QTransform t = item->sceneTransform();
+				return qRound(qRadiansToDegrees(qAtan2(t.m12(), t.m11())) + 360) % 360;
+			};
+			Element *valve = place(m_turnable);
+			Element *wired = place(m_turnable_wired);
+			QVERIFY(valve && wired);
+			valve->setRotation(90);
+			DynamicElementTextItem *label = valve->labelTexts().first();
+			Terminal *west = valve->terminals().first();
+			QCOMPARE(readAt(label), 270);
+
+			PidCodification c;
+			c.vertical_texts = PidCodification::VerticalTexts::AsTurned;
+			setCodification(c);
+			QVERIFY(!valve->readsVerticalFromBottom());
+			QCOMPARE(readAt(label), 90);
+			QCOMPARE(west->nozzleLabelsFor(QSizeF(20, 10), QSizeF()).rotation, 90.0);
+				//An electrical symbol keeps the setting of the computer
+			QVERIFY(wired->readsVerticalFromBottom());
+
+			DynamicElementTextItem::setVerticalFromBottom(false);
+			c.vertical_texts = PidCodification::VerticalTexts::FromBottom;
+			setCodification(c);
+			QCOMPARE(readAt(label), 270);
+			QCOMPARE(west->nozzleLabelsFor(QSizeF(20, 10), QSizeF()).rotation, -90.0);
+
+				//The page
+			PidConfigPage page(&m_project);
+			auto *list = page.findChild<QComboBox *>(QStringLiteral("vertical_texts"));
+			QVERIFY(list);
+			QCOMPARE(list->currentData().toInt(), int(PidCodification::VerticalTexts::FromBottom));
+			list->setCurrentIndex(list->findData(int(PidCodification::VerticalTexts::Computer)));
+			emit list->activated(list->currentIndex());
+			page.applyProjectConf();
+			QCOMPARE(m_project.pidCodification().vertical_texts, PidCodification::VerticalTexts::Computer);
+			QCOMPARE(readAt(label), 90);
+			valve->setRotation(0);
 		}
 
 		void theTextsOfABubbleArePartsOfTheLabel()

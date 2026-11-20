@@ -1345,6 +1345,22 @@ QTransform Element::labelBesideLine(const DynamicElementTextItem *text) const
 */
 bool Element::readsVerticalFromBottom() const
 {
+		//A P&ID symbol (a family, or a terminal not electrical): its project
+		//may say it, so that it looks the same on every computer
+	const QList<Terminal *> &terminals = m_terminals;
+	const bool pid = !m_data.m_pid_family.isEmpty()
+			|| std::any_of(terminals.cbegin(), terminals.cend(), [](const Terminal *t) {
+				   return t->medium() != TerminalData::Electrical;
+			   });
+	const Diagram *folio = diagram();
+	const QETProject *project = folio ? folio->project() : m_location.project();
+	if (pid && project) {
+		switch (project->pidCodification().vertical_texts) {
+			case PidCodification::VerticalTexts::FromBottom: return true;
+			case PidCodification::VerticalTexts::AsTurned: return false;
+			default: break;
+		}
+	}
 	return DynamicElementTextItem::verticalFromBottom();
 }
 

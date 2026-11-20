@@ -14097,6 +14097,31 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Couleur des désignations :</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>As set on each computer</source>
+        <translation>Comme le réglage de chaque poste</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>Read from the bottom</source>
+        <translation>Se lisent de bas en haut</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>Read as the symbol is turned</source>
+        <translation>Se lisent comme le symbole est tourné</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>The labels, bubbles and nozzles of a turned P&amp;ID symbol, when the project does not keep its texts horizontal. Set here, the project looks the same on every computer; else each one follows its own setting (Settings &gt; Appearance).</source>
+        <translation>Les repères, bulles et piquages d&apos;un symbole P&amp;ID pivoté, quand le projet ne garde pas ses textes horizontaux. Réglé ici, le projet s&apos;affiche de la même façon sur tous les postes ; sinon chacun suit son propre réglage (Configurer QElectroTech &gt; Apparence).</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>Vertical texts of the P&amp;ID symbols:</source>
+        <translation>Textes verticaux des symboles P&amp;ID :</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="519"/>
         <source>Default size</source>
         <translation>Taille par défaut</translation>

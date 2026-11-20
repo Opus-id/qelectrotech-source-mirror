@@ -647,6 +647,16 @@ void PidConfigPage::initWidgets()
 	m_decimal->setToolTip(wrapped(tr("How the tenths of the sizes are written in this project, whatever the "
 							 "computer which opens it; a file always keeps a point.")));
 	connect(m_decimal, &QComboBox::activated, this, &PidConfigPage::readTextWidgets);
+	m_vertical_texts = new QComboBox(this);
+	m_vertical_texts->setObjectName(QStringLiteral("vertical_texts"));
+	m_vertical_texts->addItem(tr("As set on each computer"), int(PidCodification::VerticalTexts::Computer));
+	m_vertical_texts->addItem(tr("Read from the bottom"), int(PidCodification::VerticalTexts::FromBottom));
+	m_vertical_texts->addItem(tr("Read as the symbol is turned"), int(PidCodification::VerticalTexts::AsTurned));
+	m_vertical_texts->setToolTip(wrapped(tr("The labels, bubbles and nozzles of a turned P&ID symbol, when the "
+									"project does not keep its texts horizontal. Set here, the project "
+									"looks the same on every computer; else each one follows its own "
+									"setting (Settings > Appearance).")));
+	connect(m_vertical_texts, &QComboBox::activated, this, &PidConfigPage::readTextWidgets);
 
 	for (PipeConnection::Type type : PipeConnection::all())
 	{
@@ -792,6 +802,10 @@ void PidConfigPage::initLayout()
 	decimal_row->addStretch(1);
 	auto *decimal = new QFormLayout();
 	decimal->addRow(tr("Decimal separator of the sizes:"), decimal_row);
+	auto *vertical_row = new QHBoxLayout();
+	vertical_row->addWidget(m_vertical_texts);
+	vertical_row->addStretch(1);
+	decimal->addRow(tr("Vertical texts of the P&ID symbols:"), vertical_row);
 	texts_layout->addLayout(decimal);
 
 		//The models, each with its example under it
@@ -1064,6 +1078,8 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 		//Not set yet: that of the language, which the project will keep
 	const QSignalBlocker decimal_blocker(m_decimal);
 	m_decimal->setCurrentIndex(m_decimal->findData(int(codification.effectiveDecimal())));
+	const QSignalBlocker vertical_blocker(m_vertical_texts);
+	m_vertical_texts->setCurrentIndex(m_vertical_texts->findData(int(codification.vertical_texts)));
 	for (auto it = m_drawn_connections.cbegin() ; it != m_drawn_connections.cend() ; ++it) {
 		const QSignalBlocker blocker(it.value());
 		it.value()->setChecked(codification.drawsConnection(it.key()));
@@ -1290,6 +1306,7 @@ void PidConfigPage::adjustReadOnly()
 	m_show_nozzle_sizes->setEnabled(!read_only);
 	m_nozzle_dn_prefix->setEnabled(!read_only && m_show_nozzle_sizes->isChecked());
 	m_decimal->setEnabled(!read_only);
+	m_vertical_texts->setEnabled(!read_only);
 	m_import->setEnabled(!read_only);
 	m_table->setEnabled(!read_only);
 	m_choose->setEnabled(!read_only);
@@ -1374,6 +1391,7 @@ void PidConfigPage::readTextWidgets()
 	m_codification.nozzle_texts_on_paper = m_nozzle_texts_on_paper->isChecked();
 	m_codification.show_nozzle_sizes = m_show_nozzle_sizes->isChecked();
 	m_codification.nozzle_dn_prefix = m_nozzle_dn_prefix->isChecked();
+	m_codification.vertical_texts = PidCodification::VerticalTexts(m_vertical_texts->currentData().toInt());
 		//Set only when it is chosen: else it waits to be fixed with codes
 	const auto decimal = PidCodification::Decimal(m_decimal->currentData().toInt());
 	if (decimal != m_codification.effectiveDecimal()) {

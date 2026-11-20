@@ -324,6 +324,19 @@ class PidCodification
 			}
 			return designations ? designation_color : label_color;
 		}
+			/// How the vertical texts of the P&ID symbols (their labels,
+			/// their bubbles, their nozzles) read when they turn with their
+			/// symbol: as the computer says
+			/// (DynamicElementTextItem::verticalFromBottom()), from the
+			/// bottom, or as turned (from the top on a symbol turned a
+			/// quarter clockwise). A project so looks the same on every
+			/// computer. Written only when set.
+		enum class VerticalTexts {
+			Computer,
+			FromBottom,
+			AsTurned
+		};
+		VerticalTexts vertical_texts = VerticalTexts::Computer;
 			/// The names and diameters of the nozzles are printed and
 			/// exported, whatever is asked for the names of the terminals
 		bool nozzle_texts_on_paper = true;
@@ -454,7 +467,8 @@ class PidCodification
 		}
 		bool hasTextSettings() const {
 			return !text_sizes.isEmpty() || colored_labels || label_color.isValid()
-					|| colored_designations || designation_color.isValid() || !nozzle_texts_on_paper
+					|| colored_designations || designation_color.isValid()
+					|| vertical_texts != VerticalTexts::Computer || !nozzle_texts_on_paper
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
 					|| parallel_numbering
 					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty()
@@ -521,7 +535,9 @@ class PidCodification
 			/// colouring the labels and the designations), of the lines
 			/// "text_option;label_ink;object" and
 			/// "text_option;designation_ink;#0000ff" (the colour of their
-			/// object, "objet", or a fixed colour), or of the line
+			/// object, "objet", or a fixed colour), of the line
+			/// "text_option;vertical_texts;from_bottom" (or "as_turned",
+			/// vertical_texts), or of the line
 			/// "text_option;drawn_connections;flange butt_weld" (the words
 			/// of PipeConnection, a word not known being left out), and of lines
 			/// "tool_symbol;free_end;custom://folder/symbol.elmt" ("symbole_outil",

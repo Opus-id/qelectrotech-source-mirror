@@ -33,6 +33,31 @@ namespace
 	const QString label_ink_word = QStringLiteral("label_ink");
 	const QString designation_ink_word = QStringLiteral("designation_ink");
 	const QString object_word = QStringLiteral("object");
+	const QString vertical_texts_word = QStringLiteral("vertical_texts");
+
+		/// The word of a way of reading vertical texts, empty for that of
+		/// the computer
+	QString verticalTextsToString(PidCodification::VerticalTexts v)
+	{
+		switch (v) {
+			case PidCodification::VerticalTexts::FromBottom: return QStringLiteral("from_bottom");
+			case PidCodification::VerticalTexts::AsTurned: return QStringLiteral("as_turned");
+			default: return QString();
+		}
+	}
+
+		/// Reads it; false, nothing changed, for another word
+	bool verticalTextsFromString(const QString &word, PidCodification::VerticalTexts &v)
+	{
+		for (auto known : {PidCodification::VerticalTexts::FromBottom,
+						   PidCodification::VerticalTexts::AsTurned}) {
+			if (word.trimmed().toLower() == verticalTextsToString(known)) {
+				v = known;
+				return true;
+			}
+		}
+		return false;
+	}
 	const QString nozzle_texts_word = QStringLiteral("nozzle_texts_on_paper");
 	const QString nozzle_sizes_word = QStringLiteral("show_nozzle_sizes");
 	const QString dn_prefix_word = QStringLiteral("nozzle_dn_prefix");
@@ -1235,6 +1260,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.label_color = other.label_color;
 		result.colored_designations = other.colored_designations;
 		result.designation_color = other.designation_color;
+		result.vertical_texts = other.vertical_texts;
 		result.nozzle_texts_on_paper = other.nozzle_texts_on_paper;
 		result.show_nozzle_sizes = other.show_nozzle_sizes;
 		result.nozzle_dn_prefix = other.nozzle_dn_prefix;
@@ -1304,6 +1330,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	const QString designation_ink = inkToText(colored_designations, designation_color);
 	if (!designation_ink.isEmpty()) {
 		block.setAttribute(designation_ink_word, designation_ink);
+	}
+	if (vertical_texts != VerticalTexts::Computer) {
+		block.setAttribute(vertical_texts_word, verticalTextsToString(vertical_texts));
 	}
 	if (!nozzle_texts_on_paper) {
 		block.setAttribute(nozzle_texts_word, QStringLiteral("false"));
@@ -1413,6 +1442,8 @@ void PidCodification::fromXml(const QDomElement &parent)
 	designation_color = QColor();
 	inkFromText(block.attribute(label_ink_word), colored_labels, label_color);
 	inkFromText(block.attribute(designation_ink_word), colored_designations, designation_color);
+	vertical_texts = VerticalTexts::Computer;
+	verticalTextsFromString(block.attribute(vertical_texts_word), vertical_texts);
 	nozzle_texts_on_paper = block.attribute(nozzle_texts_word) != QLatin1String("false");
 	show_nozzle_sizes = block.attribute(nozzle_sizes_word) != QLatin1String("false");
 	nozzle_dn_prefix = block.attribute(dn_prefix_word) != QLatin1String("false");
@@ -1485,6 +1516,10 @@ QString PidCodification::presentationToCsv() const
 	if (!designation_ink.isEmpty()) {
 		text += QStringLiteral("text_option;") + designation_ink_word + QLatin1Char(';')
 				+ designation_ink + QLatin1Char('\n');
+	}
+	if (vertical_texts != VerticalTexts::Computer) {
+		text += QStringLiteral("text_option;") + vertical_texts_word + QLatin1Char(';')
+				+ verticalTextsToString(vertical_texts) + QLatin1Char('\n');
 	}
 	if (!nozzle_texts_on_paper) {
 		text += QStringLiteral("text_option;") + nozzle_texts_word + QStringLiteral(";false\n");
@@ -1702,6 +1737,10 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 				}
 			} else if (fields.value(1) == label_ink_word) {
 				if (!inkFromText(value, codification.colored_labels, codification.label_color)) {
+					++left_out;
+				}
+			} else if (fields.value(1) == vertical_texts_word) {
+				if (!verticalTextsFromString(value, codification.vertical_texts)) {
 					++left_out;
 				}
 			} else if (fields.value(1) == designation_ink_word) {
@@ -1932,6 +1971,7 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& label_color == other.label_color
 			&& colored_designations == other.colored_designations
 			&& designation_color == other.designation_color
+			&& vertical_texts == other.vertical_texts
 			&& nozzle_texts_on_paper == other.nozzle_texts_on_paper
 			&& show_nozzle_sizes == other.show_nozzle_sizes
 			&& nozzle_dn_prefix == other.nozzle_dn_prefix

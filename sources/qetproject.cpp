@@ -4852,11 +4852,14 @@ void QETProject::setPidCodification(const PidCodification &codification)
 		return;
 	}
 		//The texts of the nozzles take another room: another size, their
-		//sizes shown or not, "DN 100" or "100"
+		//sizes shown or not, "DN 100" or "100", or another way of reading
+		//when vertical
+	const bool reading = codification.vertical_texts != m_pid_codification.vertical_texts;
 	if (codification.text_sizes.value(PidCodification::nozzleTexts())
 			!= m_pid_codification.text_sizes.value(PidCodification::nozzleTexts())
 		|| codification.show_nozzle_sizes != m_pid_codification.show_nozzle_sizes
-		|| codification.nozzle_dn_prefix != m_pid_codification.nozzle_dn_prefix)
+		|| codification.nozzle_dn_prefix != m_pid_codification.nozzle_dn_prefix
+		|| reading)
 	{
 		for (Diagram *folio : std::as_const(m_diagrams_list)) {
 			for (Element *element : folio->elements()) {
@@ -4894,6 +4897,15 @@ void QETProject::setPidCodification(const PidCodification &codification)
 					//and what its table of diameters says of its nozzles
 				for (Terminal *terminal : element->terminals()) {
 					terminal->updateDiameterToolTip();
+				}
+					//and the way its vertical texts read
+				if (reading) {
+					for (DynamicElementTextItem *text : element->dynamicTextItems()) {
+						element->keepReadable(text);
+					}
+					for (Terminal *terminal : element->terminals()) {
+						terminal->updateLabelPlace();
+					}
 				}
 			}
 				//and the designation of a pipe: its model, its size, its colour
