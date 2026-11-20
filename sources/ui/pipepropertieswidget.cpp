@@ -21,6 +21,7 @@
 #include "../conductorproperties.h"
 #include "../diagram.h"
 #include "../pidcodification.h"
+#include "../pidlinedesignation.h"
 #include "../pidsection.h"
 #include "../pidstatus.h"
 #include "../pidtooltip.h"
@@ -292,6 +293,17 @@ void PipePropertiesWidget::buildUi()
 	addTextField(QStringLiteral("nominal_pressure"), tr("Nominal pressure:"),
 				 [](const PipeProperties &p) { return p.nominal_pressure; },
 				 [](PipeProperties &p, const QString &t) { p.nominal_pressure = t; }, Reach::Spec);
+
+		//The designation written along the pipe, which the model of the
+		//project makes of these data: on the pipes one chooses, none by
+		//default (step 7b)
+	m_show_designation = new QCheckBox(tr("Show the designation on the folio"), this);
+	m_show_designation->setObjectName(QStringLiteral("show_designation"));
+	layout->addRow(QString(), m_show_designation);
+	connect(m_show_designation, &QCheckBox::clicked, this, [this]() {
+		const bool shown = m_show_designation->checkState() != Qt::Unchecked;
+		applyPropertiesChange([shown](ConductorProperties &p) { p.m_show_text = shown; });
+	});
 
 	layout->addRow(PidSection::title(tr("Drawing", "section of the page of a pipe"), this));
 	m_kind = new QComboBox(this);
@@ -1263,6 +1275,18 @@ QString PipePropertiesWidget::lineNote(const std::function<QString(const PipePro
 void PipePropertiesWidget::applyChange(const std::function<void(PipeProperties &)> &change,
 									   Reach reach, QUndoCommand *parent)
 {
+	applyPropertiesChange([&change](ConductorProperties &properties) { change(properties.m_pipe); },
+						  reach, parent);
+}
+
+/**
+	@brief PipePropertiesWidget::applyPropertiesChange
+	See applyChange(): @p change is done to the properties of the pipes as
+	conductors
+*/
+void PipePropertiesWidget::applyPropertiesChange(const std::function<void(ConductorProperties &)> &change,
+												 Reach reach, QUndoCommand *parent)
+{
 	const QList<Conductor *> changed = changedPipes(reach);
 	auto *undo = parent ? parent : new QUndoCommand(tr("Change the properties of a pipe line"));
 	Diagram *diagram = nullptr;
@@ -1292,7 +1316,7 @@ void PipePropertiesWidget::applyChange(const std::function<void(PipeProperties &
 	for (Conductor *pipe : changed)
 	{
 		ConductorProperties properties = pipe->properties();
-		change(properties.m_pipe);
+		change(properties);
 		if (properties == pipe->properties()) {
 			continue;
 		}
@@ -1441,6 +1465,25 @@ void PipePropertiesWidget::updateUi()
 			m_status->setCurrentIndex(i);
 		}
 	}
+
+		//Shown on some of them only: half checked, and a click shows it on all
+	int designations = 0;
+	for (Conductor *pipe : list) {
+		if (pipe->properties().m_show_text) {
+			++designations;
+		}
+	}
+	const QSignalBlocker designation_blocker(m_show_designation);
+	const bool mixed = designations && designations < list.size();
+	m_show_designation->setTristate(mixed);
+	m_show_designation->setCheckState(mixed ? Qt::PartiallyChecked
+											: designations ? Qt::Checked : Qt::Unchecked);
+	const bool model = !codes.tag_models.value(PidLineDesignation::modelKey()).trimmed().isEmpty();
+	m_show_designation->setToolTip(PidToolTip::wrapped(
+		model ? tr("The designation is written after the model of the project: %1")
+				.arg(codes.tag_models.value(PidLineDesignation::modelKey()))
+			  : tr("The project has no model of designation: nothing is written. The model is "
+				   "a line of the presentation of the project, as tag_model;line;{fluid} {size}.")));
 
 	showColor();
 }

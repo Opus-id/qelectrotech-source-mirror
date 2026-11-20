@@ -1110,7 +1110,7 @@ QStringList PidCodification::statuses()
 QStringList PidCodification::textCategories()
 {
 	return {QStringLiteral("equipment"), QStringLiteral("valve"),
-			QStringLiteral("instrument"), nozzleTexts()};
+			QStringLiteral("instrument"), nozzleTexts(), QStringLiteral("line")};
 }
 
 /**

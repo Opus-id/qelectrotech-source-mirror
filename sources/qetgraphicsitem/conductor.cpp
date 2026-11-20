@@ -41,12 +41,14 @@
 #include <utils/qetutils.h>
 #include <wirehops.h>
 #include <pidtooltip.h>
+#include <pidlinedesignation.h>
 
 #include <QApplication>
 #include <QMultiHash>
 #include <QtDebug>
 
 #include <algorithm>
+#include <limits>
 
 namespace {
 		//Bumped whenever a conductor changes shape, moves, or enters or
@@ -1720,6 +1722,10 @@ QVariant Conductor::itemChange(GraphicsItemChange change, const QVariant &value)
 	}
 	else if (change == QGraphicsItem::ItemSceneHasChanged)
 	{
+			//A pipe given its properties before it was on a folio (a piece
+			//of a pipe cut by a symbol) takes the look of its project now
+		if (scene())
+			updateDesignationLook();
 		conductorGeometryChanged();
 		calculateTextItemPosition();
 
@@ -2526,7 +2532,108 @@ void Conductor::updateTextVisibility()
 						   m_properties.type == ConductorProperties::Multi
 						   && m_properties.m_show_text
 						   && !hidesPlaceholder()
-						   && !markReplacesText());
+						   && !markReplacesText()
+							   //a pipe without a designation (no model)
+						   && !(m_properties.m_medium == TerminalData::Pipe
+								&& m_properties.text.isEmpty()));
+}
+
+/**
+	@brief Conductor::updateDesignationLook
+	The text of a pipe, its designation, takes the size the project gives
+	the designations of the lines (else that of the text of a conductor) and,
+	when the project colours the labels, the colour of the pipe. It is never
+	typed: the model of the project makes it.
+*/
+void Conductor::updateDesignationLook()
+{
+	if (m_properties.m_medium != TerminalData::Pipe || !m_text_item) {
+		return;
+	}
+	const QETProject *project = diagram() ? diagram()->project() : nullptr;
+	const PidCodification codification = project ? project->pidCodification() : PidCodification();
+	QFont font = m_text_item->font();
+	const int size = codification.text_sizes.value(PidLineDesignation::modelKey());
+	font.setPointSize(size > 0 ? size : m_properties.text_size);
+	m_text_item->setFont(font);
+	const QColor ink = codification.colored_labels ? pipeColor() : QColor();
+	m_text_item->setColor(ink.isValid() ? ink : m_properties.text_color);
+	m_text_item->setNoEditable(true);
+}
+
+/**
+	@brief Conductor::keepOneDesignation
+	Of the pieces of the pipe @a whole cut by a symbol, only one which shows
+	its designation keeps showing it: it is written once. The longest one; or,
+	when the designation of @a whole was moved by hand, the piece nearest to
+	it, which takes it where it was (and as it was turned).
+*/
+void Conductor::keepOneDesignation(const QList<Conductor *> &pieces, const Conductor *whole)
+{
+	const bool moved = whole && whole->m_text_item && whole->m_text_item->wasMovedByUser();
+	const QPointF text_centre = moved
+			? whole->m_text_item->mapToScene(whole->m_text_item->boundingRect().center())
+			: QPointF();
+		//The distance from the designation where it was to a piece
+	auto distance = [&text_centre](const Conductor *piece) {
+		const QList<QPointF> points = piece->segmentsToPoints();
+		qreal best = std::numeric_limits<qreal>::max();
+		for (int i = 0 ; i + 1 < points.size() ; ++i) {
+			const QPointF a = piece->mapToScene(points.at(i));
+			const QPointF b = piece->mapToScene(points.at(i + 1));
+			const QPointF along = b - a;
+			const qreal length2 = QPointF::dotProduct(along, along);
+			const qreal t = length2 > 0
+					? qBound(0.0, QPointF::dotProduct(text_centre - a, along) / length2, 1.0)
+					: 0.0;
+			best = qMin(best, QLineF(text_centre, a + t * along).length());
+		}
+		return best;
+	};
+
+	Conductor *kept = nullptr;
+	for (Conductor *piece : pieces) {
+		if (piece && piece->m_properties.m_medium == TerminalData::Pipe
+			&& piece->m_properties.m_show_text
+			&& (!kept || (moved ? distance(piece) < distance(kept)
+								: piece->length() > kept->length()))) {
+			kept = piece;
+		}
+	}
+	if (!kept) {
+		return;
+	}
+	if (moved && kept->m_text_item) {
+		kept->m_text_item->setRotation(whole->m_text_item->rotation());
+		kept->m_text_item->forceRotateByUser(whole->m_text_item->wasRotatedByUser());
+		kept->m_text_item->setPos(kept->mapFromScene(whole->m_text_item->scenePos()));
+		kept->m_text_item->forceMovedByUser(true);
+	}
+	for (Conductor *piece : pieces) {
+		if (piece && piece != kept && piece->m_properties.m_medium == TerminalData::Pipe
+			&& piece->m_properties.m_show_text) {
+			ConductorProperties properties = piece->m_properties;
+			properties.m_show_text = false;
+			piece->setProperties(properties);
+		}
+	}
+}
+
+/**
+	@brief Conductor::refreshDesignation
+	Write the designation of this pipe again and give it its look, after a
+	change of the codification of its project (its model, the size of its
+	text, its colours). Nothing for a wire or a signal line.
+*/
+void Conductor::refreshDesignation()
+{
+	if (m_properties.m_medium != TerminalData::Pipe) {
+		return;
+	}
+	setProperties(m_properties);
+	updateDesignationLook();
+	updateTextVisibility();
+	calculateTextItemPosition();
 }
 
 /**
@@ -2605,11 +2712,22 @@ void Conductor::calculateTextItemPosition()
 			//Position and rotation of text is calculated.
 		Qt::Orientations rotation;
 		QPointF text_pos = posForText(rotation);
+			//The designation of a pipe stands above a horizontal pipe and on
+			//the left of a vertical one, read from the bottom, whatever the
+			//texts of the conductors of the folio do
+		const bool pipe = m_properties.m_medium == TerminalData::Pipe;
+		const Qt::Alignment horizontal_alignment = pipe ? Qt::AlignTop
+														: m_properties.m_horizontal_alignment;
+		const Qt::Alignment vertical_alignment = pipe ? Qt::AlignLeft
+													  : m_properties.m_vertical_alignment;
 
 		if (!m_text_item -> wasRotatedByUser())
 		{
-			rotation == Qt::Vertical ? m_text_item -> setRotation(m_properties.verti_rotate_text):
-									   m_text_item -> setRotation(m_properties.horiz_rotate_text);
+			if (pipe)
+				m_text_item -> setRotation(rotation == Qt::Vertical ? 270 : 0);
+			else
+				rotation == Qt::Vertical ? m_text_item -> setRotation(m_properties.verti_rotate_text):
+										   m_text_item -> setRotation(m_properties.horiz_rotate_text);
 		}
 
 			//Adjust the position of text if his rotation
@@ -2617,13 +2735,13 @@ void Conductor::calculateTextItemPosition()
 		if (m_text_item -> rotation() == 0)
 		{
 			text_pos.rx() -= m_text_item -> boundingRect().width()/2;
-			if(m_properties.m_horizontal_alignment == Qt::AlignTop)
+			if(horizontal_alignment == Qt::AlignTop)
 				text_pos.ry() -= m_text_item->boundingRect().height();
 		}
 		else if (m_text_item -> rotation() == 270)
 		{
 			text_pos.ry() += m_text_item -> boundingRect().width()/2;
-			if(m_properties.m_vertical_alignment == Qt::AlignLeft)
+			if(vertical_alignment == Qt::AlignLeft)
 				text_pos.rx() -= m_text_item->boundingRect().height();
 		}
 
@@ -2634,18 +2752,18 @@ void Conductor::calculateTextItemPosition()
 		{
 			if(rotation == Qt::Vertical)
 			{
-				if(m_properties.m_vertical_alignment == Qt::AlignRight)
+				if(vertical_alignment == Qt::AlignRight)
 					m_text_item->setX(m_text_item->x()+1);
-				else if (m_properties.m_vertical_alignment == Qt::AlignLeft)
+				else if (vertical_alignment == Qt::AlignLeft)
 					m_text_item->setX(m_text_item->x()-1);
 				else
 					return; //avoid infinite loop
 			}
 			else if (rotation == Qt::Horizontal)
 			{
-				if(m_properties.m_horizontal_alignment == Qt::AlignTop)
+				if(horizontal_alignment == Qt::AlignTop)
 					m_text_item->setY(m_text_item->y()-1);
-				else if (m_properties.m_horizontal_alignment == Qt::AlignBottom)
+				else if (horizontal_alignment == Qt::AlignBottom)
 					m_text_item->setY(m_text_item->y()+1);
 				else
 					return; //avoid infinite loop
@@ -2913,6 +3031,15 @@ void Conductor::setProperties(const ConductorProperties &properties)
 		//and only a signal line the data of a signal line
 	if (property.m_medium != TerminalData::Signal)
 		property.m_signal = SignalProperties();
+		//The text of a pipe is its designation, which the model of its
+		//project makes of its data: no formula, no text of its own
+	if (property.m_medium == TerminalData::Pipe && diagram() && diagram()->project()) {
+		const PidCodification codification = diagram()->project()->pidCodification();
+		property.m_formula.clear();
+		property.text = PidLineDesignation::text(
+					codification.tag_models.value(PidLineDesignation::modelKey()),
+					property.m_pipe, codification);
+	}
 	if (m_properties == property) return;
 
 		//The run this conductor was part of, which may part now
@@ -2945,6 +3072,7 @@ void Conductor::setProperties(const ConductorProperties &properties)
 	font.setPointSize(m_properties.text_size);
 	m_text_item->setFont(font);
 	m_text_item->setColor(m_properties.text_color);
+	updateDesignationLook();
 
 	updateTextVisibility();
 	calculateTextItemPosition();

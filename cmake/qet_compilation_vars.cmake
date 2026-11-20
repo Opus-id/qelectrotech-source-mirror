@@ -245,6 +245,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidcodification.h
   ${QET_DIR}/sources/pidtag.cpp
   ${QET_DIR}/sources/pidtag.h
+  ${QET_DIR}/sources/pidlinedesignation.cpp
+  ${QET_DIR}/sources/pidlinedesignation.h
   ${QET_DIR}/sources/pidstatus.cpp
   ${QET_DIR}/sources/pidstatus.h
   ${QET_DIR}/sources/selectioncategories.cpp

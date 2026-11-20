@@ -4864,6 +4864,10 @@ void QETProject::setPidCodification(const PidCodification &codification)
 					terminal->updateDiameterToolTip();
 				}
 			}
+				//and the designation of a pipe: its model, its size, its colour
+			else if (auto *pipe = qgraphicsitem_cast<Conductor *>(item)) {
+				pipe->refreshDesignation();
+			}
 		}
 		folio->update();
 	}

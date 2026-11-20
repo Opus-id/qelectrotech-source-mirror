@@ -486,11 +486,17 @@ void PidTee::cut(Diagram *diagram, Conductor *pipe, const QList<Spot> &spots,
 
 		//The pieces are the same line: they keep its data and its way
 	const ConductorProperties data = pipe->properties();
+	QList<Conductor *> made;
 	for (const auto &piece : std::as_const(pieces))
 	{
 		auto *conductor = new Conductor(piece.first, piece.second);
 		conductor->setProperties(data);
 		conductor->takeNozzleDiameter();
+		made << conductor;
+	}
+		//Its designation written once
+	Conductor::keepOneDesignation(made, pipe);
+	for (Conductor *conductor : std::as_const(made)) {
 		new AddGraphicsObjectCommand(conductor, diagram, QPointF(), parent);
 	}
 }

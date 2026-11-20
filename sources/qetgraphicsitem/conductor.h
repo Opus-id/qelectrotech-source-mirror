@@ -211,6 +211,14 @@ class Conductor : public QGraphicsObject
 		void updateDefinitionMark();
 		QList<Conductor *> cornerChain();
 		void updateTextVisibility();
+		void updateDesignationLook();
+		void refreshDesignation();
+			/// The pieces of the pipe @a whole cut by a symbol, which all took
+			/// its data: only one keeps showing its designation, so that a cut
+			/// never writes it twice. The longest one, or, when the designation
+			/// of @a whole was moved by hand, the one nearest to it, where it was
+		static void keepOneDesignation(const QList<Conductor *> &pieces,
+									   const Conductor *whole = nullptr);
 		virtual Highlight highlight() const;
 		virtual void setHighlighted(Highlight);
 		QSet<Conductor *> relatedPotentialConductors(

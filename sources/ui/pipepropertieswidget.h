@@ -27,7 +27,9 @@
 #include <functional>
 
 class Conductor;
+class ConductorProperties;
 class QETProject;
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -96,6 +98,10 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// pushed: the change is part of a step made elsewhere
 		void applyChange(const std::function<void(PipeProperties &)> &change,
 						 Reach reach = Reach::Selection, QUndoCommand *parent = nullptr);
+			/// applyChange() for what a pipe has as a conductor (its text
+			/// shown, its designation)
+		void applyPropertiesChange(const std::function<void(ConductorProperties &)> &change,
+								   Reach reach = Reach::Selection, QUndoCommand *parent = nullptr);
 			/// The pipes edited, and those @p reach adds to them
 		QList<Conductor *> changedPipes(Reach reach) const;
 			/// What is said when a change of the spec, or of the fluid, the
@@ -216,6 +222,7 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QComboBox *m_material = nullptr;
 		QComboBox *m_kind = nullptr;
 		QComboBox *m_status = nullptr;
+		QCheckBox *m_show_designation = nullptr;
 		QPushButton *m_color = nullptr;
 		QToolButton *m_automatic_color = nullptr;
 		QLabel *m_count = nullptr;

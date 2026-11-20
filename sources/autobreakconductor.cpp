@@ -413,6 +413,7 @@ QSet<Terminal *> autoBreakConductors(
 		content.m_elements << free_ends_taken;
 		new DeleteQGraphicsItemCommand(diagram, content, parent);
 
+		Conductor *first_half = nullptr;
 		for (const auto &m : matches) {
 			if (!join_near) {
 				broken_endpoints.insert(m.connect_to);
@@ -424,6 +425,9 @@ QSet<Terminal *> autoBreakConductors(
 			if (m.conductor->medium() == TerminalData::Pipe) {
 				new_c->setProperties(m.conductor->properties());
 				new_c->takeNozzleDiameter();
+			}
+			if (m.conductor == matches.first().conductor) {
+				first_half = new_c;
 			}
 			new AddGraphicsObjectCommand(new_c, diagram, QPointF(), parent);
 			ConductorAutoNumerotation can(new_c, diagram, parent);
@@ -439,6 +443,8 @@ QSet<Terminal *> autoBreakConductors(
 			if (matches.first().conductor->medium() == TerminalData::Pipe) {
 				new_c2->setProperties(matches.first().conductor->properties());
 				new_c2->takeNozzleDiameter();
+					//Its designation written once (step 7b)
+				Conductor::keepOneDesignation({first_half, new_c2}, matches.first().conductor);
 			}
 			new AddGraphicsObjectCommand(new_c2, diagram, QPointF(), parent);
 			ConductorAutoNumerotation can2(new_c2, diagram, parent);

@@ -14073,8 +14073,23 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
-        <source>Labels take the color of their symbol</source>
-        <translation>Les repères prennent la couleur de leur symbole</translation>
+        <source>Labels take the color of their symbol, designations that of their pipe</source>
+        <translation>Les repères prennent la couleur de leur symbole, les désignations celle de leur tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="519"/>
+        <source>Default size</source>
+        <translation>Taille par défaut</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="524"/>
+        <source>Back to the default size</source>
+        <translation>Revenir à la taille par défaut</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="673"/>
+        <source>Designations of the lines:</source>
+        <translation>Désignations des lignes :</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="133"/>
@@ -14737,6 +14752,21 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="320"/>
         <source>Back to the automatic colour</source>
         <translation>Revenir à la couleur automatique</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="301"/>
+        <source>Show the designation on the folio</source>
+        <translation>Afficher la désignation sur le folio</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="1478"/>
+        <source>The designation is written after the model of the project: %1</source>
+        <translation>La désignation est écrite d&apos;après le modèle du projet : %1</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pipepropertieswidget.cpp" line="1480"/>
+        <source>The project has no model of designation: nothing is written. The model is a line of the presentation of the project, as tag_model;line;{fluid} {size}.</source>
+        <translation>Le projet n&apos;a pas de modèle de désignation : rien n&apos;est écrit. Le modèle est une ligne de la présentation du projet, comme tag_model;line;{fluid} {size}.</translation>
     </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="377"/>

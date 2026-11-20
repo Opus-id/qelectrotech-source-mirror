@@ -513,17 +513,21 @@ void PidConfigPage::initWidgets()
 		size->setObjectName(QStringLiteral("text_size_") + category);
 		size->setRange(0, 200);
 		size->setSuffix(tr(" pt"));
-		size->setSpecialValueText(tr("Size of the symbol"));
+			//A pipe has no symbol: its designation has the size of the text
+			//of a conductor
+		const bool line = category == QLatin1String("line");
+		size->setSpecialValueText(line ? tr("Default size") : tr("Size of the symbol"));
 		connect(size, &QSpinBox::valueChanged, this, &PidConfigPage::readTextWidgets);
 		m_text_sizes.insert(category, size);
 
 			//Emptying the field gives its former value back: 0 is not obvious
-		auto *reset = new QPushButton(tr("Back to the size of the symbol"), this);
+		auto *reset = new QPushButton(line ? tr("Back to the default size")
+										   : tr("Back to the size of the symbol"), this);
 		reset->setObjectName(QStringLiteral("text_size_reset_") + category);
 		connect(reset, &QPushButton::clicked, size, [size]() { size->setValue(0); });
 		m_text_size_resets.insert(category, reset);
 	}
-	m_colored_labels = new QCheckBox(tr("Labels take the color of their symbol"), this);
+	m_colored_labels = new QCheckBox(tr("Labels take the color of their symbol, designations that of their pipe"), this);
 	m_colored_labels->setObjectName(QStringLiteral("colored_labels"));
 	connect(m_colored_labels, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
 	m_nozzle_texts_on_paper = new QCheckBox(tr("Print and export the names and DN of the nozzles"), this);
@@ -664,7 +668,8 @@ void PidConfigPage::initLayout()
 	texts_layout->addWidget(texts_help);
 	auto *sizes = new QFormLayout();
 	const QStringList names{tr("Labels of equipment:"), tr("Labels of valves:"),
-							tr("Labels of instruments:"), tr("Names and DN of nozzles:")};
+							tr("Labels of instruments:"), tr("Names and DN of nozzles:"),
+							tr("Designations of the lines:")};
 	const QStringList categories = PidCodification::textCategories();
 	for (int i = 0 ; i < categories.size() ; ++i) {
 		auto *row = new QHBoxLayout();
