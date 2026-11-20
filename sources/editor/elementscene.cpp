@@ -137,14 +137,16 @@ ElementData ElementScene::elementData() {
 */
 QString ElementScene::showIfOf(const QGraphicsItem *item)
 {
+		//A terminal first: it is a CustomElementGraphicPart too, whose own
+		//show_if it does not use (its TerminalData holds it)
+	if (const auto *terminal = qgraphicsitem_cast<const PartTerminal *>(item)) {
+		return terminal->showIf();
+	}
 	if (const auto *shape = dynamic_cast<const CustomElementGraphicPart *>(item)) {
 		return shape->showIf();
 	}
 	if (const auto *text = dynamic_cast<const PartText *>(item)) {
 		return text->showIf();
-	}
-	if (const auto *terminal = qgraphicsitem_cast<const PartTerminal *>(item)) {
-		return terminal->showIf();
 	}
 	return QString();
 }

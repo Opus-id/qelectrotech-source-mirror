@@ -1029,6 +1029,33 @@ class tst_elementoptions : public QObject
 			QVERIFY(!shown().values().contains(false));
 		}
 
+			// A terminal shown with a motor only (the signal terminal of a
+			// pump) is hidden with the parts of its case
+		void theEditorHidesATerminalOfAnotherCase()
+		{
+			QString definition = pump();
+			definition.replace(QStringLiteral("</description>"),
+							   QStringLiteral("<terminal name=\"S1\" x=\"0\" y=\"-20\" orientation=\"n\" "
+											  "type=\"Generic\" medium=\"signal\" show_if=\"motor=fixed,variable\"/>"
+											  "</description>"));
+			QDomDocument doc;
+			QVERIFY(doc.setContent(definition));
+			ElementScene scene(nullptr);
+			scene.fromXml(doc, QPointF(), true);
+			PartTerminal *s1 = nullptr;
+			for (QGraphicsItem *item : scene.items()) {
+				if (auto *terminal = qgraphicsitem_cast<PartTerminal *>(item)) {
+					s1 = terminal;
+				}
+			}
+			QVERIFY(s1);
+			QCOMPARE(ElementScene::showIfOf(s1), QStringLiteral("motor=fixed,variable"));
+			scene.setOptionPreview({{QStringLiteral("motor"), QStringLiteral("none")}});
+			QVERIFY(!s1->isVisible());
+			scene.setOptionPreview({{QStringLiteral("motor"), QStringLiteral("variable")}});
+			QVERIFY(s1->isVisible());
+		}
+
 		void aSymbolWithoutOptionsIsSavedAsBefore()
 		{
 			QDomDocument doc;
