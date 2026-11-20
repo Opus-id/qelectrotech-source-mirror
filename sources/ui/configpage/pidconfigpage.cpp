@@ -30,6 +30,7 @@
 #include "../../utils/qetsettings.h"
 
 #include <QApplication>
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QColorDialog>
@@ -49,6 +50,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QSet>
 #include <QShortcut>
 #include <QSpinBox>
@@ -538,9 +540,27 @@ void PidConfigPage::initWidgets()
 		connect(reset, &QPushButton::clicked, size, [size]() { size->setValue(0); });
 		m_text_size_resets.insert(category, reset);
 	}
-	m_colored_labels = new QCheckBox(tr("Labels take the color of their symbol, designations that of their pipe"), this);
-	m_colored_labels->setObjectName(QStringLiteral("colored_labels"));
-	connect(m_colored_labels, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
+		//The ink of the labels, then of the designations: each its own
+		//group of two choices
+	const QStringList ink_names{QStringLiteral("label_ink"), QStringLiteral("designation_ink")};
+	const QStringList of_object_names{tr("Color of their symbol"), tr("Color of their pipe")};
+	for (int kind = 0 ; kind < 2 ; ++kind)
+	{
+		auto *group = new QButtonGroup(this);
+		m_ink_object[kind] = new QRadioButton(of_object_names.at(kind), this);
+		m_ink_object[kind]->setObjectName(ink_names.at(kind) + QStringLiteral("_object"));
+		m_ink_fixed[kind] = new QRadioButton(tr("Fixed color"), this);
+		m_ink_fixed[kind]->setObjectName(ink_names.at(kind) + QStringLiteral("_fixed"));
+		group->addButton(m_ink_object[kind]);
+		group->addButton(m_ink_fixed[kind]);
+		m_ink_button[kind] = new QPushButton(tr("Choose..."), this);
+		m_ink_button[kind]->setObjectName(ink_names.at(kind) + QStringLiteral("_color"));
+		connect(m_ink_object[kind], &QRadioButton::toggled, this, [this, kind]() {
+			showTextInk(kind);
+			readTextWidgets();
+		});
+		connect(m_ink_button[kind], &QPushButton::clicked, this, [this, kind]() { chooseTextInk(kind); });
+	}
 
 		//The models of the tags and of the designations: each field of a
 		//family, what the list of "Insert a field" calls it
@@ -750,7 +770,17 @@ void PidConfigPage::initLayout()
 		sizes->addRow(names.at(i), row);
 	}
 	texts_layout->addLayout(sizes);
-	texts_layout->addWidget(m_colored_labels);
+	auto *inks = new QFormLayout();
+	const QStringList ink_rows{tr("Color of the labels:"), tr("Color of the designations:")};
+	for (int kind = 0 ; kind < 2 ; ++kind) {
+		auto *row = new QHBoxLayout();
+		row->addWidget(m_ink_object[kind]);
+		row->addWidget(m_ink_fixed[kind]);
+		row->addWidget(m_ink_button[kind]);
+		row->addStretch();
+		inks->addRow(ink_rows.at(kind), row);
+	}
+	texts_layout->addLayout(inks);
 	texts_layout->addWidget(m_nozzle_texts_on_paper);
 	texts_layout->addWidget(m_show_nozzle_sizes);
 	texts_layout->addWidget(m_nozzle_dn_prefix);
@@ -1008,8 +1038,20 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 		const QSignalBlocker blocker(it.value());
 		it.value()->setValue(codification.text_sizes.value(it.key()));
 	}
-	const QSignalBlocker colored_blocker(m_colored_labels);
-	m_colored_labels->setChecked(codification.colored_labels);
+	const bool of_object[2] = {codification.colored_labels, codification.colored_designations};
+	const QColor fixed[2] = {codification.label_color, codification.designation_color};
+	for (int kind = 0 ; kind < 2 ; ++kind) {
+		const QSignalBlocker object_blocker(m_ink_object[kind]);
+		const QSignalBlocker fixed_blocker(m_ink_fixed[kind]);
+		m_ink_object[kind]->setChecked(of_object[kind]);
+		m_ink_fixed[kind]->setChecked(!of_object[kind]);
+			//The colour of their object: the page keeps the fixed colour
+			//it had, which the project does not
+		if (!of_object[kind]) {
+			m_ink_color[kind] = fixed[kind];
+		}
+		showTextInk(kind);
+	}
 	const QSignalBlocker paper_blocker(m_nozzle_texts_on_paper);
 	m_nozzle_texts_on_paper->setChecked(codification.nozzle_texts_on_paper);
 	const QSignalBlocker sizes_blocker(m_show_nozzle_sizes);
@@ -1256,7 +1298,11 @@ void PidConfigPage::adjustReadOnly()
 	for (QPushButton *reset : std::as_const(m_text_size_resets)) {
 		reset->setEnabled(!read_only);
 	}
-	m_colored_labels->setEnabled(!read_only);
+	for (int kind = 0 ; kind < 2 ; ++kind) {
+		m_ink_object[kind]->setEnabled(!read_only);
+		m_ink_fixed[kind]->setEnabled(!read_only);
+		showTextInk(kind);
+	}
 	for (QLineEdit *model : std::as_const(m_tag_models)) {
 		model->setReadOnly(read_only);
 	}
@@ -1319,7 +1365,10 @@ void PidConfigPage::readTextWidgets()
 			m_codification.text_sizes.insert(it.key(), it.value()->value());
 		}
 	}
-	m_codification.colored_labels = m_colored_labels->isChecked();
+	m_codification.colored_labels = m_ink_object[0]->isChecked();
+	m_codification.label_color = m_codification.colored_labels ? QColor() : m_ink_color[0];
+	m_codification.colored_designations = m_ink_object[1]->isChecked();
+	m_codification.designation_color = m_codification.colored_designations ? QColor() : m_ink_color[1];
 	m_codification.nozzle_texts_on_paper = m_nozzle_texts_on_paper->isChecked();
 	m_codification.show_nozzle_sizes = m_show_nozzle_sizes->isChecked();
 	m_codification.nozzle_dn_prefix = m_nozzle_dn_prefix->isChecked();
@@ -1598,6 +1647,36 @@ void PidConfigPage::chooseColor()
 	if (color.isValid()) {
 		setColorOfSelection(color);
 	}
+}
+
+/**
+	@brief PidConfigPage::chooseTextInk
+	See the declaration
+*/
+void PidConfigPage::chooseTextInk(int kind)
+{
+	const QColor current = m_ink_color[kind].isValid() ? m_ink_color[kind] : QColor(Qt::black);
+	const QColor color = m_ask_color ? m_ask_color(current)
+									 : QColorDialog::getColor(current, this, title());
+	if (!color.isValid()) {
+		return;
+	}
+		//Black is what a text has without a colour: none written
+	m_ink_color[kind] = color == QColor(Qt::black) ? QColor() : color;
+	showTextInk(kind);
+	readTextWidgets();
+}
+
+/**
+	@brief PidConfigPage::showTextInk
+	See the declaration
+*/
+void PidConfigPage::showTextInk(int kind)
+{
+	QPixmap swatch(16, 16);
+	swatch.fill(m_ink_color[kind].isValid() ? m_ink_color[kind] : QColor(Qt::black));
+	m_ink_button[kind]->setIcon(QIcon(swatch));
+	m_ink_button[kind]->setEnabled(m_ink_fixed[kind]->isChecked() && !m_project->isReadOnly());
 }
 
 /**

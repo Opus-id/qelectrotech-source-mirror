@@ -20,6 +20,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QSpinBox>
 #include <QTemporaryDir>
 #include <QUndoStack>
@@ -54,9 +55,28 @@ class tst_pidtexts : public QObject
 		return doc.documentElement();
 	}
 
+		// An instrument bubble: no label, its identifier and the rest of its
+		// tag in two texts of 8 points (the second one composite)
+	static QDomElement bubble(QDomDocument &doc)
+	{
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pid_family=\"instrument\" "
+			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+			"<uuid uuid=\"{94444444-4444-4444-4444-444444444444}\"/><names><name lang=\"en\">B</name></names>"
+			"<description>"
+			"<dynamic_text x=\"-10\" y=\"-10\" z=\"10\" uuid=\"{b2222222-2222-2222-2222-222222222222}\" "
+			"text_from=\"ElementInfo\" font=\"Liberation Sans,8,-1,5,50,0,0,0,0,0\">"
+			"<text/><info_name>pid_tag_id</info_name></dynamic_text>"
+			"<dynamic_text x=\"-10\" y=\"2\" z=\"10\" uuid=\"{b3333333-3333-3333-3333-333333333333}\" "
+			"text_from=\"CompositeText\" font=\"Liberation Sans,8,-1,5,50,0,0,0,0,0\">"
+			"<text/><composite_text>%{pid_tag_rest}</composite_text></dynamic_text>"
+			"</description></definition>"));
+		return doc.documentElement();
+	}
+
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_pump, m_valve, m_wired;
+	ElementsLocation m_pump, m_valve, m_wired, m_bubble;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(QETProject &project, const QString &file, const QDomElement &definition)
@@ -146,7 +166,9 @@ class tst_pidtexts : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("texts"), NamesList());
-			QDomDocument a, b, c;
+			QDomDocument a, b, c, d;
+			m_bubble = add(m_project, "bubble.elmt", bubble(d));
+			QVERIFY(m_bubble.exist());
 			m_pump = add(m_project, "pump.elmt",
 						 symbol(a, "91111111-1111-1111-1111-111111111111", "equipment", "pipe"));
 			m_valve = add(m_project, "valve.elmt",
@@ -175,6 +197,9 @@ class tst_pidtexts : public QObject
 			QVERIFY(!PidCodification().hasTextSettings());
 			QVERIFY(PidCodification().nozzle_texts_on_paper);
 			QVERIFY(!PidCodification().colored_labels);
+			QVERIFY(!PidCodification().colored_designations);
+			QVERIFY(!PidCodification().label_color.isValid());
+			QVERIFY(!PidCodification().designation_color.isValid());
 		}
 
 		void theSettingsAreReadFromACsvFile()
@@ -193,8 +218,42 @@ class tst_pidtexts : public QObject
 			QCOMPARE(c.text_sizes.value("equipment"), 11);
 			QCOMPARE(c.text_sizes.value("nozzle"), 7);
 			QVERIFY(!c.text_sizes.contains("valve"));
+				//A former file: the labels and the designations
 			QVERIFY(c.colored_labels);
+			QVERIFY(c.colored_designations);
 			QVERIFY(!c.nozzle_texts_on_paper);
+		}
+
+		void theInksAreReadFromACsvFile()
+		{
+			int skipped = -1;
+			const PidCodification c = PidCodification::fromCsv(QStringLiteral(
+				"text_option;label_ink;Objet\n"
+				"option_texte;designation_ink;#0000FF\n"
+				"text_option;label_ink;nothing\n"), &skipped);
+			QCOMPARE(skipped, 1);
+			QVERIFY(c.colored_labels);
+			QVERIFY(!c.label_color.isValid());
+			QVERIFY(!c.colored_designations);
+			QCOMPARE(c.designation_color, QColor(0, 0, 255));
+			QVERIFY(c.hasTextSettings());
+		}
+
+		void aFormerProjectColorsBoth()
+		{
+			QDomDocument document;
+			document.setContent(QStringLiteral(
+				"<project><pid_codification colored_labels=\"true\"/></project>"));
+			PidCodification c;
+			c.fromXml(document.documentElement());
+			QVERIFY(c.colored_labels);
+			QVERIFY(c.colored_designations);
+				//Written again in the words of now
+			QDomDocument written;
+			const QDomElement block = c.toXml(written);
+			QVERIFY(!block.hasAttribute(QStringLiteral("colored_labels")));
+			QCOMPARE(block.attribute(QStringLiteral("label_ink")), QStringLiteral("object"));
+			QCOMPARE(block.attribute(QStringLiteral("designation_ink")), QStringLiteral("object"));
 		}
 
 		void thePaletteKeepsTheSettingsAndNotTheCodes()
@@ -203,11 +262,14 @@ class tst_pidtexts : public QObject
 			c.fluids << PidCodification::Entry{"W01", "Raw water", "E"};
 			c.text_sizes.insert("valve", 8);
 			c.colored_labels = true;
+			c.designation_color = QColor(0, 0, 255);
 			c.nozzle_texts_on_paper = false;
 			const PidCodification read = PidCodification::fromCsv(c.presentationToCsv());
 			QVERIFY(read.fluids.isEmpty());
 			QCOMPARE(read.text_sizes, c.text_sizes);
 			QVERIFY(read.colored_labels);
+			QVERIFY(!read.colored_designations);
+			QCOMPARE(read.designation_color, QColor(0, 0, 255));
 			QVERIFY(!read.nozzle_texts_on_paper);
 		}
 
@@ -238,7 +300,8 @@ class tst_pidtexts : public QObject
 			const QString path = dir.filePath(QStringLiteral("texts") + extension);
 			PidCodification c;
 			c.text_sizes.insert("equipment", 11);
-			c.colored_labels = true;
+			c.label_color = QColor(0x80, 0, 0);
+			c.colored_designations = true;
 			c.nozzle_texts_on_paper = false;
 			{
 				QETProject project;
@@ -386,6 +449,42 @@ class tst_pidtexts : public QObject
 			QVERIFY(!ink.isValid());
 		}
 
+		void aFixedColorInksTheLabels()
+		{
+			Element *pump = place(m_pump);
+			PidCodification c;
+			c.object_colors.insert("equipment", QColor("#ff0000"));
+			c.label_color = QColor("#00ff00");
+			setCodification(c);
+			QCOMPARE(pump->labelInk(), QColor("#00ff00"));
+				//Nothing is written in the text itself
+			QCOMPARE(pump->labelTexts().first()->color(), QColor(Qt::black));
+			m_folio->setDrawColoredConductors(false);
+			const QColor ink = pump->labelInk();
+			m_folio->setDrawColoredConductors(true);
+			QVERIFY(!ink.isValid());
+		}
+
+		void theTextsOfABubbleArePartsOfTheLabel()
+		{
+			Element *instrument = place(m_bubble);
+			QVERIFY(instrument);
+				//Both take the colour (DynamicElementTextItem::drawnColor(),
+				//which asks labelInk() of a label) and the size of the label
+			const QList<DynamicElementTextItem *> texts = instrument->labelTexts();
+			QCOMPARE(texts.size(), 2);
+			PidCodification c;
+			c.object_colors.insert("instrument", QColor("#ff0000"));
+			c.colored_labels = true;
+			c.text_sizes.insert("instrument", 11);
+			setCodification(c);
+			QCOMPARE(instrument->labelInk(), QColor("#ff0000"));
+			for (const DynamicElementTextItem *text : texts) {
+				QVERIFY(text->isLabel());
+				QCOMPARE(text->font().pointSize(), 11);
+			}
+		}
+
 		void theNamesOfNozzlesAndOfTerminalsAreSetApart()
 		{
 			Element *pump = place(m_pump);
@@ -453,11 +552,13 @@ class tst_pidtexts : public QObject
 			Element *pump = place(m_pump);
 			PidConfigPage page(&m_project);
 			auto *size = page.findChild<QSpinBox *>(QStringLiteral("text_size_equipment"));
-			auto *colored = page.findChild<QCheckBox *>(QStringLiteral("colored_labels"));
+			auto *colored = page.findChild<QRadioButton *>(QStringLiteral("label_ink_object"));
+			auto *fixed = page.findChild<QRadioButton *>(QStringLiteral("label_ink_fixed"));
 			auto *paper = page.findChild<QCheckBox *>(QStringLiteral("nozzle_texts_on_paper"));
-			QVERIFY(size && colored && paper);
+			QVERIFY(size && colored && fixed && paper);
 			QCOMPARE(size->value(), 0);
 			QVERIFY(!colored->isChecked());
+			QVERIFY(fixed->isChecked());
 			QVERIFY(paper->isChecked());
 
 			size->setValue(12);
@@ -466,13 +567,52 @@ class tst_pidtexts : public QObject
 			page.applyProjectConf();
 			QCOMPARE(m_project.pidCodification().text_sizes.value("equipment"), 12);
 			QVERIFY(m_project.pidCodification().colored_labels);
+			QVERIFY(!m_project.pidCodification().colored_designations);
 			QVERIFY(!m_project.pidCodification().nozzle_texts_on_paper);
 			QCOMPARE(labelSize(pump), 12);
 
 			PidConfigPage again(&m_project);
 			QCOMPARE(again.findChild<QSpinBox *>(QStringLiteral("text_size_equipment"))->value(), 12);
-			QVERIFY(again.findChild<QCheckBox *>(QStringLiteral("colored_labels"))->isChecked());
+			QVERIFY(again.findChild<QRadioButton *>(QStringLiteral("label_ink_object"))->isChecked());
+			QVERIFY(again.findChild<QRadioButton *>(QStringLiteral("designation_ink_fixed"))->isChecked());
 			QVERIFY(!again.findChild<QCheckBox *>(QStringLiteral("nozzle_texts_on_paper"))->isChecked());
+		}
+
+		void theButtonChoosesAFixedColor()
+		{
+			PidConfigPage page(&m_project);
+			auto *object = page.findChild<QRadioButton *>(QStringLiteral("designation_ink_object"));
+			auto *fixed = page.findChild<QRadioButton *>(QStringLiteral("designation_ink_fixed"));
+			auto *button = page.findChild<QPushButton *>(QStringLiteral("designation_ink_color"));
+			QVERIFY(object && fixed && button);
+			QVERIFY(button->isEnabled());
+			int asked = 0;
+			page.setColorAsker([&asked](const QColor &current) {
+				++asked;
+				return current == QColor(Qt::black) ? QColor(0, 0, 255) : QColor(Qt::black);
+			});
+			button->click();
+			QCOMPARE(asked, 1);
+			page.applyProjectConf();
+			QCOMPARE(m_project.pidCodification().designation_color, QColor(0, 0, 255));
+
+				//The colour of its object: the button is of no use, the fixed
+				//colour is not kept in the project
+			object->setChecked(true);
+			QVERIFY(!button->isEnabled());
+			page.applyProjectConf();
+			QVERIFY(m_project.pidCodification().colored_designations);
+			QVERIFY(!m_project.pidCodification().designation_color.isValid());
+				//But the page keeps it while it is open
+			fixed->setChecked(true);
+			page.applyProjectConf();
+			QCOMPARE(m_project.pidCodification().designation_color, QColor(0, 0, 255));
+
+				//Black is none
+			button->click();
+			page.applyProjectConf();
+			QVERIFY(!m_project.pidCodification().designation_color.isValid());
+			QVERIFY(!m_project.pidCodification().hasTextSettings());
 		}
 
 		void aButtonGivesTheSizeOfTheSymbolBack()

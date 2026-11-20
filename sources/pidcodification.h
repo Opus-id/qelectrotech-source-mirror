@@ -305,6 +305,25 @@ class PidCodification
 			/// The labels of the symbols are drawn in the colour of their
 			/// symbol, nothing being written in the text itself
 		bool colored_labels = false;
+			/// Else they are drawn in this colour; invalid: the colour of
+			/// the text itself (black)
+		QColor label_color;
+			/// The designations of the pipes are drawn in the colour of
+			/// their pipe
+		bool colored_designations = false;
+			/// Else they are drawn in this colour; invalid: that of the
+			/// text of the conductor (black)
+		QColor designation_color;
+			/// The colour the project gives the labels of the symbols, or
+			/// the designations of the pipes (@p designations), whose
+			/// object is drawn in @p object (invalid: black): an invalid
+			/// one when it leaves them their own
+		QColor textInk(bool designations, const QColor &object) const {
+			if (designations ? colored_designations : colored_labels) {
+				return object;
+			}
+			return designations ? designation_color : label_color;
+		}
 			/// The names and diameters of the nozzles are printed and
 			/// exported, whatever is asked for the names of the terminals
 		bool nozzle_texts_on_paper = true;
@@ -434,7 +453,8 @@ class PidCodification
 					|| !status_colors.isEmpty();
 		}
 		bool hasTextSettings() const {
-			return !text_sizes.isEmpty() || colored_labels || !nozzle_texts_on_paper
+			return !text_sizes.isEmpty() || colored_labels || label_color.isValid()
+					|| colored_designations || designation_color.isValid() || !nozzle_texts_on_paper
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
 					|| parallel_numbering
 					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty()
@@ -496,7 +516,12 @@ class PidCodification
 			/// "couleur_statut"), key a family or a status, of lines
 			/// "text_size;category;points" ("taille_texte") and of lines
 			/// "text_option;name;true" ("option_texte"), name being
-			/// "colored_labels" or "nozzle_texts_on_paper", or of the line
+			/// "nozzle_texts_on_paper", "show_nozzle_sizes" or
+			/// "nozzle_dn_prefix" ("colored_labels", of former files,
+			/// colouring the labels and the designations), of the lines
+			/// "text_option;label_ink;object" and
+			/// "text_option;designation_ink;#0000ff" (the colour of their
+			/// object, "objet", or a fixed colour), or of the line
 			/// "text_option;drawn_connections;flange butt_weld" (the words
 			/// of PipeConnection, a word not known being left out), and of lines
 			/// "tool_symbol;free_end;custom://folder/symbol.elmt" ("symbole_outil",

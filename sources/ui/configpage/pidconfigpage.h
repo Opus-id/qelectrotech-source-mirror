@@ -30,6 +30,7 @@ class QGroupBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QRadioButton;
 class QSpinBox;
 class QTabWidget;
 class QTableWidget;
@@ -224,7 +225,19 @@ class PidConfigPage : public ProjectConfigPage
 		QMap<QString, QSpinBox *> m_text_sizes;
 			/// What gives each category of texts back the size of the symbol
 		QMap<QString, QPushButton *> m_text_size_resets;
-		QCheckBox *m_colored_labels = nullptr;
+			/// How the labels (0) and the designations (1) are inked: the
+			/// colour of their object or a fixed one, chosen with the
+			/// button, kept here while the other choice is shown (invalid:
+			/// black)
+		QRadioButton *m_ink_object[2] = {nullptr, nullptr};
+		QRadioButton *m_ink_fixed[2] = {nullptr, nullptr};
+		QPushButton *m_ink_button[2] = {nullptr, nullptr};
+		QColor m_ink_color[2];
+			/// Ask the fixed colour of the labels (0) or of the designations
+			/// (1), black being none
+		void chooseTextInk(int kind);
+			/// The button of that colour shows it, enabled for a fixed one
+		void showTextInk(int kind);
 			/// The model of the tags of each family of symbols and that of
 			/// the designation of the lines (PidCodification::tag_models), what
 			/// inserts a field in it, and what it makes of an example

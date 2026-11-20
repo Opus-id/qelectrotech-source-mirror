@@ -14073,8 +14073,28 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
-        <source>Labels take the color of their symbol, designations that of their pipe</source>
-        <translation>Les repères prennent la couleur de leur symbole, les désignations celle de leur tuyauterie</translation>
+        <source>Color of their symbol</source>
+        <translation>Couleur de leur symbole</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>Color of their pipe</source>
+        <translation>Couleur de leur tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>Fixed color</source>
+        <translation>Couleur fixe</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>Color of the labels:</source>
+        <translation>Couleur des repères :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="130"/>
+        <source>Color of the designations:</source>
+        <translation>Couleur des désignations :</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="519"/>

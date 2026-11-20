@@ -344,8 +344,9 @@ class Element : public QetGraphicsItem
 		}
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
-			/// The colour of the label of this symbol when the project draws
-			/// labels in the colour of their symbol, else none
+			/// The colour the project gives the label of this symbol: that
+			/// of the symbol, or a fixed one; none when it gives none, or
+			/// when the folio is drawn in black
 		QColor labelInk() const;
 			/// The colour the symbol is drawn in: that of its status of
 			/// works, of its pipe or of its family; black when it has none or

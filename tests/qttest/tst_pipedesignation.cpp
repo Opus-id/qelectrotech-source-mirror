@@ -294,10 +294,21 @@ class tst_pipedesignation : public QObject
 			QCOMPARE(pipe->textItem()->font().pointSize(), 14);
 			QCOMPARE(pipe->textItem()->color(), text_color);
 
+				//The colour of the labels of the symbols is another setting
 			PidCodification colored = m_project.pidCodification();
 			colored.colored_labels = true;
 			m_project.setPidCodification(colored);
+			QCOMPARE(pipe->textItem()->color(), text_color);
+
+			colored.colored_designations = true;
+			m_project.setPidCodification(colored);
 			QCOMPARE(pipe->textItem()->color(), QColor(0, 0, 255));
+
+				//A fixed colour, whatever that of the pipe
+			colored.colored_designations = false;
+			colored.designation_color = QColor(0x80, 0, 0x80);
+			m_project.setPidCodification(colored);
+			QCOMPARE(pipe->textItem()->color(), QColor(0x80, 0, 0x80));
 		}
 
 			// A wire keeps its text, whatever the model of the lines

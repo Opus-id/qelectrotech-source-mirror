@@ -122,7 +122,10 @@ class DynamicElementTextItem : public DiagramTextItem
 		QTransform readingFlip() const;
 		void setInfoName(const QString &info_name);
 		QString infoName() const;
-			/// True when this text shows the label of its element
+			/// True when this text shows the label of its element, or a
+			/// part of it (QETInformation::pidTagPartKeys(): the two texts
+			/// of an instrument bubble), which takes the colour and the size
+			/// of the label
 		bool isLabel() const;
 		Element *linkedElementShown() const;
 		/// The element whose label this text draws: its master for a slave.

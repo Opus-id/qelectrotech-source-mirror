@@ -879,8 +879,12 @@ QColor Element::labelInk() const
 {
 	const Diagram *folio = diagram();
 	if (m_data.m_pid_family.isEmpty() || !folio || !folio->project()
-		|| !folio->project()->pidCodification().colored_labels) {
+		|| !folio->drawColoredConductors()) {
 		return QColor();
+	}
+	const PidCodification &codification = folio->project()->pidCodification();
+	if (!codification.colored_labels) {
+		return codification.label_color;
 	}
 	const QString ink = inkedChoices(m_data.m_options, m_data.m_pid_family)
 			.value(ElementPictureFactory::inkChoice());
@@ -915,18 +919,24 @@ QList<DynamicElementTextItem *> Element::labelTexts() const
 }
 
 namespace {
-	/// The size of the label a symbol describes, else that of a new text
+	/// The size of the label a symbol describes, or of a part of it (an
+	/// instrument bubble, see DynamicElementTextItem::isLabel()), else that
+	/// of a new text
 	int labelSizeOfSymbol(const QDomElement &definition)
 	{
 		const QString tag = QStringLiteral("dynamic_text");
 		const QDomElement description = definition.firstChildElement(QStringLiteral("description"));
+		QStringList keys = QETInformation::pidTagPartKeys();
+		keys.prepend(QStringLiteral("label"));
 		for (QDomElement text = description.firstChildElement(tag) ; !text.isNull() ;
 			 text = text.nextSiblingElement(tag))
 		{
-			const bool label =
-					text.firstChildElement(QStringLiteral("info_name")).text() == QLatin1String("label")
-					|| text.firstChildElement(QStringLiteral("composite_text")).text()
-						.contains(QLatin1String("%{label}"));
+			const QString info = text.firstChildElement(QStringLiteral("info_name")).text();
+			const QString composite = text.firstChildElement(QStringLiteral("composite_text")).text();
+			const bool label = keys.contains(info)
+					|| std::any_of(keys.cbegin(), keys.cend(), [&composite](const QString &key) {
+						   return composite.contains(QStringLiteral("%{") + key + QLatin1Char('}'));
+					   });
 			if (!label) {
 				continue;
 			}

@@ -2559,7 +2559,7 @@ void Conductor::updateDesignationLook()
 	const int size = codification.text_sizes.value(PidLineDesignation::modelKey());
 	font.setPointSize(size > 0 ? size : m_properties.text_size);
 	m_text_item->setFont(font);
-	const QColor ink = codification.colored_labels ? pipeColor() : QColor();
+	const QColor ink = codification.textInk(true, pipeColor());
 	m_text_item->setColor(ink.isValid() ? ink : m_properties.text_color);
 	m_text_item->setNoEditable(true);
 	updateLeader();

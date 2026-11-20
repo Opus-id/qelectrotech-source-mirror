@@ -30,6 +30,9 @@ namespace
 {
 	const QString block_tag = QStringLiteral("pid_codification");
 	const QString colored_labels_word = QStringLiteral("colored_labels");
+	const QString label_ink_word = QStringLiteral("label_ink");
+	const QString designation_ink_word = QStringLiteral("designation_ink");
+	const QString object_word = QStringLiteral("object");
 	const QString nozzle_texts_word = QStringLiteral("nozzle_texts_on_paper");
 	const QString nozzle_sizes_word = QStringLiteral("show_nozzle_sizes");
 	const QString dn_prefix_word = QStringLiteral("nozzle_dn_prefix");
@@ -71,6 +74,37 @@ namespace
 		const SignalMark::Mark read = SignalMark::fromString(mark, &known_mark);
 		return isSignalType(type, &known_type) && known_mark
 				&& read == SignalMark::defaultMark(known_type);
+	}
+
+		/// How a kind of texts is inked, as written in a file: "object"
+		/// for the colour of their object, the name of a fixed colour,
+		/// nothing for their own
+	QString inkToText(bool of_object, const QColor &color)
+	{
+		if (of_object) {
+			return object_word;
+		}
+		return color.isValid() ? color.name() : QString();
+	}
+
+		/// Reads @p text, written by inkToText() ("objet" being the
+		/// French word); false, nothing changed, for a word which is
+		/// neither
+	bool inkFromText(const QString &text, bool &of_object, QColor &color)
+	{
+		const QString word = text.trimmed().toLower();
+		if (word == object_word || word == QLatin1String("objet")) {
+			of_object = true;
+			color = QColor();
+			return true;
+		}
+		const QColor read = QColor::fromString(word);
+		if (word.isEmpty() || !read.isValid()) {
+			return false;
+		}
+		of_object = false;
+		color = read;
+		return true;
 	}
 
 		/// @p connections as words separated by spaces: a list the CSV
@@ -1198,6 +1232,9 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 	if (!hasTextSettings()) {
 		result.text_sizes = other.text_sizes;
 		result.colored_labels = other.colored_labels;
+		result.label_color = other.label_color;
+		result.colored_designations = other.colored_designations;
+		result.designation_color = other.designation_color;
 		result.nozzle_texts_on_paper = other.nozzle_texts_on_paper;
 		result.show_nozzle_sizes = other.show_nozzle_sizes;
 		result.nozzle_dn_prefix = other.nozzle_dn_prefix;
@@ -1260,8 +1297,13 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 		e.setAttribute(QStringLiteral("points"), it.value());
 		block.appendChild(e);
 	}
-	if (colored_labels) {
-		block.setAttribute(colored_labels_word, QStringLiteral("true"));
+	const QString label_ink = inkToText(colored_labels, label_color);
+	if (!label_ink.isEmpty()) {
+		block.setAttribute(label_ink_word, label_ink);
+	}
+	const QString designation_ink = inkToText(colored_designations, designation_color);
+	if (!designation_ink.isEmpty()) {
+		block.setAttribute(designation_ink_word, designation_ink);
 	}
 	if (!nozzle_texts_on_paper) {
 		block.setAttribute(nozzle_texts_word, QStringLiteral("false"));
@@ -1363,7 +1405,14 @@ void PidCodification::fromXml(const QDomElement &parent)
 			text_sizes.insert(category, size);
 		}
 	}
+		//A former project says one colour for the labels and the
+		//designations: that of their object
 	colored_labels = block.attribute(colored_labels_word) == QLatin1String("true");
+	colored_designations = colored_labels;
+	label_color = QColor();
+	designation_color = QColor();
+	inkFromText(block.attribute(label_ink_word), colored_labels, label_color);
+	inkFromText(block.attribute(designation_ink_word), colored_designations, designation_color);
 	nozzle_texts_on_paper = block.attribute(nozzle_texts_word) != QLatin1String("false");
 	show_nozzle_sizes = block.attribute(nozzle_sizes_word) != QLatin1String("false");
 	nozzle_dn_prefix = block.attribute(dn_prefix_word) != QLatin1String("false");
@@ -1428,8 +1477,14 @@ QString PidCodification::presentationToCsv() const
 		text += QStringLiteral("text_size;") + it.key() + QLatin1Char(';')
 				+ QString::number(it.value()) + QLatin1Char('\n');
 	}
-	if (colored_labels) {
-		text += QStringLiteral("text_option;") + colored_labels_word + QStringLiteral(";true\n");
+	const QString label_ink = inkToText(colored_labels, label_color);
+	if (!label_ink.isEmpty()) {
+		text += QStringLiteral("text_option;") + label_ink_word + QLatin1Char(';') + label_ink + QLatin1Char('\n');
+	}
+	const QString designation_ink = inkToText(colored_designations, designation_color);
+	if (!designation_ink.isEmpty()) {
+		text += QStringLiteral("text_option;") + designation_ink_word + QLatin1Char(';')
+				+ designation_ink + QLatin1Char('\n');
 	}
 	if (!nozzle_texts_on_paper) {
 		text += QStringLiteral("text_option;") + nozzle_texts_word + QStringLiteral(";false\n");
@@ -1645,6 +1700,15 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 				if (unknown) {
 					++left_out;
 				}
+			} else if (fields.value(1) == label_ink_word) {
+				if (!inkFromText(value, codification.colored_labels, codification.label_color)) {
+					++left_out;
+				}
+			} else if (fields.value(1) == designation_ink_word) {
+				if (!inkFromText(value, codification.colored_designations,
+								 codification.designation_color)) {
+					++left_out;
+				}
 			} else if (fields.value(1) == decimal_word) {
 				const Decimal read = decimalFromString(value);
 				if (read == Decimal::Language) {
@@ -1655,7 +1719,9 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 			} else if (!yes && value != QLatin1String("false")) {
 				++left_out;
 			} else if (fields.value(1) == colored_labels_word) {
+					//A former file: the labels and the designations
 				codification.colored_labels = yes;
+				codification.colored_designations = yes;
 			} else if (fields.value(1) == nozzle_texts_word) {
 				codification.nozzle_texts_on_paper = yes;
 			} else if (fields.value(1) == nozzle_sizes_word) {
@@ -1863,6 +1929,9 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& status_colors == other.status_colors
 			&& text_sizes == other.text_sizes
 			&& colored_labels == other.colored_labels
+			&& label_color == other.label_color
+			&& colored_designations == other.colored_designations
+			&& designation_color == other.designation_color
 			&& nozzle_texts_on_paper == other.nozzle_texts_on_paper
 			&& show_nozzle_sizes == other.show_nozzle_sizes
 			&& nozzle_dn_prefix == other.nozzle_dn_prefix

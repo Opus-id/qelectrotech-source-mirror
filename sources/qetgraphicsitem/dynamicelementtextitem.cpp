@@ -1115,9 +1115,23 @@ void DynamicElementTextItem::paint(QPainter *painter, const QStyleOptionGraphics
 */
 bool DynamicElementTextItem::isLabel() const
 {
-	return (m_text_from == ElementInfo && m_info_name == QLatin1String("label"))
-			|| (m_text_from == CompositeText
-				&& m_composite_text.contains(QLatin1String("%{label}")));
+		//A part of the tag (instrument bubble) is the label too
+	const QStringList parts = QETInformation::pidTagPartKeys();
+	if (m_text_from == ElementInfo) {
+		return m_info_name == QLatin1String("label") || parts.contains(m_info_name);
+	}
+	if (m_text_from != CompositeText) {
+		return false;
+	}
+	if (m_composite_text.contains(QLatin1String("%{label}"))) {
+		return true;
+	}
+	for (const QString &part : parts) {
+		if (m_composite_text.contains(QStringLiteral("%{") + part + QLatin1Char('}'))) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
