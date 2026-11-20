@@ -261,6 +261,14 @@ void ConductorTextItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *e) {
 	if (!(e -> modifiers() & Qt::ControlModifier)) {
 		QGraphicsTextItem::mouseReleaseEvent(e);
 	}
+		//A Ctrl+click which did not move the text adds it to the selection,
+		//or takes it out, as for the other texts (DiagramTextItem); a
+		//Ctrl+drag placed it off the grid
+	else if (e->button() == Qt::LeftButton && (flags() & QGraphicsItem::ItemIsSelectable)
+			 && e->buttonDownScenePos(Qt::LeftButton) == e->scenePos()) {
+		setSelected(!isSelected());
+		e->accept();
+	}
 }
 
 

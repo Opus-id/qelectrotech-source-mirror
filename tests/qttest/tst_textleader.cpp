@@ -183,6 +183,51 @@ class tst_textleader : public QObject
 			QVERIFY(!conductor->leaderPath().isEmpty());
 		}
 
+			// Step 7l: a Ctrl+click on the text of a line adds it to the
+			// selection, or takes it out, without moving it
+		void aCtrlClickSelectsTheText()
+		{
+			Conductor *conductor = wire();
+			QVERIFY(conductor);
+			ConductorTextItem *text = conductor->textItem();
+			QVERIFY(text->flags() & QGraphicsItem::ItemIsSelectable);
+			Element *other = place(m_electrical, QPointF(0, m_next_y + 100));
+			QVERIFY(other);
+			m_folio->clearSelection();
+			other->setSelected(true);
+			const QPointF was = text->pos();
+			const int steps = m_folio->undoStack().index();
+
+			auto ctrlClick = [this, text]() {
+				const QPointF at = text->sceneBoundingRect().center();
+				QGraphicsSceneMouseEvent press(QEvent::GraphicsSceneMousePress);
+				press.setButton(Qt::LeftButton);
+				press.setButtons(Qt::LeftButton);
+				press.setModifiers(Qt::ControlModifier);
+				press.setScenePos(at);
+				press.setButtonDownScenePos(Qt::LeftButton, at);
+				press.setPos(text->mapFromScene(at));
+				m_folio->sendEvent(text, &press);
+				QGraphicsSceneMouseEvent release(QEvent::GraphicsSceneMouseRelease);
+				release.setButton(Qt::LeftButton);
+				release.setModifiers(Qt::ControlModifier);
+				release.setScenePos(at);
+				release.setButtonDownScenePos(Qt::LeftButton, at);
+				release.setPos(text->mapFromScene(at));
+				m_folio->sendEvent(text, &release);
+			};
+			ctrlClick();
+			QVERIFY(text->isSelected());
+			QVERIFY(other->isSelected());
+			QCOMPARE(text->pos(), was);
+			QCOMPARE(m_folio->undoStack().index(), steps);
+
+			ctrlClick();
+			QVERIFY(!text->isSelected());
+			QVERIFY(other->isSelected());
+			m_folio->clearSelection();
+		}
+
 			// None by default; drawn from the distance of the project, for a
 			// text moved by hand only; it follows the setting and the text
 		void aMovedTextIsTiedToItsWire()
