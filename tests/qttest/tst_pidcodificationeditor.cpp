@@ -569,6 +569,12 @@ class tst_pidcodificationeditor : public QObject
 			line->setText(QStringLiteral("{fluid} {size} {material}"));
 			QCOMPARE(page.findChild<QLabel *>(QStringLiteral("model_preview_line"))->text(),
 					 QStringLiteral("Example: A01 DN 100 M01"));
+				// a nominal pressure is typed as a number, which the model
+				// writes after "PN"
+			line->setText(QStringLiteral("{size} PN {pn}"));
+			QCOMPARE(page.findChild<QLabel *>(QStringLiteral("model_preview_line"))->text(),
+					 QStringLiteral("Example: DN 100 PN 10"));
+			line->setText(QStringLiteral("{fluid} {size} {material}"));
 			equipment->clear();
 			QVERIFY(page.findChild<QLabel *>(QStringLiteral("model_preview_equipment"))->text().isEmpty());
 

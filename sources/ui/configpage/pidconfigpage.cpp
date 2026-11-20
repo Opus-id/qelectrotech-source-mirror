@@ -1424,7 +1424,7 @@ void PidConfigPage::readModelWidgets()
 	@brief PidConfigPage::showModelPreviews
 	What each model makes of an example: a tag of the first functional unit
 	of the project (else U01), train 1, order 5; a pipe of its first fluid
-	and material (else W01 and ST), DN 100, line L100, class A1, PN10, flow
+	and material (else W01 and ST), DN 100, line L100, class A1, PN 10, flow
 	50 m3/h. A new line of the model is shown as one.
 */
 void PidConfigPage::showModelPreviews()
@@ -1445,7 +1445,8 @@ void PidConfigPage::showModelPreviews()
 	pipe.nominal = PipeDiameter::nominal(100);
 	pipe.line_number = QStringLiteral("L100");
 	pipe.piping_class = QStringLiteral("A1");
-	pipe.nominal_pressure = QStringLiteral("PN10");
+		//As it is typed: the number alone, which a model writes "PN {pn}"
+	pipe.nominal_pressure = QStringLiteral("10");
 	pipe.flow = QStringLiteral("50 m3/h");
 
 	for (auto it = m_model_previews.cbegin() ; it != m_model_previews.cend() ; ++it) {
