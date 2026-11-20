@@ -551,6 +551,90 @@ class tst_pidtexts : public QObject
 			QVERIFY(wired->labelBesideLine(wired->labelTexts().first()).isIdentity());
 		}
 
+			// Step 7k-bis: a project which does not keep the texts of its
+			// turned symbols horizontal has the label of a P&ID symbol turn
+			// with it, the file being the same either way
+		void theLabelFollowsTheSettingOfTheProject()
+		{
+			QVERIFY(m_project.uprightSymbolTexts());
+			Element *valve = place(m_turnable);
+			QVERIFY(valve);
+			DynamicElementTextItem *text = valve->labelTexts().first();
+			QVERIFY(text->followsProjectTurn());
+			valve->setRotation(90);
+			auto level = [](const DynamicElementTextItem *t) {
+				return qAbs(t->sceneTransform().m12()) < 0.01;
+			};
+			QVERIFY(level(text));
+			QDomDocument doc;
+			const QString kept = text->toXml(doc).attribute(QStringLiteral("rotation"));
+
+			m_project.setUprightSymbolTexts(false);
+			const bool turned = !level(text) && text->turnsWithSymbol();
+			const QString saved_turned = text->toXml(doc).attribute(QStringLiteral("rotation"));
+			QVERIFY(valve->labelBesideLine(text).isIdentity());
+				//Read again in that project: turned with its symbol
+			QHash<Terminal *, int> out;
+			QDomElement element_xml = valve->toXml(doc, out);
+			Element *copy = place(m_turnable);
+			QVERIFY(copy);
+			QHash<int, Terminal *> in;
+			QVERIFY(copy->fromXml(element_xml, in));
+			const bool copy_turned = !level(copy->labelTexts().first());
+				//Turned back upright: level, as in the symbol
+			valve->setRotation(0);
+			const bool level_upright = level(text);
+			valve->setRotation(90);
+
+			m_project.setUprightSymbolTexts(true);
+			const bool level_again = level(text) && level(copy->labelTexts().first());
+			QVERIFY(turned);
+			QCOMPARE(saved_turned, kept);
+			QVERIFY(copy_turned);
+			QVERIFY(level_upright);
+			QVERIFY(level_again);
+
+				//An electrical symbol keeps its own setting
+			Element *wired = place(m_turnable_wired);
+			QVERIFY(!wired->labelTexts().first()->followsProjectTurn());
+		}
+
+			// Step 7k-bis: the texts of a nozzle turn with their symbol as
+			// its texts do, and read from the bottom when the vertical texts
+			// of the symbols do
+		void theNozzlesReadAsTheTextsOfTheSymbol()
+		{
+				//Pure placement: turned clockwise, the name on the right
+			const TerminalData::NozzleLabels down = TerminalData::nozzleLabels(
+						Qet::South, true, QSizeF(20, 10), QSizeF(30, 10), 0, 0, true);
+			QCOMPARE(down.rotation, 90.0);
+			QVERIFY(down.name.left() > 0);
+			QVERIFY(down.name.bottom() < 0);
+			const TerminalData::NozzleLabels up = TerminalData::nozzleLabels(
+						Qet::South, true, QSizeF(20, 10), QSizeF(30, 10));
+			QCOMPARE(up.rotation, -90.0);
+			QVERIFY(up.name.right() < 0);
+
+			Element *valve = place(m_turnable);
+			QVERIFY(valve);
+			Terminal *west = valve->terminals().first();
+			const bool from_bottom = DynamicElementTextItem::verticalFromBottom();
+			DynamicElementTextItem::setVerticalFromBottom(false);
+			m_project.setUprightSymbolTexts(false);
+			valve->setRotation(90);
+			const qreal clockwise = west->nozzleLabelsFor(QSizeF(20, 10), QSizeF()).rotation;
+			valve->setRotation(270);
+			const qreal anticlockwise = west->nozzleLabelsFor(QSizeF(20, 10), QSizeF()).rotation;
+			valve->setRotation(90);
+			DynamicElementTextItem::setVerticalFromBottom(true);
+			const qreal from_bottom_on = west->nozzleLabelsFor(QSizeF(20, 10), QSizeF()).rotation;
+			DynamicElementTextItem::setVerticalFromBottom(from_bottom);
+			m_project.setUprightSymbolTexts(true);
+			QCOMPARE(clockwise, 90.0);
+			QCOMPARE(anticlockwise, -90.0);
+			QCOMPARE(from_bottom_on, -90.0);
+		}
+
 		void theTextsOfABubbleArePartsOfTheLabel()
 		{
 			Element *instrument = place(m_bubble);

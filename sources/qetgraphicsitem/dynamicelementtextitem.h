@@ -127,6 +127,19 @@ class DynamicElementTextItem : public DiagramTextItem
 			/// of an instrument bubble), which takes the colour and the size
 			/// of the label
 		bool isLabel() const;
+			/// True for the label of a P&ID symbol (isLabel()) kept at
+			/// its angle on the folio (keepVisualRotation()): the setting
+			/// of its project (QETProject::uprightSymbolTexts()) decides
+			/// instead whether it turns with its symbol
+		bool followsProjectTurn() const;
+			/// followsProjectTurn() in a project which does not keep the
+			/// texts of its turned symbols horizontal: it turns with its
+			/// symbol as any text of it, nothing saved changing
+			/// (savedRotation())
+		bool turnsWithSymbol() const;
+			/// Take the angle turnsWithSymbol() gives, after a change of
+			/// the setting of the project
+		void updateVisualRotation();
 		Element *linkedElementShown() const;
 		/// The element whose label this text draws: its master for a slave.
 		Element *labelSource() const;
@@ -177,6 +190,7 @@ class DynamicElementTextItem : public DiagramTextItem
 		void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
 		void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 		QColor drawnColor() const override;
+		qreal savedRotation() const;
 		QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
 		bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) override;
 

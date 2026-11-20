@@ -27,6 +27,7 @@
 #include "factory/elementfactory.h"
 #include "properties/terminaldata.h"
 #include "qetgraphicsitem/conductor.h"
+#include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetapp.h"
@@ -400,12 +401,23 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!n1->shape().contains(n1->mapFromScene(end + QPointF(-15, 0))));
 			QVERIFY(n1->shape().contains(n1->mapFromScene(name.center())));
 
-				// turned a quarter: the pipe leaves north, the texts read from
-				// the right of the sheet, the name on the left of the pipe
+				// turned a quarter clockwise: the pipe leaves north, the texts
+				// turn as the texts of the symbol, reading from the top of the
+				// sheet, the name on the right of the pipe (step 7k-bis)...
+			const bool from_bottom = DynamicElementTextItem::verticalFromBottom();
+			DynamicElementTextItem::setVerticalFromBottom(false);
 			tank->setRotation(90);
 			QCOMPARE(n1->orientation(), Qet::North);
 			end = n1->dockConductor();
 			std::tie(name, size) = onSheet(n1);
+			QVERIFY(near(name.left(), end.x() + above) && near(name.bottom(), end.y() - away));
+			QVERIFY(near(size.right(), end.x() - under) && near(size.bottom(), end.y() - away));
+			QVERIFY(holds(n1, name) && holds(n1, size));
+				// ... or from the right of the sheet when the vertical texts of
+				// the symbols read from the bottom, the name on the left
+			DynamicElementTextItem::setVerticalFromBottom(true);
+			std::tie(name, size) = onSheet(n1);
+			DynamicElementTextItem::setVerticalFromBottom(from_bottom);
 			QVERIFY(near(name.right(), end.x() - above) && near(name.bottom(), end.y() - away));
 			QVERIFY(near(size.left(), end.x() + under) && near(size.bottom(), end.y() - away));
 			QVERIFY(holds(n1, name) && holds(n1, size));

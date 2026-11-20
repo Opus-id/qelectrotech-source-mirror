@@ -27,6 +27,7 @@
 #include <undocommand/addgraphicsobjectcommand.h>
 #include <properties/terminaldata.h>
 #include <qetgraphicsitem/conductor.h>
+#include <qetgraphicsitem/dynamicelementtextitem.h>
 #include <qetgraphicsitem/element.h>
 #include "conductortextitem.h"
 #include <wiringrules.h>
@@ -2442,10 +2443,22 @@ TerminalData::NozzleLabels Terminal::nozzleLabelsFor(const QSizeF &name, const Q
 		//A project keeping the texts of its symbols horizontal keeps those
 		//of a vertical nozzle so too
 	const bool upright = parent_element_ && parent_element_->hasUprightSymbolTexts();
+		//Else they turn with the symbol as its texts do: along the symbol
+		//upright, they read from the left (a horizontal nozzle) or from
+		//the bottom (a vertical one), each quarter turn of the symbol
+		//turning them clockwise; one that would read from the top is
+		//turned round when vertical texts read from the bottom
+		//(DynamicElementTextItem::verticalFromBottom())
+	bool top_down = false;
+	if (!upright && parent_element_ && !DynamicElementTextItem::verticalFromBottom()) {
+		const int quarters = (Qet::isHorizontal(d->m_orientation) ? 0 : 3)
+				+ parent_element_->orientation();
+		top_down = quarters % 4 == 1;
+	}
 	const QFontMetrics metrics(labelFont());
 	return TerminalData::nozzleLabels(orientation(), !upright, name, size,
 									  TerminalData::roomUnderLetters(metrics),
-									  TerminalData::roomAboveCapitals(metrics));
+									  TerminalData::roomAboveCapitals(metrics), top_down);
 }
 
 QTransform Terminal::nozzleLabelFrame(qreal rotation) const

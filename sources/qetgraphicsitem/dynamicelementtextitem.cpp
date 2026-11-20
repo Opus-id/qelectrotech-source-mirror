@@ -210,9 +210,14 @@ void DynamicElementTextItem::setVerticalFromBottom(bool from_bottom)
 	settings.setValue(QStringLiteral("diagrameditor/vertical_texts_from_bottom"), from_bottom);
 	for (QETProject *project : QETApp::registeredProjects())
 		for (Diagram *diagram : project->diagrams())
-			for (Element *element : diagram->elements())
+			for (Element *element : diagram->elements()) {
 				for (DynamicElementTextItem *text : element->dynamicTextItems())
 					text->updateReadingDirection();
+					//The texts of the nozzles of a turned symbol too
+					//(Terminal::nozzleLabelsFor())
+				for (Terminal *terminal : element->terminals())
+					terminal->updateLabelPlace();
+			}
 }
 
 /**
@@ -284,7 +289,7 @@ QDomElement DynamicElementTextItem::toXml(QDomDocument &dom_doc) const
 	
 	root_element.setAttribute("x", QString::number(pos().x()));
 	root_element.setAttribute("y", QString::number(pos().y()));
-	root_element.setAttribute("rotation", QString::number(QET::correctAngle(rotation())));
+	root_element.setAttribute("rotation", QString::number(savedRotation()));
 	root_element.setAttribute("uuid", m_uuid.toString());
 	root_element.setAttribute("frame", m_frame? "true" : "false");
 	root_element.setAttribute("text_width", QString::number(m_text_width));
@@ -356,7 +361,8 @@ void DynamicElementTextItem::fromXml(const QDomElement &dom_elmt)
 		return;
 	}
 	
-	QGraphicsTextItem::setRotation(dom_elmt.attribute("rotation", QString::number(0)).toDouble());
+	const qreal read_rotation = dom_elmt.attribute("rotation", QString::number(0)).toDouble();
+	QGraphicsTextItem::setRotation(read_rotation);
 	setKeepVisualRotation(dom_elmt.attribute("keep_visual_rotation", "true") == "true"? true : false);
 	setRotationPointCenter(dom_elmt.attribute("rotation_point_center", "false") == "true"? true : false);
 
@@ -425,6 +431,14 @@ void DynamicElementTextItem::fromXml(const QDomElement &dom_elmt)
 	double x = dom_elmt.attribute("x", QString::number(0)).toDouble();
 	double y = dom_elmt.attribute("y", QString::number(0)).toDouble();
 	QGraphicsTextItem::setPos(qIsFinite(x) ? x : 0, qIsFinite(y) ? y : 0);
+
+		//The angle read is the one of a text kept horizontal (savedRotation()):
+		//once it is known to be a label, that of a P&ID symbol turns with it
+		//if its project says so
+	if (followsProjectTurn()) {
+		m_visual_rotation_ref = read_rotation + m_parent_element->rotation();
+		parentElementRotationChanged();
+	}
 }
 
 /**
@@ -1151,8 +1165,14 @@ QColor DynamicElementTextItem::drawnColor() const
 
 QVariant DynamicElementTextItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant &value)
 {
-	if (change == QGraphicsItem::ItemSceneHasChanged)
+	if (change == QGraphicsItem::ItemSceneHasChanged) {
+			//On a folio, its project says whether the label of a P&ID
+			//symbol turns with it (turnsWithSymbol())
+		if (followsProjectTurn()) {
+			parentElementRotationChanged();
+		}
 		updateReadingDirection();
+	}
 		//The first time this text is added to a scene, we make several checking and connection
 		//according to the link type of the parent element
 	if(change == QGraphicsItem::ItemSceneHasChanged && m_first_scene_change)
@@ -2219,8 +2239,44 @@ void DynamicElementTextItem::parentElementRotationChanged()
 			//We don't use block signal, because rotationChanged signal is used in other place.
 		disconnect(this, &DynamicElementTextItem::rotationChanged, this, &DynamicElementTextItem::thisRotationChanged);
 		setTransformOriginPoint(m_rotation_point_center ? boundingRect().center() : QPointF(0, 0));
-		this->setRotation(QET::correctAngle(m_visual_rotation_ref - m_parent_element->rotation(), true));
+			//The label of a P&ID symbol whose project does not keep the
+			//texts horizontal turns with its symbol: its angle in the
+			//symbol is the one it has on the folio with the symbol upright
+		const qreal angle = turnsWithSymbol() ? m_visual_rotation_ref
+											  : m_visual_rotation_ref - m_parent_element->rotation();
+		this->setRotation(QET::correctAngle(angle, true));
 		connect(this, &DynamicElementTextItem::rotationChanged, this, &DynamicElementTextItem::thisRotationChanged);
+	}
+}
+
+/**
+	@brief DynamicElementTextItem::turnsWithSymbol
+	See the declaration
+*/
+bool DynamicElementTextItem::turnsWithSymbol() const
+{
+	return followsProjectTurn() && m_parent_element->diagram()
+			&& !m_parent_element->hasUprightSymbolTexts();
+}
+
+/**
+	@brief DynamicElementTextItem::followsProjectTurn
+	See the declaration
+*/
+bool DynamicElementTextItem::followsProjectTurn() const
+{
+	return m_keep_visual_rotation && m_parent_element && parentItem() == m_parent_element.data()
+			&& !m_parent_element->pidFamily().isEmpty() && isLabel();
+}
+
+/**
+	@brief DynamicElementTextItem::updateVisualRotation
+	See the declaration
+*/
+void DynamicElementTextItem::updateVisualRotation()
+{
+	if (followsProjectTurn()) {
+		parentElementRotationChanged();
 	}
 }
 
@@ -2231,7 +2287,24 @@ void DynamicElementTextItem::parentElementRotationChanged()
  * to keep in memory the visual rotation wanted by the user.
  */
 void DynamicElementTextItem::thisRotationChanged() {
-	m_visual_rotation_ref = this->rotation() + m_parent_element->rotation();
+		//Turning with its symbol (turnsWithSymbol()), the angle of the text
+		//in the symbol is the one kept
+	m_visual_rotation_ref = this->rotation() + (turnsWithSymbol() ? 0 : m_parent_element->rotation());
+}
+
+/**
+	@brief DynamicElementTextItem::savedRotation
+	@return the angle written in a file: the one keepVisualRotation() gives
+	the text, whether or not it turns with its symbol, so that the file
+	does not depend on the setting of the project
+*/
+qreal DynamicElementTextItem::savedRotation() const
+{
+	if (turnsWithSymbol()) {
+		//As the text kept level holds it: QET::correctAngle(..., true)
+		return QET::correctAngle(QET::correctAngle(m_visual_rotation_ref - m_parent_element->rotation(), true));
+	}
+	return QET::correctAngle(rotation());
 }
 
 /**
@@ -2601,7 +2674,8 @@ void DynamicElementTextItem::setKeepVisualRotation(bool set)
 	m_keep_visual_rotation = set;
 	emit keepVisualRotationChanged(set);
 	if (set) {
-		m_visual_rotation_ref = this->rotation() + m_parent_element->rotation();
+			//Turning with its symbol, its angle in the symbol is the one kept
+		m_visual_rotation_ref = this->rotation() + (turnsWithSymbol() ? 0 : m_parent_element->rotation());
 		setTransformOriginPoint(m_rotation_point_center ? boundingRect().center() : QPointF(0,0));
 		connect(m_parent_element, &Element::rotationChanged, this, &DynamicElementTextItem::parentElementRotationChanged);
 		connect(this, &DynamicElementTextItem::rotationChanged, this, &DynamicElementTextItem::thisRotationChanged);

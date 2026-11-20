@@ -2592,6 +2592,10 @@ void QETProject::setUprightSymbolTexts(bool upright)
 		for (QGraphicsItem *item : diagram->items()) {
 			if (Element *element = qgraphicsitem_cast<Element *>(item)) {
 				element->updateSymbolPictures();
+					//The label of a P&ID symbol follows the setting too
+				for (DynamicElementTextItem *text : element->dynamicTextItems()) {
+					text->updateVisualRotation();
+				}
 			}
 		}
 	}

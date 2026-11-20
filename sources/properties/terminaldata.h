@@ -200,9 +200,14 @@ class TerminalData : public PropertiesInterface
 			/// nozzleLabelGap from its axis: the box of the name comes
 			/// nearer by @p name_room (roomUnderLetters()), that of the
 			/// size by @p size_room (roomAboveCapitals()).
+			/// With @p top_down, the texts along a vertical pipe are turned
+			/// the other way, to read from the top of the sheet (the name on
+			/// the right), as the texts of a symbol turned a quarter
+			/// clockwise.
 		static NozzleLabels nozzleLabels(Qet::Orientation leaving, bool turn_vertical,
 										 const QSizeF &name, const QSizeF &size,
-										 qreal name_room = 0, qreal size_room = 0)
+										 qreal name_room = 0, qreal size_room = 0,
+										 bool top_down = false)
 		{
 			const qreal gap = nozzleLabelGap;
 			const qreal away = nozzleLabelAway;
@@ -216,9 +221,11 @@ class TerminalData : public PropertiesInterface
 				return labels;
 			}
 				//Turned a quarter anticlockwise, the text runs up the sheet:
-				//a pipe going north runs along it as one going east
-			labels.rotation = vertical ? -90 : 0;
-			const bool forward = leaving == Qet::East || leaving == Qet::North;
+				//a pipe going north runs along it as one going east; turned
+				//clockwise (top_down), down it: one going south does
+			labels.rotation = vertical ? (top_down ? 90 : -90) : 0;
+			const bool forward = leaving == Qet::East
+					|| leaving == (top_down ? Qet::South : Qet::North);
 			labels.name = QRectF(QPointF(forward ? away : -away - name.width(),
 										 -gap - name.height() + name_room), name);
 			labels.size = QRectF(QPointF(forward ? away : -away - size.width(), gap - size_room), size);
