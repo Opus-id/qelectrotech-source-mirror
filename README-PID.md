@@ -453,7 +453,7 @@ line.*
   its colour, with a plain end, a dot or an arrow (`<text_leaders
   distance="5" end="dot"/>`, written only when on: none by default, a
   dot being a junction on an electrical diagram). *Put the texts back in
-  their place* (context menu, Edit menu) gives the texts of the selected
+  their place* (context menu) gives the texts of the selected
   lines the place their line gives them, path left as it is; undoable.
 - **Create similar**: right-click a placed symbol, *Create similar* starts
   the usual placement mode with the same symbol, options, status of works
