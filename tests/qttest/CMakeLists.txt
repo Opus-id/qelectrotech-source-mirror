@@ -546,6 +546,8 @@ qet_add_app_test(tst_plcio tst_plcio.cpp)
 qet_add_app_test(tst_devicetype tst_devicetype.cpp)
 # Is a device drawn the way its type says: parts not drawn, symbols beyond.
 qet_add_app_test(tst_devicetypecheck tst_devicetypecheck.cpp)
+# The Device Navigator lists a device's free parts and places them
+qet_add_app_test(tst_devicenavigatorparts tst_devicenavigatorparts.cpp)
 qet_add_app_test(tst_placepartsafterhead tst_placepartsafterhead.cpp)
 # Project > Device types: the list of types and the editor of one
 qet_add_app_test(tst_devicetypeeditor tst_devicetypeeditor.cpp)
@@ -703,6 +705,9 @@ qet_add_app_test(tst_connectionmark tst_connectionmark.cpp)
 qet_add_app_test(tst_borderresize tst_borderresize.cpp)
 # The prefix dialog names the folders the way the collection panel does (#1802).
 qet_add_app_test(tst_prefixdialogtitles tst_prefixdialogtitles.cpp)
+# The prefix dialog also edits the company collection, and shows where the
+# user collection's prefix wins over it (#1918).
+qet_add_app_test(tst_companyprefixes tst_companyprefixes.cpp)
 # A quick second click on the same spot reaches the shape tools as a
 # double-click: it must still start the next line, rectangle or ellipse.
 qet_add_app_test(tst_shapequickclick tst_shapequickclick.cpp)
