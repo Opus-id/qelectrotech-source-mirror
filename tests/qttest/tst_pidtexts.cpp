@@ -736,7 +736,9 @@ class tst_pidtexts : public QObject
 					const int reads = readAt(letters);
 					QVERIFY2(reads == readAt(rest), at);
 					QVERIFY2(reads != 180, at);
-					QVERIFY2(level ? reads == 0 : (reads == 0 || reads == vertical || reads == 270), at);
+						//Part of the drawing of the bubble, they turn with
+						//it even when the project keeps texts level
+					QVERIFY2(reads == (turn == 90 ? vertical : turn == 270 ? 270 : 0), at);
 					const QPointF origin = instrument->scenePos();
 					QVERIFY2(near(centre(letters) - origin, turned(letters0, reads)), at);
 					QVERIFY2(near(centre(rest) - origin, turned(rest0, reads)), at);

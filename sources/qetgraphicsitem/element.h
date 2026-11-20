@@ -435,8 +435,9 @@ class Element : public QetGraphicsItem
 		bool readsVerticalFromBottom() const;
 			/// What places a part of the tag (the two texts of a bubble,
 			/// DynamicElementTextItem::isLabelPart()) of this P&ID symbol as
-			/// on the symbol upright, turned only by the way it is read
-			/// (readingAngle()): whatever the turn and the mirrors of the
+			/// on the symbol upright, turned with it as it is read
+			/// (readingAngle()), even when the project keeps the texts of
+			/// its symbols level: whatever the turn and the mirrors of the
 			/// symbol, the letters come first. Its transform().
 		QTransform labelPartPlace(const DynamicElementTextItem *text) const;
 			/// The angle a text of this symbol at @p angle on the folio

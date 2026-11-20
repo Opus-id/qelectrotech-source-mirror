@@ -1390,10 +1390,12 @@ qreal Element::readingAngle(qreal angle) const
 */
 QTransform Element::labelPartPlace(const DynamicElementTextItem *text) const
 {
-		//The angle of the text on the symbol upright, and on the folio
+		//The angle of the text on the symbol upright. Part of the drawing of
+		//the bubble, it turns with it even in a project which keeps the
+		//texts of its symbols level: no level place fits in a turned oval
 	const qreal own = text->turnsWithSymbol() ? text->rotation()
 											  : text->rotation() + rotation();
-	const qreal layout = readingAngle(own + rotation() * (text->turnsWithSymbol() ? 1 : 0)) - own;
+	const qreal layout = readingAngle(own + rotation()) - own;
 	const QPointF o = text->transformOriginPoint();
 	const QPointF pos = text->pos();
 	const QPointF origin = mapToScene(QPointF(0, 0));
