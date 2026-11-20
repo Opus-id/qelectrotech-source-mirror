@@ -507,7 +507,10 @@ line.*
   block, each option with named values and a default) and draw some parts
   only for some values (`show_if` attribute). Example: one pump symbol
   with a *motor* option (none, fixed speed, variable speed) instead of
-  three symbols. The element editor shows such a symbol case by case: its
+  three symbols. Conditions separated by ";" must all hold; lists of them
+  separated by "|" are alternatives (`show_if="command=motor|limit_switches=true"`:
+  the signal terminal of a valve, shown with an automatic actuator or with
+  limit switches). The element editor shows such a symbol case by case: its
   bar *Options preview* has a list of the values of each option, and
   hides the parts of the other cases (only on screen; the file keeps
   them all). A terminal may depend on the options too: the signal
