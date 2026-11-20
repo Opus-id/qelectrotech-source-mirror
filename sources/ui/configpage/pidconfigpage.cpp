@@ -961,22 +961,23 @@ void PidConfigPage::initLayout()
 		//Under the tabs, what acts on the whole page: a file read or
 		//written, which may hold a part of any tab, and what the page says
 		//of it; then the defaults of the new projects
-	auto *files = new QHBoxLayout();
-	files->addWidget(m_import);
-	files->addWidget(m_export);
-	files->addStretch();
+		//All the buttons in a row, what they say under them: that of the
+		//file on the left, that of the defaults on the right
+	auto *page_buttons = new QHBoxLayout();
+	page_buttons->addWidget(m_import);
+	page_buttons->addWidget(m_export);
+	page_buttons->addStretch();
+	page_buttons->addWidget(m_save_codification);
+	page_buttons->addWidget(m_save_presentation);
 
-	auto *defaults = new QHBoxLayout();
-	defaults->addStretch();
-	defaults->addWidget(m_default_saved);
-	defaults->addWidget(m_save_codification);
-	defaults->addWidget(m_save_presentation);
+	auto *messages = new QHBoxLayout();
+	messages->addWidget(m_code_message, 1);
+	messages->addWidget(m_default_saved, 0, Qt::AlignRight | Qt::AlignTop);
 
 	auto *page_layout = new QVBoxLayout(this);
 	page_layout->addWidget(tabs);
-	page_layout->addLayout(files);
-	page_layout->addWidget(m_code_message);
-	page_layout->addLayout(defaults);
+	page_layout->addLayout(page_buttons);
+	page_layout->addLayout(messages);
 }
 
 void PidConfigPage::readValuesFromProject()
