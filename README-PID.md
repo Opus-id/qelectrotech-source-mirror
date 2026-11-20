@@ -431,6 +431,19 @@ line.*
   says so (`tag_option;instrument_numbering;parallel`), one sequence for
   each measured variable, their first letter. A loop copied whole gets one
   new number. Equipment and valves keep a sequence of their own.
+- **Line designation**: the model of the lines in the presentation of the
+  project (CSV line `tag_model;line;{fluid} {size} {material}`) puts the
+  data of a pipe together: `{fluid}`, `{line_number}`, `{material}`,
+  `{piping_class}`, `{pn}`, `{flow}`, `{size}` as drawn (`DN 100`,
+  `Ø 110`, `DN ?` when it has none) and `{dn}`, the number alone. A pipe
+  shows it when *Show the designation on the folio* is ticked in its page
+  (none by default): above a horizontal pipe, on the left of a vertical one
+  read from the bottom, in the middle of its longest segment; it can be
+  moved by hand, not typed, and follows any change of the data or of the
+  model. It is saved as the text of the conductor. Its size is set in the
+  *Texts* tab (*Designations of the lines*); it takes the colour of its
+  pipe when the labels are coloured. A symbol dropped on the pipe leaves
+  it written once: on the longest piece, or where it was if it was moved.
 - **Create similar**: right-click a placed symbol, *Create similar* starts
   the usual placement mode with the same symbol, options, status of works
   and rotation. Device information is not copied; a P&ID tag takes the
@@ -471,8 +484,8 @@ line.*
   106 % of their nominal size, and a P&ID is not drawn to scale anyway. The
   default of a new folio is set in the project properties, *New sheet*.
 - The *P&ID* page of the project properties sets the size of the tags of
-  equipment, valves and instruments and of the names and diameters of the
-  nozzles (none set: the size of the symbol), and whether those of the
+  equipment, valves and instruments, of the names and diameters of the
+  nozzles (none set: the size of the symbol) and of the line designations, and whether those of the
   nozzles are printed and exported.
 
 **Checks**: every step has its tests, and the example projects of
@@ -480,7 +493,6 @@ QElectroTech are saved byte for byte as by master.
 
 ## What is missing
 
-- The line designation shown along a pipe.
 - Flow direction, crossings as ISO 10628-1 draws them.
 - A signal line ending in an empty place, or taken from a pipe where it
   has no symbol (an instrument tap, a junction, is placed on the pipe for
