@@ -1225,13 +1225,18 @@ void Element::keepReadable(QGraphicsItem *child) const
 		//A text that reads from top to bottom may be turned to read from
 		//bottom to top, see DynamicElementTextItem::readingFlip()
 	QTransform flip;
+	QTransform beside;
 	if (child->type() == DynamicElementTextItem::Type)
-		flip = static_cast<DynamicElementTextItem *>(child)->readingFlip();
+	{
+		const auto *text = static_cast<DynamicElementTextItem *>(child);
+		flip = text->readingFlip();
+		beside = labelBesideLine(text);
+	}
 
 	if (!isMirrored())
 	{
-		if (child->transform() != flip)
-			child->setTransform(flip);
+		if (child->transform() != flip * beside)
+			child->setTransform(flip * beside);
 		return;
 	}
 
@@ -1247,9 +1252,74 @@ void Element::keepReadable(QGraphicsItem *child) const
 	const QTransform mirror = flip
 							  * QTransform::fromTranslate(-centre.x(), -centre.y())
 							  * mirrorTransform()
-							  * QTransform::fromTranslate(centre.x(), centre.y());
+							  * QTransform::fromTranslate(centre.x(), centre.y())
+							  * beside;
 	if (child->transform() != mirror)
 		child->setTransform(mirror);
+}
+
+/**
+	@brief Element::labelBesideLine
+	See the declaration. Placed with the symbol upright, the label has its
+	middle on the place the symbol gives it, under the drawing: its edge
+	near the line is half its height closer to the line. Turned with the
+	symbol, that place comes beside the line; the text, kept horizontal,
+	would have its middle there and cross the line with its width. It is
+	moved away from the line so that its near edge is where it was: the
+	text is beside the line, at mid-height of the place.
+*/
+QTransform Element::labelBesideLine(const DynamicElementTextItem *text) const
+{
+	if (m_data.m_pid_family.isEmpty() || !text || text->parentItem() != this) {
+		return QTransform();
+	}
+		//The label itself, not a part of it written in the symbol (bubble)
+	const bool label = (text->textFrom() == DynamicElementTextItem::ElementInfo
+						&& text->infoName() == QLatin1String("label"))
+			|| (text->textFrom() == DynamicElementTextItem::CompositeText
+				&& text->compositeText().contains(QLatin1String("%{label}")));
+	if (!label) {
+		return QTransform();
+	}
+	const auto near = [](qreal a, qreal b) { return qAbs(a - b) < 0.01; };
+		//The line of the symbol (its own horizontal) upright on the folio
+	const QTransform symbol = sceneTransform();
+	if (!near(symbol.m11(), 0) || !near(symbol.m22(), 0)) {
+		return QTransform();
+	}
+		//How the text is drawn on the folio without its own transform(),
+		//which QGraphicsItem applies after the text's turn: it must read
+		//horizontally. Its mirrors and flips keep its box in place.
+	const QPointF origin = text->transformOriginPoint();
+	const QTransform rest = QTransform::fromTranslate(-origin.x(), -origin.y())
+							* QTransform().rotate(text->rotation())
+							* QTransform::fromTranslate(origin.x(), origin.y())
+							* QTransform::fromTranslate(text->pos().x(), text->pos().y())
+							* symbol;
+	if (!near(rest.m12(), 0) || !near(rest.m21(), 0)) {
+		return QTransform();
+	}
+	const QRectF box = rest.mapRect(text->boundingRect());
+		//The place of the label: the middle its box has in the symbol
+		//upright, turned with it
+	const QPointF place = mapToScene(text->pos() + text->boundingRect().center());
+	const qreal axis = mapToScene(QPointF(0, 0)).x();
+	const qreal side = place.x() - axis;
+		//A text on the line, or across it in the symbol upright, stays
+	if (qAbs(side) <= box.height() / 2) {
+		return QTransform();
+	}
+	const QPointF wanted(place.x() + (side > 0 ? 1 : -1) * (box.width() - box.height()) / 2,
+						 place.y());
+	const QPointF move = wanted - box.center();
+	if (move.manhattanLength() < 0.01) {
+		return QTransform();
+	}
+		//The move on the folio, in the coordinates transform() works in:
+		//those of the symbol, the text's own turn being applied before
+	const QTransform linear(symbol.m11(), symbol.m12(), symbol.m21(), symbol.m22(), 0, 0);
+	const QPointF local = linear.inverted().map(move);
+	return QTransform::fromTranslate(local.x(), local.y());
 }
 
 /**
@@ -2743,6 +2813,11 @@ void Element::addDynamicTextItem(DynamicElementTextItem *deti)
 			this, [this, deti]() {keepReadable(deti);});
 	connect(deti, &DynamicElementTextItem::rotationPointCenterChanged,
 			this, [this, deti]() {keepReadable(deti);});
+		//The label of a turned symbol goes beside the line, on the side
+		//its place is: see labelBesideLine()
+	connect(deti, &QGraphicsObject::xChanged, this, [this, deti]() {keepReadable(deti);});
+	connect(deti, &QGraphicsObject::yChanged, this, [this, deti]() {keepReadable(deti);});
+	connect(this, &QGraphicsObject::rotationChanged, deti, [this, deti]() {keepReadable(deti);});
 	keepReadable(deti);
 
 	emit textAdded(deti);

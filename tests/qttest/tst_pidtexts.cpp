@@ -10,6 +10,7 @@
 #include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
+#include "qetinformation.h"
 #include "qetproject.h"
 #include "qetresult.h"
 #include "ui/configpage/pidconfigpage.h"
@@ -74,9 +75,40 @@ class tst_pidtexts : public QObject
 		return doc.documentElement();
 	}
 
+		// A valve of family @p family (none: electrical) whose label is under
+		// its drawing, centred, kept horizontal, as the symbols of the
+		// collection have it (ajouter_repere.py)
+	static QDomElement turnable(QDomDocument &doc, const QString &uuid, const QString &family)
+	{
+		const QString family_attr = family.isEmpty() ? QString()
+			: QStringLiteral(" pid_family=\"%1\"").arg(family);
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\"%2 "
+			"width=\"40\" height=\"20\" hotspot_x=\"20\" hotspot_y=\"10\">"
+			"<uuid uuid=\"{%1}\"/><names><name lang=\"en\">T</name></names><description>"
+			"<line x1=\"-20\" y1=\"0\" x2=\"20\" y2=\"0\" length1=\"1.5\" length2=\"1.5\" end1=\"none\" end2=\"none\" "
+			"antialias=\"false\" style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
+			"<dynamic_text x=\"-4\" y=\"12\" z=\"100\" text_width=\"-1\" Halignment=\"AlignHCenter\" "
+			"Valignment=\"AlignTop\" frame=\"false\" rotation=\"0\" keep_visual_rotation=\"true\" "
+			"rotation_point_center=\"false\" text_from=\"ElementInfo\" "
+			"uuid=\"{b4444444-4444-4444-4444-444444444444}\" font=\"Liberation Sans,9,-1,5,50,0,0,0,0,0\">"
+			"<text/><info_name>label</info_name></dynamic_text>"
+			"<terminal uuid=\"{a2222222-2222-2222-2222-222222222222}\" name=\"N1\" x=\"-20\" y=\"0\" orientation=\"w\" type=\"Generic\"/>"
+			"<terminal uuid=\"{a3333333-3333-3333-3333-333333333333}\" name=\"N2\" x=\"20\" y=\"0\" orientation=\"e\" type=\"Generic\"/>"
+			"</description></definition>").arg(uuid, family_attr));
+		return doc.documentElement();
+	}
+
+		// The box of the label of @p element on the folio
+	static QRectF labelBox(const Element *element)
+	{
+		const DynamicElementTextItem *text = element->labelTexts().first();
+		return text->mapRectToScene(text->boundingRect());
+	}
+
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_pump, m_valve, m_wired, m_bubble;
+	ElementsLocation m_pump, m_valve, m_wired, m_bubble, m_turnable, m_turnable_wired;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(QETProject &project, const QString &file, const QDomElement &definition)
@@ -166,9 +198,14 @@ class tst_pidtexts : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("texts"), NamesList());
-			QDomDocument a, b, c, d;
+			QDomDocument a, b, c, d, e, f;
 			m_bubble = add(m_project, "bubble.elmt", bubble(d));
 			QVERIFY(m_bubble.exist());
+			m_turnable = add(m_project, "turnable.elmt",
+							 turnable(e, "95555555-5555-5555-5555-555555555555", "valve"));
+			m_turnable_wired = add(m_project, "turnable_wired.elmt",
+								   turnable(f, "96666666-6666-6666-6666-666666666666", QString()));
+			QVERIFY(m_turnable.exist() && m_turnable_wired.exist());
 			m_pump = add(m_project, "pump.elmt",
 						 symbol(a, "91111111-1111-1111-1111-111111111111", "equipment", "pipe"));
 			m_valve = add(m_project, "valve.elmt",
@@ -463,6 +500,55 @@ class tst_pidtexts : public QObject
 			const QColor ink = pump->labelInk();
 			m_folio->setDrawColoredConductors(true);
 			QVERIFY(!ink.isValid());
+		}
+
+			// Step 7k: turned a quarter, the label kept horizontal is beside
+			// the line, its near edge as far from it as under the symbol
+			// upright, at mid-height; nothing saved changes
+		void theLabelOfATurnedSymbolIsBesideTheLine()
+		{
+			Element *valve = place(m_turnable);
+			QVERIFY(valve);
+			DiagramContext info = valve->elementInformations();
+			info.addValue(QETInformation::ELMT_LABEL, QStringLiteral("U01 V 101"));
+			valve->setElementInformations(info);
+			DynamicElementTextItem *text = valve->labelTexts().first();
+			QCOMPARE(text->toPlainText(), QStringLiteral("U01 V 101"));
+			const QPointF axis = valve->scenePos();
+			const QRectF upright = labelBox(valve);
+			QVERIFY(upright.width() > upright.height());
+			const qreal gap = upright.top() - axis.y();
+			QVERIFY(gap > 0);
+			const qreal along = upright.center().x() - axis.x();
+			const QPointF pos = text->pos();
+
+			qreal sides[2] = {0, 0};
+			const int turns[2] = {90, 270};
+			for (int i = 0 ; i < 2 ; ++i) {
+				valve->setRotation(turns[i]);
+				const QRectF box = labelBox(valve);
+				QVERIFY2(qAbs(box.width() - upright.width()) < 0.5, "the text reads horizontally");
+				QVERIFY2(box.left() > axis.x() || box.right() < axis.x(), "the text crosses the line");
+				const qreal near_edge = box.left() > axis.x() ? box.left() - axis.x() : axis.x() - box.right();
+				QVERIFY2(qAbs(near_edge - gap) < 0.5, qPrintable(QString::number(near_edge)));
+				QVERIFY2(qAbs(qAbs(box.center().y() - axis.y()) - qAbs(along)) < 0.5,
+						 qPrintable(QString::number(box.center().y() - axis.y())));
+				sides[i] = box.center().x() - axis.x();
+				QCOMPARE(text->pos(), pos);
+			}
+			QVERIFY(sides[0] * sides[1] < 0);
+
+				//Upright again: as before
+			valve->setRotation(0);
+			QVERIFY(valve->labelBesideLine(text).isIdentity());
+			const QRectF again = labelBox(valve);
+			QVERIFY(qAbs(again.left() - upright.left()) < 0.01 && qAbs(again.top() - upright.top()) < 0.01);
+
+				//An electrical symbol is not concerned
+			Element *wired = place(m_turnable_wired);
+			QVERIFY(wired);
+			wired->setRotation(90);
+			QVERIFY(wired->labelBesideLine(wired->labelTexts().first()).isIdentity());
 		}
 
 		void theTextsOfABubbleArePartsOfTheLabel()

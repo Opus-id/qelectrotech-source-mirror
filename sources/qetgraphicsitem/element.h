@@ -423,6 +423,12 @@ class Element : public QetGraphicsItem
 		QTransform symbolTextsTransform() const;
 		void updateSymbolPictures(bool force = false);
 		void keepReadable(QGraphicsItem *child) const;
+			/// What moves the label @p text of a P&ID symbol whose line is
+			/// upright on the folio (turned a quarter), kept horizontal,
+			/// beside the line rather than across it: added to its
+			/// transform() by keepReadable(), never saved. None for another
+			/// text or symbol, an electrical one among them.
+		QTransform labelBesideLine(const DynamicElementTextItem *text) const;
 
 			//METHODS related to texts
 		void addDynamicTextItem(DynamicElementTextItem *deti = nullptr);
