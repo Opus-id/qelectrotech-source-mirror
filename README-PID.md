@@ -450,8 +450,9 @@ line.*
 - **Texts moved away from their line** (wires and pipes alike): the main
   page of the project properties may tie a text moved by hand further
   than a distance (5 mm proposed) to its line by a thin leader line of
-  its colour, with a plain end (stopped 0.5 mm short of the line), a dot
-  or an arrow (`<text_leaders
+  its colour, drawn to where the text stands unmoved (the middle of the
+  longest segment), with a plain end or an arrow (both stopped 0.5 mm
+  short of the line) or a dot (`<text_leaders
   distance="5" end="dot"/>`, written only when on: none by default, a
   dot being a junction on an electrical diagram). *Put the texts back in
   their place* (context menu) gives the texts of the selected
