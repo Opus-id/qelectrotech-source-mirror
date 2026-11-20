@@ -447,6 +447,14 @@ line.*
   *Texts* tab (*Designations of the lines*); it takes the colour of its
   pipe when the labels are coloured. A symbol dropped on the pipe leaves
   it written once: on the longest piece, or where it was if it was moved.
+- **Texts moved away from their line** (wires and pipes alike): the main
+  page of the project properties may tie a text moved by hand further
+  than a distance (5 mm proposed) to its line by a thin leader line of
+  its colour, with a plain end, a dot or an arrow (`<text_leaders
+  distance="5" end="dot"/>`, written only when on: none by default, a
+  dot being a junction on an electrical diagram). *Put the texts back in
+  their place* (context menu, Edit menu) gives the texts of the selected
+  lines the place their line gives them, path left as it is; undoable.
 - **Create similar**: right-click a placed symbol, *Create similar* starts
   the usual placement mode with the same symbol, options, status of works
   and rotation. Device information is not copied; a P&ID tag takes the
@@ -521,7 +529,8 @@ Every P&ID addition is written only when it is set, so a file without one
 is saved as by master. A name added for the P&ID starts with `pid_`; what
 is inside a `pid_` block keeps short names. `medium` keeps its name, and
 the additions that are not P&ID-only keep plain names (`prefix`,
-`<options>`, `show_if`, `replaces`, `line-cap` / `line-join`). Booleans are `true` /
+`<options>`, `show_if`, `replaces`, `line-cap` / `line-join`,
+`<text_leaders>`). Booleans are `true` /
 `false`.
 
 | Where | Name | Values | Default | Written when |
@@ -553,6 +562,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | a pipe or a signal line not to be built |
 | `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link`, `process_connection` | undefined | a signal line whose type is chosen |
+| `.qet`, `<project>` | `<text_leaders distance end/>` | `distance` in mm (`5`); `end` = `dot`, `arrow` | none: no leader line; a plain end | the leader lines of the texts are on |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, instrument letters (`<instrument_letters code name/>`), equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
 | `.qet`, `<pid_codification>` | `instrument_numbering` | `parallel` | in series | the loops of the instruments are numbered in parallel |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee` or `blind_flange`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end | a symbol is chosen for the role |
