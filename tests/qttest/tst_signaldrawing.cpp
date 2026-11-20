@@ -486,6 +486,54 @@ class tst_signaldrawing : public QObject
 			// ---- the potential types of the wires ----
 			// A project which draws its wires from potential types: a signal
 			// line has no potential, and keeps its look
+			// Step 7c-bis: a line drawn by hand in a U, whose symbols come
+			// level, would go back over itself. A signal line routes itself
+			// again; an electrical wire keeps its path, as before
+		void aSignalLineGoingBackOverItselfRoutesItselfAgain()
+		{
+			for (const bool signal : {true, false}) {
+				m_next_y += 200;
+				const qreal y = m_next_y;
+				const ElementsLocation &location = signal ? m_signals : m_electrical;
+					// N2 of a at (10, y), east; N1 of b at (200, y + 150), west;
+					// a U on the way down
+				Element *a = place(location, QPointF(0, y));
+				Element *b = place(location, QPointF(210, y + 150));
+				QVERIFY(a && b);
+				auto *line = new Conductor(a->terminals().at(1), b->terminals().at(0));
+				m_folio->addItem(line);
+				QCOMPARE(line->medium(), signal ? TerminalData::Signal : TerminalData::Electrical);
+				QVERIFY(line->setPathPoints({QPointF(10, y), QPointF(100, y), QPointF(100, y + 100),
+											 QPointF(60, y + 100), QPointF(60, y + 150),
+											 QPointF(200, y + 150)}));
+					// b comes level with a: the U is crushed, its bottom
+					// goes back over its top
+				b->setPos(210, y);
+				QList<QPointF> path;
+				for (const QPointF &point : points(line)) {
+					path << line->mapFromScene(point);
+				}
+				const QList<QPointF> folded{QPointF(10, y), QPointF(100, y), QPointF(100, y),
+											QPointF(60, y), QPointF(60, y), QPointF(200, y)};
+				QList<QPointF> folded_here;
+				for (const QPointF &point : folded) {
+					folded_here << line->mapFromScene(point);
+				}
+				if (signal) {
+					QVERIFY(line->foldsBack(folded_here));
+					QString seen;
+					for (const QPointF &point : points(line)) {
+						seen += QStringLiteral(" (%1, %2)").arg(point.x()).arg(point.y() - y);
+					}
+					QVERIFY2(!line->foldsBack(path), qPrintable(seen));
+					QVERIFY(points(line) != folded);
+				} else {
+					QVERIFY(!line->foldsBack(folded_here));
+					QCOMPARE(points(line), folded);
+				}
+			}
+		}
+
 		void thePotentialTypesNeverReachASignalLine()
 		{
 			Conductor *line = draw(m_signals);

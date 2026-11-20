@@ -43,10 +43,12 @@
 #include <pidtooltip.h>
 #include <pidlinedesignation.h>
 #include <leaderline.h>
+#include <qetapp.h>
 
 #include <QApplication>
 #include <QGraphicsPathItem>
 #include <QMultiHash>
+#include <QStatusBar>
 #include <QtDebug>
 
 #include <algorithm>
@@ -621,8 +623,9 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 	}
 	points << new_p2;
 		//A pipe whose run leaving a nozzle would still be too short, or
-		//turned back: routed by itself
-	if (exitsTooShort(points)) {
+		//turned back, or a pipe or a signal line going back over itself:
+		//routed by itself
+	if (exitsTooShort(points) || foldsBack(points)) {
 		conductor_profile = ConductorProfile();
 		modified_path = false;
 		generateConductorPath(p1, o1, p2, o2);
@@ -1288,6 +1291,119 @@ bool Conductor::exitsTooShort(const QList<QPointF> &points) const
 }
 
 /**
+	@brief Conductor::foldsBack
+	See the declaration
+*/
+bool Conductor::foldsBack(const QList<QPointF> &points) const
+{
+	if (m_properties.m_medium == TerminalData::Electrical) {
+		return false;
+	}
+	QPointF previous;
+	bool has_previous = false;
+	for (int i = 0 ; i + 1 < points.size() ; ++i) {
+		const QPointF step = points.at(i + 1) - points.at(i);
+			//A segment of no length lies between the runs it joins
+		if (QLineF(QPointF(), step).length() < 0.01) {
+			continue;
+		}
+		if (has_previous) {
+			const qreal across = previous.x() * step.y() - previous.y() * step.x();
+			const qreal along = previous.x() * step.x() + previous.y() * step.y();
+			if (qAbs(across) < 0.01 && along < 0) {
+				return true;
+			}
+		}
+		previous = step;
+		has_previous = true;
+	}
+	return false;
+}
+
+/**
+	@brief Conductor::stoppedAtExits
+	See the declaration
+*/
+QPointF Conductor::stoppedAtExits(const ConductorSegment *moved, const QPointF &asked,
+								  const Terminal **stop) const
+{
+	if (stop) {
+		*stop = nullptr;
+	}
+	QPointF movement = asked;
+	if (exitRoom() <= 0 || !moved || moved->isStatic() || !terminal1 || !terminal2) {
+		return movement;
+	}
+		//The straight run of a nozzle, from its dock point to the end of
+		//the moved segment: the movement along it stops where it would be
+		//shorter than exitRoom(), or than it is. The run may be made of
+		//several segments on one line (a bend added by hand, as before
+		//this step, goes back over it)
+	auto stopAt = [&](bool first) {
+		const Terminal *terminal = first ? terminal1 : terminal2;
+		const QPointF outward = outwardOf(terminal);
+		const bool along_x = qAbs(outward.x()) > 0.5;
+			//The moved segment slides along the run only when it crosses it
+		if (along_x ? !moved->isVertical() : !moved->isHorizontal()) {
+			return;
+		}
+		auto onTheRun = [along_x](const ConductorSegment *segment) {
+			return along_x ? segment->isHorizontal() : segment->isVertical();
+		};
+		const ConductorSegment *end = first ? moved->previousSegment() : moved->nextSegment();
+		while (end && !end->isStatic() && onTheRun(end)) {
+			end = first ? end->previousSegment() : end->nextSegment();
+		}
+		if (!end || !end->isStatic() || !onTheRun(end)) {
+			return;
+		}
+		const QPointF dock = first ? end->firstPoint() : end->secondPoint();
+		const QPointF touch = first ? moved->firstPoint() : moved->secondPoint();
+		const qreal run = along_x ? (touch.x() - dock.x()) * outward.x()
+								  : (touch.y() - dock.y()) * outward.y();
+		const qreal room = qMin(exitRoom(), run);
+		qreal &asked_along = along_x ? movement.rx() : movement.ry();
+		const qreal sign = along_x ? outward.x() : outward.y();
+		if (run + asked_along * sign < room - 0.01) {
+			asked_along = (room - run) * sign;
+			if (stop) {
+				*stop = terminal;
+			}
+		}
+	};
+	stopAt(true);
+	stopAt(false);
+	return movement;
+}
+
+/**
+	@brief Conductor::showExitStop
+	See the declaration
+*/
+void Conductor::showExitStop(const Terminal *terminal)
+{
+	if (!terminal && !m_exit_stop_shown) {
+		return;
+	}
+	Diagram *folio = diagram();
+	QETDiagramEditor *editor = folio && !folio->views().isEmpty()
+			? QETApp::diagramEditorAncestorOf(folio->views().constFirst()) : nullptr;
+	m_exit_stop_shown = terminal != nullptr;
+	if (!editor) {
+		return;
+	}
+	if (!terminal) {
+		editor->statusBar()->clearMessage();
+		return;
+	}
+		//4 units to the millimetre, written in the language of the application
+	const QString length = QLocale(QETApp::langFromSetting()).toString(exitRoom() / 4.0);
+	editor->statusBar()->showMessage(terminal->name().isEmpty()
+			? tr("Stop: straight run of %1 mm out of the nozzle").arg(length)
+			: tr("Stop: straight run of %1 mm out of nozzle %2").arg(length, terminal->name()));
+}
+
+/**
 	@brief Conductor::drawsPipePart
 	See the declaration
 */
@@ -1872,9 +1988,13 @@ void Conductor::handlerMouseMoveEvent(QetGraphicsHandlerItem *qghi, QGraphicsSce
 			//Position of the last point
 		QPointF p = m_moved_segment -> middle();
 
-			//Calculate the movement
-		m_moved_segment -> moveX(pos_.x() - p.x());
-		m_moved_segment -> moveY(pos_.y() - p.y());
+			//Calculate the movement; a pipe stops short of its nozzles,
+			//and goes on again when the mouse comes back
+		const Terminal *stop = nullptr;
+		const QPointF movement = stoppedAtExits(m_moved_segment, pos_ - p, &stop);
+		showExitStop(stop);
+		m_moved_segment -> moveX(movement.x());
+		m_moved_segment -> moveY(movement.y());
 
 			//Apply the movement
 		modified_path = true;
@@ -1898,6 +2018,7 @@ void Conductor::handlerMouseReleaseEvent(QetGraphicsHandlerItem *qghi, QGraphics
 	m_vector_index = -1;
 
 	m_moving_segment = false;
+	showExitStop(nullptr);
 	if (has_to_save_profile)
 	{
 		saveProfile();
@@ -2389,8 +2510,10 @@ bool Conductor::moveSegment(int index, qreal dx, qreal dy)
 
 	before_mov_text_pos_ = m_text_item->pos();
 	ConductorSegment *seg = segs.at(index);
-	seg->moveX(dx);
-	seg->moveY(dy);
+		//A pipe stops short of its nozzles, as when dragged
+	const QPointF movement = stoppedAtExits(seg, QPointF(dx, dy), nullptr);
+	seg->moveX(movement.x());
+	seg->moveY(movement.y());
 	modified_path = true;
 	segmentsToPath();
 	calculateTextItemPosition();

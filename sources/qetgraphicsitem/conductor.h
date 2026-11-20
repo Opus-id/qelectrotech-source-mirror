@@ -126,6 +126,12 @@ class Conductor : public QGraphicsObject
 			/// symbols come closer). False for a straight path, for two ends
 			/// on one point and for any other medium.
 		bool exitsTooShort(const QList<QPointF> &points) const;
+			/// The path @p points, from terminal1 to terminal2 in the frame
+			/// of this conductor, goes back over itself: two runs following
+			/// each other on one line, the second the other way (a U crushed
+			/// when its symbols move). A pipe or a signal line then routes
+			/// itself (step 7c-bis); always false for an electrical wire.
+		bool foldsBack(const QList<QPointF> &points) const;
 			/// Where this pipe begins at its end on @p terminal, from the
 			/// nozzle: after the part it brings, at the mark of a connection
 			/// drawn beyond the nozzle of a valve, else 0
@@ -394,8 +400,22 @@ class Conductor : public QGraphicsObject
 				QGraphicsSceneMouseEvent *event);
 		void addHandler();
 		void removeHandler();
-		
-		
+			/// The movement @p asked of the segment @p moved, stopped where
+			/// the pipe would leave one of its nozzles less than exitRoom()
+			/// straight, or behind it (step 7c-bis): only the segment
+			/// joining the straight run of a nozzle stops; a run already
+			/// shorter may not be shortened further. @p stop gets the
+			/// terminal it stopped at, else nullptr. Nothing stops for any
+			/// other medium.
+		QPointF stoppedAtExits(const ConductorSegment *moved, const QPointF &asked,
+							   const Terminal **stop) const;
+			/// Says on the status bar that the dragged segment stopped at
+			/// @p terminal; nullptr clears what it said
+		void showExitStop(const Terminal *terminal);
+
+			/// The status bar says the dragged segment stopped (showExitStop())
+		bool m_exit_stop_shown = false;
+
 		QVector<QetGraphicsHandlerItem *> m_handler_vector;
 		int m_vector_index = -1;
 			/// When and where the wire itself was last pressed: a press on

@@ -17,6 +17,7 @@
 */
 #include "qetapptest.h"
 
+#include "conductorsegment.h"
 #include "diagram.h"
 #include "editor/elementscene.h"
 #include "editor/graphicspart/partterminal.h"
@@ -151,6 +152,17 @@ class tst_connectionmark : public QObject
 			if (t->baseName() == name) return t;
 		}
 		return nullptr;
+	}
+
+		/// The points of the path of @p conductor, in its own frame
+	static QList<QPointF> pointsOf(const Conductor *conductor)
+	{
+		QList<QPointF> points;
+		const QPainterPath path = conductor->path();
+		for (int i = 0 ; i < path.elementCount() ; ++i) {
+			points << QPointF(path.elementAt(i));
+		}
+		return points;
 	}
 
 	static void drawFlanges(QETProject &project)
@@ -808,15 +820,70 @@ class tst_connectionmark : public QObject
 			a->setPos(200, 210);
 			a->setPos(200, 200);
 			QCOMPARE(pipe->path(), route);
-				// a segment moved by hand towards the nozzle adds a bend: the
-				// first run keeps its length
+				// a segment moved by hand towards the nozzle stops at its exit
+				// (step 7c-bis): no bend going back over the first run
 			QVERIFY(pipe->moveSegment(1, -25, 0));
 			QCOMPARE(firstRun(pipe), PipeConnection::pipeExit);
+			QVERIFY(!pipe->foldsBack(pointsOf(pipe)));
 				// an electrical wire between the same symbols: as before
 			auto *wire = new Conductor(terminal(a, QStringLiteral("E1")), terminal(b, QStringLiteral("E1")));
 			folio->addItem(wire);
 			QCOMPARE(wire->medium(), TerminalData::Electrical);
 			QCOMPARE(firstRun(wire), 10.0);
+		}
+
+			// Step 7c-bis: a segment dragged towards a nozzle stops 7.5 mm
+			// from it, never behind, and goes on again when it comes back;
+			// a wire keeps the stop of upstream
+		void aDraggedSegmentStopsAtTheExitOfANozzle()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+				// N2 of a at (220, 200), east; N1 of b at (380, 300), west
+			Element *a = place(project, folio, QPointF(200, 200));
+			Element *b = place(project, folio, QPointF(400, 300));
+			QVERIFY(a && b);
+			auto *pipe = new Conductor(terminal(a, QStringLiteral("N2")), terminal(b, QStringLiteral("N1")));
+			folio->addItem(pipe);
+				// the segment of the pipe going down, and where it stands
+			auto across = [](const Conductor *conductor, bool vertical) {
+				const QList<ConductorSegment *> segments = conductor->segmentsList();
+				for (int i = 1 ; i + 1 < segments.size() ; ++i) {
+					const ConductorSegment *segment = segments.at(i);
+					if ((vertical ? segment->isVertical() : segment->isHorizontal())
+						&& qAbs(segment->length()) > 0.5) {
+						return i;
+					}
+				}
+				return -1;
+			};
+			auto xOf = [&](const Conductor *conductor) {
+				return conductor->mapToScene(conductor->segmentsList().at(across(conductor, true))
+											 ->firstPoint()).x();
+			};
+			QVERIFY(across(pipe, true) > 0);
+				// far behind N2: it stops 7.5 mm out of it
+			QVERIFY(pipe->moveSegment(across(pipe, true), -500, 0));
+			QCOMPARE(xOf(pipe), 220 + PipeConnection::pipeExit);
+			QVERIFY(!pipe->foldsBack(pointsOf(pipe)));
+				// far behind N1 of b: the same
+			QVERIFY(pipe->moveSegment(across(pipe, true), 500, 0));
+			QCOMPARE(xOf(pipe), 380 - PipeConnection::pipeExit);
+			QVERIFY(!pipe->foldsBack(pointsOf(pipe)));
+				// back between them: it follows again
+			QVERIFY(pipe->moveSegment(across(pipe, true), -40, 0));
+			QCOMPARE(xOf(pipe), 310.0);
+
+				// a wire between the same symbols (E1, north): the stop of
+				// upstream, 12 from the end of the stub of its first terminal
+			auto *wire = new Conductor(terminal(a, QStringLiteral("E1")), terminal(b, QStringLiteral("E1")));
+			folio->addItem(wire);
+			QCOMPARE(wire->medium(), TerminalData::Electrical);
+			const int top = across(wire, false);
+			QVERIFY(top > 0);
+			QVERIFY(wire->moveSegment(top, 0, 500));
+			QCOMPARE(wire->mapToScene(wire->segmentsList().at(across(wire, false))->firstPoint()).y(),
+					 168.0);
 		}
 
 		void theDefaultRouteIsThePathOfANewConductor()

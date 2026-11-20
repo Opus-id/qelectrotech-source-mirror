@@ -2849,6 +2849,16 @@ Voulez-vous les renuméroter aussi ?</numerusform>
         <translation>%1 n&apos;est pas une taille du matériau %2.</translation>
     </message>
     <message>
+        <location filename="../sources/qetgraphicsitem/conductor.cpp" line="1395"/>
+        <source>Stop: straight run of %1 mm out of the nozzle</source>
+        <translation>Butée : sortie droite de %1 mm du piquage</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/conductor.cpp" line="1396"/>
+        <source>Stop: straight run of %1 mm out of nozzle %2</source>
+        <translation>Butée : sortie droite de %1 mm du piquage %2</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/conductor.cpp" line="2262"/>
         <source>Edit conductor properties</source>
         <comment>undo caption</comment>
