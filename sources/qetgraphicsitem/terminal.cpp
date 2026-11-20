@@ -175,10 +175,10 @@ void Terminal::init()
 
 	setAcceptHoverEvents(true);
 	setAcceptedMouseButtons(Qt::LeftButton);
-	setToolTip(QObject::tr("Terminal", "tooltip"));
+	setOwnToolTip(QObject::tr("Terminal", "tooltip"));
 		//A nozzle says how a pipe is joined to it
 	if (d->m_medium == TerminalData::Pipe)
-		setToolTip(PipeConnection::name(d->m_connection));
+		setOwnToolTip(PipeConnection::name(d->m_connection));
 	setZValue(Z);
 }
 
@@ -277,7 +277,7 @@ bool Terminal::addConductor(Conductor *conductor)
 
 	m_conductors_list.append(conductor);
 		//A nozzle joined to one on the same point draws no mark
-	if (takesConductorColor() || d->m_medium == TerminalData::Pipe) update();
+	if (takesConductorColor() || d->m_medium == TerminalData::Pipe || isHiddenByOptions()) update();
 	emit conductorWasAdded(conductor);
 	return(true);
 }
@@ -292,7 +292,8 @@ void Terminal::removeConductor(Conductor *conductor)
 	int index = m_conductors_list.indexOf(conductor);
 	if (index == -1) return;
 	m_conductors_list.removeAt(index);
-	if (takesConductorColor() || d->m_medium == TerminalData::Pipe) update();
+		//A hidden terminal goes with its last wire (isKeptByWire())
+	if (takesConductorColor() || d->m_medium == TerminalData::Pipe || isHiddenByOptions()) update();
 	emit conductorWasRemoved(conductor);
 }
 
@@ -346,8 +347,21 @@ void Terminal::paint(
 		t.setColor(takesConductorColor() && !m_conductors_list.isEmpty()
 				   ? m_conductors_list.first()->drawnColor()
 				   : stemColor(d->m_medium));
+			//Hidden by the options, a wire still on it: an orange stem,
+			//wider, with a ring at its end (isKeptByWire())
+		const bool kept = isKeptByWire();
+		if (kept) {
+			t.setColor(QET::Palette::signalColor());
+			t.setWidthF(2.0);
+		}
 		painter -> setPen(t);
 		painter -> drawLine(c, e);
+		if (kept) {
+			t.setWidthF(1.0);
+			painter -> setPen(t);
+			painter -> setBrush(Qt::NoBrush);
+			painter -> drawEllipse(QRectF(c.x() - 2.5, c.y() - 2.5, 5.0, 5.0));
+		}
 
 		// dessin du point d'amarrage au conducteur en bleu
 		// draw the docking point to the conductor in blue
@@ -785,6 +799,7 @@ void Terminal::hoverEnterEvent(QGraphicsSceneHoverEvent *)
 {
 	if (m_conductors_list.isEmpty() && isHiddenByOptions())
 		return;
+	showToolTip();
 	m_hovered = true;
 	update();
 }
@@ -1401,6 +1416,43 @@ bool Terminal::isHiddenByOptions() const
 	}
 	const Element *element = parentElement();
 	return element && !ElementOptions::isShown(d->m_show_if, element->resolvedOptions());
+}
+
+/**
+	@brief Terminal::isKeptByWire
+	A terminal the options of its symbol hide while a wire is still
+	connected to it: the wire stays (isHiddenByOptions()), but the symbol
+	no longer draws what leads to it, so the folio marks it without
+	blocking anything: an orange stem on the screen, and a word in the
+	tool tip (the suction of a submersible pump set back to submerged, the
+	signal terminal of a valve set back to a hand lever).
+	@return true for such a terminal
+*/
+bool Terminal::isKeptByWire() const
+{
+	return !m_conductors_list.isEmpty() && isHiddenByOptions();
+}
+
+void Terminal::setOwnToolTip(const QString &text)
+{
+	m_own_tool_tip = text;
+	showToolTip();
+}
+
+/**
+	@brief Terminal::showToolTip
+	The tool tip of the terminal, with the warning of isKeptByWire() when
+	it applies: done again each time the mouse comes over the terminal,
+	the options and the wires changing without it
+*/
+void Terminal::showToolTip()
+{
+	QString tip = m_own_tool_tip;
+	if (isKeptByWire()) {
+		tip += QLatin1Char('\n') + tr("Hidden by the options of its symbol: the line stays "
+									  "connected, but the symbol no longer shows this terminal.");
+	}
+	setToolTip(PidToolTip::wrapped(tip));
 }
 
 /**
@@ -2396,7 +2448,7 @@ void Terminal::updateDiameterToolTip()
 			tip += reversedText();
 		}
 	}
-	setToolTip(PidToolTip::wrapped(tip));
+	setOwnToolTip(tip);
 		//The pipe draws the mark
 	for (Conductor *conductor : std::as_const(m_conductors_list)) {
 		conductor->update();

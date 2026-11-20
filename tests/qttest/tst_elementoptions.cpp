@@ -29,6 +29,7 @@
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
+#include "qetpalette.h"
 #include "qetproject.h"
 #include "qetresult.h"
 #include "ui/elementoptionswidget.h"
@@ -37,6 +38,7 @@
 #include <QAbstractItemView>
 #include <QComboBox>
 #include <QDomDocument>
+#include <QGraphicsSceneHoverEvent>
 #include <QIcon>
 #include <QPalette>
 #include <QUndoStack>
@@ -264,6 +266,34 @@ class tst_elementoptions : public QObject
 			}
 		}
 		return false;
+	}
+
+		// the terminal drawn with the orange of a warning somewhere
+	static bool drawnOrange(Terminal *terminal)
+	{
+		QImage image(80, 80, QImage::Format_ARGB32);
+		image.fill(Qt::white);
+		QPainter painter(&image);
+		painter.translate(40, 40);
+		terminal->paint(&painter, nullptr, nullptr);
+		painter.end();
+		const QRgb orange = QET::Palette::signalColor().rgb();
+		for (int y = 0 ; y < image.height() ; ++y) {
+			for (int x = 0 ; x < image.width() ; ++x) {
+				if (image.pixel(x, y) == orange) return true;
+			}
+		}
+		return false;
+	}
+
+		// the mouse over the terminal: its tool tip is made again
+	static QString hoveredToolTip(Diagram *folio, Terminal *terminal)
+	{
+		QGraphicsSceneHoverEvent enter(QEvent::GraphicsSceneHoverEnter);
+		folio->sendEvent(terminal, &enter);
+		QGraphicsSceneHoverEvent leave(QEvent::GraphicsSceneHoverLeave);
+		folio->sendEvent(terminal, &leave);
+		return terminal->toolTip();
 	}
 
 	private slots:
@@ -528,12 +558,32 @@ class tst_elementoptions : public QObject
 			auto *signal_line = new Conductor(a_signal, b_signal);
 			folio->addItem(signal_line);
 			QCOMPARE(a_signal->conductorsCount(), 1);
+				// shown: nothing to say
+			QVERIFY(!a_signal->isKeptByWire());
+			QVERIFY(!drawnOrange(a_signal));
+			const QString plain = hoveredToolTip(folio, a_signal);
 				// the motor taken off: the line and its end stay, drawn, no new one
 			a->setOptionChoices({});
 			QVERIFY(a_signal->isHiddenByOptions());
 			QCOMPARE(a_signal->conductorsCount(), 1);
 			QVERIFY(drawn(a_signal));
 			QVERIFY(!a_signal->hasRoomForWire());
+				// marked without being blocked: orange, and said in the tool tip
+			QVERIFY(a_signal->isKeptByWire());
+			QVERIFY(drawnOrange(a_signal));
+			const QString warned = hoveredToolTip(folio, a_signal);
+			QVERIFY(warned.contains(QStringLiteral("options of its symbol")));
+			QVERIFY(warned.contains(plain));
+				// the motor back: the warning goes
+			a->setOptionChoices(motor);
+			QVERIFY(!a_signal->isKeptByWire());
+			QVERIFY(!drawnOrange(a_signal));
+			QCOMPARE(hoveredToolTip(folio, a_signal), plain);
+				// hidden again, then the line deleted: nothing drawn any more
+			a->setOptionChoices({});
+			delete signal_line;
+			QVERIFY(!a_signal->isKeptByWire());
+			QVERIFY(!drawn(a_signal));
 		}
 
 		void theEditorKeepsTheConditionOfATerminal()

@@ -29714,6 +29714,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <translation>Ces bornes raccordent des médiums différents (%1, %2).</translation>
     </message>
     <message>
+        <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1460"/>
+        <source>Hidden by the options of its symbol: the line stays connected, but the symbol no longer shows this terminal.</source>
+        <translation>Masquée par les options de son symbole : la ligne reste raccordée, mais le symbole ne montre plus cette borne.</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="731"/>
         <source>This nozzle is already connected: a nozzle takes one pipe. Draw a branch on the pipe instead.</source>
         <comment>pipe refused by a nozzle already connected</comment>

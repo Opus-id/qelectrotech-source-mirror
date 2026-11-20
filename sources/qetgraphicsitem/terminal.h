@@ -295,6 +295,7 @@ class Terminal : public QGraphicsObject
 		bool hasRoomForWire() const;
 		QString showIf() const { return d->m_show_if; }
 		bool isHiddenByOptions() const;
+		bool isKeptByWire() const;
 		QString replaces() const { return d->m_replaces; }
 		Terminal *replacement() const;
 		bool sameMediumAs(const Terminal *other) const;
@@ -421,9 +422,14 @@ class Terminal : public QGraphicsObject
 		int m_place_rank = 0;
 			/// Color used for the hover effect
 		QColor m_hovered_color = Terminal::neutralColor;
+			/// The tool tip of the terminal, plain text, before the warning
+			/// of isKeptByWire() is added (showToolTip())
+		QString m_own_tool_tip;
 
 	private:
 		void init();
+		void setOwnToolTip(const QString &text);
+		void showToolTip();
 		void init(QPointF pf, Qet::Orientation o);
 };
 
