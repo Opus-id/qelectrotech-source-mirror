@@ -157,16 +157,24 @@ QString ElementScene::showIfOf(const QGraphicsItem *item)
 void ElementScene::setOptionPreview(const ElementOptions::Choices &choices)
 {
 	m_option_preview = choices;
+		//The parts first: unselecting one deletes its handles
+		//(managePrimitivesGroups()), which items() also lists
+	QList<QGraphicsItem *> shown, hidden;
 	for (QGraphicsItem *item : items()) {
 		const QString show_if = showIfOf(item);
 		if (show_if.isEmpty()) {
 			continue;
 		}
-		const bool shown = choices.isEmpty() || ElementOptions::isShown(show_if, choices);
-		if (!shown) {
-			item->setSelected(false);
-		}
-		item->setVisible(shown);
+		(choices.isEmpty() || ElementOptions::isShown(show_if, choices) ? shown : hidden) << item;
+	}
+	for (QGraphicsItem *item : std::as_const(hidden)) {
+		item->setSelected(false);
+	}
+	for (QGraphicsItem *item : std::as_const(hidden)) {
+		item->setVisible(false);
+	}
+	for (QGraphicsItem *item : std::as_const(shown)) {
+		item->setVisible(true);
 	}
 }
 

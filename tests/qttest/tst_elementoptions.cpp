@@ -986,7 +986,20 @@ class tst_elementoptions : public QObject
 			QCOMPARE(shown().size(), 3);
 			QVERIFY(!shown().values().contains(false));
 
+				// a part selected, with its handles, which the case hides
+				// (it crashed: unselecting deletes the handles)
+			QGraphicsItem *variable = nullptr;
+			for (QGraphicsItem *item : scene.items()) {
+				if (ElementScene::showIfOf(item) == QLatin1String("motor=variable")) {
+					variable = item;
+				}
+			}
+			QVERIFY(variable);
+			variable->setSelected(true);
+			QVERIFY(variable->isSelected());
 			scene.setOptionPreview({{QStringLiteral("motor"), QStringLiteral("none")}});
+			QVERIFY(!variable->isSelected());
+			QVERIFY(!variable->isVisible());
 			QVERIFY(!shown().value(QStringLiteral("motor=fixed,variable")));
 			QVERIFY(!shown().value(QStringLiteral("motor=variable")));
 				// a condition on an option the symbol has not: drawn
