@@ -400,7 +400,9 @@ line.*
   project is told. Without a model, the label is typed by hand as before.
   The functional units come with the codification of the project (CSV line
   `unit;U01;Lifting`), the models with its presentation (CSV line
-  `tag_model;equipment;...`).
+  `tag_model;equipment;...`) or are typed in the *Models* section of the
+  *Texts* tab of the *P&ID* page, where *Insert a field* lists the fields
+  of each family and an example shows what the model makes.
 - **Letters of an instrument**: an instrument bubble may be any instrument,
   so its *Tag* section asks its letters of identification (`PT`, `LIC`),
   typed in capitals, instead of the identifier of its symbol; they take the
@@ -432,7 +434,8 @@ line.*
   each measured variable, their first letter. A loop copied whole gets one
   new number. Equipment and valves keep a sequence of their own.
 - **Line designation**: the model of the lines in the presentation of the
-  project (CSV line `tag_model;line;{fluid} {size} {material}`) puts the
+  project (CSV line `tag_model;line;{fluid} {size} {material}`, or the
+  *Models* section of the *Texts* tab) puts the
   data of a pipe together: `{fluid}`, `{line_number}`, `{material}`,
   `{piping_class}`, `{pn}`, `{flow}`, `{size}` as drawn (`DN 100`,
   `Ø 110`, `DN ?` when it has none) and `{dn}`, the number alone. A pipe
