@@ -893,7 +893,8 @@ void QETDiagramEditor::setUpActions()
 	});
 
 		//The texts of conductors moved or turned by hand back in their place,
-		//the path left as it is
+		//the path left as it is; in the context menu only, the Edit menu
+		//being kept short
 	m_conductor_text_reset = new QAction(tr("Put the texts back in their place"), this);
 	m_conductor_text_reset->setObjectName(QStringLiteral("conductor_text_reset"));
 	m_conductor_text_reset->setStatusTip(tr("Puts the texts of the selected lines, moved or turned by hand, "
@@ -2426,7 +2427,6 @@ void QETDiagramEditor::setUpMenu()
 	m_align_menu -> addActions(m_align_actions_group.actions().mid(4));
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_conductor_reset);
-	menu_edition -> addAction(m_conductor_text_reset);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_edit_diagram_properties);
 		//Shared with the folio's context menu (see
