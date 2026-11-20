@@ -452,6 +452,11 @@ line.*
   and rotation. Device information is not copied; a P&ID tag takes the
   same functional unit and train, and the next order at each drop.
   Automatic connections apply as usual.
+- **Mirror**: a P&ID symbol (one with a nozzle or a signal terminal) is
+  mirrored on its folio about its hotspot, on the axis of its line, as it
+  is rotated: a valve with a handwheel turned upside down stays on its
+  line and its pipes stay straight. An electrical symbol keeps its centre
+  where it was, as before.
 - **Ends and corners of lines**: the element editor can draw the ends of a
   line round or flat and its corners round, mitred or bevelled (`line-cap`
   and `line-join` in the style of a part; nothing written for the default).
