@@ -396,7 +396,9 @@ line.*
 - **Tags made of fields**: a P&ID symbol may give the identifier of its
   type (`prefix` attribute of `<definition>`, e.g. `PC`). A placed
   equipment or valve has a *Tag* section in its *P&ID* tab: functional
-  unit (picked in the list of the project, or typed), train and order,
+  unit (picked in the list of the project, or typed: "lift" offers
+  "U01 – Lifting", what is typed being looked for anywhere in the code and
+  the name, as for the letters of an instrument), train and order,
   saved as information of the element. The model of its family in the
   project, for instance `{unit} {id} {train}{order:2}`, makes its label
   (`U01 PC 105`); `\n`
@@ -505,7 +507,10 @@ line.*
   block, each option with named values and a default) and draw some parts
   only for some values (`show_if` attribute). Example: one pump symbol
   with a *motor* option (none, fixed speed, variable speed) instead of
-  three symbols. A terminal may depend on the options too: the signal
+  three symbols. The element editor shows such a symbol case by case: its
+  bar *Options preview* has a list of the values of each option, and
+  hides the parts of the other cases (only on screen; the file keeps
+  them all). A terminal may depend on the options too: the signal
   terminal of a valve is shown, and takes a signal line, for an automatic
   actuator only; it stays a terminal of the symbol (*Change type* keeps
   it), and a line already connected to it stays, unless the terminal
