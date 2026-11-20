@@ -20,6 +20,9 @@
 #include <QPropertyUndoCommand/qpropertyundocommand.h>
 #include <diagram.h>
 #include <qetgraphicsitem/element.h>
+#include <qetgraphicsitem/terminal.h>
+
+#include <algorithm>
 
 /**
 	@brief MirrorSelectionCommand::MirrorSelectionCommand
@@ -43,7 +46,8 @@ MirrorSelectionCommand::MirrorSelectionCommand(Diagram *diagram,
 	are the folio's, so a horizontal mirror on the folio is the element's
 	own horizontal mirror; turned by 90 or 270 degrees, they are swapped,
 	so it is the element's vertical mirror. The rotation never changes.
-	Each element is mirrored in place: its centre stays where it was.
+	Each element is mirrored in place: its centre stays where it was; a
+	P&ID symbol, its hotspot (aboutHotspot()).
 	@param elements : the elements to mirror
 	@param orientation : Qt::Horizontal swaps left and right on the folio,
 	Qt::Vertical swaps top and bottom
@@ -81,6 +85,12 @@ MirrorSelectionCommand::MirrorSelectionCommand(const QList<Element *> &elements,
 									 !new_vertical, new_vertical, this);
 		}
 
+			//A P&ID symbol has its hotspot on the axis of its line: it is
+			//mirrored about it, as it is rotated, and stays on the line
+			//(step 7g)
+		if (aboutHotspot(element))
+			continue;
+
 			//The mirror is about the element's hotspot, which is often a
 			//corner of the symbol: move it so that it stays where it was,
 			//centre on centre. The move is snapped to the grid, not the new
@@ -97,6 +107,23 @@ MirrorSelectionCommand::MirrorSelectionCommand(const QList<Element *> &elements,
 		if (new_pos != old_pos)
 			new QPropertyUndoCommand(element, "pos", old_pos, new_pos, this);
 	}
+}
+
+/**
+	@brief MirrorSelectionCommand::aboutHotspot
+	@return true for a P&ID symbol, one with a terminal of a medium other
+	than electrical (a nozzle, a signal terminal): its hotspot is on the
+	axis of its line, so it is mirrored about it and its terminals stay on
+	their lines. An electrical symbol keeps its centre where it was.
+*/
+bool MirrorSelectionCommand::aboutHotspot(const Element *element)
+{
+	if (!element)
+		return false;
+	const QList<Terminal *> terminals = element->terminals();
+	return std::any_of(terminals.cbegin(), terminals.cend(), [](const Terminal *terminal) {
+		return terminal->medium() != TerminalData::Electrical;
+	});
 }
 
 /**

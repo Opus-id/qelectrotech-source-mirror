@@ -40,6 +40,9 @@ class MirrorSelectionCommand : public QUndoCommand
 							   QUndoCommand *parent = nullptr);
 
 		bool isValid() const;
+			/// A P&ID symbol is mirrored about its hotspot, an electrical
+			/// one about its centre
+		static bool aboutHotspot(const Element *element);
 
 	private:
 		static QList<Element *> selectedElements(const Diagram *diagram);
