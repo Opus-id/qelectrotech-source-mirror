@@ -141,6 +141,8 @@ class ProjectMainConfigPage : public ProjectConfigPage {
 	QPushButton *usage_reset_pb_;
 	QLabel *wire_hops_label_;
 	QComboBox *wire_hops_cb_;
+		/// How the conductor which gives way is drawn: arc or gap (7c)
+	QComboBox *wire_hops_shape_cb_;
 		/// From which distance a text moved away from its line is tied to it,
 		/// and what ends the leader line (QETProject::textLeaderDistance())
 	QCheckBox *text_leader_cb_;

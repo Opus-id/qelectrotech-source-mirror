@@ -158,6 +158,177 @@ private slots:
 		QCOMPARE(path.pointAtPercent(1), wire.last());
 	}
 
+	// ---- the thinner line gives way, arc or gap (P&ID, 7c) ----
+	void thinnerAndShapeNames()
+	{
+		QCOMPARE(int(WireHops::fromString(WireHops::toString(Mode::Thinner))), int(Mode::Thinner));
+		QCOMPARE(WireHops::toString(Mode::Thinner), QStringLiteral("thinner"));
+		QCOMPARE(WireHops::toString(WireHops::Shape::Gap), QStringLiteral("gap"));
+		QCOMPARE(int(WireHops::shapeFromString(QStringLiteral("gap"))), int(WireHops::Shape::Gap));
+		QCOMPARE(int(WireHops::shapeFromString(QStringLiteral("arc"))), int(WireHops::Shape::Arc));
+		QCOMPARE(int(WireHops::shapeFromString(QString())), int(WireHops::Shape::Arc));
+		QCOMPARE(int(WireHops::shapeFromString(QStringLiteral("zigzag"))), int(WireHops::Shape::Arc));
+	}
+
+	void thinnerGivesWay_data()
+	{
+		QTest::addColumn<QVector<QPointF>>("wire");
+		QTest::addColumn<qreal>("width");
+		QTest::addColumn<qreal>("other_width");
+		QTest::addColumn<bool>("gives_way");
+
+		const auto horizontal = line({0, 0}, {100, 0});
+		const auto vertical = line({50, -50}, {50, 50});
+			// a signal line (0.25 mm) across a main pipe (1 mm), and back
+		QTest::newRow("thin horizontal") << horizontal << 1.0 << 4.0 << true;
+		QTest::newRow("thick horizontal") << horizontal << 4.0 << 1.0 << false;
+		QTest::newRow("thin vertical") << vertical << 1.0 << 4.0 << true;
+		QTest::newRow("thick vertical") << vertical << 4.0 << 1.0 << false;
+			// as thick: the vertical one
+		QTest::newRow("as thick, horizontal") << horizontal << 4.0 << 4.0 << false;
+		QTest::newRow("as thick, vertical") << vertical << 4.0 << 4.0 << true;
+	}
+
+	void thinnerGivesWay()
+	{
+		QFETCH(QVector<QPointF>, wire);
+		QFETCH(qreal, width);
+		QFETCH(qreal, other_width);
+		QFETCH(bool, gives_way);
+		const bool is_horizontal = wire.first().y() == wire.last().y();
+		const WireHops::Line other{is_horizontal ? line({50, -50}, {50, 50}) : line({0, 0}, {100, 0}),
+								   other_width};
+		for (const auto shape : {WireHops::Shape::Arc, WireHops::Shape::Gap}) {
+			const auto cuts = WireHops::interruptions({wire, width}, {other}, Mode::Thinner, shape,
+													  width / 2);
+			QCOMPARE(cuts.size(), gives_way ? 1 : 0);
+			if (gives_way) {
+				QCOMPARE(cuts.first().arc, shape == WireHops::Shape::Arc);
+			}
+		}
+	}
+
+		// A gap leaves 1 mm (gapClearance) between what is seen of the line
+		// and the edge of the other one, its square ends counted
+	void gapLeavesOneMillimetre()
+	{
+		const qreal reach = 4.0 / 2 + WireHops::gapClearance + 0.5;
+		const WireHops::Line pipe{line({50, -50}, {50, 50}), 4.0};
+		auto cuts = WireHops::interruptions({line({0, 0}, {100, 0}), 1.0}, {pipe},
+											Mode::Thinner, WireHops::Shape::Gap, 0.5);
+		QCOMPARE(cuts.size(), 1);
+		QCOMPARE(cuts.first().from, QPointF(50 - reach, 0));
+		QCOMPARE(cuts.first().to, QPointF(50 + reach, 0));
+		QVERIFY(!cuts.first().arc);
+			// the other way: from the right
+		cuts = WireHops::interruptions({line({100, 0}, {0, 0}), 1.0}, {pipe},
+									   Mode::Thinner, WireHops::Shape::Gap, 0.5);
+		QCOMPARE(cuts.first().from, QPointF(50 + reach, 0));
+		QCOMPARE(cuts.first().to, QPointF(50 - reach, 0));
+
+			// drawn: two pieces, nothing between them
+		const QPainterPath path = WireHops::path(line({0, 0}, {100, 0}),
+												 WireHops::interruptions({line({0, 0}, {100, 0}), 1.0}, {pipe},
+																		 Mode::Thinner, WireHops::Shape::Gap, 0.5));
+		QCOMPARE(path.elementCount(), 4);
+		QVERIFY(path.elementAt(0).isMoveTo());
+		QCOMPARE(QPointF(path.elementAt(1)), QPointF(50 - reach, 0));
+		QVERIFY(path.elementAt(2).isMoveTo());
+		QCOMPARE(QPointF(path.elementAt(2)), QPointF(50 + reach, 0));
+		QCOMPARE(QPointF(path.elementAt(3)), QPointF(100, 0));
+	}
+
+		// Not a crossing: a line ending on the other one (a T), or with no
+		// room for the gap before the end of its segment
+	void noGapWithoutACrossing()
+	{
+		const auto wire = line({0, 0}, {100, 0});
+		const auto gap = WireHops::Shape::Gap;
+		QVERIFY(WireHops::interruptions({wire, 1}, {{line({50, 0}, {50, 50}), 4}}, Mode::Thinner, gap, 0.5).isEmpty());
+		QVERIFY(WireHops::interruptions({line({50, 0}, {50, 50}), 1}, {{wire, 4}}, Mode::Thinner, gap, 0.5).isEmpty());
+		QVERIFY(WireHops::interruptions({wire, 1}, {{line({4, -50}, {4, 50}), 4}}, Mode::Thinner, gap, 0.5).isEmpty());
+		QVERIFY(WireHops::interruptions({wire, 1}, {{line({50, -50}, {50, 50}), 4}}, Mode::None, gap, 0.5).isEmpty());
+	}
+
+		// A conductor is drawn in segments which may be empty or follow
+		// one another on one line: a crossing on their joint is one
+	void crossingOnAJointOfSegments()
+	{
+		const QVector<QPointF> wire{{50, -90}, {50, -80}, {50, 0}, {50, 0}, {50, 80}, {50, 90}};
+		const WireHops::Line pipe{{{0, 0}, {40, 0}, {100, 0}}, 4.0};
+		const auto cuts = WireHops::interruptions({wire, 1.0}, {pipe}, Mode::Thinner,
+												  WireHops::Shape::Gap, 0.5);
+		QCOMPARE(cuts.size(), 1);
+		const QPainterPath path = WireHops::path(wire, cuts);
+		QCOMPARE(path.elementCount(), 4);
+		QCOMPARE(QPointF(path.elementAt(0)), QPointF(50, -90));
+		QCOMPARE(QPointF(path.elementAt(3)), QPointF(50, 90));
+		QCOMPARE(WireHops::crossingPoints(wire, {pipe.points}), (QList<QPointF>{{50, 0}}));
+	}
+
+		// Two pipes side by side crossed by a thin line: one gap over both
+	void nearCrossingsMakeOneGap()
+	{
+		const qreal reach = 4.0 / 2 + WireHops::gapClearance + 0.5;
+		const auto cuts = WireHops::interruptions(
+					{line({0, 0}, {100, 0}), 1.0},
+					{{line({45, -50}, {45, 50}), 4.0}, {line({55, -50}, {55, 50}), 4.0}},
+					Mode::Thinner, WireHops::Shape::Gap, 0.5);
+		QCOMPARE(cuts.size(), 1);
+		QCOMPARE(cuts.first().from, QPointF(45 - reach, 0));
+		QCOMPARE(cuts.first().to, QPointF(55 + reach, 0));
+	}
+
+		// The arc of the thinner line clears a thick one: never smaller
+		// than the hop of upstream, larger over a main pipe
+	void arcOverAThickLine()
+	{
+		const auto wire = line({0, 0}, {100, 0});
+		auto cuts = WireHops::interruptions({wire, 1.0}, {{line({50, -50}, {50, 50}), 1.0}},
+											Mode::Horizontal, WireHops::Shape::Arc, 0.5);
+		QCOMPARE(cuts.size(), 1);
+		QCOMPARE(cuts.first().from, QPointF(50 - WireHops::radius, 0));
+		cuts = WireHops::interruptions({wire, 1.0}, {{line({50, -50}, {50, 50}), 4.0}},
+									   Mode::Thinner, WireHops::Shape::Arc, 0.5);
+		const qreal r = 2.0 + WireHops::gapClearance / 2 + 0.5;
+		QCOMPARE(cuts.first().from, QPointF(50 - r, 0));
+		const QRectF bounds = WireHops::path(wire, cuts).boundingRect();
+		QVERIFY2(qAbs(bounds.top() + r) < 0.01, qPrintable(QString::number(bounds.top())));
+	}
+
+		// Every crossing, whoever gives way: what the marks keep clear of
+	void crossingPointsWhoeverGivesWay()
+	{
+		const auto wire = line({0, 0}, {100, 0});
+		QCOMPARE(WireHops::crossingPoints(wire, {line({30, -20}, {30, 20}), line({70, 20}, {70, -20}),
+												 line({50, 0}, {50, 20}), line({0, 10}, {100, 10})}),
+				 (QList<QPointF>{{30, 0}, {70, 0}}));
+	}
+
+	void gapAndThinnerSurviveResave()
+	{
+		const QString fixture = QFINDTESTDATA("fixtures/wiring_list_arrows.qet");
+		QVERIFY2(!fixture.isEmpty(), "fixture project not found");
+		QFile source(fixture);
+		QVERIFY(source.open(QIODevice::ReadOnly | QIODevice::Text));
+		QString text = QString::fromUtf8(source.readAll());
+		const int newdiagrams = text.indexOf(QLatin1String("<newdiagrams"));
+		QVERIFY(newdiagrams > 0);
+		text.insert(newdiagrams, QStringLiteral("<wire_crossings hop=\"thinner\" shape=\"gap\"/>\n    "));
+		const QString with_setting = m_dir.filePath(QStringLiteral("with_gap.qet"));
+		QFile out(with_setting);
+		QVERIFY(out.open(QIODevice::WriteOnly | QIODevice::Text));
+		out.write(text.toUtf8());
+		out.close();
+
+		const QString saved = resave(with_setting);
+		QVERIFY2(!saved.isEmpty(), "--resave failed");
+			// in whichever order the attributes are written
+		QVERIFY2(saved.contains(QRegularExpression(QStringLiteral("<wire_crossings[^>]*hop=\"thinner\"")))
+				 && saved.contains(QRegularExpression(QStringLiteral("<wire_crossings[^>]*shape=\"gap\""))),
+				 "the setting was lost on save");
+	}
+
 	void savedSettingSurvivesResave()
 	{
 		const QString fixture = QFINDTESTDATA("fixtures/wiring_list_arrows.qet");

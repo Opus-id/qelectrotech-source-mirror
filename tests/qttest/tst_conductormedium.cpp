@@ -9,7 +9,10 @@
 #include "elementsmover.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
+#include "pidcodification.h"
 #include "pidfreeend.h"
+#include "signalmark.h"
+#include "wirehops.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
@@ -753,6 +756,104 @@ class tst_conductormedium : public QObject
 			n2 = middle->terminals().at(1);
 			QCOMPARE(n2->conductors().size(), 1);
 			QVERIFY(!routeOf(n2->conductors().first()).contains(QPointF(150, a->pos().y())));
+		}
+
+			// ---- crossings and branches (7c) ----
+			// A signal line across a pipe, the project drawing the thinner
+			// line with a gap: the signal line stops either side of the
+			// pipe, the pipe is drawn whole; with no crossing drawn, both
+			// are their plain path
+		void aSignalLineGivesWayToAPipe()
+		{
+			m_next_y += 600;
+			const qreal y = m_next_y;
+			Element *a = place(m_pipe, QPointF(0, y));
+			Element *b = place(m_pipe, QPointF(200, y));
+			Element *c = place(m_signal, QPointF(100, y - 100));
+			Element *d = place(m_signal, QPointF(100, y + 100));
+			QVERIFY(a && b && c && d);
+			c->setRotation(90);
+			d->setRotation(90);
+			Conductor *pipe = draw(a->terminals().at(1), b->terminals().at(0));
+			Terminal *south = nullptr, *north = nullptr;
+			for (Terminal *t : c->terminals()) if (t->orientation() == Qet::South) south = t;
+			for (Terminal *t : d->terminals()) if (t->orientation() == Qet::North) north = t;
+			QVERIFY(south && north);
+			Conductor *signal = draw(south, north);
+			QCOMPARE(signal->medium(), TerminalData::Signal);
+			QVERIFY(pipe->properties().lineWidth() > signal->properties().lineWidth());
+
+			const auto was_mode = m_project.wireHops();
+			const auto was_shape = m_project.wireHopsShape();
+			m_project.setWireHops(WireHops::Mode::Thinner);
+			m_project.setWireHopsShape(WireHops::Shape::Gap);
+
+			QCOMPARE(pipe->paintedPath(), pipe->path());
+			const QPainterPath cut = signal->paintedPath();
+			int moves = 0;
+			bool over_pipe = false;
+			for (int i = 0 ; i < cut.elementCount() ; ++i) {
+				const QPointF p = signal->mapToScene(QPointF(cut.elementAt(i)));
+				if (i > 0 && cut.elementAt(i).isMoveTo()) ++moves;
+				if (qAbs(p.y() - y) < pipe->properties().lineWidth() / 2 + 1) over_pipe = true;
+			}
+			QCOMPARE(moves, 1);
+			QVERIFY(!over_pipe);
+
+				// a signal line whose mark stands in it (open circles): its
+				// circles kept clear of the pipe, and the gap at the pipe
+			const PidCodification codification = m_project.pidCodification();
+			PidCodification circles = codification;
+			circles.setSignalMark(signal->properties().m_signal.signal_type, SignalMark::Circle);
+			m_project.setPidCodification(circles);
+			QCOMPARE(signal->signalMark(), SignalMark::Circle);
+			const QPainterPath broken = signal->brokenSignalLine(SignalMark::Circle);
+			const QPainterPath plain_broken = SignalMark::brokenLine(SignalMark::Circle, routeOf(signal));
+			QVERIFY(broken != plain_broken);
+			for (int i = 0 ; i < broken.elementCount() ; ++i) {
+				const QPointF p = signal->mapToScene(QPointF(broken.elementAt(i)));
+				QVERIFY2(qAbs(p.y() - y) >= pipe->properties().lineWidth() / 2 + 1,
+						 qPrintable(QString::number(p.y() - y)));
+			}
+			for (const SignalMark::Place &place :
+				 SignalMark::places(routeOf(signal), SignalMark::length(SignalMark::Circle),
+									SignalMark::pitch, {QPointF(100, y)})) {
+				QVERIFY(qAbs(place.at.y() - y) >= SignalMark::crossingRoom);
+			}
+			m_project.setPidCodification(codification);
+
+				// the horizontal line giving way: the signal line, vertical,
+				// is drawn whole
+			m_project.setWireHops(WireHops::Mode::Horizontal);
+			QCOMPARE(signal->paintedPath(), signal->path());
+			m_project.setWireHops(WireHops::Mode::None);
+			QCOMPARE(signal->paintedPath(), signal->path());
+			QCOMPARE(pipe->paintedPath(), pipe->path());
+			m_project.setWireHops(was_mode);
+			m_project.setWireHopsShape(was_shape);
+		}
+
+			// Two wires from one terminal, the second bending on the first:
+			// a junction dot, as always. Two signal lines (or pipes) the
+			// same way: none, a branch of a pipe is a tee
+		void aBranchOfAPipeOrASignalHasNoDot()
+		{
+			const QList<ElementsLocation> kinds{m_electrical, m_signal, m_pipe};
+			for (int k = 0 ; k < kinds.size() ; ++k) {
+				const ElementsLocation &kind = kinds.at(k);
+				m_next_y += 300;
+				const qreal y = m_next_y;
+				Element *a = place(kind, QPointF(0, y));
+				Element *b = place(kind, QPointF(200, y));
+				Element *c = place(kind, QPointF(200, y + 100));
+				QVERIFY(a && b && c);
+				draw(a->terminals().at(1), b->terminals().at(0));
+				Conductor *branch = draw(a->terminals().at(1), c->terminals().at(0));
+				const QPointF from = a->terminals().at(1)->dockConductor();
+				const QPointF to = c->terminals().at(0)->dockConductor();
+				QVERIFY(branch->setPathPoints({from, QPointF(100, from.y()), QPointF(100, to.y()), to}));
+				QCOMPARE(branch->junctions().size(), k == 0 ? 1 : 0);
+			}
 		}
 
 			// A symbol moved onto a pipe breaks it too, the switch off; one

@@ -355,6 +355,8 @@ class QETProject : public QObject
 		void setAutoConductor (bool ac);
 		WireHops::Mode wireHops() const;
 		void setWireHops(WireHops::Mode mode);
+		WireHops::Shape wireHopsShape() const;
+		void setWireHopsShape(WireHops::Shape shape);
 			/// From which distance, in millimetres, the text of a conductor
 			/// moved away from it by hand is tied to it by a leader line; 0
 			/// (the default) for none. See LeaderLine.
@@ -711,6 +713,7 @@ class QETProject : public QObject
 		QByteArray m_opened_content;
 		bool m_auto_conductor = true;
 		WireHops::Mode m_wire_hops = WireHops::Mode::None;
+		WireHops::Shape m_wire_hops_shape = WireHops::Shape::Arc;
 			/// See textLeaderDistance() and textLeaderEnd()
 		qreal m_text_leader_distance = 0;
 		LeaderLine::End m_text_leader_end = LeaderLine::End::None;

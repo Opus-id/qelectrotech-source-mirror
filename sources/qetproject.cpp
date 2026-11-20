@@ -2539,6 +2539,35 @@ void QETProject::setWireHops(WireHops::Mode mode)
 }
 
 /**
+	@brief QETProject::wireHopsShape
+	@return how the wire which gives way at a crossing is drawn: an arc,
+	the default, or a gap (P&ID, 7c)
+*/
+WireHops::Shape QETProject::wireHopsShape() const {
+	return m_wire_hops_shape;
+}
+
+/**
+	@brief QETProject::setWireHopsShape
+	Set how the wire which gives way at a crossing is drawn, and redraw
+	every folio built.
+	@param shape
+*/
+void QETProject::setWireHopsShape(WireHops::Shape shape)
+{
+	if (shape == m_wire_hops_shape) {
+		return;
+	}
+	m_wire_hops_shape = shape;
+	storeSettings();
+	for (Diagram *diagram : folios()) {
+		if (diagram->isLoaded()) {
+			diagram->update();
+		}
+	}
+}
+
+/**
 	@brief QETProject::setTextLeaders
 	Tie the texts of the conductors moved away from them by hand from
 	@p millimetres (0 for none) by a leader line ended by @p end, and draw
@@ -4971,6 +5000,8 @@ void QETProject::readWireHopsXml(QDomDocument &xml_project)
 	m_wire_hops = crossings.isNull()
 			? WireHops::Mode::None
 			: WireHops::fromString(crossings.attribute(QStringLiteral("hop")));
+		//An arc unless the file says gap (7c)
+	m_wire_hops_shape = WireHops::shapeFromString(crossings.attribute(QStringLiteral("shape")));
 }
 
 /**
@@ -5435,6 +5466,11 @@ void QETProject::writeWireHopsXml(QDomElement &xml_element)
 	QDomElement crossings = xml_element.ownerDocument()
 			.createElement(QStringLiteral("wire_crossings"));
 	crossings.setAttribute(QStringLiteral("hop"), WireHops::toString(m_wire_hops));
+		//The shape only when it is not the arc, so a project drawn with
+		//arcs saves as before (7c)
+	if (m_wire_hops_shape != WireHops::Shape::Arc) {
+		crossings.setAttribute(QStringLiteral("shape"), WireHops::toString(m_wire_hops_shape));
+	}
 	xml_element.appendChild(crossings);
 }
 

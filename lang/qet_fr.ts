@@ -18008,6 +18008,30 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <translation>Saut sur les conducteurs verticaux</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="297"/>
+        <source>Hop on the thinner conductor (the vertical one when as thick)</source>
+        <comment>wire crossings</comment>
+        <translation>Saut sur le trait le plus fin (le vertical à épaisseur égale)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="304"/>
+        <source>Arc</source>
+        <comment>shape of a wire crossing</comment>
+        <translation>Arc</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="306"/>
+        <source>Gap</source>
+        <comment>shape of a wire crossing</comment>
+        <translation>Lacune</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="308"/>
+        <source>Arc: the conductor which gives way hops over the other one. Gap: it stops 1 mm short of the other one and goes on 1 mm past it.</source>
+        <comment>tooltip</comment>
+        <translation>Arc : le trait qui cède passe par-dessus l&apos;autre. Lacune : il s&apos;arrête à 1 mm de l&apos;autre et reprend 1 mm après.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="285"/>
         <source>Draws a small arc where two conductors cross without being connected. Only the drawing changes: no element is added and no conductor is cut.</source>
         <comment>tooltip</comment>

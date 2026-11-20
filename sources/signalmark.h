@@ -131,13 +131,21 @@ class SignalMark
 			/// its middle; one in the middle of a run too short for that but
 			/// two marks long; none on a shorter one. A line none of whose runs
 			/// is long enough has one in the middle of its longest run, so that
-			/// its type is always said.
+			/// its type is always said. A mark which would stand on a point of
+			/// @p avoid (where the line crosses another one, 7c) is moved along
+			/// its run, by the least, to keep crossingRoom clear of it on each
+			/// side, when its run has room for that; else it stays.
 		static QList<Place> places(const QList<QPointF> &points, qreal mark_length,
-								   qreal mark_pitch = pitch);
+								   qreal mark_pitch = pitch, const QList<QPointF> &avoid = {});
+			/// What a mark keeps clear of a crossing, on each side: the gap
+			/// of a main line (1 mm of room past its half width), and a little
+		static constexpr qreal crossingRoom = 8;
 			/// What takes the frame of shapes() to @p place
 		static QTransform frame(const Place &place);
-			/// The marks @p mark of the line @p points, placed
-		static QPainterPath marksPath(Mark mark, const QList<QPointF> &points);
+			/// The marks @p mark of the line @p points, placed, clear of
+			/// @p avoid (places())
+		static QPainterPath marksPath(Mark mark, const QList<QPointF> &points,
+									  const QList<QPointF> &avoid = {});
 			/// The line @p points without what @p mark hides of it
 			/// (lineGap()) at each place it stands
 		static QPainterPath brokenLine(Mark mark, const QList<QPointF> &points);

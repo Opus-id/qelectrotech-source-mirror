@@ -186,6 +186,11 @@ void ProjectMainConfigPage::applyProjectConf()
 		m_project -> setWireHops(wire_hops);
 		modified_project = true;
 	}
+	const auto wire_hops_shape = WireHops::shapeFromString(wire_hops_shape_cb_ -> currentData().toString());
+	if (m_project -> wireHopsShape() != wire_hops_shape) {
+		m_project -> setWireHopsShape(wire_hops_shape);
+		modified_project = true;
+	}
 
 	const qreal leader_distance = text_leader_cb_ -> isChecked() ? text_leader_sb_ -> value() : 0;
 	const auto leader_end = LeaderLine::fromString(text_leader_end_cb_ -> currentData().toString());
@@ -291,9 +296,27 @@ void ProjectMainConfigPage::initWidgets()
 							 WireHops::toString(WireHops::Mode::Horizontal));
 	wire_hops_cb_ -> addItem(tr("Hop on vertical conductors", "wire crossings"),
 							 WireHops::toString(WireHops::Mode::Vertical));
+		//The thinner line gives way, as ISO 10628-1 asks of a process
+		//diagram (7c)
+	wire_hops_cb_ -> addItem(tr("Hop on the thinner conductor (the vertical one when as thick)", "wire crossings"),
+							 WireHops::toString(WireHops::Mode::Thinner));
 	wire_hops_cb_ -> setToolTip(tr("Draws a small arc where two conductors cross without being connected. Only the "
 								   "drawing changes: no element is added and no conductor is cut.",
 								   "tooltip"));
+	wire_hops_shape_cb_ = new QComboBox();
+	wire_hops_shape_cb_ -> setObjectName(QStringLiteral("wire_hops_shape"));
+	wire_hops_shape_cb_ -> addItem(tr("Arc", "shape of a wire crossing"),
+								   WireHops::toString(WireHops::Shape::Arc));
+	wire_hops_shape_cb_ -> addItem(tr("Gap", "shape of a wire crossing"),
+								   WireHops::toString(WireHops::Shape::Gap));
+	wire_hops_shape_cb_ -> setToolTip(tr("Arc: the conductor which gives way hops over the other one. Gap: it stops "
+										 "1 mm short of the other one and goes on 1 mm past it.",
+										 "tooltip"));
+	connect(wire_hops_cb_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() {
+		wire_hops_shape_cb_ -> setEnabled(wire_hops_cb_ -> isEnabled()
+										  && wire_hops_cb_ -> currentData().toString()
+											 != WireHops::toString(WireHops::Mode::None));
+	});
 
 		//A thin line from a text moved away from its line to the line: none
 		//by default, so that a diagram looks as before
@@ -460,6 +483,7 @@ void ProjectMainConfigPage::initLayout()
 	QHBoxLayout *wire_hops_layout0 = new QHBoxLayout();
 	wire_hops_layout0 -> addWidget(wire_hops_label_);
 	wire_hops_layout0 -> addWidget(wire_hops_cb_);
+	wire_hops_layout0 -> addWidget(wire_hops_shape_cb_);
 	wire_hops_layout0 -> addStretch();
 	main_layout0 -> addLayout(wire_hops_layout0);
 	main_layout0 -> addSpacing(10);
@@ -533,6 +557,11 @@ void ProjectMainConfigPage::readValuesFromProject()
 
 	const int wire_hops_index = wire_hops_cb_ -> findData(WireHops::toString(m_project -> wireHops()));
 	wire_hops_cb_ -> setCurrentIndex(qMax(0, wire_hops_index));
+	const int wire_hops_shape_index =
+			wire_hops_shape_cb_ -> findData(WireHops::toString(m_project -> wireHopsShape()));
+	wire_hops_shape_cb_ -> setCurrentIndex(qMax(0, wire_hops_shape_index));
+	wire_hops_shape_cb_ -> setEnabled(wire_hops_cb_ -> isEnabled()
+									  && m_project -> wireHops() != WireHops::Mode::None);
 		//5 mm proposed when it is turned on
 	const bool leaders = m_project -> textLeaderDistance() > 0;
 	text_leader_sb_ -> setValue(leaders ? m_project -> textLeaderDistance() : 5);
@@ -610,6 +639,9 @@ void ProjectMainConfigPage::adjustReadOnly()
 	usage_enabled_cb_ -> setDisabled(is_read_only);
 	usage_reset_pb_ -> setDisabled(is_read_only);
 	wire_hops_cb_ -> setDisabled(is_read_only);
+	wire_hops_shape_cb_ -> setEnabled(!is_read_only
+									  && wire_hops_cb_ -> currentData().toString()
+										 != WireHops::toString(WireHops::Mode::None));
 	text_leader_cb_ -> setDisabled(is_read_only);
 	text_leader_sb_ -> setDisabled(is_read_only || !text_leader_cb_ -> isChecked());
 	text_leader_end_cb_ -> setDisabled(is_read_only || !text_leader_cb_ -> isChecked());

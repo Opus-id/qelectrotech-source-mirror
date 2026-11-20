@@ -69,6 +69,8 @@ namespace {
 		const Conductor *conductor;
 		QRectF rect;
 		QVector<QPointF> points;
+			//The width its line is drawn with (WireHops::Mode::Thinner)
+		qreal width = 1.0;
 	};
 	const Diagram *s_hop_candidates_diagram = nullptr;
 	quint64 s_hop_candidates_generation = 0;
@@ -1011,7 +1013,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	}
 	if (SignalMark::lineGap(signal_mark) > 0) {
 			//A mark which stands in the line: the line stops either side
-		painter -> drawPath(SignalMark::brokenLine(signal_mark, segmentsToPoints()));
+		painter -> drawPath(brokenSignalLine(signal_mark));
 	} else {
 		painter -> drawPath(painted_path);
 	}
@@ -1212,7 +1214,9 @@ void Conductor::drawSignalMarks(QPainter *painter, const QColor &color, qreal de
 	if (!SignalMark::isRepeated(mark)) {
 		return;
 	}
-	const QPainterPath marks = SignalMark::marksPath(mark, segmentsToPoints());
+		//Kept clear of the crossings when the project draws them (7c)
+	paintedPath();
+	const QPainterPath marks = SignalMark::marksPath(mark, segmentsToPoints(), m_hops_crossings);
 	if (marks.isEmpty()) {
 		return;
 	}
@@ -3104,6 +3108,8 @@ void Conductor::setProperties(const ConductorProperties &properties)
 					property.m_pipe, codification);
 	}
 	if (m_properties == property) return;
+		//Its width may change which line gives way at a crossing (7c)
+	conductorGeometryChanged();
 
 		//The run this conductor was part of, which may part now
 	const QList<Conductor *> old_run = cornerChain();
@@ -3907,10 +3913,14 @@ QPainterPath Conductor::paintedPath() const
 	}
 	const WireHops::Mode mode = parent_diagram->project()->wireHops();
 	if (mode == WireHops::Mode::None) {
+		m_hops_cuts.clear();
+		m_hops_crossings.clear();
 		return path();
 	}
+	const WireHops::Shape shape = parent_diagram->project()->wireHopsShape();
+	const int mode_key = int(mode) * 2 + int(shape);
 	if (m_hops_generation == s_conductor_geometry_generation
-		&& m_hops_mode == int(mode)) {
+		&& m_hops_mode == mode_key) {
 		return m_hops_path;
 	}
 
@@ -3927,6 +3937,9 @@ QPainterPath Conductor::paintedPath() const
 			for (const QPointF &point : conductor->segmentsToPoints()) {
 				candidate.points.append(conductor->mapToScene(point));
 			}
+			PotentialType type;
+			candidate.width = conductor->drawnWidth(conductor->potentialTypeFormat(&type)
+													? &type : nullptr);
 			s_hop_candidates.append(candidate);
 		}
 		s_hop_candidates_diagram = parent_diagram;
@@ -3934,8 +3947,10 @@ QPainterPath Conductor::paintedPath() const
 	}
 
 	m_hops_path = path();
+	m_hops_cuts.clear();
+	m_hops_crossings.clear();
 	m_hops_generation = s_conductor_geometry_generation;
-	m_hops_mode = int(mode);
+	m_hops_mode = mode_key;
 
 	const QList<QPointF> points = segmentsToPoints();
 	if (points.size() < 2) {
@@ -3950,24 +3965,77 @@ QPainterPath Conductor::paintedPath() const
 		//adjusted by 1 because a straight conductor's bounds have no width
 	const QRectF rect = mapRectToScene(path().boundingRect()).adjusted(-1, -1, 1, 1);
 	QList<QVector<QPointF>> others;
+	QList<WireHops::Line> other_lines;
 	for (const HopCandidate &candidate : std::as_const(s_hop_candidates))
 	{
 		if (candidate.conductor != this
 			&& rect.intersects(candidate.rect.adjusted(-1, -1, 1, 1))) {
 			others.append(candidate.points);
+			other_lines.append({candidate.points, candidate.width});
 		}
+	}
+		//Where the marks of a signal line keep clear of
+	for (const QPointF &crossing : WireHops::crossingPoints(wire, others)) {
+		m_hops_crossings.append(mapFromScene(crossing));
 	}
 
-	const QList<QPointF> scene_hops = WireHops::crossings(wire, others, mode);
-	if (!scene_hops.isEmpty())
+		//Where this line gives way: a gap, or the thinner line giving way
+		//(P&ID, 7c). A dashed signal line has flat ends, any other line
+		//square ones
+	PotentialType type;
+	const qreal width = drawnWidth(potentialTypeFormat(&type) ? &type : nullptr);
+	const qreal cap = signalMark() == SignalMark::Dashes ? 0 : width / 2;
+	for (const WireHops::Interruption &cut :
+		 WireHops::interruptions({wire, width}, other_lines, mode, shape, cap)) {
+		m_hops_cuts.append({mapFromScene(cut.from), mapFromScene(cut.to), cut.arc});
+	}
+
+		//Upstream's hops (#436) drawn exactly as they were: an arc, chosen
+		//by the way the wire runs
+	if (shape == WireHops::Shape::Arc
+		&& (mode == WireHops::Mode::Horizontal || mode == WireHops::Mode::Vertical))
 	{
-		QList<QPointF> hops;
-		for (const QPointF &hop : scene_hops) {
-			hops.append(mapFromScene(hop));
+		const QList<QPointF> scene_hops = WireHops::crossings(wire, others, mode);
+		if (!scene_hops.isEmpty())
+		{
+			QList<QPointF> hops;
+			for (const QPointF &hop : scene_hops) {
+				hops.append(mapFromScene(hop));
+			}
+			m_hops_path = WireHops::path(QVector<QPointF>(points.begin(), points.end()), hops, mode);
 		}
-		m_hops_path = WireHops::path(QVector<QPointF>(points.begin(), points.end()), hops, mode);
+		return m_hops_path;
+	}
+	if (!m_hops_cuts.isEmpty()) {
+		m_hops_path = WireHops::path(QVector<QPointF>(points.begin(), points.end()), m_hops_cuts);
 	}
 	return m_hops_path;
+}
+
+/**
+	@brief Conductor::brokenSignalLine
+	See the declaration
+*/
+QPainterPath Conductor::brokenSignalLine(SignalMark::Mark mark) const
+{
+	const QList<QPointF> points = segmentsToPoints();
+	paintedPath();
+	if (m_hops_cuts.isEmpty() && m_hops_crossings.isEmpty()) {
+		return SignalMark::brokenLine(mark, points);
+	}
+		//The holes of the marks standing in the line, kept clear of the
+		//crossings, then where the line gives way; on the straight runs,
+		//which the holes and the crossings both lie on
+	const QList<QPointF> runs = SignalMark::straightRuns(points);
+	QList<WireHops::Interruption> cuts = m_hops_cuts;
+	const qreal half_gap = SignalMark::lineGap(mark) / 2.0;
+	for (const SignalMark::Place &place :
+		 SignalMark::places(points, SignalMark::length(mark), SignalMark::pitch, m_hops_crossings)) {
+		const QLineF run(runs.at(place.run), runs.at(place.run + 1));
+		const QPointF step = (run.p2() - run.p1()) / run.length() * half_gap;
+		cuts.append({place.at - step, place.at + step, false});
+	}
+	return WireHops::path(QVector<QPointF>(runs.begin(), runs.end()), cuts);
 }
 
 /**

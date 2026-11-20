@@ -256,13 +256,51 @@ QList<QPointF> SignalMark::straightRuns(const QList<QPointF> &points)
 	See the declaration
 */
 QList<SignalMark::Place> SignalMark::places(const QList<QPointF> &points, qreal mark_length,
-											 qreal mark_pitch)
+											 qreal mark_pitch, const QList<QPointF> &avoid)
 {
 	QList<Place> found;
 	const QList<QPointF> runs = straightRuns(points);
 	if (runs.size() < 2 || mark_length <= 0 || mark_pitch <= 0) {
 		return found;
 	}
+		//A mark at @p at on the run from @p from to @p to, moved off the
+		//crossings of @p avoid on that run (7c)
+	auto clear = [&](const QPointF &from, const QPointF &to, qreal at) {
+		const qreal length = QLineF(from, to).length();
+		const QPointF step = (to - from) / length;
+		QList<qreal> crossings;
+		for (const QPointF &p : avoid) {
+			const qreal along = QPointF::dotProduct(p - from, step);
+			const QPointF foot = from + along * step;
+			if (QLineF(foot, p).length() < same_place && along > 0 && along < length) {
+				crossings.append(along);
+			}
+		}
+		const qreal room = mark_length / 2 + crossingRoom;
+		auto isClear = [&](qreal x) {
+			for (qreal c : std::as_const(crossings)) {
+				if (qAbs(x - c) < room - same_place) return false;
+			}
+			return true;
+		};
+		if (isClear(at)) {
+			return at;
+		}
+		qreal best = at;
+		qreal best_shift = -1;
+		for (qreal c : std::as_const(crossings)) {
+			for (qreal x : {c - room, c + room}) {
+				if (x < mark_length / 2 || x > length - mark_length / 2 || !isClear(x)) {
+					continue;
+				}
+				if (best_shift < 0 || qAbs(x - at) < best_shift) {
+					best = x;
+					best_shift = qAbs(x - at);
+				}
+			}
+		}
+		return best;
+	};
 		//Where a mark is read from, on the run from @p from to @p to
 	auto reading = [](const QPointF &from, const QPointF &to) {
 		const QLineF run(from, to);
@@ -293,14 +331,16 @@ QList<SignalMark::Place> SignalMark::places(const QList<QPointF> &points, qreal 
 		const int count = qMax(1, qFloor((length - 3 * mark_length) / mark_pitch) + 1);
 		const QPointF step = (to - from) / length;
 		for (int n = 0 ; n < count ; ++n) {
-			const qreal at = length / 2.0 + (n - (count - 1) / 2.0) * mark_pitch;
+			const qreal at = clear(from, to, length / 2.0 + (n - (count - 1) / 2.0) * mark_pitch);
 			found.append({from + at * step, reading(from, to), i});
 		}
 	}
 	if (found.isEmpty()) {
 		const QPointF from = runs.at(longest);
 		const QPointF to = runs.at(longest + 1);
-		found.append({(from + to) / 2.0, reading(from, to), longest});
+		const QLineF run(from, to);
+		const qreal at = clear(from, to, run.length() / 2.0);
+		found.append({from + at * (to - from) / run.length(), reading(from, to), longest});
 	}
 	return found;
 }
@@ -320,14 +360,15 @@ QTransform SignalMark::frame(const Place &place)
 	@brief SignalMark::marksPath
 	See the declaration
 */
-QPainterPath SignalMark::marksPath(Mark mark, const QList<QPointF> &points)
+QPainterPath SignalMark::marksPath(Mark mark, const QList<QPointF> &points,
+								   const QList<QPointF> &avoid)
 {
 	QPainterPath marks;
 	if (!isRepeated(mark)) {
 		return marks;
 	}
 	const QPainterPath one = shapes(mark);
-	for (const Place &place : places(points, length(mark))) {
+	for (const Place &place : places(points, length(mark), pitch, avoid)) {
 		marks.addPath(frame(place).map(one));
 	}
 	return marks;

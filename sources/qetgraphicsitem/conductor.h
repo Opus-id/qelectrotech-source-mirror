@@ -24,6 +24,7 @@
 #include <pipeconnection.h>
 #include <properties/potentialtypes.h>
 #include <signalmark.h>
+#include <wirehops.h>
 
 #include <QElapsedTimer>
 #include <QGraphicsPathItem>
@@ -318,6 +319,11 @@ class Conductor : public QGraphicsObject
 			/// Draw the marks of this signal line along its straight runs
 			/// (SignalMark::places()), in @p color, as thin as its line
 		void drawSignalMarks(QPainter *painter, const QColor &color, qreal detail) const;
+			/// The line of a signal line whose @p mark stands in it
+			/// (SignalMark::lineGap()): stopped either side of each mark,
+			/// and where it gives way at a crossing when the project draws
+			/// them, its marks kept clear of the crossings (7c)
+		QPainterPath brokenSignalLine(SignalMark::Mark mark) const;
 		QPainterPath trimmedEnds(qreal half_width) const;
 		bool potentialTypeFormat(PotentialType *type) const;
 			/// The width this conductor is drawn with, out of the hover:
@@ -394,6 +400,11 @@ class Conductor : public QGraphicsObject
 		mutable QPainterPath m_hops_path;
 		mutable quint64 m_hops_generation = 0;
 		mutable int m_hops_mode = -1;
+			///Where this conductor gives way at a crossing, and every point
+			///where it crosses another one, in its own coordinates; kept
+			///with the cache of paintedPath() (7c)
+		mutable QList<WireHops::Interruption> m_hops_cuts;
+		mutable QList<QPointF> m_hops_crossings;
 			/// Functional properties
 		ConductorProperties m_properties;
 			/// Text input for non simple, non-singleline conductors

@@ -43,14 +43,27 @@ namespace WireHops
 	enum class Mode {
 		None,       ///< no hop, the default: crossings are drawn as plain lines
 		Horizontal, ///< the horizontal wire hops over the vertical one
-		Vertical    ///< the vertical wire hops over the horizontal one
+		Vertical,   ///< the vertical wire hops over the horizontal one
+		Thinner     ///< the thinner wire, the vertical one when both are as
+					///< thick (ISO 10628-1 for process diagrams)
+	};
+
+		///How the wire which gives way is drawn at a crossing
+	enum class Shape {
+		Arc, ///< a half circle over the other wire, the default
+		Gap  ///< the wire stops short of the other one and goes on past it
 	};
 
 		///Radius of a hop, in scene units (a grid step is 10)
 	constexpr qreal radius = 4.0;
+		///Room left by a gap between the end of the wire and the edge of
+		///the other one, on each side, in scene units (1 mm)
+	constexpr qreal gapClearance = 4.0;
 
 	QString toString(Mode mode);
 	Mode fromString(const QString &string);
+	QString toString(Shape shape);
+	Shape shapeFromString(const QString &string);
 
 	QList<QPointF> crossings(const QVector<QPointF> &wire,
 							 const QList<QVector<QPointF>> &others,
@@ -58,6 +71,28 @@ namespace WireHops
 	QPainterPath path(const QVector<QPointF> &wire,
 					  const QList<QPointF> &hops,
 					  Mode mode);
+
+		///A wire as drawn: its points and the width of its line
+	struct Line {
+		QVector<QPointF> points;
+		qreal width = 1.0;
+	};
+
+		///Where a wire is not drawn straight: from @a from to @a to, both
+		///on one of its segments, in the order the wire runs. An arc hops
+		///from one to the other; a gap leaves the wire undrawn between them.
+	struct Interruption {
+		QPointF from;
+		QPointF to;
+		bool arc = false;
+	};
+
+	QList<Interruption> interruptions(const Line &wire, const QList<Line> &others,
+									  Mode mode, Shape shape, qreal cap_extension);
+	QList<QPointF> crossingPoints(const QVector<QPointF> &wire,
+								  const QList<QVector<QPointF>> &others);
+	QPainterPath path(const QVector<QPointF> &wire,
+					  const QList<Interruption> &interruptions);
 }
 
 #endif // WIREHOPS_H

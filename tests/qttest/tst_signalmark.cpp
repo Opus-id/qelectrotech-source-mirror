@@ -225,6 +225,30 @@ class tst_signalmark : public QObject
 			QVERIFY(SignalMark::places({QPointF(3, 3), QPointF(3, 3)}, m, 48).isEmpty());
 		}
 
+			// A mark on a crossing (7c) moves along its run, by the least,
+			// to keep crossingRoom clear of it; a crossing off the run moves
+			// nothing; a mark with no room on its run stays
+		void aMarkKeepsClearOfACrossing()
+		{
+			const QList<QPointF> line{QPointF(0, 0), QPointF(200, 0)};
+			const qreal room = m / 2 + SignalMark::crossingRoom;
+			QCOMPARE(sorted(SignalMark::places(line, m, 48, {QPointF(76, 0)})),
+					 (QList<qreal>{28, 76 - room, 124, 172}));
+				// a little past the mark: it moves back, the least way
+			QCOMPARE(sorted(SignalMark::places(line, m, 48, {QPointF(80, 0)})),
+					 (QList<qreal>{28, 80 - room, 124, 172}));
+			QCOMPARE(sorted(SignalMark::places(line, m, 48, {QPointF(76, 30)})),
+					 (QList<qreal>{28, 76, 124, 172}));
+			const auto short_run = SignalMark::places({QPointF(0, 0), QPointF(2 * m, 0)}, m, 48,
+													  {QPointF(m, 0)});
+			QCOMPARE(short_run.size(), 1);
+			QCOMPARE(short_run.first().at, QPointF(m, 0));
+				// along a vertical run too
+			QCOMPARE(sorted(SignalMark::places({QPointF(0, 0), QPointF(0, 200)}, m, 48, {QPointF(0, 124)}),
+							false),
+					 (QList<qreal>{28, 76, 124 - room, 172}));
+		}
+
 		void eachRunOfALineHasItsMarks()
 		{
 			const QList<QPointF> line{QPointF(0, 0), QPointF(100, 0), QPointF(100, 100), QPointF(40, 100)};

@@ -57,6 +57,35 @@ namespace {
 		});
 		return on_segment;
 	}
+
+		//@a points without repeated points nor points where the wire goes
+		//straight on: a conductor is drawn in segments which may be empty
+		//or follow one another on one line, and a crossing on the joint of
+		//two of them is still inside the straight run they make
+	QVector<QPointF> straightRuns(const QVector<QPointF> &points)
+	{
+		QVector<QPointF> runs;
+		for (const QPointF &p : points)
+		{
+			if (!runs.isEmpty() && QLineF(runs.constLast(), p).length() < tolerance) {
+				continue;
+			}
+			if (runs.size() >= 2)
+			{
+				const QPointF &a = runs.at(runs.size() - 2), &b = runs.constLast();
+				const bool along_x = qAbs(a.y() - b.y()) < tolerance && qAbs(b.y() - p.y()) < tolerance
+						&& (b.x() - a.x()) * (p.x() - b.x()) > 0;
+				const bool along_y = qAbs(a.x() - b.x()) < tolerance && qAbs(b.x() - p.x()) < tolerance
+						&& (b.y() - a.y()) * (p.y() - b.y()) > 0;
+				if (along_x || along_y) {
+					runs.last() = p;
+					continue;
+				}
+			}
+			runs.append(p);
+		}
+		return runs;
+	}
 }
 
 /**
@@ -68,6 +97,7 @@ QString WireHops::toString(Mode mode)
 	switch (mode) {
 		case Mode::Horizontal: return QStringLiteral("horizontal");
 		case Mode::Vertical:   return QStringLiteral("vertical");
+		case Mode::Thinner:    return QStringLiteral("thinner");
 		case Mode::None:       break;
 	}
 	return QStringLiteral("none");
@@ -82,7 +112,27 @@ WireHops::Mode WireHops::fromString(const QString &string)
 {
 	if (string == QLatin1String("horizontal")) return Mode::Horizontal;
 	if (string == QLatin1String("vertical"))   return Mode::Vertical;
+	if (string == QLatin1String("thinner"))    return Mode::Thinner;
 	return Mode::None;
+}
+
+/**
+	@brief WireHops::toString
+	@return the value written in the project file for @a shape
+*/
+QString WireHops::toString(Shape shape)
+{
+	return shape == Shape::Gap ? QStringLiteral("gap") : QStringLiteral("arc");
+}
+
+/**
+	@brief WireHops::shapeFromString
+	@return the shape written as @a string in a project file,
+	Shape::Arc for anything else
+*/
+WireHops::Shape WireHops::shapeFromString(const QString &string)
+{
+	return string == QLatin1String("gap") ? Shape::Gap : Shape::Arc;
 }
 
 /**
@@ -202,6 +252,225 @@ QPainterPath WireHops::path(const QVector<QPointF> &wire,
 						//On the right: from the top end to the bottom one, or back
 					path.lineTo(hop.x(), hop.y() - direction * radius);
 					path.arcTo(circle, direction > 0 ? 90 : 270, direction > 0 ? -180 : 180);
+				}
+			}
+		}
+		path.lineTo(b);
+	}
+	return path;
+}
+
+/**
+	@brief WireHops::interruptions
+	@param wire : the wire, its points in scene coordinates
+	@param others : every other wire that may cross it, in scene coordinates
+	@param mode : which wire of a crossing gives way; with Mode::Thinner,
+	this one when its line is thinner than the other's, or as thick and
+	vertical there
+	@param shape : an arc or a gap
+	@param cap_extension : how far the pen of @a wire draws past the end of
+	a line (half its width for a square cap, 0 for a flat one), so that
+	what is seen of a gap is what gapClearance says
+	@return where @a wire gives way, in the order of @a wire. A crossing is
+	one as for crossings(): strictly inside the segment of the other wire,
+	and with room for the arc or the gap on this wire's segment. A gap
+	leaves gapClearance on each side of the other line; an arc clears it
+	by half as much, never smaller than the hop of crossings(). Two
+	crossings whose arcs or gaps overlap make one, which spans both.
+*/
+QList<WireHops::Interruption> WireHops::interruptions(const Line &given_wire, const QList<Line> &given_others,
+													  Mode mode, Shape shape, qreal cap_extension)
+{
+	QList<Interruption> result;
+	const Line wire{straightRuns(given_wire.points), given_wire.width};
+	if (mode == Mode::None || wire.points.size() < 2) {
+		return result;
+	}
+	QList<Line> others;
+	for (const Line &other : given_others) {
+		others.append({straightRuns(other.points), other.width});
+	}
+
+	for (int i = 0 ; i < wire.points.size() - 1 ; ++i)
+	{
+		const QPointF a = wire.points.at(i);
+		const QPointF b = wire.points.at(i + 1);
+		const bool horizontal = isHorizontal(a, b);
+		if ((!horizontal && !isVertical(a, b))
+			|| (mode == Mode::Horizontal && !horizontal)
+			|| (mode == Mode::Vertical && horizontal)) {
+			continue;
+		}
+		const qreal a_along = horizontal ? a.x() : a.y();
+		const qreal b_along = horizontal ? b.x() : b.y();
+		const qreal across = horizontal ? a.y() : a.x();
+
+			//What this segment leaves undrawn, as spans along it
+		QList<QPair<qreal, qreal>> spans;
+		for (const Line &other : others)
+		{
+			const qreal other_width = other.width;
+			if (mode == Mode::Thinner
+				&& !(wire.width < other_width - tolerance
+					 || (qAbs(wire.width - other_width) <= tolerance && !horizontal))) {
+				continue;
+			}
+			const qreal reach = shape == Shape::Gap
+					? other_width / 2 + gapClearance + cap_extension
+					: qMax(radius, other_width / 2 + gapClearance / 2 + wire.width / 2);
+			for (int j = 0 ; j < other.points.size() - 1 ; ++j)
+			{
+				const QPointF c = other.points.at(j);
+				const QPointF d = other.points.at(j + 1);
+				if (horizontal ? !isVertical(c, d) : !isHorizontal(c, d)) {
+					continue;
+				}
+				const qreal along = horizontal ? c.x() : c.y();
+				const bool inside_other = horizontal
+						? strictlyBetween(across, c.y(), d.y(), tolerance)
+						: strictlyBetween(across, c.x(), d.x(), tolerance);
+				if (inside_other && strictlyBetween(along, a_along, b_along, reach)) {
+					spans.append({along - reach, along + reach});
+				}
+			}
+		}
+		if (spans.isEmpty()) {
+			continue;
+		}
+
+		std::sort(spans.begin(), spans.end());
+		QList<QPair<qreal, qreal>> merged{spans.first()};
+		for (int k = 1 ; k < spans.size() ; ++k) {
+			if (spans.at(k).first <= merged.last().second + tolerance) {
+				merged.last().second = qMax(merged.last().second, spans.at(k).second);
+			} else {
+				merged.append(spans.at(k));
+			}
+		}
+		if (b_along < a_along) {
+			std::reverse(merged.begin(), merged.end());
+		}
+		const auto point = [&](qreal along) {
+			return horizontal ? QPointF(along, across) : QPointF(across, along);
+		};
+		for (const auto &span : std::as_const(merged)) {
+			Interruption cut;
+			cut.from = point(b_along > a_along ? span.first : span.second);
+			cut.to = point(b_along > a_along ? span.second : span.first);
+			cut.arc = shape == Shape::Arc;
+			result.append(cut);
+		}
+	}
+	return result;
+}
+
+/**
+	@brief WireHops::crossingPoints
+	@return the points where @a wire crosses one of @a others, both lines
+	going on past it (strictly inside a segment of each), whichever gives
+	way there: what a mark drawn along @a wire keeps clear of
+*/
+QList<QPointF> WireHops::crossingPoints(const QVector<QPointF> &given_wire,
+										const QList<QVector<QPointF>> &given_others)
+{
+	QList<QPointF> points;
+	const QVector<QPointF> wire = straightRuns(given_wire);
+	QList<QVector<QPointF>> others;
+	for (const auto &other : given_others) {
+		others.append(straightRuns(other));
+	}
+	for (int i = 0 ; i < wire.size() - 1 ; ++i)
+	{
+		const QPointF a = wire.at(i);
+		const QPointF b = wire.at(i + 1);
+		const bool horizontal = isHorizontal(a, b);
+		if (!horizontal && !isVertical(a, b)) {
+			continue;
+		}
+		for (const auto &other : others) {
+			for (int j = 0 ; j < other.size() - 1 ; ++j)
+			{
+				const QPointF c = other.at(j);
+				const QPointF d = other.at(j + 1);
+				if (horizontal ? !isVertical(c, d) : !isHorizontal(c, d)) {
+					continue;
+				}
+				const QPointF crossing = horizontal ? QPointF(c.x(), a.y()) : QPointF(a.x(), c.y());
+				const bool inside_wire = horizontal
+						? strictlyBetween(crossing.x(), a.x(), b.x(), tolerance)
+						: strictlyBetween(crossing.y(), a.y(), b.y(), tolerance);
+				const bool inside_other = horizontal
+						? strictlyBetween(crossing.y(), c.y(), d.y(), tolerance)
+						: strictlyBetween(crossing.x(), c.x(), d.x(), tolerance);
+				if (inside_wire && inside_other) {
+					points.append(crossing);
+				}
+			}
+		}
+	}
+	return points;
+}
+
+/**
+	@brief WireHops::path
+	@param wire : the points of the wire
+	@param interruptions : where it is not drawn straight, from
+	interruptions(), in the same coordinates as @a wire
+	@return the path of the wire: an arc above a horizontal segment and
+	right of a vertical one for an arc, nothing for a gap. With no
+	interruption, the same path as the plain wire.
+*/
+QPainterPath WireHops::path(const QVector<QPointF> &given_wire,
+							const QList<Interruption> &interruptions)
+{
+	QPainterPath path;
+		//The same line, on the straight runs interruptions() worked on
+	const QVector<QPointF> wire = interruptions.isEmpty() ? given_wire : straightRuns(given_wire);
+	if (wire.isEmpty()) {
+		return path;
+	}
+	path.moveTo(wire.first());
+	for (int i = 0 ; i < wire.size() - 1 ; ++i)
+	{
+		const QPointF a = wire.at(i);
+		const QPointF b = wire.at(i + 1);
+		const bool horizontal = isHorizontal(a, b);
+		const bool vertical = isVertical(a, b);
+		if (horizontal || vertical)
+		{
+			const auto onSegment = [&](const QPointF &p) {
+				return horizontal
+						? qAbs(p.y() - a.y()) < tolerance && strictlyBetween(p.x(), a.x(), b.x(), 0)
+						: qAbs(p.x() - a.x()) < tolerance && strictlyBetween(p.y(), a.y(), b.y(), 0);
+			};
+			QList<Interruption> here;
+			for (const Interruption &cut : interruptions) {
+				if (onSegment(cut.from) && onSegment(cut.to)) {
+					here.append(cut);
+				}
+			}
+			std::sort(here.begin(), here.end(), [&a](const Interruption &p, const Interruption &q) {
+				return QLineF(a, p.from).length() < QLineF(a, q.from).length();
+			});
+			for (const Interruption &cut : std::as_const(here))
+			{
+				path.lineTo(cut.from);
+				if (!cut.arc) {
+					path.moveTo(cut.to);
+					continue;
+				}
+				const QPointF centre = (cut.from + cut.to) / 2.0;
+				const qreal half = QLineF(cut.from, cut.to).length() / 2.0;
+					//Two crossings in one arc: no taller than a hop and a half
+				const qreal height = qMin(half, 3 * radius);
+				if (horizontal) {
+					const QRectF ellipse(centre.x() - half, centre.y() - height, 2 * half, 2 * height);
+					const bool forward = cut.to.x() > cut.from.x();
+					path.arcTo(ellipse, forward ? 180 : 0, forward ? -180 : 180);
+				} else {
+					const QRectF ellipse(centre.x() - height, centre.y() - half, 2 * height, 2 * half);
+					const bool forward = cut.to.y() > cut.from.y();
+					path.arcTo(ellipse, forward ? 90 : 270, forward ? -180 : 180);
 				}
 			}
 		}
