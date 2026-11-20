@@ -520,7 +520,9 @@ line.*
   shown in its place replaces it (`replaces` attribute of `<terminal>`,
   either way): the line then moves to that one, routed as when the symbol
   moves, in the same undo step (an oval bubble takes the lines of the
-  round one), never when a file is opened.
+  round one), never when a file is opened. A hidden terminal a line still
+  holds is marked, not blocked: an orange stem with a ring, on the screen
+  only, and a line in its tool tip.
   A placed symbol saves its choices in its `<element>`
   block, only when it has some; they are chosen in the *Type and options*
   section of its *P&ID* tab or in the *Options* submenu of its context
