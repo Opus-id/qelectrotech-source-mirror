@@ -44,6 +44,7 @@ class QETDiagramEditor;
 class NumerotationContext;
 class PidCodification;
 class QetGraphicsHandlerItem;
+class QGraphicsPathItem;
 
 typedef QPair<QPointF, Qt::Corner> ConductorBend;
 typedef QHash<Qt::Corner, ConductorProfile> ConductorProfilesGroup;
@@ -219,6 +220,12 @@ class Conductor : public QGraphicsObject
 			/// of @a whole was moved by hand, the one nearest to it, where it was
 		static void keepOneDesignation(const QList<Conductor *> &pieces,
 									   const Conductor *whole = nullptr);
+			/// Draw again the leader line which ties the text of this
+			/// conductor, moved away from it by hand, to it, as the project
+			/// says (QETProject::textLeaderDistance()); none else
+		void updateLeader();
+			/// The leader line drawn, empty when there is none
+		QPainterPath leaderPath() const;
 		virtual Highlight highlight() const;
 		virtual void setHighlighted(Highlight);
 		QSet<Conductor *> relatedPotentialConductors(
@@ -391,6 +398,8 @@ class Conductor : public QGraphicsObject
 		ConductorProperties m_properties;
 			/// Text input for non simple, non-singleline conductors
 		ConductorTextItem *m_text_item;
+			/// See updateLeader(): made when first needed
+		QGraphicsPathItem *m_leader = nullptr;
 		ConductorDefinitionMark *m_definition_mark = nullptr;
 			/// Segments composing the conductor
 		ConductorSegment *segments;

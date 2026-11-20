@@ -16085,6 +16085,48 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <translation>Croisements de conducteurs :</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="292"/>
+        <source>Leader line to a text moved away from its line, from:</source>
+        <comment>checkbox label</comment>
+        <translation>Trait de rappel vers un texte éloigné de sa ligne, à partir de :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="295"/>
+        <source>A text moved by hand further than this from its line is tied to it by a thin line of its colour, which follows the text and the line.</source>
+        <comment>tooltip</comment>
+        <translation>Un texte déplacé à la main plus loin que cette distance de sa ligne y est relié par un trait fin de sa couleur, qui suit le texte et la ligne.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="303"/>
+        <source> mm</source>
+        <comment>unit after a distance</comment>
+        <translation> mm</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="307"/>
+        <source>Plain end</source>
+        <comment>end of a leader line</comment>
+        <translation>Bout simple</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="309"/>
+        <source>Dot on the line</source>
+        <comment>end of a leader line</comment>
+        <translation>Point sur la ligne</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="311"/>
+        <source>Arrow</source>
+        <comment>end of a leader line</comment>
+        <translation>Flèche</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="313"/>
+        <source>On an electrical diagram, a dot on a line is a junction: a plain end avoids any doubt.</source>
+        <comment>tooltip</comment>
+        <translation>Sur un schéma électrique, un point sur une ligne est un raccordement : un bout simple évite toute confusion.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="269"/>
         <source>No hop</source>
         <comment>wire crossings</comment>
@@ -17423,6 +17465,17 @@ Chaque ligne doit avoir la forme : nature;code;nom;famille, la nature étant « 
         <location filename="../sources/qetdiagrameditor.cpp" line="825"/>
         <source>Reset conductors</source>
         <translation>Réinitialiser les conducteurs</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="896"/>
+        <source>Put the texts back in their place</source>
+        <translation>Remettre les textes à leur place</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetdiagrameditor.cpp" line="898"/>
+        <source>Puts the texts of the selected lines, moved or turned by hand, back where their line places them</source>
+        <comment>status bar tip</comment>
+        <translation>Remet les textes des lignes sélectionnées, déplacés ou tournés à la main, à la place que leur donne leur ligne</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="834"/>
@@ -22260,6 +22313,12 @@ the translated name of this folder could not be read, so its folder name is disp
         <source>Reset %1</source>
         <comment>undo caption - %1 is a sentence listing the reset content</comment>
         <translation>Réinitialiser %1</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/resetconductortextscommand.cpp" line="37"/>
+        <source>Put the texts back in their place</source>
+        <comment>undo caption</comment>
+        <translation>Remettre les textes à leur place</translation>
     </message>
     <message>
         <location filename="../sources/undocommand/changetitleblockcommand.cpp" line="36"/>

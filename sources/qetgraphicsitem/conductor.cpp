@@ -42,8 +42,10 @@
 #include <wirehops.h>
 #include <pidtooltip.h>
 #include <pidlinedesignation.h>
+#include <leaderline.h>
 
 #include <QApplication>
+#include <QGraphicsPathItem>
 #include <QMultiHash>
 #include <QtDebug>
 
@@ -2536,6 +2538,7 @@ void Conductor::updateTextVisibility()
 							   //a pipe without a designation (no model)
 						   && !(m_properties.m_medium == TerminalData::Pipe
 								&& m_properties.text.isEmpty()));
+	updateLeader();
 }
 
 /**
@@ -2559,6 +2562,58 @@ void Conductor::updateDesignationLook()
 	const QColor ink = codification.colored_labels ? pipeColor() : QColor();
 	m_text_item->setColor(ink.isValid() ? ink : m_properties.text_color);
 	m_text_item->setNoEditable(true);
+	updateLeader();
+}
+
+/**
+	@brief Conductor::updateLeader
+	See the declaration. The line is a child of this conductor, as thin as
+	the finest line (0.25 mm), of the colour of the text; it is drawn,
+	printed and exported with the folio, never selected.
+*/
+void Conductor::updateLeader()
+{
+	const QETProject *project = diagram() ? diagram()->project() : nullptr;
+	QPainterPath leader;
+	if (project && project->textLeaderDistance() > 0 && m_text_item
+		&& m_text_item->wasMovedByUser() && m_text_item->isVisible()
+		&& !m_text_item->toPlainText().isEmpty())
+	{
+		const QRectF text = m_text_item->mapRectToParent(m_text_item->boundingRect());
+		leader = LeaderLine::path(text, segmentsToPoints(),
+								  project->textLeaderDistance() * LeaderLine::unitsByMillimetre,
+								  project->textLeaderEnd(), LeaderLine::unitsByMillimetre);
+	}
+	if (leader.isEmpty()) {
+		if (m_leader) {
+			m_leader->setPath(QPainterPath());
+			m_leader->hide();
+		}
+		return;
+	}
+	if (!m_leader) {
+		m_leader = new QGraphicsPathItem(this);
+		m_leader->setAcceptedMouseButtons(Qt::NoButton);
+		m_leader->setAcceptHoverEvents(false);
+		m_leader->setFlag(QGraphicsItem::ItemIsSelectable, false);
+	}
+	const QColor ink = m_text_item->color();
+	QPen pen(ink);
+	pen.setWidthF(1.0);
+	pen.setCapStyle(Qt::FlatCap);
+	m_leader->setPen(pen);
+	m_leader->setBrush(ink);
+	m_leader->setPath(leader);
+	m_leader->show();
+}
+
+/**
+	@brief Conductor::leaderPath
+	See the declaration
+*/
+QPainterPath Conductor::leaderPath() const
+{
+	return m_leader && m_leader->isVisible() ? m_leader->path() : QPainterPath();
 }
 
 /**
@@ -2706,6 +2761,8 @@ void Conductor::calculateTextItemPosition()
 		if (!near_shape.contains(text_item_pos)) {
 			m_text_item -> setPos(movePointIntoPolygon(text_item_pos, near_shape));
 		}
+			//The conductor moved under it: its leader line follows
+		updateLeader();
 	}
 	else
 	{

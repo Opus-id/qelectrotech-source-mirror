@@ -2539,6 +2539,32 @@ void QETProject::setWireHops(WireHops::Mode mode)
 }
 
 /**
+	@brief QETProject::setTextLeaders
+	Tie the texts of the conductors moved away from them by hand from
+	@p millimetres (0 for none) by a leader line ended by @p end, and draw
+	them again on the folios built.
+*/
+void QETProject::setTextLeaders(qreal millimetres, LeaderLine::End end)
+{
+	millimetres = qMax<qreal>(0, millimetres);
+	if (qFuzzyCompare(1 + millimetres, 1 + m_text_leader_distance) && end == m_text_leader_end) {
+		return;
+	}
+	m_text_leader_distance = millimetres;
+	m_text_leader_end = end;
+	storeSettings();
+		//A folio not built yet draws them when it is
+	for (Diagram *diagram : folios()) {
+		if (!diagram->isLoaded()) {
+			continue;
+		}
+		for (Conductor *conductor : diagram->conductors()) {
+			conductor->updateLeader();
+		}
+	}
+}
+
+/**
 	@brief QETProject::uprightSymbolTexts
 	@return true if the texts drawn in a symbol stay horizontal, and read
 	normally, when the symbol is turned or mirrored on a folio, instead of
@@ -2977,6 +3003,7 @@ QDomDocument QETProject::toXml(QHash<int, QByteArray> *kept_folios, QStringList 
 	// local, non-transmitted usage tracking (time spent on this project)
 	writeUsageXml(project_root);
 	writeWireHopsXml(project_root);
+	writeTextLeadersXml(project_root);
 	writeAutoConductorXml(project_root);
 	writeSymbolTextsXml(project_root);
 	writePlantLocationXml(project_root);
@@ -4220,6 +4247,7 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 		//Load the local, non-transmitted usage tracking
 	readUsageXml(xml_project);
 	readWireHopsXml(xml_project);
+	readTextLeadersXml(xml_project);
 	readAutoConductorXml(xml_project);
 	readSymbolTextsXml(xml_project);
 	readPlantLocationXml(xml_project);
@@ -4930,6 +4958,24 @@ void QETProject::readWireHopsXml(QDomDocument &xml_project)
 }
 
 /**
+	@brief QETProject::readTextLeadersXml
+	Read the <text_leaders> element of the project, if any. A project
+	without it draws no leader line.
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readTextLeadersXml(QDomDocument &xml_project)
+{
+	const QDomElement leaders = xml_project.documentElement()
+			.firstChildElement(QStringLiteral("text_leaders"));
+	m_text_leader_distance = leaders.isNull()
+			? 0
+			: qMax<qreal>(0, leaders.attribute(QStringLiteral("distance")).toDouble());
+	m_text_leader_end = leaders.isNull()
+			? LeaderLine::End::None
+			: LeaderLine::fromString(leaders.attribute(QStringLiteral("end")));
+}
+
+/**
 	@brief QETProject::readAutoConductorXml
 	Read the <auto_conductor> element of the project, if any.
 	A project without it keeps the automatic creation of conductors on.
@@ -5374,6 +5420,27 @@ void QETProject::writeWireHopsXml(QDomElement &xml_element)
 			.createElement(QStringLiteral("wire_crossings"));
 	crossings.setAttribute(QStringLiteral("hop"), WireHops::toString(m_wire_hops));
 	xml_element.appendChild(crossings);
+}
+
+/**
+	@brief QETProject::writeTextLeadersXml
+	Export the leader lines of the texts of the conductors as a
+	<text_leaders> child of \a xml_element: from which distance, in
+	millimetres, and what ends them ("none" is not written). Written only
+	when they are on, so a project that never used them saves as before.
+*/
+void QETProject::writeTextLeadersXml(QDomElement &xml_element)
+{
+	if (m_text_leader_distance <= 0) {
+		return;
+	}
+	QDomElement leaders = xml_element.ownerDocument()
+			.createElement(QStringLiteral("text_leaders"));
+	leaders.setAttribute(QStringLiteral("distance"), QString::number(m_text_leader_distance));
+	if (m_text_leader_end != LeaderLine::End::None) {
+		leaders.setAttribute(QStringLiteral("end"), LeaderLine::toString(m_text_leader_end));
+	}
+	xml_element.appendChild(leaders);
 }
 
 /**
@@ -5979,6 +6046,7 @@ void QETProject::storeSettings()
 	writeProjectPropertiesXml(properties);
 	root.appendChild(properties);
 	writeWireHopsXml(root);
+	writeTextLeadersXml(root);
 	writeAutoConductorXml(root);
 	writeSymbolTextsXml(root);
 	writePlantLocationXml(root);

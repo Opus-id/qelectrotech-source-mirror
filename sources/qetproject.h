@@ -35,6 +35,7 @@
 #include "titleblock/templatescollection.h"
 #include "titleblockproperties.h"
 #include "wirehops.h"
+#include "leaderline.h"
 #include "wiringrules.h"
 #include "diagram.h"
 #include "autoNum/assignvariables.h"
@@ -354,6 +355,13 @@ class QETProject : public QObject
 		void setAutoConductor (bool ac);
 		WireHops::Mode wireHops() const;
 		void setWireHops(WireHops::Mode mode);
+			/// From which distance, in millimetres, the text of a conductor
+			/// moved away from it by hand is tied to it by a leader line; 0
+			/// (the default) for none. See LeaderLine.
+		qreal textLeaderDistance() const {return m_text_leader_distance;}
+			/// What ends the leader lines on their conductor
+		LeaderLine::End textLeaderEnd() const {return m_text_leader_end;}
+		void setTextLeaders(qreal millimetres, LeaderLine::End end);
 		bool uprightSymbolTexts() const;
 		void setUprightSymbolTexts(bool upright);
 		bool plantAndLocationInherited() const;
@@ -550,6 +558,7 @@ class QETProject : public QObject
 		void readBridgeXml(const QDomDocument &xml_project);
 		void readUsageXml(QDomDocument &xml_project);
 		void readWireHopsXml(QDomDocument &xml_project);
+		void readTextLeadersXml(QDomDocument &xml_project);
 		void readAutoConductorXml(QDomDocument &xml_project);
 		void readOriginXml(QDomDocument& xml_project);
 		void readSymbolTextsXml(QDomDocument &xml_project);
@@ -574,6 +583,7 @@ class QETProject : public QObject
 	private:
 		void writeUsageXml(QDomElement &);
 		void writeWireHopsXml(QDomElement &);
+		void writeTextLeadersXml(QDomElement &);
 		void writeAutoConductorXml(QDomElement &);
 		void writeOriginXml(QDomElement&);
 		void writeSymbolTextsXml(QDomElement &);
@@ -701,6 +711,9 @@ class QETProject : public QObject
 		QByteArray m_opened_content;
 		bool m_auto_conductor = true;
 		WireHops::Mode m_wire_hops = WireHops::Mode::None;
+			/// See textLeaderDistance() and textLeaderEnd()
+		qreal m_text_leader_distance = 0;
+		LeaderLine::End m_text_leader_end = LeaderLine::End::None;
 			/// See pidCodification()
 		PidCodification m_pid_codification;
 		ProjectOrigin::Mode m_origin = ProjectOrigin::Mode::TopLeft;

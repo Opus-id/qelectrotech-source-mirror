@@ -97,8 +97,11 @@ QVariant ConductorTextItem::itemChange(GraphicsItemChange change, const QVariant
 {
 	const QVariant result = DiagramTextItem::itemChange(change, value);
 	if ((change == QGraphicsItem::ItemPositionHasChanged
-		 || change == QGraphicsItem::ItemRotationHasChanged) && parent_conductor_)
+		 || change == QGraphicsItem::ItemRotationHasChanged) && parent_conductor_) {
 		parent_conductor_->storeLayout();
+			//Its leader line follows it
+		parent_conductor_->updateLeader();
+	}
 	return result;
 }
 
@@ -132,7 +135,10 @@ void ConductorTextItem::forceMovedByUser(bool moved_by_user) {
 	if (!moved_by_user && parent_conductor_) {
 		parent_conductor_ -> calculateTextItemPosition();
 	}
-	if (parent_conductor_) parent_conductor_ -> storeLayout();
+	if (parent_conductor_) {
+		parent_conductor_ -> storeLayout();
+		parent_conductor_ -> updateLeader();
+	}
 
 }
 

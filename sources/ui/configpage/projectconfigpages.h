@@ -29,6 +29,7 @@ class QCheckBox;
 class QRadioButton;
 class QPushButton;
 class QSpinBox;
+class QDoubleSpinBox;
 class QGroupBox;
 class QETProject;
 class BorderPropertiesWidget;
@@ -140,6 +141,11 @@ class ProjectMainConfigPage : public ProjectConfigPage {
 	QPushButton *usage_reset_pb_;
 	QLabel *wire_hops_label_;
 	QComboBox *wire_hops_cb_;
+		/// From which distance a text moved away from its line is tied to it,
+		/// and what ends the leader line (QETProject::textLeaderDistance())
+	QCheckBox *text_leader_cb_;
+	QDoubleSpinBox *text_leader_sb_;
+	QComboBox *text_leader_end_cb_;
 	QCheckBox *upright_symbol_texts_cb_;
 	QCheckBox *m_plant_location_cb;
 	QCheckBox *m_follow_device_types_cb;

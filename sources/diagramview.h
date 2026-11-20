@@ -345,6 +345,9 @@ class DiagramView : public PaletteGraphicsView
 		void adjustSceneRect();
 		void updateWindowTitle();
 		void resetConductors();
+			/// Put the texts of the conductors selected, moved or turned by
+			/// hand, back in their place; one undo step
+		void resetConductorTexts();
 		void addGenericDevice();
 	
 	private slots:

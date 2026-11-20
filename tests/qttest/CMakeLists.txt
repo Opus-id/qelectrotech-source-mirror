@@ -656,6 +656,10 @@ qet_add_app_test(tst_pipedesignation tst_pipedesignation.cpp)
 # of its line: a valve upside down stays on it. An electrical one keeps its
 # centre.
 qet_add_app_test(tst_pidmirror tst_pidmirror.cpp)
+# The text of a conductor moved away from it: a leader line from the distance
+# the project gives (none by default), and a command which puts the texts back
+# in their place.
+qet_add_app_test(tst_textleader tst_textleader.cpp)
 # The marks of a signal line: the words of the catalogue, the mark of each
 # type of signal, where the marks stand along a line and which way they read.
 add_executable(

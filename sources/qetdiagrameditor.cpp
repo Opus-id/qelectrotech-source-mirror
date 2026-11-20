@@ -121,6 +121,7 @@
 #include "undocommand/groupitemscommand.h"
 #include "undocommand/alignselectioncommand.h"
 #include "undocommand/mirrorselectioncommand.h"
+#include "undocommand/resetconductortextscommand.h"
 #include "undocommand/resetsymboltextscommand.h"
 #include "undocommand/rotateselectioncommand.h"
 #include "undocommand/rotatetextscommand.h"
@@ -889,6 +890,17 @@ void QETDiagramEditor::setUpActions()
 	connect(m_conductor_reset, &QAction::triggered, [this]() {
 		if (DiagramView *dv = currentDiagramView())
 			dv->resetConductors();
+	});
+
+		//The texts of conductors moved or turned by hand back in their place,
+		//the path left as it is
+	m_conductor_text_reset = new QAction(tr("Put the texts back in their place"), this);
+	m_conductor_text_reset->setObjectName(QStringLiteral("conductor_text_reset"));
+	m_conductor_text_reset->setStatusTip(tr("Puts the texts of the selected lines, moved or turned by hand, "
+											"back where their line places them", "status bar tip"));
+	connect(m_conductor_text_reset, &QAction::triggered, [this]() {
+		if (DiagramView *dv = currentDiagramView())
+			dv->resetConductorTexts();
 	});
 
 		//AutoConductor
@@ -2414,6 +2426,7 @@ void QETDiagramEditor::setUpMenu()
 	m_align_menu -> addActions(m_align_actions_group.actions().mid(4));
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_conductor_reset);
+	menu_edition -> addAction(m_conductor_text_reset);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_edit_diagram_properties);
 		//Shared with the folio's context menu (see
@@ -4320,6 +4333,7 @@ void QETDiagramEditor::slot_updateComplexActions()
 	{
 		QList <QAction *> action_list;
 		action_list << m_conductor_reset
+			    << m_conductor_text_reset
 			    << m_find_element
 			    << m_contact_display
 			    << m_cut
@@ -4354,6 +4368,11 @@ void QETDiagramEditor::slot_updateComplexActions()
 	//Number of selected conductors
 	int selected_conductors_count = diagram_->selectedConductors().count();
 	m_conductor_reset->setEnabled(!ro && selected_conductors_count);
+	{
+		const QSet<Conductor *> conductors = diagram_->selectedConductors();
+		m_conductor_text_reset->setEnabled(!ro && ResetConductorTextsCommand::canReset(
+											   QList<Conductor *>(conductors.cbegin(), conductors.cend())));
+	}
 
 	// number of selected elements and dimensions
 	int selected_elements_count = dc.count(DiagramContent::Elements);

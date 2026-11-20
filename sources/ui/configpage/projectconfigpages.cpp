@@ -187,6 +187,14 @@ void ProjectMainConfigPage::applyProjectConf()
 		modified_project = true;
 	}
 
+	const qreal leader_distance = text_leader_cb_ -> isChecked() ? text_leader_sb_ -> value() : 0;
+	const auto leader_end = LeaderLine::fromString(text_leader_end_cb_ -> currentData().toString());
+	if (!qFuzzyCompare(1 + m_project -> textLeaderDistance(), 1 + leader_distance)
+		|| m_project -> textLeaderEnd() != leader_end) {
+		m_project -> setTextLeaders(leader_distance, leader_end);
+		modified_project = true;
+	}
+
 	const auto project_origin = ProjectOrigin::fromString(origin_cb_->currentData().toString());
 	if (m_project->origin() != project_origin)
 	{
@@ -286,6 +294,36 @@ void ProjectMainConfigPage::initWidgets()
 	wire_hops_cb_ -> setToolTip(tr("Draws a small arc where two conductors cross without being connected. Only the "
 								   "drawing changes: no element is added and no conductor is cut.",
 								   "tooltip"));
+
+		//A thin line from a text moved away from its line to the line: none
+		//by default, so that a diagram looks as before
+	text_leader_cb_ = new QCheckBox(tr("Leader line to a text moved away from its line, from:",
+									   "checkbox label"));
+	text_leader_cb_ -> setObjectName(QStringLiteral("text_leader"));
+	text_leader_cb_ -> setToolTip(tr("A text moved by hand further than this from its line is tied to it by a "
+									 "thin line of its colour, which follows the text and the line.",
+									 "tooltip"));
+	text_leader_sb_ = new QDoubleSpinBox();
+	text_leader_sb_ -> setObjectName(QStringLiteral("text_leader_distance"));
+	text_leader_sb_ -> setRange(0.5, 100);
+	text_leader_sb_ -> setDecimals(1);
+	text_leader_sb_ -> setSingleStep(1);
+	text_leader_sb_ -> setSuffix(tr(" mm", "unit after a distance"));
+	text_leader_sb_ -> setValue(5);
+	text_leader_end_cb_ = new QComboBox();
+	text_leader_end_cb_ -> setObjectName(QStringLiteral("text_leader_end"));
+	text_leader_end_cb_ -> addItem(tr("Plain end", "end of a leader line"),
+								   LeaderLine::toString(LeaderLine::End::None));
+	text_leader_end_cb_ -> addItem(tr("Dot on the line", "end of a leader line"),
+								   LeaderLine::toString(LeaderLine::End::Dot));
+	text_leader_end_cb_ -> addItem(tr("Arrow", "end of a leader line"),
+								   LeaderLine::toString(LeaderLine::End::Arrow));
+	text_leader_end_cb_ -> setToolTip(tr("On an electrical diagram, a dot on a line is a junction: a plain end "
+										 "avoids any doubt.", "tooltip"));
+	connect(text_leader_cb_, &QCheckBox::toggled, this, [this](bool on) {
+		text_leader_sb_ -> setEnabled(on && !m_project -> isReadOnly());
+		text_leader_end_cb_ -> setEnabled(on && !m_project -> isReadOnly());
+	});
 
 		//Texts of turned symbols kept horizontal
 	upright_symbol_texts_cb_ = new QCheckBox(tr("Keep the texts of rotated elements horizontal",
@@ -426,6 +464,14 @@ void ProjectMainConfigPage::initLayout()
 	main_layout0 -> addLayout(wire_hops_layout0);
 	main_layout0 -> addSpacing(10);
 
+	QHBoxLayout *text_leader_layout = new QHBoxLayout();
+	text_leader_layout -> addWidget(text_leader_cb_);
+	text_leader_layout -> addWidget(text_leader_sb_);
+	text_leader_layout -> addWidget(text_leader_end_cb_);
+	text_leader_layout -> addStretch();
+	main_layout0 -> addLayout(text_leader_layout);
+	main_layout0 -> addSpacing(10);
+
 	main_layout0 -> addWidget(upright_symbol_texts_cb_);
 	main_layout0 -> addSpacing(10);
 
@@ -487,6 +533,14 @@ void ProjectMainConfigPage::readValuesFromProject()
 
 	const int wire_hops_index = wire_hops_cb_ -> findData(WireHops::toString(m_project -> wireHops()));
 	wire_hops_cb_ -> setCurrentIndex(qMax(0, wire_hops_index));
+		//5 mm proposed when it is turned on
+	const bool leaders = m_project -> textLeaderDistance() > 0;
+	text_leader_sb_ -> setValue(leaders ? m_project -> textLeaderDistance() : 5);
+	const int leader_end_index = text_leader_end_cb_ -> findData(LeaderLine::toString(m_project -> textLeaderEnd()));
+	text_leader_end_cb_ -> setCurrentIndex(qMax(0, leader_end_index));
+	text_leader_cb_ -> setChecked(leaders);
+	text_leader_sb_ -> setEnabled(leaders && !m_project -> isReadOnly());
+	text_leader_end_cb_ -> setEnabled(leaders && !m_project -> isReadOnly());
 	upright_symbol_texts_cb_ -> setChecked(m_project -> uprightSymbolTexts());
 	m_plant_location_cb -> setChecked(m_project -> plantAndLocationInherited());
 	m_follow_device_types_cb -> setChecked(m_project -> followDeviceTypes());
@@ -556,6 +610,9 @@ void ProjectMainConfigPage::adjustReadOnly()
 	usage_enabled_cb_ -> setDisabled(is_read_only);
 	usage_reset_pb_ -> setDisabled(is_read_only);
 	wire_hops_cb_ -> setDisabled(is_read_only);
+	text_leader_cb_ -> setDisabled(is_read_only);
+	text_leader_sb_ -> setDisabled(is_read_only || !text_leader_cb_ -> isChecked());
+	text_leader_end_cb_ -> setDisabled(is_read_only || !text_leader_cb_ -> isChecked());
 	upright_symbol_texts_cb_ -> setDisabled(is_read_only);
 	m_plant_location_cb -> setDisabled(is_read_only);
 	m_follow_device_types_cb -> setDisabled(is_read_only);

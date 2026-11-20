@@ -247,6 +247,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidtag.h
   ${QET_DIR}/sources/pidlinedesignation.cpp
   ${QET_DIR}/sources/pidlinedesignation.h
+  ${QET_DIR}/sources/leaderline.cpp
+  ${QET_DIR}/sources/leaderline.h
   ${QET_DIR}/sources/pidstatus.cpp
   ${QET_DIR}/sources/pidstatus.h
   ${QET_DIR}/sources/selectioncategories.cpp
@@ -1135,6 +1137,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/undocommand/alignselectioncommand.h
   ${QET_DIR}/sources/undocommand/mirrorselectioncommand.cpp
   ${QET_DIR}/sources/undocommand/mirrorselectioncommand.h
+  ${QET_DIR}/sources/undocommand/resetconductortextscommand.cpp
+  ${QET_DIR}/sources/undocommand/resetconductortextscommand.h
   ${QET_DIR}/sources/undocommand/resetsymboltextscommand.cpp
   ${QET_DIR}/sources/undocommand/resetsymboltextscommand.h
   ${QET_DIR}/sources/undocommand/rotateselectioncommand.cpp

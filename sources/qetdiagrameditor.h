@@ -254,6 +254,7 @@ class QETDiagramEditor : public QETMainWindow
 		QAction
 		*m_edit_diagram_properties, ///< Show a dialog to edit diagram properties
 		*m_conductor_reset,         ///< Reset paths of selected conductors
+		*m_conductor_text_reset,    ///< Put the texts of selected conductors back in their place
 		*m_cut,                     ///< Cut selection to clipboard
 		*m_copy,                    ///< Copy selection to clipboard
 		*m_paste_element_info,      ///< Copy the information of the copied element onto the selected elements (#1375)

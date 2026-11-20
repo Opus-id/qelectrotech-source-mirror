@@ -28,6 +28,7 @@
 #include "undocommand/changepidcodificationcommand.h"
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 #include "diagramcommands.h"
+#include "undocommand/resetconductortextscommand.h"
 #include "cable/addcablecommand.h"
 #include "bridge/bridgecopy.h"
 #include "bridge/bridgepart.h"
@@ -2424,6 +2425,22 @@ void DiagramView::resetConductors()
 }
 
 /**
+	@brief DiagramView::resetConductorTexts
+	See the declaration
+*/
+void DiagramView::resetConductorTexts()
+{
+	if (m_diagram -> isReadOnly()) return;
+	const QSet<Conductor *> selected = m_diagram -> selectedConductors();
+	auto *command = new ResetConductorTextsCommand(QList<Conductor *>(selected.cbegin(), selected.cend()));
+	if (!command -> isValid()) {
+		delete command;
+		return;
+	}
+	m_diagram -> undoStack().push(command);
+}
+
+/**
 	@brief DiagramView::event
 	Manage the event on this diagram view.
 	-At first activation (QEvent::WindowActivate or QEvent::Show) we zoomFit.
@@ -3395,6 +3412,16 @@ QList<QAction *> DiagramView::contextMenuActions() const
 			list << m_options_menu->menuAction();
 			list << m_status_menu->menuAction();
 			list << qde->m_conductor_reset;
+				//Only when a text of the selection was moved or turned by
+				//hand, which a selection unchanged does not tell
+			{
+				const QSet<Conductor *> conductors = m_diagram->selectedConductors();
+				qde->m_conductor_text_reset->setEnabled(
+							!m_diagram->isReadOnly()
+							&& ResetConductorTextsCommand::canReset(
+								QList<Conductor *>(conductors.cbegin(), conductors.cend())));
+			}
+			list << qde->m_conductor_text_reset;
 			list << qde->m_select_same_symbols;
 			if (selected_items.size() > 1) {
 				list << qde->m_select_by_criteria;
