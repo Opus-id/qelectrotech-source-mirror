@@ -400,6 +400,11 @@ class Conductor : public QGraphicsObject
 				QGraphicsSceneMouseEvent *event);
 		void addHandler();
 		void removeHandler();
+			/// Splits the first and the last of the one or two segments of
+			/// this conductor, exitRoom() (10 for a signal line) from its
+			/// ends, the path unchanged: each handle then has a segment that
+			/// may move (step 7c-bis). Nothing when a segment is too short
+		void splitEndSegments();
 			/// The movement @p asked of the segment @p moved, stopped where
 			/// the pipe would leave one of its nozzles less than exitRoom()
 			/// straight, or behind it (step 7c-bis): only the segment

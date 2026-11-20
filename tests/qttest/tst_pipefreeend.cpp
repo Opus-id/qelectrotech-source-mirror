@@ -7,6 +7,7 @@
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
 #include "pidfreeend.h"
+#include "QetGraphicsItemModeler/qetgraphicshandleritem.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
@@ -456,6 +457,47 @@ class tst_pipefreeend : public QObject
 			m_folio->undoStack().undo();
 			QVERIFY(!freeEndAt(start));
 			QVERIFY(freeEndAt(end));
+		}
+
+			// Step 7c-bis, the user's trial of 21/11: a straight line from the
+			// void to the void, selected, its middle handle dragged down
+		void theHandleOfAStraightLineFromTheVoid()
+		{
+			const QPointF start = Diagram::snapToGrid(QPointF(0, m_next_y));
+			const QPointF end = Diagram::snapToGrid(QPointF(300, m_next_y));
+			click(start);
+			click(end);
+			stopTool();
+			Element *free_end = freeEndAt(start);
+			QVERIFY(free_end);
+			QCOMPARE(nozzleOf(free_end)->conductors().size(), 1);
+			Conductor *pipe = nozzleOf(free_end)->conductors().first();
+				// one segment, one handle on it
+			QCOMPARE(pipe->segmentsList().size(), 1);
+			QCOMPARE(pipe->handlerPoints().size(), 1);
+			pipe->setSelected(true);
+			QList<QPointF> handles;
+			for (QGraphicsItem *item : m_folio->items()) {
+				if (dynamic_cast<QetGraphicsHandlerItem *>(item)) {
+					handles << item->scenePos();
+				}
+			}
+			QVERIFY(!handles.isEmpty());
+				// the middle one
+			QPointF handle = handles.first();
+			for (const QPointF &h : std::as_const(handles)) {
+				if (qAbs(h.x() - 150) < qAbs(handle.x() - 150)) handle = h;
+			}
+			mouse(QEvent::GraphicsSceneMousePress, handle, Qt::LeftButton, Qt::LeftButton);
+			mouse(QEvent::GraphicsSceneMouseMove, handle + QPointF(0, 40), Qt::NoButton, Qt::LeftButton);
+			mouse(QEvent::GraphicsSceneMouseRelease, handle + QPointF(0, 40), Qt::LeftButton, Qt::NoButton);
+				// no crash: the line goes down between two runs of 7.5 mm
+			const qreal y = start.y();
+			const QList<QPointF> moved{QPointF(start.x(), y), QPointF(start.x() + 30, y),
+									   QPointF(start.x() + 30, y + 40), QPointF(end.x() - 30, y + 40),
+									   QPointF(end.x() - 30, y), QPointF(end.x(), y)};
+			QCOMPARE(pointsOf(pipe), moved);
+			startTool();
 		}
 
 			// Another tool chosen while drawing from a free end: the free

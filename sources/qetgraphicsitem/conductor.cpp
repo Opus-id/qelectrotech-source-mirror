@@ -1990,18 +1990,64 @@ void Conductor::handlerMousePressEvent(QetGraphicsHandlerItem *qghi, QGraphicsSc
 {
 	Q_UNUSED(event);
 
+		//A pipe or a signal line of one or two segments (a line between two
+		//free ends) has a handle on each, which no segment follows: its end
+		//segments are split, without changing the path, so that the handle
+		//takes the segment between (step 7c-bis; it crashed)
+	if (m_vector_index > -1 && segmentsList().size() < 3
+		&& m_properties.m_medium != TerminalData::Electrical) {
+		splitEndSegments();
+	}
 		//we get the segment corresponding to the handler
-	if (m_vector_index > -1)
+	const QList<ConductorSegment *> segments_list = segmentsList();
+	const int moved = segments_list.size() >= 3 ? m_vector_index + 1 : m_vector_index;
+	if (m_vector_index > -1 && moved < segments_list.size()
+		&& !segments_list.at(moved)->isStatic())
 	{
 		qghi->setColor(Qt::cyan);
 		m_moving_segment = true;
-		m_moved_segment = segmentsList().at(m_vector_index+1);
+		m_moved_segment = segments_list.at(moved);
 		before_mov_text_pos_ = m_text_item -> pos();
 
 		for(QetGraphicsHandlerItem *handler : m_handler_vector)
 			if(handler != qghi)
 				handler->hide();
 	}
+}
+
+/**
+	@brief Conductor::splitEndSegments
+	See the declaration
+*/
+void Conductor::splitEndSegments()
+{
+	const QList<QPointF> points = segmentsToPoints();
+	if (points.size() < 2 || points.size() > 3) {
+		return;
+	}
+	const qreal room = exitRoom() > 0 ? exitRoom() : 10;
+		//A point @p room from @p from towards @p to, if the segment is long
+		//enough to keep something between
+	auto inner = [room](const QPointF &from, const QPointF &to, QPointF *point) {
+		const QLineF segment(from, to);
+		if (segment.length() <= 2 * room) {
+			return false;
+		}
+		*point = segment.pointAt(room / segment.length());
+		return true;
+	};
+	QPointF first, last;
+	if (!inner(points.first(), points.at(1), &first)
+		|| !inner(points.last(), points.at(points.size() - 2), &last)) {
+		return;
+	}
+	QList<QPointF> split;
+	split << points.first() << first;
+	if (points.size() == 3) {
+		split << points.at(1);
+	}
+	split << last << points.last();
+	pointsToSegments(split);
 }
 
 /**
