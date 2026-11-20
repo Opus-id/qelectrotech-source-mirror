@@ -325,6 +325,9 @@ line.*
   size below a horizontal pipe, their letters 3 mm from its axis; beside
   a vertical one, upright or turned
   as the project keeps the texts of rotated elements horizontal or not.
+  Turned, they read as the texts of the symbol: from the bottom, or from
+  the top on a symbol turned a quarter clockwise unless the vertical texts
+  of the symbols read from the bottom (application setting).
 
 **Connections of the nozzles**
 - Each nozzle has a kind of connection: flange (the default, not written),
@@ -399,9 +402,12 @@ line.*
   starts a new line. The label
   follows a change of model or of type, and a label held twice in the
   project is told. Without a model, the label is typed by hand as before.
-  A symbol turned a quarter on an upright line keeps its label level
-  beside the line, not across it: its near edge as far from the line as
-  under the symbol upright (drawn so, nothing saved changes).
+  The label of a turned symbol follows the project: when it keeps the
+  texts of rotated elements horizontal, the label stays level, beside an
+  upright line rather than across it (its near edge as far from the line
+  as under the symbol upright); else it turns with the symbol, read from
+  the bottom if the vertical texts of the symbols are. The file is the
+  same either way.
   The functional units come with the codification of the project (CSV line
   `unit;U01;Lifting`), the models with its presentation (CSV line
   `tag_model;equipment;...`) or are typed in the *Models* section of the
@@ -422,8 +428,9 @@ line.*
   model, the first line of the label typed by hand goes above. Both texts
   are parts of the label: they take its colour and the size of its
   category.
-  A bubble is not meant to be rotated: its texts stay level but their
-  places turn with it and overlap. Draw its signal lines from the
+  A bubble is not meant to be rotated: in a project keeping the texts of
+  rotated elements horizontal, its texts stay level but their places turn
+  with it and overlap (else they turn with it). Draw its signal lines from the
   terminal on the side wanted instead.
 - **Tags numbered automatically**: the order is one more than the highest
   held by the same functional unit, identifier and train in the project
