@@ -243,8 +243,13 @@ void ConductorTextItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *e) {
 				undo_object -> addTextMovement(this, before_mov_pos_, pos(), moved_by_user_);
 
 				moved_by_user_ = true;
-				if (parent_conductor_) parent_conductor_ -> storeLayout();
-				
+				if (parent_conductor_) {
+					parent_conductor_ -> storeLayout();
+						//Moved by hand from now on: its leader line, if far
+						//enough, from this first move
+					parent_conductor_ -> updateLeader();
+				}
+
 				diagram_ptr -> undoStack().push(undo_object);
 			}
 			

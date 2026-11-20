@@ -14,6 +14,7 @@
 
 #include <QDomDocument>
 #include <QFile>
+#include <QGraphicsSceneMouseEvent>
 #include <QTemporaryDir>
 #include <QUndoStack>
 
@@ -131,6 +132,35 @@ class tst_textleader : public QObject
 			QVERIFY(LeaderLine::path(QRectF(80, -5, 40, 10), line, 1, LeaderLine::End::None, 4).isEmpty());
 			QVERIFY(LeaderLine::fromString(LeaderLine::toString(LeaderLine::End::Dot)) == LeaderLine::End::Dot);
 			QVERIFY(LeaderLine::fromString(QStringLiteral("unknown")) == LeaderLine::End::None);
+		}
+
+			// Dragged away with the mouse, the text has its leader line as
+			// soon as it is let go, the first time too
+		void theFirstMoveDrawsIt()
+		{
+			m_project.setTextLeaders(5, LeaderLine::End::None);
+			Conductor *conductor = wire();
+			QVERIFY(conductor);
+			ConductorTextItem *text = conductor->textItem();
+			QVERIFY(!text->wasMovedByUser());
+			QVERIFY(text->flags() & QGraphicsItem::ItemIsMovable);
+
+			QGraphicsSceneMouseEvent press(QEvent::GraphicsSceneMousePress);
+			press.setButton(Qt::LeftButton);
+			press.setButtons(Qt::LeftButton);
+			press.setScenePos(text->sceneBoundingRect().center());
+			press.setPos(text->boundingRect().center());
+			m_folio->sendEvent(text, &press);
+				//the drag, as mouseMoveEvent() places it
+			text->setPos(text->pos() + QPointF(0, 80));
+			QGraphicsSceneMouseEvent release(QEvent::GraphicsSceneMouseRelease);
+			release.setButton(Qt::LeftButton);
+			release.setScenePos(text->sceneBoundingRect().center());
+			release.setPos(text->boundingRect().center());
+			m_folio->sendEvent(text, &release);
+
+			QVERIFY(text->wasMovedByUser());
+			QVERIFY(!conductor->leaderPath().isEmpty());
 		}
 
 			// None by default; drawn from the distance of the project, for a
