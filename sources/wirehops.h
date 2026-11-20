@@ -93,6 +93,9 @@ namespace WireHops
 								  const QList<QVector<QPointF>> &others);
 	QPainterPath path(const QVector<QPointF> &wire,
 					  const QList<Interruption> &interruptions);
+	QPainterPath solidAtCrossings(const QVector<QPointF> &wire,
+								  const QList<Interruption> &interruptions,
+								  const QList<QPointF> &crossings, qreal dash);
 }
 
 #endif // WIREHOPS_H

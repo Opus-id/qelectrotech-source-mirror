@@ -822,10 +822,35 @@ class tst_conductormedium : public QObject
 			}
 			m_project.setPidCodification(codification);
 
+				// drawn dashed, each crosses on a dash (ISO 128-20): the
+				// signal line each side of its gap, the pipe over the
+				// crossing; nothing for a solid line
+			QPen dashed(Qt::black, 1.0);
+			dashed.setDashPattern({6, 4});
+			QPainterPath dashes = signal->dashesAtCrossings(dashed);
+			QCOMPARE(dashes.elementCount(), 4);
+			for (int i = 0 ; i < dashes.elementCount() ; ++i) {
+				const QPointF p = signal->mapToScene(QPointF(dashes.elementAt(i)));
+				QVERIFY(qAbs(p.y() - y) >= pipe->properties().lineWidth() / 2 + WireHops::gapClearance - 0.01);
+			}
+			dashes = pipe->dashesAtCrossings(dashed);
+			QCOMPARE(dashes.elementCount(), 2);
+			const QPointF crossing = pipe->mapFromScene(QPointF(100, y));
+			QVERIFY(dashes.boundingRect().left() < crossing.x() - 2
+					&& dashes.boundingRect().right() > crossing.x() + 2
+					&& qAbs(dashes.boundingRect().top() - crossing.y()) < 0.01);
+			QVERIFY(signal->dashesAtCrossings(QPen(Qt::black, 1.0)).isEmpty());
+
 				// the horizontal line giving way: the signal line, vertical,
 				// is drawn whole
 			m_project.setWireHops(WireHops::Mode::Horizontal);
 			QCOMPARE(signal->paintedPath(), signal->path());
+				// upstream's hops, an arc by the way the wire runs: drawn as
+				// they were, no dash added
+			m_project.setWireHopsShape(WireHops::Shape::Arc);
+			QVERIFY(signal->dashesAtCrossings(dashed).isEmpty());
+			QVERIFY(pipe->dashesAtCrossings(dashed).isEmpty());
+			m_project.setWireHopsShape(WireHops::Shape::Gap);
 			m_project.setWireHops(WireHops::Mode::None);
 			QCOMPARE(signal->paintedPath(), signal->path());
 			QCOMPARE(pipe->paintedPath(), pipe->path());

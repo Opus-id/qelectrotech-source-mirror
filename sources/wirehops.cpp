@@ -412,6 +412,87 @@ QList<QPointF> WireHops::crossingPoints(const QVector<QPointF> &given_wire,
 }
 
 /**
+	@brief WireHops::solidAtCrossings
+	@param wire : the points of a wire drawn dashed
+	@param interruptions : where it gives way, from interruptions()
+	@param crossings : every point where it crosses another wire, from
+	crossingPoints()
+	@param dash : the length of one dash of its pattern
+	@return what is drawn solid over the dashes, so that the wire crosses
+	on a dash, never on a blank (ISO 128-20): a dash on each side of each
+	interruption (and its arc), and a dash over each crossing where it
+	goes on, of @a dash or more so that it runs past the other line. Kept
+	on the straight run it lies on. Empty with no crossing.
+*/
+QPainterPath WireHops::solidAtCrossings(const QVector<QPointF> &given_wire,
+										const QList<Interruption> &interruptions,
+										const QList<QPointF> &crossings, qreal dash)
+{
+	QPainterPath solid;
+	const QVector<QPointF> wire = straightRuns(given_wire);
+	if (wire.size() < 2 || dash <= 0 || (interruptions.isEmpty() && crossings.isEmpty())) {
+		return solid;
+	}
+		//The run @a p lies on: its ends
+	auto runOf = [&](const QPointF &p, QPointF *a, QPointF *b) {
+		for (int i = 0 ; i + 1 < wire.size() ; ++i) {
+			const QPointF s = wire.at(i), e = wire.at(i + 1);
+			const bool on = isHorizontal(s, e)
+					? qAbs(p.y() - s.y()) < tolerance && p.x() >= qMin(s.x(), e.x()) - tolerance
+					  && p.x() <= qMax(s.x(), e.x()) + tolerance
+					: isVertical(s, e) && qAbs(p.x() - s.x()) < tolerance
+					  && p.y() >= qMin(s.y(), e.y()) - tolerance && p.y() <= qMax(s.y(), e.y()) + tolerance;
+			if (on) {
+				*a = s;
+				*b = e;
+				return true;
+			}
+		}
+		return false;
+	};
+		//@a p moved by @a length towards @a to, no further than @a to
+	auto towards = [](const QPointF &p, const QPointF &to, qreal length) {
+		const qreal room = QLineF(p, to).length();
+		return room <= length ? to : p + (to - p) * (length / room);
+	};
+
+	for (const Interruption &cut : interruptions)
+	{
+		QPointF a, b;
+		if (!runOf(cut.from, &a, &b)) {
+			continue;
+		}
+			//a the end of the run on the side of from
+		if (QLineF(a, cut.from).length() > QLineF(a, cut.to).length()) {
+			std::swap(a, b);
+		}
+		const QVector<QPointF> piece{towards(cut.from, a, dash), towards(cut.to, b, dash)};
+		solid.addPath(path(piece, {cut}));
+	}
+	for (const QPointF &crossing : crossings)
+	{
+		bool given_way = false;
+		for (const Interruption &cut : interruptions) {
+			const QRectF span = QRectF(cut.from, cut.to).normalized().adjusted(-tolerance, -tolerance,
+																			   tolerance, tolerance);
+			if (span.contains(crossing)) {
+				given_way = true;
+				break;
+			}
+		}
+		QPointF a, b;
+		if (given_way || !runOf(crossing, &a, &b)) {
+			continue;
+		}
+			//Past a main pipe (1 mm) by 1 mm on each side at least
+		const qreal half = qMax(dash, 3 * gapClearance) / 2;
+		solid.moveTo(towards(crossing, a, half));
+		solid.lineTo(towards(crossing, b, half));
+	}
+	return solid;
+}
+
+/**
 	@brief WireHops::path
 	@param wire : the points of the wire
 	@param interruptions : where it is not drawn straight, from

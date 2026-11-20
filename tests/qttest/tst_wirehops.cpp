@@ -296,6 +296,40 @@ private slots:
 		QVERIFY2(qAbs(bounds.top() + r) < 0.01, qPrintable(QString::number(bounds.top())));
 	}
 
+		// A dashed line crosses on a dash (ISO 128-20): a dash each side of
+		// a gap, a dash over a crossing where it goes on, kept on its run
+	void dashedLineCrossesOnADash()
+	{
+		const auto wire = line({0, 0}, {100, 0});
+		const WireHops::Interruption gap{{43.5, 0}, {56.5, 0}, false};
+		QPainterPath solid = WireHops::solidAtCrossings(wire, {gap}, {{50, 0}}, 6);
+		QCOMPARE(solid.elementCount(), 4);
+		QCOMPARE(QPointF(solid.elementAt(0)), QPointF(37.5, 0));
+		QCOMPARE(QPointF(solid.elementAt(1)), QPointF(43.5, 0));
+		QVERIFY(solid.elementAt(2).isMoveTo());
+		QCOMPARE(QPointF(solid.elementAt(2)), QPointF(56.5, 0));
+		QCOMPARE(QPointF(solid.elementAt(3)), QPointF(62.5, 0));
+
+			// going on over a crossing: a dash across it, at least 3 mm
+		solid = WireHops::solidAtCrossings(wire, {}, {{30, 0}}, 6);
+		QCOMPARE(solid.elementCount(), 2);
+		QCOMPARE(QPointF(solid.elementAt(0)), QPointF(24, 0));
+		QCOMPARE(QPointF(solid.elementAt(1)), QPointF(36, 0));
+			// a long dash, and near the end of the line: no further
+		solid = WireHops::solidAtCrossings(wire, {}, {{95, 0}}, 20);
+		QCOMPARE(QPointF(solid.elementAt(0)), QPointF(85, 0));
+		QCOMPARE(QPointF(solid.elementAt(1)), QPointF(100, 0));
+			// an arc: the dashes and the arc between them
+		const WireHops::Interruption arc{{45.5, 0}, {54.5, 0}, true};
+		solid = WireHops::solidAtCrossings(wire, {arc}, {{50, 0}}, 6);
+		QVERIFY(solid.boundingRect().top() < -4);
+		QCOMPARE(solid.boundingRect().left(), 39.5);
+		QCOMPARE(solid.boundingRect().right(), 60.5);
+			// nothing to cross, no dash
+		QVERIFY(WireHops::solidAtCrossings(wire, {}, {}, 6).isEmpty());
+		QVERIFY(WireHops::solidAtCrossings(wire, {gap}, {{50, 0}}, 0).isEmpty());
+	}
+
 		// Every crossing, whoever gives way: what the marks keep clear of
 	void crossingPointsWhoeverGivesWay()
 	{

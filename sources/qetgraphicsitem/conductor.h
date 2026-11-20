@@ -324,6 +324,13 @@ class Conductor : public QGraphicsObject
 			/// and where it gives way at a crossing when the project draws
 			/// them, its marks kept clear of the crossings (7c)
 		QPainterPath brokenSignalLine(SignalMark::Mark mark) const;
+			/// What a line drawn with @p pen, dashed, draws solid at its
+			/// crossings, so that it crosses on a dash and never on a blank
+			/// (ISO 128-20, WireHops::solidAtCrossings()): when the project
+			/// draws the crossings of the P&ID (the thinner line giving way,
+			/// or a gap); empty for a solid line or with upstream's hops (7c)
+		QPainterPath dashesAtCrossings(const QPen &pen) const;
+		void drawDashesAtCrossings(QPainter *painter, const QPen &pen) const;
 		QPainterPath trimmedEnds(qreal half_width) const;
 		bool potentialTypeFormat(PotentialType *type) const;
 			/// The width this conductor is drawn with, out of the hover:

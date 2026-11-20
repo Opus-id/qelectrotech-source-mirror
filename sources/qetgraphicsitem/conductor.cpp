@@ -1017,6 +1017,11 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	} else {
 		painter -> drawPath(painted_path);
 	}
+		//A dashed line crosses on a dash, never on a blank (ISO 128-20):
+		//a dash each side of where it gives way, a dash over a crossing
+		//where it goes on. With the crossings of the P&ID (7c) only, so
+		//that the hops of upstream are drawn as they were
+	drawDashesAtCrossings(painter, final_conductor_pen);
 		//On to the middle of a spec break between two pipes, with the same
 		//pen: its own width, colour and kind of line on each side
 	if (m_properties.m_medium == TerminalData::Pipe) {
@@ -4010,6 +4015,53 @@ QPainterPath Conductor::paintedPath() const
 		m_hops_path = WireHops::path(QVector<QPointF>(points.begin(), points.end()), m_hops_cuts);
 	}
 	return m_hops_path;
+}
+
+/**
+	@brief Conductor::dashesAtCrossings
+	See the declaration
+*/
+QPainterPath Conductor::dashesAtCrossings(const QPen &pen) const
+{
+	if (pen.style() == Qt::SolidLine || pen.style() == Qt::NoPen) {
+		return QPainterPath();
+	}
+	const Diagram *parent_diagram = diagram();
+	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+	if (!project || (project->wireHops() != WireHops::Mode::Thinner
+					 && project->wireHopsShape() != WireHops::Shape::Gap)) {
+		return QPainterPath();
+	}
+	paintedPath();
+	if (m_hops_cuts.isEmpty() && m_hops_crossings.isEmpty()) {
+		return QPainterPath();
+	}
+		//A dash of the pattern, which counts in widths of the pen
+	const QVector<qreal> pattern = pen.dashPattern();
+	const qreal unit = pen.isCosmetic() ? 1.0 : qMax(pen.widthF(), 1.0);
+	const qreal dash = pattern.isEmpty() ? SignalMark::dashLength : pattern.first() * unit;
+	const QList<QPointF> points = segmentsToPoints();
+	return WireHops::solidAtCrossings(QVector<QPointF>(points.begin(), points.end()),
+									  m_hops_cuts, m_hops_crossings, dash);
+}
+
+/**
+	@brief Conductor::drawDashesAtCrossings
+	See the declaration
+*/
+void Conductor::drawDashesAtCrossings(QPainter *painter, const QPen &pen) const
+{
+	const QPainterPath solid = dashesAtCrossings(pen);
+	if (solid.isEmpty()) {
+		return;
+	}
+	QPen plain = pen;
+	plain.setStyle(Qt::SolidLine);
+	painter->save();
+	painter->setPen(plain);
+	painter->setBrush(Qt::NoBrush);
+	painter->drawPath(solid);
+	painter->restore();
 }
 
 /**
