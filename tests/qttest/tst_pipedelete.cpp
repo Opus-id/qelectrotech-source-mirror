@@ -7,6 +7,7 @@
 #include "diagramcontent.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
+#include "pidfreeend.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
@@ -233,6 +234,55 @@ class tst_pipedelete : public QObject
 			QCOMPARE(joined->properties().m_pipe.nominal, PipeDiameter::nominal(100));
 			m_folio->undoStack().undo();
 			QCOMPARE(pipeOn(a), p1);
+		}
+
+			// The case of the 7c trial: a valve upright on a riser moved by
+			// hand, with a step before it, taken away: the pipe left keeps
+			// the route of the two it replaces, through where the valve
+			// stood; undo and redo keep it
+		void theRouteOfTheLineIsKept()
+		{
+			m_next_y += 600;
+			const qreal y = m_next_y;
+			Element *a = place(m_equipment, QPointF(0, y));
+			Element *b = place(m_equipment, QPointF(200, y + 300));
+			Element *valve = place(m_valve, QPointF(150, y + 150));
+			QVERIFY(a && b && valve);
+			valve->setRotation(90);
+			Terminal *up = nullptr, *down = nullptr;
+			for (Terminal *t : valve->terminals()) {
+				if (t->orientation() == Qet::North) up = t;
+				if (t->orientation() == Qet::South) down = t;
+			}
+			QVERIFY(up && down);
+			Terminal *from = nozzle(a, "N2"), *to = nozzle(b, "N1");
+			Conductor *p1 = draw(from, up, QStringLiteral("W01"), 100);
+			Conductor *p2 = draw(down, to);
+			const QPointF f = from->dockConductor(), t = to->dockConductor();
+			QVERIFY(p1->setPathPoints({f, QPointF(60, f.y()), QPointF(60, f.y() + 40),
+						   QPointF(150, f.y() + 40), up->dockConductor()}));
+			QVERIFY(p2->setPathPoints({down->dockConductor(), QPointF(150, t.y()), t}));
+
+			remove({valve});
+			const QList<QPointF> expected{f, QPointF(60, f.y()), QPointF(60, f.y() + 40),
+						      QPointF(150, f.y() + 40), QPointF(150, t.y()), t};
+			auto routeFromA = [&]() {
+				Conductor *joined = pipeOn(from);
+				QList<QPointF> points;
+				if (!joined) return points;
+				const QPainterPath path = joined->path();
+				for (int i = 0 ; i < path.elementCount() ; ++i) {
+					const QPainterPath::Element &e = path.elementAt(i);
+					points << joined->mapToScene(QPointF(e.x, e.y));
+				}
+				if (joined->terminal1 != from) std::reverse(points.begin(), points.end());
+				return PidFreeEnd::cleaned(points);
+			};
+			QVERIFY(joins(pipeOn(from), from, to));
+			QCOMPARE(routeFromA(), expected);
+			m_folio->undoStack().undo();
+			m_folio->undoStack().redo();
+			QCOMPARE(routeFromA(), expected);
 		}
 
 			// P1 drawn from the valve out to a: the pipe left runs from b to a

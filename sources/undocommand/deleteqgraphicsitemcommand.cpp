@@ -366,6 +366,50 @@ namespace {
 	};
 
 	/**
+		@return the points of the line on the side @a end of @a nozzle, a
+		nozzle of a removed symbol, from the nozzle that stays to @a nozzle:
+		the route of the pipe between them, or the nozzle that stays alone
+		when it touched @a nozzle without a pipe; empty when the line goes
+		on through other removed symbols
+	*/
+	QList<QPointF> sideRoute(const RunEnd &end, const Terminal *nozzle)
+	{
+		if (!end.terminal) {
+			return {};
+		}
+		if (!end.pipe) {
+			return {end.terminal->dockConductor()};
+		}
+		const bool direct = (end.pipe->terminal1 == nozzle && end.pipe->terminal2 == end.terminal)
+				|| (end.pipe->terminal2 == nozzle && end.pipe->terminal1 == end.terminal);
+		return direct ? PidFreeEnd::pathTo(end.pipe, nozzle) : QList<QPointF>();
+	}
+
+	/**
+		@return the route of the pipe which joins @a one and @a two, the
+		ends of the line on either side of a removed symbol, through its
+		nozzles @a first and @a second (7c): the routes of the two pipes it
+		replaces, through where the symbol stood, from @a one when
+		@a one_first. Empty when a side goes through other removed symbols:
+		the pipe then takes the route of a new one.
+	*/
+	QList<QPointF> rejoinedRoute(const RunEnd &one, const Terminal *first,
+								 const RunEnd &two, const Terminal *second, bool one_first)
+	{
+		QList<QPointF> from_one = sideRoute(one, first);
+		QList<QPointF> from_two = sideRoute(two, second);
+		if (from_one.isEmpty() || from_two.isEmpty()) {
+			return {};
+		}
+		std::reverse(from_two.begin(), from_two.end());
+		QList<QPointF> points = from_one + from_two;
+		if (!one_first) {
+			std::reverse(points.begin(), points.end());
+		}
+		return PidFreeEnd::cleaned(points);
+	}
+
+	/**
 		@return the nozzles a line runs through, to be joined when
 		@a element goes: its run (Element::pipeRun()), else, for a reducer,
 		which has no run since a change of DN stops there, its nozzles
@@ -643,6 +687,9 @@ void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
 			}
 			pipe->setProperties(data.pipe->properties());
 			pipe->takeNozzleDiameter();
+				//The route of the line kept, through where the symbol stood,
+				//its bends moved by hand included (7c); else a new one
+			pipe->setPathPoints(rejoinedRoute(one, first, two, second, one_first));
 				//Its uuid from its two ends, as for a wire above (F115): the
 				//same deletion saves the same file every time
 			if (QETProject *project = m_diagram ? m_diagram->project() : nullptr) {
