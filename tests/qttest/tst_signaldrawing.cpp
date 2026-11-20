@@ -534,6 +534,27 @@ class tst_signaldrawing : public QObject
 			}
 		}
 
+			// Step 7c-bis: a detour drawn by hand on a signal line stays on its
+			// side when its ends come level
+		void aDetourOfASignalLineKeepsItsSide()
+		{
+			m_next_y += 400;
+			const qreal y = m_next_y;
+				// N2 of a at (10, y + 100), east; N1 of b at (200, y), west
+			Element *a = place(m_signals, QPointF(0, y + 100));
+			Element *b = place(m_signals, QPointF(210, y));
+			QVERIFY(a && b);
+			auto *line = new Conductor(a->terminals().at(1), b->terminals().at(0));
+			m_folio->addItem(line);
+			QCOMPARE(line->medium(), TerminalData::Signal);
+			QVERIFY(line->setPathPoints({QPointF(10, y + 100), QPointF(40, y + 100), QPointF(40, y + 200),
+										 QPointF(110, y + 200), QPointF(110, y), QPointF(200, y)}));
+			a->setPos(0, y);
+			const QList<QPointF> kept{QPointF(10, y), QPointF(40, y), QPointF(40, y + 150),
+									  QPointF(110, y + 150), QPointF(110, y), QPointF(200, y)};
+			QCOMPARE(points(line), kept);
+		}
+
 		void thePotentialTypesNeverReachASignalLine()
 		{
 			Conductor *line = draw(m_signals);

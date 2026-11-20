@@ -886,6 +886,44 @@ class tst_connectionmark : public QObject
 					 168.0);
 		}
 
+			// Step 7c-bis: a detour drawn by hand stays on its side when the
+			// ends of the pipe come level, and when they pass each other
+		void aDetourDrawnByHandKeepsItsSide()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+				// N2 of a at (220, 300), east; N1 of b at (380, 200), west
+			Element *a = place(project, folio, QPointF(200, 300));
+			Element *b = place(project, folio, QPointF(400, 200));
+			QVERIFY(a && b);
+			auto *pipe = new Conductor(terminal(a, QStringLiteral("N2")), terminal(b, QStringLiteral("N1")));
+			folio->addItem(pipe);
+				// down 100 below a, then up to b: a U
+			QVERIFY(pipe->setPathPoints({QPointF(220, 300), QPointF(250, 300), QPointF(250, 400),
+										 QPointF(320, 400), QPointF(320, 200), QPointF(380, 200)}));
+			auto bottom = [pipe]() {
+				qreal y = -1e9;
+				for (const QPointF &point : pointsOf(pipe)) {
+					y = qMax(y, pipe->mapToScene(point).y());
+				}
+				return y;
+			};
+			QCOMPARE(bottom(), 400.0);
+				// a comes level with b: the U is still below, its two
+				// sides now as long
+			a->setPos(200, 200);
+			QCOMPARE(pointsOf(pipe).size(), 6);
+			QCOMPARE(bottom(), 350.0);
+			QVERIFY(!pipe->foldsBack(pointsOf(pipe)));
+				// a above b: still below
+			a->setPos(200, 100);
+			QCOMPARE(pointsOf(pipe).size(), 6);
+			QCOMPARE(bottom(), 300.0);
+				// back where it was drawn: the U as drawn
+			a->setPos(200, 300);
+			QCOMPARE(bottom(), 400.0);
+		}
+
 		void theDefaultRouteIsThePathOfANewConductor()
 		{
 			QETProject project;

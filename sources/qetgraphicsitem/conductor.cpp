@@ -413,6 +413,13 @@ void Conductor::updatePath(const QRectF &rect) {
 	p2 = terminal2 -> dockConductor();
 	if (segmentsCount() && !conductor_profiles[currentPathType()].isNull())
 		updateConductorPath(p1, terminal1 -> orientation(), p2, terminal2 -> orientation());
+		//A pipe or a signal line drawn by hand whose ends come level or
+		//pass each other: the path it has now becomes the profile of the
+		//new position, so that it keeps its detours (step 7c-bis)
+	else if (segmentsCount() && modified_path && m_properties.m_medium != TerminalData::Electrical) {
+		conductor_profiles[currentPathType()].fromConductor(this);
+		updateConductorPath(p1, terminal1 -> orientation(), p2, terminal2 -> orientation());
+	}
 	else
 		generateConductorPath(p1, terminal1 -> orientation(), p2, terminal2 -> orientation());
 	calculateTextItemPosition();
@@ -540,6 +547,14 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 	// calculates the vertical and horizontal differences to be applied
 	qreal h_diff = (qAbs(new_rect.width())  - qAbs(profile_width) ) * getSign(profile_width);
 	qreal v_diff = (qAbs(new_rect.height()) - qAbs(profile_height)) * getSign(profile_height);
+		//A pipe or a signal line keeps its detours on their side, even when
+		//its ends come level or pass each other (step 7c-bis): its segments
+		//take the difference as it is, none turns the other way
+	const bool keeps_side = m_properties.m_medium != TerminalData::Electrical;
+	if (keeps_side) {
+		h_diff = new_rect.width() - profile_width;
+		v_diff = new_rect.height() - profile_height;
+	}
 
 	// A profile with no segment of non-zero length along an axis has nowhere
 	// to put a difference along that axis: it would be dropped and the last
@@ -547,8 +562,18 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 	// loaded from a file is like this, as a zero-length segment is saved as
 	// horizontal (bugtracker #105). Generate a new path instead, as when
 	// there is no profile for this path type.
-	const auto can_absorb = [](qreal diff, const QList<ConductorSegmentProfile *> &segments_list) {
+	const auto can_absorb = [keeps_side](qreal diff, const QList<ConductorSegmentProfile *> &segments_list) {
 		if (qAbs(diff) <= 0.01) return(true);
+		if (keeps_side) {
+				//A segment going the way of the difference takes any of it;
+				//the others only shrink, down to nothing
+			qreal against = 0;
+			for (ConductorSegmentProfile *csp : segments_list) {
+				if (csp -> length * diff > 0) return(true);
+				against += qAbs(csp -> length);
+			}
+			return(against >= qAbs(diff) - 0.01);
+		}
 		for (ConductorSegmentProfile *csp : segments_list) {
 			if (csp -> length) return(true);
 		}
@@ -568,6 +593,12 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 	}
 	if (!can_absorb(h_diff, horizontal) ||
 		!can_absorb(v_diff, vertical)) {
+			//A detour that no longer fits on its side: routed by itself,
+			//as a pipe whose exit would be too short
+		if (keeps_side) {
+			conductor_profile = ConductorProfile();
+			modified_path = false;
+		}
 		generateConductorPath(p1, o1, p2, o2);
 		return;
 	}
@@ -585,8 +616,8 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 
 	// en deduit egalement les coefficients d'inversion (-1 pour une inversion, +1 pour conserver le meme sens)
 	// also deduce the inversion coefficients (-1 for inversion, +1 to keep the same direction)
-	int horiz_coeff = getCoeff(new_rect.width(),  profile_width);
-	int verti_coeff = getCoeff(new_rect.height(), profile_height);
+	int horiz_coeff = keeps_side ? 1 : getCoeff(new_rect.width(),  profile_width);
+	int verti_coeff = keeps_side ? 1 : getCoeff(new_rect.height(), profile_height);
 
 	// genere les nouveaux points
 	// generate the new points
