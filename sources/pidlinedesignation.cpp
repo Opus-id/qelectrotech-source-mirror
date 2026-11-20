@@ -36,7 +36,7 @@ QString PidLineDesignation::text(const QString &model,
 		return QString();
 	}
 	static const QRegularExpression field(QStringLiteral(
-			"\\{(fluid|line_number|material|piping_class|pn|flow|size|dn)\\}"));
+			"\\{(fluid|fluid_name|line_number|material|material_name|piping_class|pn|flow|size|dn)\\}"));
 	static const QRegularExpression spaces(QStringLiteral(" {2,}"));
 
 		//The size as the drawing writes it: the material chooses
@@ -53,6 +53,13 @@ QString PidLineDesignation::text(const QString &model,
 		}
 	}
 
+		//The name the codification gives a code, else the code
+	auto nameOf = [](const PidCodification::Entry *entry, const QString &code) {
+		return entry && !entry->name.trimmed().isEmpty() ? entry->name : code;
+	};
+	const QString fluid_name = nameOf(codification.fluid(pipe.fluid.trimmed()), pipe.fluid);
+	const QString material_name = nameOf(codification.material(pipe.material.trimmed()), pipe.material);
+
 	QString result;
 	int from = 0;
 	auto it = field.globalMatch(model);
@@ -63,9 +70,11 @@ QString PidLineDesignation::text(const QString &model,
 		from = match.capturedEnd();
 		const QString name = match.captured(1);
 		const QString value =
-				name == QLatin1String("fluid")        ? pipe.fluid
-			  : name == QLatin1String("line_number")  ? pipe.line_number
-			  : name == QLatin1String("material")     ? pipe.material
+				name == QLatin1String("fluid")         ? pipe.fluid
+			  : name == QLatin1String("fluid_name")    ? fluid_name
+			  : name == QLatin1String("line_number")   ? pipe.line_number
+			  : name == QLatin1String("material")      ? pipe.material
+			  : name == QLatin1String("material_name") ? material_name
 			  : name == QLatin1String("piping_class") ? pipe.piping_class
 			  : name == QLatin1String("pn")           ? pipe.nominal_pressure
 			  : name == QLatin1String("flow")         ? pipe.flow

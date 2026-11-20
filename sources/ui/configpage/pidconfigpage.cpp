@@ -573,10 +573,12 @@ void PidConfigPage::initWidgets()
 		{QStringLiteral("\\n"), tr("New line")}};
 	const QList<QPair<QString, QString>> line_fields{
 		{QStringLiteral("{fluid}"), tr("Fluid")},
+		{QStringLiteral("{fluid_name}"), tr("Name of the fluid (its code without one)")},
 		{QStringLiteral("{line_number}"), tr("Line number")},
 		{QStringLiteral("{size}"), tr("Size as drawn (DN 100, Ø 110; DN ? without one)")},
 		{QStringLiteral("{dn}"), tr("DN alone (100; ? without one)")},
 		{QStringLiteral("{material}"), tr("Material")},
+		{QStringLiteral("{material_name}"), tr("Name of the material (its code without one)")},
 		{QStringLiteral("{piping_class}"), tr("Piping class")},
 		{QStringLiteral("{pn}"), tr("Nominal pressure")},
 		{QStringLiteral("{flow}"), tr("Flow")},

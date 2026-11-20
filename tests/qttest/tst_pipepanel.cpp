@@ -15,7 +15,9 @@
 #include "pidsection.h"
 #include "ui/pipepropertieswidget.h"
 
+#include <QAbstractItemModel>
 #include <QComboBox>
+#include <QCompleter>
 #include <QDomDocument>
 #include <QFormLayout>
 #include <QLabel>
@@ -1267,6 +1269,40 @@ class tst_pipepanel : public QObject
 
 			m_project.setPidCodification(saved);
 			QVERIFY(fluid->count() > 2);
+		}
+
+			// What is typed is looked for anywhere in the code and the name
+		void theListsOfferWhatContainsTheText()
+		{
+			const PidCodification saved = m_project.pidCodification();
+			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Eau brute;E\nfluid;SL1;Boues;B\nfluid;W02;Eau traitée;E\nmaterial;M01;Acier\n")));
+			Conductor *pipe = draw(m_nozzles);
+			QVERIFY(pipe);
+			PipePropertiesWidget page({pipe});
+			auto *fluid = page.findChild<QComboBox *>(QStringLiteral("fluid"));
+			QVERIFY(fluid && fluid->completer());
+			QCompleter *completer = fluid->completer();
+			auto offered = [completer](const QString &typed) {
+				completer->setCompletionPrefix(typed);
+				QStringList texts;
+				for (int i = 0 ; i < completer->completionCount() ; ++i) {
+					completer->setCurrentRow(i);
+					texts << completer->currentCompletion();
+				}
+				return texts;
+			};
+			QCOMPARE(offered(QStringLiteral("eau")).size(), 2);
+			QVERIFY(offered(QStringLiteral("eau")).first().startsWith(QStringLiteral("W01")));
+			QCOMPARE(offered(QStringLiteral("boue")), QStringList{fluid->itemText(2)});
+			QCOMPARE(offered(QStringLiteral("02")), QStringList{fluid->itemText(3)});
+
+				// picked in the list of the completer, as with the mouse
+			completer->setCompletionPrefix(QStringLiteral("boue"));
+			emit completer->activated(completer->completionModel()->index(0, 0));
+			QCOMPARE(pipe->properties().m_pipe.fluid, QStringLiteral("SL1"));
+
+			m_project.setPidCodification(saved);
 		}
 
 		void noneIsOfferedFirstInTheLists()

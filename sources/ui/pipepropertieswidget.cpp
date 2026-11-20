@@ -34,6 +34,7 @@
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QCompleter>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -486,6 +487,11 @@ QComboBox *PipePropertiesWidget::addListField(
 	list->setObjectName(name);
 	list->setEditable(true);
 	list->setInsertPolicy(QComboBox::NoInsert);
+		//What is typed is looked for in the code and in the name, anywhere:
+		//"eau" offers "W01 – Eau brute"
+	list->completer()->setFilterMode(Qt::MatchContains);
+	list->completer()->setCaseSensitivity(Qt::CaseInsensitive);
+	list->completer()->setCompletionMode(QCompleter::PopupCompletion);
 	static_cast<QFormLayout *>(layout())->addRow(label, list);
 	auto apply = [this, list, set, apply_code]() {
 		const QString code = codeOf(list, list->currentText());

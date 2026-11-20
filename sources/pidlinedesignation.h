@@ -46,6 +46,9 @@ namespace PidLineDesignation
 			project of @p codification:
 			- {fluid}, {line_number}, {material}, {piping_class}, {pn} (the
 			  nominal pressure), {flow}: the data, as typed (codes);
+			- {fluid_name}, {material_name}: the name the codification
+			  gives the code of the fluid, of the material; the code when
+			  it has none, or is not one of the codification;
 			- {size}: the size as the drawing writes it, "DN 100", "Ø 110",
 			  "DN 60/65" (PidCodification::text()); "DN ?" when the pipe has
 			  none;

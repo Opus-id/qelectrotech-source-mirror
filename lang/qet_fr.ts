@@ -14162,6 +14162,16 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>DN seul (100 ; ? sans taille)</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="559"/>
+        <source>Name of the fluid (its code without one)</source>
+        <translation>Nom du fluide (son code s&apos;il n&apos;en a pas)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="559"/>
+        <source>Name of the material (its code without one)</source>
+        <translation>Nom du matériau (son code s&apos;il n&apos;en a pas)</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="560"/>
         <source>Material</source>
         <translation>Matériau</translation>

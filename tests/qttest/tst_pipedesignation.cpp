@@ -173,6 +173,27 @@ class tst_pipedesignation : public QObject
 			QVERIFY(PidLineDesignation::text(QStringLiteral("  "), pipe, codification).isEmpty());
 		}
 
+			// The names of the codification, the code when there is none
+		void theModelWritesTheNames()
+		{
+			const PidCodification codification = PidCodification::fromCsv(QStringLiteral(
+				"fluid;W01;Raw water;E\nfluid;W02;;E\nmaterial;M02;PVC-U\n"));
+			PipeProperties pipe;
+			pipe.fluid = QStringLiteral("W01");
+			pipe.material = QStringLiteral("M02");
+			const QString model = QStringLiteral("{fluid_name} – {material_name} ({fluid}, {material})");
+			QCOMPARE(PidLineDesignation::text(model, pipe, codification),
+					 QStringLiteral("Raw water – PVC-U (W01, M02)"));
+				//A code without a name, free text, nothing
+			pipe.fluid = QStringLiteral("W02");
+			pipe.material = QStringLiteral("Cast iron");
+			QCOMPARE(PidLineDesignation::text(model, pipe, codification),
+					 QStringLiteral("W02 – Cast iron (W02, Cast iron)"));
+			pipe.fluid.clear();
+			QCOMPARE(PidLineDesignation::text(QStringLiteral("{fluid_name} DN"), pipe, codification),
+					 QStringLiteral("DN"));
+		}
+
 			// A pipe without a size says so: "DN ?", and "?" for the DN alone
 		void aMissingSizeIsAsked()
 		{
