@@ -434,9 +434,10 @@ line.*
   model, the first line of the label typed by hand goes above. Both texts
   are parts of the label: they take its colour and the size of its
   category.
-  Turned or mirrored, a bubble keeps its two texts where they are on it
-  upright, turned only as they are read: the letters always come first,
-  and kept level they stay in the bubble. Draw its signal lines from the
+  Turned or mirrored, a bubble turns its two texts with it, even in a
+  project keeping the texts of rotated elements horizontal (no level place
+  fits in a turned oval): never upside down, read from the bottom when the
+  vertical texts are, the letters always first. Draw its signal lines from the
   terminal on the side wanted instead.
 - **Tags numbered automatically**: the order is one more than the highest
   held by the same functional unit, identifier and train in the project
