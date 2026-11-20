@@ -101,6 +101,65 @@ Terminal *freeEndOn(Diagram *diagram, const Element *element, Terminal *nozzle,
 	return nullptr;
 }
 
+	/// The route of @p line kept for a new piece from @p from, one of its
+	/// terminals, to @p nozzle, a terminal of the symbol placed on it
+	/// (P&ID, 7c): the points of @p line from @p from up to where @p nozzle
+	/// stands on it, then @p nozzle, so that the line keeps its route, its
+	/// bends moved by hand included. The first stretch from @p from which
+	/// runs into @p nozzle the way it faces and passes it within the
+	/// tolerance of liesOnConductor() is cut there; a stretch a little off
+	/// the nozzle (a line brought off the grid by the magnet) is moved onto
+	/// it, unless it is the first one. Empty when no stretch fits: the new
+	/// piece then takes the route of a new conductor, as before.
+QList<QPointF> keptRoute(const Conductor *line, const Terminal *from, const Terminal *nozzle)
+{
+	if (!line || !from || !nozzle || (line->terminal1 != from && line->terminal2 != from)) {
+		return {};
+	}
+	const Terminal *far = line->terminal1 == from ? line->terminal2 : line->terminal1;
+	QList<QPointF> points = PidFreeEnd::cleaned(PidFreeEnd::pathTo(line, far));
+	const QPointF dock = nozzle->dockConductor();
+	const qreal off = qMax(5.0, qMax(Diagram::xGrid, Diagram::yGrid) / 2.0) + 0.01;
+	const bool across_x = nozzle->orientation() == Qet::East || nozzle->orientation() == Qet::West;
+		//Outwards from the symbol: the line runs the other way into it
+	QPointF out;
+	switch (nozzle->orientation()) {
+		case Qet::North: out = QPointF(0, -1); break;
+		case Qet::South: out = QPointF(0, 1);  break;
+		case Qet::East:  out = QPointF(1, 0);  break;
+		case Qet::West:  out = QPointF(-1, 0); break;
+	}
+	for (int i = 0 ; i < points.size() - 1 ; ++i)
+	{
+		const QPointF a = points.at(i), b = points.at(i + 1);
+		const bool along_x = qAbs(a.y() - b.y()) < 0.01;
+		const bool along_y = qAbs(a.x() - b.x()) < 0.01;
+		if ((across_x && !along_x) || (!across_x && !along_y)
+			|| QPointF::dotProduct(b - a, out) >= 0) {
+			continue;
+		}
+		const qreal from_a = across_x ? dock.x() - a.x() : dock.y() - a.y();
+		const qreal length = across_x ? b.x() - a.x() : b.y() - a.y();
+		const qreal aside = across_x ? dock.y() - a.y() : dock.x() - a.x();
+		if (from_a / length < -0.001 || from_a / length > 1.001 || qAbs(aside) >= off) {
+			continue;
+		}
+		if (qAbs(aside) >= 0.01) {
+			if (i == 0) {
+				return {};
+			}
+				//The stretch moved onto the nozzle: the one before it,
+				//across, gets longer or shorter
+			if (across_x) points[i].setY(dock.y());
+			else          points[i].setX(dock.x());
+		}
+		QList<QPointF> kept = points.mid(0, i + 1);
+		kept << dock;
+		return PidFreeEnd::cleaned(kept);
+	}
+	return {};
+}
+
 	/// An end of a line (a symbol of the pipe family with a single nozzle,
 	/// free: a free end, an arrow, a vent, a closure...) dropped with its
 	/// nozzle on another nozzle turns the way it must (P&ID, 6b-3c2): on a
@@ -426,6 +485,11 @@ QSet<Terminal *> autoBreakConductors(
 				new_c->setProperties(m.conductor->properties());
 				new_c->takeNozzleDiameter();
 			}
+				//A pipe or a signal line keeps its route up to the symbol
+				//(7c); a wire takes a new one, as always
+			if (m.conductor->medium() != TerminalData::Electrical) {
+				new_c->setPathPoints(keptRoute(m.conductor, m.connect_to, t));
+			}
 			if (m.conductor == matches.first().conductor) {
 				first_half = new_c;
 			}
@@ -440,6 +504,9 @@ QSet<Terminal *> autoBreakConductors(
 
 		if (other_terminal && join_far) {
 			Conductor *new_c2 = new Conductor(best_other, other_terminal);
+			if (matches.first().conductor->medium() != TerminalData::Electrical) {
+				new_c2->setPathPoints(keptRoute(matches.first().conductor, best_other, other_terminal));
+			}
 			if (matches.first().conductor->medium() == TerminalData::Pipe) {
 				new_c2->setProperties(matches.first().conductor->properties());
 				new_c2->takeNozzleDiameter();

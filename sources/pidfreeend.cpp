@@ -46,52 +46,57 @@ namespace {
 		return pipe->terminal1 == end ? pipe->terminal2 : pipe->terminal1;
 	}
 
-		/// The points of @p pipe on the folio, from its other end to @p end
-	QList<QPointF> pathTo(const Conductor *pipe, const Terminal *end)
-	{
-		QList<QPointF> points;
-		const QPainterPath path = pipe->path();
-		for (int i = 0 ; i < path.elementCount() ; ++i) {
-			const QPainterPath::Element &e = path.elementAt(i);
-			points << pipe->mapToScene(QPointF(e.x, e.y));
-		}
-		if (pipe->terminal1 == end) {
-			std::reverse(points.begin(), points.end());
-		}
-		return points;
-	}
-
-		/// @p points without repeated points nor points where the line goes
-		/// straight on
-	QList<QPointF> cleaned(const QList<QPointF> &points)
-	{
-		QList<QPointF> kept;
-		for (const QPointF &p : points)
-		{
-			if (!kept.isEmpty() && QLineF(kept.constLast(), p).length() < 0.01) {
-				continue;
-			}
-			if (kept.size() >= 2)
-			{
-				const QPointF &a = kept.at(kept.size() - 2), &b = kept.constLast();
-				const bool along_x = qAbs(a.y() - b.y()) < 0.01 && qAbs(b.y() - p.y()) < 0.01;
-				const bool along_y = qAbs(a.x() - b.x()) < 0.01 && qAbs(b.x() - p.x()) < 0.01;
-				if (along_x || along_y) {
-					kept.last() = p;
-					continue;
-				}
-			}
-			kept << p;
-		}
-		return kept;
-	}
-
 		/// A nozzle which may take a new pipe
 	bool takesAPipe(const Terminal *nozzle)
 	{
 		return nozzle && nozzle->parentElement() && nozzle->medium() == TerminalData::Pipe
 				&& nozzle->hasRoomForWire();
 	}
+}
+
+/**
+	@brief PidFreeEnd::pathTo
+	See the declaration
+*/
+QList<QPointF> PidFreeEnd::pathTo(const Conductor *pipe, const Terminal *end)
+{
+	QList<QPointF> points;
+	const QPainterPath path = pipe->path();
+	for (int i = 0 ; i < path.elementCount() ; ++i) {
+		const QPainterPath::Element &e = path.elementAt(i);
+		points << pipe->mapToScene(QPointF(e.x, e.y));
+	}
+	if (pipe->terminal1 == end) {
+		std::reverse(points.begin(), points.end());
+	}
+	return points;
+}
+
+/**
+	@brief PidFreeEnd::cleaned
+	See the declaration
+*/
+QList<QPointF> PidFreeEnd::cleaned(const QList<QPointF> &points)
+{
+	QList<QPointF> kept;
+	for (const QPointF &p : points)
+	{
+		if (!kept.isEmpty() && QLineF(kept.constLast(), p).length() < 0.01) {
+			continue;
+		}
+		if (kept.size() >= 2)
+		{
+			const QPointF &a = kept.at(kept.size() - 2), &b = kept.constLast();
+			const bool along_x = qAbs(a.y() - b.y()) < 0.01 && qAbs(b.y() - p.y()) < 0.01;
+			const bool along_y = qAbs(a.x() - b.x()) < 0.01 && qAbs(b.x() - p.x()) < 0.01;
+			if (along_x || along_y) {
+				kept.last() = p;
+				continue;
+			}
+		}
+		kept << p;
+	}
+	return kept;
 }
 
 /**

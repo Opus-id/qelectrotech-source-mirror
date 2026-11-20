@@ -98,6 +98,12 @@ class PidFreeEnd
 			/// pipe, nullptr when nothing was done
 		static Conductor *close(Diagram *diagram, Terminal *nozzle, Terminal *closure,
 								QUndoCommand *parent);
+			/// The points of @p pipe on the folio, from its other end to @p end
+			/// (one of its terminals)
+		static QList<QPointF> pathTo(const Conductor *pipe, const Terminal *end);
+			/// @p points without repeated points nor points where the line
+			/// goes straight on
+		static QList<QPointF> cleaned(const QList<QPointF> &points);
 			/// The symbol of free end of the project of @p diagram
 			/// (PidCodification::freeEndRole()), a null location when it has
 			/// none or when it is not found

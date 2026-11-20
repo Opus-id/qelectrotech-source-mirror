@@ -9,6 +9,7 @@
 #include "elementsmover.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
+#include "pidfreeend.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
@@ -75,7 +76,7 @@ class tst_conductormedium : public QObject
 
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_electrical, m_pipe, m_tee;
+	ElementsLocation m_electrical, m_pipe, m_tee, m_signal;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -137,13 +138,15 @@ class tst_conductormedium : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("cmedium"), NamesList());
-			QDomDocument a, b, c;
+			QDomDocument a, b, c, d;
 			m_electrical = add("electrical.elmt",
 					   definition(a, "71111111-1111-1111-1111-111111111111", ""));
 			m_pipe = add("pipe.elmt",
 				     definition(b, "72222222-2222-2222-2222-222222222222", "pipe"));
 			m_tee = add("tee.elmt", teeDefinition(c));
-			QVERIFY(m_electrical.exist() && m_pipe.exist() && m_tee.exist());
+			m_signal = add("signal.elmt",
+				       definition(d, "74444444-4444-4444-4444-444444444444", "signal"));
+			QVERIFY(m_electrical.exist() && m_pipe.exist() && m_tee.exist() && m_signal.exist());
 			m_folio = m_project.addNewDiagram();
 		}
 
@@ -598,6 +601,158 @@ class tst_conductormedium : public QObject
 				QCOMPARE(middle->terminals().at(0)->conductors().size(), on ? 1 : 0);
 				QCOMPARE(middle->terminals().at(1)->conductors().size(), on ? 1 : 0);
 			}
+		}
+
+			// ---- the route kept when a symbol breaks a line (7c) ----
+			// A line from a's east terminal to b's west one, 300 lower, its
+			// riser moved by hand to x = @p riser_x (a new line bends half
+			// way, at x = 100); with @p jog, a step down of 40 at x = 60
+			// before the riser, which no new route makes
+		Conductor *lineWithRiser(const ElementsLocation &kind, qreal riser_x,
+					 Element **a, Element **b, bool jog = false)
+		{
+			m_next_y += 600;
+			const qreal y = m_next_y;
+			*a = place(kind, QPointF(0, y));
+			*b = place(kind, QPointF(200, y + 300));
+			if (!*a || !*b) return nullptr;
+			Conductor *line = draw((*a)->terminals().at(1), (*b)->terminals().at(0));
+			const QPointF from = (*a)->terminals().at(1)->dockConductor();
+			const QPointF to = (*b)->terminals().at(0)->dockConductor();
+			QList<QPointF> points{from};
+			if (jog) {
+				points << QPointF(60, from.y()) << QPointF(60, from.y() + 40);
+			}
+			points << QPointF(riser_x, points.constLast().y()) << QPointF(riser_x, to.y()) << to;
+			if (!line->setPathPoints(points)) {
+				return nullptr;
+			}
+			return line;
+		}
+
+			// The route of @p conductor on the folio, from its terminal1
+		static QList<QPointF> routeOf(const Conductor *conductor)
+		{
+			QList<QPointF> points;
+			const QPainterPath path = conductor->path();
+			for (int i = 0 ; i < path.elementCount() ; ++i) {
+				const QPainterPath::Element &e = path.elementAt(i);
+				points << conductor->mapToScene(QPointF(e.x, e.y));
+			}
+			return PidFreeEnd::cleaned(points);
+		}
+
+			// @p element broken into the lines under it, in one undo step
+		void breakUnder(Element *element, bool all_media)
+		{
+			const bool was = m_project.autoBreakConductor();
+			m_project.setAutoBreakConductor(all_media);
+			QList<Conductor *> handled;
+			QSet<Terminal *> used;
+			auto *undo = new QUndoCommand();
+			autoBreakConductors(m_folio, element, undo, handled, used);
+			m_folio->undoStack().push(undo);
+			m_project.setAutoBreakConductor(was);
+		}
+
+			// A valve dropped on the first run of a pipe: the piece from the
+			// far end keeps the riser moved by hand, through undo and redo
+		void aPipeBrokenKeepsTheRouteMovedByHand()
+		{
+			Element *a = nullptr, *b = nullptr;
+			QVERIFY(lineWithRiser(m_pipe, 150, &a, &b));
+			const qreal y = a->pos().y();
+			Element *valve = place(m_pipe, QPointF(50, y));
+			QVERIFY(valve);
+			breakUnder(valve, false);
+
+			Terminal *n2 = valve->terminals().at(1);
+			QCOMPARE(n2->conductors().size(), 1);
+			const QList<QPointF> expected{b->terminals().at(0)->dockConductor(),
+						      QPointF(150, y + 300), QPointF(150, y),
+						      n2->dockConductor()};
+			QCOMPARE(routeOf(n2->conductors().first()), expected);
+			QCOMPARE(routeOf(valve->terminals().at(0)->conductors().first()),
+				 (QList<QPointF>{a->terminals().at(1)->dockConductor(),
+						 valve->terminals().at(0)->dockConductor()}));
+
+			m_folio->undoStack().undo();
+			m_folio->undoStack().redo();
+			QCOMPARE(routeOf(n2->conductors().first()), expected);
+		}
+
+			// The case of the 7m trial: a valve turned upright on the riser
+			// of a pipe, which neither piece moves
+		void aValveOnTheRiserKeepsItInPlace()
+		{
+			Element *a = nullptr, *b = nullptr;
+			QVERIFY(lineWithRiser(m_pipe, 150, &a, &b, true));
+			const qreal y = a->pos().y();
+			Element *valve = place(m_pipe, QPointF(150, y + 150));
+			QVERIFY(valve);
+			valve->setRotation(90);
+			Terminal *up = nullptr, *down = nullptr;
+			for (Terminal *t : valve->terminals()) {
+				if (t->orientation() == Qet::North) up = t;
+				if (t->orientation() == Qet::South) down = t;
+			}
+			QVERIFY(up && down);
+			breakUnder(valve, false);
+
+			QCOMPARE(up->conductors().size(), 1);
+			QCOMPARE(down->conductors().size(), 1);
+			QCOMPARE(routeOf(up->conductors().first()),
+				 (QList<QPointF>{a->terminals().at(1)->dockConductor(), QPointF(60, y),
+						 QPointF(60, y + 40), QPointF(150, y + 40), up->dockConductor()}));
+			QCOMPARE(routeOf(down->conductors().first()),
+				 (QList<QPointF>{b->terminals().at(0)->dockConductor(), QPointF(150, y + 300),
+						 down->dockConductor()}));
+		}
+
+			// A riser half a grid off the valve (a line brought there by the
+			// magnet) is moved onto its nozzles, its runs kept
+		void aRiserOffTheGridIsMovedOntoTheValve()
+		{
+			Element *a = nullptr, *b = nullptr;
+			QVERIFY(lineWithRiser(m_pipe, 155, &a, &b, true));
+			const qreal y = a->pos().y();
+			Element *valve = place(m_pipe, QPointF(150, y + 150));
+			QVERIFY(valve);
+			valve->setRotation(90);
+			Terminal *up = nullptr;
+			for (Terminal *t : valve->terminals()) {
+				if (t->orientation() == Qet::North) up = t;
+			}
+			QVERIFY(up);
+			breakUnder(valve, false);
+
+			QCOMPARE(up->conductors().size(), 1);
+			QCOMPARE(routeOf(up->conductors().first()),
+				 (QList<QPointF>{a->terminals().at(1)->dockConductor(), QPointF(60, y),
+						 QPointF(60, y + 40), QPointF(150, y + 40), up->dockConductor()}));
+		}
+
+			// A signal line broken (the switch on) keeps its route too; a
+			// wire takes a new one, as before
+		void aSignalLineKeepsItsRouteAWireDoesNot()
+		{
+			Element *a = nullptr, *b = nullptr;
+			QVERIFY(lineWithRiser(m_signal, 150, &a, &b));
+			Element *middle = place(m_signal, QPointF(50, a->pos().y()));
+			QVERIFY(middle);
+			breakUnder(middle, true);
+			Terminal *n2 = middle->terminals().at(1);
+			QCOMPARE(n2->conductors().size(), 1);
+			QCOMPARE(n2->conductors().first()->medium(), TerminalData::Signal);
+			QVERIFY(routeOf(n2->conductors().first()).contains(QPointF(150, a->pos().y())));
+
+			QVERIFY(lineWithRiser(m_electrical, 150, &a, &b));
+			middle = place(m_electrical, QPointF(50, a->pos().y()));
+			QVERIFY(middle);
+			breakUnder(middle, true);
+			n2 = middle->terminals().at(1);
+			QCOMPARE(n2->conductors().size(), 1);
+			QVERIFY(!routeOf(n2->conductors().first()).contains(QPointF(150, a->pos().y())));
 		}
 
 			// A symbol moved onto a pipe breaks it too, the switch off; one
