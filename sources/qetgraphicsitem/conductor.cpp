@@ -2575,14 +2575,18 @@ void Conductor::updateLeader()
 {
 	const QETProject *project = diagram() ? diagram()->project() : nullptr;
 	QPainterPath leader;
-	if (project && project->textLeaderDistance() > 0 && m_text_item
+	if (project && project->textLeaderDistance() > 0 && m_text_item && segments
 		&& m_text_item->wasMovedByUser() && m_text_item->isVisible()
 		&& !m_text_item->toPlainText().isEmpty())
 	{
 		const QRectF text = m_text_item->mapRectToParent(m_text_item->boundingRect());
+			//To where the text stands when nobody moved it: the middle of
+			//the longest segment, not the nearest point, which may be an end
+		Qt::Orientations orientation;
+		const QPointF anchor = posForText(orientation);
 			//A plain end stops 0.5 mm short of the edge of the line
 		const qreal clearance = m_properties.lineWidth() / 2 + LeaderLine::unitsByMillimetre / 2;
-		leader = LeaderLine::path(text, segmentsToPoints(),
+		leader = LeaderLine::path(text, segmentsToPoints(), anchor,
 								  project->textLeaderDistance() * LeaderLine::unitsByMillimetre,
 								  project->textLeaderEnd(), LeaderLine::unitsByMillimetre, clearance);
 	}

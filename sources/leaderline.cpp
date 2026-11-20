@@ -67,53 +67,61 @@ qreal LeaderLine::distanceToLine(const QPointF &point, const QList<QPointF> &poi
 	return best;
 }
 
-QPainterPath LeaderLine::path(const QRectF &text, const QList<QPointF> &points,
+QPainterPath LeaderLine::path(const QRectF &text, const QList<QPointF> &points, const QPointF &anchor,
 							  qreal from, End end, qreal size, qreal clearance)
 {
 	QPainterPath leader;
 	if (from <= 0 || points.isEmpty() || !text.isValid()) {
 		return leader;
 	}
-		//The nearest points of the text and of the conductor, found in turn:
-		//from the centre of the text to the conductor, then from the point of
-		//the text nearest to it, twice, which is enough for straight segments
 	auto clamped = [&text](const QPointF &point) {
 		return QPointF(qBound(text.left(), point.x(), text.right()),
 					   qBound(text.top(), point.y(), text.bottom()));
 	};
-	QPointF on_line;
-	distanceToLine(text.center(), points, &on_line);
-	QPointF on_text = clamped(on_line);
+		//How far the text is from its conductor: the nearest points of the
+		//text and of the conductor, found in turn, from the centre of the
+		//text, then twice from the point of the text nearest to it, which
+		//is enough for straight segments
+	QPointF nearest;
+	distanceToLine(text.center(), points, &nearest);
+	QPointF near_text = clamped(nearest);
 	for (int i = 0 ; i < 2 ; ++i) {
-		distanceToLine(on_text, points, &on_line);
-		on_text = clamped(on_line);
+		distanceToLine(near_text, points, &nearest);
+		near_text = clamped(nearest);
 	}
+	if (QLineF(near_text, nearest).length() <= from) {
+		return leader;
+	}
+		//Drawn from the point of the text nearest to the anchor to it
+	const QPointF on_line = anchor;
+	const QPointF on_text = clamped(anchor);
 	const QLineF line(on_text, on_line);
-	if (line.length() <= from) {
+	if (line.length() <= 0) {
 		return leader;
 	}
 
-	leader.moveTo(on_text);
-	if (end == End::None && clearance > 0) {
-			//A little space between the line and the conductor
+		//A plain end and an arrow stop a little short of the conductor; a
+		//dot is on it
+	QPointF tip = on_line;
+	if (end != End::Dot && clearance > 0) {
 		QLineF shortened(on_line, on_text);
 		shortened.setLength(qMin(clearance, line.length()));
-		leader.lineTo(shortened.p2());
-		return leader;
+		tip = shortened.p2();
 	}
-	leader.lineTo(on_line);
+	leader.moveTo(on_text);
+	leader.lineTo(tip);
 	if (end == End::Dot) {
 		leader.addEllipse(on_line, size / 2, size / 2);
 	} else if (end == End::Arrow) {
-			//Two strokes back from the conductor, either side of the line
-		QLineF back(on_line, on_text);
+			//Two strokes back from its tip, either side of the line
+		QLineF back(tip, on_text);
 		back.setLength(size * 1.5);
 		QLineF left = back;
 		left.setAngle(back.angle() + 25);
 		QLineF right = back;
 		right.setAngle(back.angle() - 25);
 		leader.moveTo(left.p2());
-		leader.lineTo(on_line);
+		leader.lineTo(tip);
 		leader.lineTo(right.p2());
 	}
 	return leader;

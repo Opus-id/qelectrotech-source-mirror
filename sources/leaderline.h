@@ -47,16 +47,19 @@ namespace LeaderLine
 						 QPointF *nearest = nullptr);
 
 		/**
-			The leader line from the text of bounding rectangle @p text to
-			the conductor of points @p points (in the same coordinates),
-			when the gap between them is more than @p from (in the same
-			units; none when @p from is 0 or less): its line, then what
-			ends it on the conductor, of size @p size. A plain end stops
-			@p clearance short of the axis of the conductor (a little more
-			than half its width), a dot or an arrow touches it. An empty
-			path when the text is near enough.
+			The leader line of the text of bounding rectangle @p text, when
+			it is further than @p from from the conductor of points
+			@p points (in the same coordinates and units; none when @p from
+			is 0 or less): from the point of the text nearest to @p anchor,
+			the point of the conductor where the text stands when nobody
+			moved it (the middle of its longest segment), to that anchor,
+			then what ends it there, of size @p size. A plain end and an
+			arrow stop @p clearance short of the anchor (a little more than
+			half the width of the conductor), a dot is on it. An empty
+			path when the text is near enough to its conductor, wherever
+			along it.
 		*/
-	QPainterPath path(const QRectF &text, const QList<QPointF> &points,
+	QPainterPath path(const QRectF &text, const QList<QPointF> &points, const QPointF &anchor,
 					  qreal from, End end, qreal size, qreal clearance = 0);
 
 		/// Drawing units by millimetre (README-PID: 4)

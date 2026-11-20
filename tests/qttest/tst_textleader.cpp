@@ -107,34 +107,49 @@ class tst_textleader : public QObject
 			m_project.setTextLeaders(0, LeaderLine::End::None);
 		}
 
-			// From the edge of the text nearest to the line to the line, when
-			// the gap is more than the distance; a dot or an arrow at its end
+			// When the text is further from the line than the distance: from
+			// the edge of the text nearest to the anchor (where the text stands
+			// unmoved) to the anchor; a dot or an arrow at its end
 		void thePathTiesTheTextToTheLine()
 		{
 			const QList<QPointF> line{QPointF(0, 0), QPointF(200, 0)};
+			const QPointF middle(100, 0);
 			const QRectF text(80, 40, 40, 10);
-			QVERIFY(LeaderLine::path(text, line, 0, LeaderLine::End::None, 4).isEmpty());
-			QVERIFY(LeaderLine::path(text, line, 50, LeaderLine::End::None, 4).isEmpty());
+			QVERIFY(LeaderLine::path(text, line, middle, 0, LeaderLine::End::None, 4).isEmpty());
+			QVERIFY(LeaderLine::path(text, line, middle, 50, LeaderLine::End::None, 4).isEmpty());
 
-			const QPainterPath plain = LeaderLine::path(text, line, 20, LeaderLine::End::None, 4);
+			const QPainterPath plain = LeaderLine::path(text, line, middle, 20, LeaderLine::End::None, 4);
 			QCOMPARE(plain.elementCount(), 2);
 			QCOMPARE(QPointF(plain.elementAt(0)), QPointF(100, 40));
 			QCOMPARE(QPointF(plain.elementAt(1)), QPointF(100, 0));
 
 				// a plain end may stop short of the line
-			const QPainterPath spaced = LeaderLine::path(text, line, 20, LeaderLine::End::None, 4, 3);
+			const QPainterPath spaced = LeaderLine::path(text, line, middle, 20, LeaderLine::End::None, 4, 3);
 			QCOMPARE(spaced.elementCount(), 2);
 			QCOMPARE(QPointF(spaced.elementAt(1)), QPointF(100, 3));
 
-			const QPainterPath dot = LeaderLine::path(text, line, 20, LeaderLine::End::Dot, 4, 3);
+			const QPainterPath dot = LeaderLine::path(text, line, middle, 20, LeaderLine::End::Dot, 4, 3);
 			QVERIFY(dot.elementCount() > 2);
 			QCOMPARE(dot.boundingRect().top(), -2.0);
-			const QPainterPath arrow = LeaderLine::path(text, line, 20, LeaderLine::End::Arrow, 4);
+			const QPainterPath arrow = LeaderLine::path(text, line, middle, 20, LeaderLine::End::Arrow, 4);
 			QVERIFY(arrow.elementCount() > 2);
 			QVERIFY(arrow.boundingRect().top() >= 0);
+				// an arrow stops short of the line too
+			const QPainterPath spaced_arrow = LeaderLine::path(text, line, middle, 20,
+															   LeaderLine::End::Arrow, 4, 3);
+			QCOMPARE(spaced_arrow.boundingRect().top(), 3.0);
 
-				// a text across the line: no leader
-			QVERIFY(LeaderLine::path(QRectF(80, -5, 40, 10), line, 1, LeaderLine::End::None, 4).isEmpty());
+				// a text far away beside an end of the line: still to the
+				// middle, not to the end
+			const QPainterPath beside = LeaderLine::path(QRectF(-60, 40, 40, 10), line, middle, 20,
+														 LeaderLine::End::None, 4);
+			QCOMPARE(QPointF(beside.elementAt(0)), QPointF(-20, 40));
+			QCOMPARE(QPointF(beside.elementAt(1)), middle);
+				// a text slid along the line, near it: none
+			QVERIFY(LeaderLine::path(QRectF(150, 5, 40, 10), line, middle, 20,
+									 LeaderLine::End::None, 4).isEmpty());
+				// a text across the line: none
+			QVERIFY(LeaderLine::path(QRectF(80, -5, 40, 10), line, middle, 1, LeaderLine::End::None, 4).isEmpty());
 			QVERIFY(LeaderLine::fromString(LeaderLine::toString(LeaderLine::End::Dot)) == LeaderLine::End::Dot);
 			QVERIFY(LeaderLine::fromString(QStringLiteral("unknown")) == LeaderLine::End::None);
 		}
@@ -179,15 +194,17 @@ class tst_textleader : public QObject
 
 			m_project.setTextLeaders(5, LeaderLine::End::None);
 			QVERIFY(!conductor->leaderPath().isEmpty());
-				// a plain end stops 0.5 mm short of the edge of the wire
+				// to the middle of the wire, where its text stands unmoved; a
+				// plain end stops 0.5 mm short of the edge of the wire
 			const QPainterPath leader = conductor->leaderPath();
 			const QPointF end = leader.elementAt(leader.elementCount() - 1);
-			const QPointF dock = conductor->mapFromScene(conductor->terminal1->dockConductor());
+			const QPointF middle = conductor->mapFromScene((conductor->terminal1->dockConductor()
+															+ conductor->terminal2->dockConductor()) / 2);
 			const qreal clearance = conductor->properties().lineWidth() / 2 + 2;
-			QVERIFY(qAbs(end.y() - dock.y() - clearance) < 0.01);
+			QVERIFY(qAbs(QLineF(end, middle).length() - clearance) < 0.01);
 				// a dot ends on it
 			m_project.setTextLeaders(5, LeaderLine::End::Dot);
-			QVERIFY(conductor->leaderPath().contains(dock + QPointF(conductor->leaderPath().boundingRect().center().x() - dock.x(), 0)));
+			QVERIFY(conductor->leaderPath().contains(middle));
 			m_project.setTextLeaders(5, LeaderLine::End::None);
 
 				// near the wire again: none; further than 5 mm: one
