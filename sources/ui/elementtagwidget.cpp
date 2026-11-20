@@ -66,6 +66,15 @@ ElementTagWidget::ElementTagWidget(Element *element, QWidget *parent) :
 							 "in capitals; those of the codification of the project are offered"));
 	m_letters_title = new QLabel(tr("Letters:"), this);
 	layout->addRow(m_letters_title, m_letters);
+		//What is typed is looked for anywhere in the code and the name, in a
+		//list: "rel" offers "U02 – Relevage", not only what begins with it
+	for (QComboBox *list : {m_unit, m_letters}) {
+		if (QCompleter *completer = list->completer()) {
+			completer->setFilterMode(Qt::MatchContains);
+			completer->setCaseSensitivity(Qt::CaseInsensitive);
+			completer->setCompletionMode(QCompleter::PopupCompletion);
+		}
+	}
 
 	const auto *digits = new QRegularExpressionValidator(
 				QRegularExpression(QStringLiteral("[0-9]*")), this);
@@ -202,12 +211,6 @@ void ElementTagWidget::fillLetters()
 		}
 	}
 	m_letters->setEditText(typed);
-		//The list of what begins as the text typed, not the first one written
-		//in the field
-	if (QCompleter *completer = m_letters->completer()) {
-		completer->setCompletionMode(QCompleter::PopupCompletion);
-		completer->setCaseSensitivity(Qt::CaseInsensitive);
-	}
 }
 
 /**

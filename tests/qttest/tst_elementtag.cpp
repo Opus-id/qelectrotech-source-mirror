@@ -18,7 +18,9 @@
 #include "ui/elementtagwidget.h"
 #include "undocommand/changeelementlocationcommand.h"
 
+#include <QAbstractItemModel>
 #include <QComboBox>
+#include <QCompleter>
 #include <QDomDocument>
 #include <QLabel>
 #include <QLineEdit>
@@ -780,6 +782,36 @@ class tst_elementtag : public QObject
 			QCOMPARE(PidTag::identifier(i), QStringLiteral("LIC"));
 				// the letters of an equipment are not asked, nor written
 			QVERIFY(!equipment.edited().contains(PidTag::lettersKey()));
+		}
+
+			// Step 7m: what is typed in the units and the letters is looked
+			// for anywhere in their codes and names
+		void theListsOfferWhatContainsTheText()
+		{
+			m_project->setPidCodification(instruments());
+			Element *i = place(m_folio, m_i);
+			QVERIFY(i);
+			ElementTagWidget tab(i);
+			auto offered = [](QComboBox *list, const QString &typed) {
+				QCompleter *completer = list->completer();
+				completer->setCompletionPrefix(typed);
+				QStringList texts;
+				for (int row = 0 ; row < completer->completionCount() ; ++row) {
+					completer->setCurrentRow(row);
+					texts << completer->currentCompletion();
+				}
+				return texts;
+			};
+			QCOMPARE(offered(tab.unitField(), QStringLiteral("ift")), QStringList{tab.unitField()->itemText(1)});
+			QCOMPARE(offered(tab.unitField(), QStringLiteral("filt")), QStringList{tab.unitField()->itemText(2)});
+			QCOMPARE(offered(tab.lettersField(), QStringLiteral("PRESS")), QStringList{tab.lettersField()->itemText(2)});
+			QCOMPARE(offered(tab.lettersField(), QStringLiteral("IC")), QStringList{tab.lettersField()->itemText(1)});
+
+				// picked in the list of the completer, as with the mouse
+			QCompleter *completer = tab.unitField()->completer();
+			completer->setCompletionPrefix(QStringLiteral("filt"));
+			emit completer->activated(completer->completionModel()->index(0, 0));
+			QCOMPARE(tab.edited().value(PidTag::unitKey()).toString(), QStringLiteral("U02"));
 		}
 
 			// The loops of the instruments (ANSI/ISA-5.1, A.6): in series (the
