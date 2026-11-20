@@ -51,11 +51,13 @@ namespace LeaderLine
 			the conductor of points @p points (in the same coordinates),
 			when the gap between them is more than @p from (in the same
 			units; none when @p from is 0 or less): its line, then what
-			ends it on the conductor, of size @p size. An empty path when
-			the text is near enough.
+			ends it on the conductor, of size @p size. A plain end stops
+			@p clearance short of the axis of the conductor (a little more
+			than half its width), a dot or an arrow touches it. An empty
+			path when the text is near enough.
 		*/
 	QPainterPath path(const QRectF &text, const QList<QPointF> &points,
-					  qreal from, End end, qreal size);
+					  qreal from, End end, qreal size, qreal clearance = 0);
 
 		/// Drawing units by millimetre (README-PID: 4)
 	constexpr qreal unitsByMillimetre = 4.0;

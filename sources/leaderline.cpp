@@ -68,7 +68,7 @@ qreal LeaderLine::distanceToLine(const QPointF &point, const QList<QPointF> &poi
 }
 
 QPainterPath LeaderLine::path(const QRectF &text, const QList<QPointF> &points,
-							  qreal from, End end, qreal size)
+							  qreal from, End end, qreal size, qreal clearance)
 {
 	QPainterPath leader;
 	if (from <= 0 || points.isEmpty() || !text.isValid()) {
@@ -94,6 +94,13 @@ QPainterPath LeaderLine::path(const QRectF &text, const QList<QPointF> &points,
 	}
 
 	leader.moveTo(on_text);
+	if (end == End::None && clearance > 0) {
+			//A little space between the line and the conductor
+		QLineF shortened(on_line, on_text);
+		shortened.setLength(qMin(clearance, line.length()));
+		leader.lineTo(shortened.p2());
+		return leader;
+	}
 	leader.lineTo(on_line);
 	if (end == End::Dot) {
 		leader.addEllipse(on_line, size / 2, size / 2);

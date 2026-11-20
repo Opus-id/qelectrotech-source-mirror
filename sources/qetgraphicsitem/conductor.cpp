@@ -2580,9 +2580,11 @@ void Conductor::updateLeader()
 		&& !m_text_item->toPlainText().isEmpty())
 	{
 		const QRectF text = m_text_item->mapRectToParent(m_text_item->boundingRect());
+			//A plain end stops 0.5 mm short of the edge of the line
+		const qreal clearance = m_properties.lineWidth() / 2 + LeaderLine::unitsByMillimetre / 2;
 		leader = LeaderLine::path(text, segmentsToPoints(),
 								  project->textLeaderDistance() * LeaderLine::unitsByMillimetre,
-								  project->textLeaderEnd(), LeaderLine::unitsByMillimetre);
+								  project->textLeaderEnd(), LeaderLine::unitsByMillimetre, clearance);
 	}
 	if (leader.isEmpty()) {
 		if (m_leader) {
