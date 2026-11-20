@@ -2431,8 +2431,8 @@ void DiagramView::resetConductors()
 void DiagramView::resetConductorTexts()
 {
 	if (m_diagram -> isReadOnly()) return;
-	const QSet<Conductor *> selected = m_diagram -> selectedConductors();
-	auto *command = new ResetConductorTextsCommand(QList<Conductor *>(selected.cbegin(), selected.cend()));
+	auto *command = new ResetConductorTextsCommand(
+				ResetConductorTextsCommand::conductorsOf(m_diagram -> selectedItems()));
 	if (!command -> isValid()) {
 		delete command;
 		return;
@@ -3415,11 +3415,10 @@ QList<QAction *> DiagramView::contextMenuActions() const
 				//Only when a text of the selection was moved or turned by
 				//hand, which a selection unchanged does not tell
 			{
-				const QSet<Conductor *> conductors = m_diagram->selectedConductors();
 				qde->m_conductor_text_reset->setEnabled(
 							!m_diagram->isReadOnly()
 							&& ResetConductorTextsCommand::canReset(
-								QList<Conductor *>(conductors.cbegin(), conductors.cend())));
+								ResetConductorTextsCommand::conductorsOf(selected_items)));
 			}
 			list << qde->m_conductor_text_reset;
 			list << qde->m_select_same_symbols;

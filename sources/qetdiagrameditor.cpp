@@ -4369,9 +4369,8 @@ void QETDiagramEditor::slot_updateComplexActions()
 	int selected_conductors_count = diagram_->selectedConductors().count();
 	m_conductor_reset->setEnabled(!ro && selected_conductors_count);
 	{
-		const QSet<Conductor *> conductors = diagram_->selectedConductors();
 		m_conductor_text_reset->setEnabled(!ro && ResetConductorTextsCommand::canReset(
-											   QList<Conductor *>(conductors.cbegin(), conductors.cend())));
+											   ResetConductorTextsCommand::conductorsOf(diagram_->selectedItems())));
 	}
 
 	// number of selected elements and dimensions

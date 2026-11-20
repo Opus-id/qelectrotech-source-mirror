@@ -60,6 +60,23 @@ bool ResetConductorTextsCommand::canReset(const QList<Conductor *> &conductors)
 	return false;
 }
 
+QList<Conductor *> ResetConductorTextsCommand::conductorsOf(const QList<QGraphicsItem *> &items)
+{
+	QList<Conductor *> conductors;
+	for (QGraphicsItem *item : items) {
+		Conductor *conductor = qgraphicsitem_cast<Conductor *>(item);
+		if (!conductor) {
+			if (auto *text = qgraphicsitem_cast<ConductorTextItem *>(item)) {
+				conductor = text->parentConductor();
+			}
+		}
+		if (conductor && !conductors.contains(conductor)) {
+			conductors << conductor;
+		}
+	}
+	return conductors;
+}
+
 void ResetConductorTextsCommand::redo()
 {
 	for (const Text &text : std::as_const(m_texts)) {

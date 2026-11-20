@@ -24,6 +24,7 @@
 #include <QUndoCommand>
 
 class Conductor;
+class QGraphicsItem;
 
 /**
 	@brief The ResetConductorTextsCommand class
@@ -44,6 +45,10 @@ class ResetConductorTextsCommand : public QUndoCommand
 		bool isValid() const {return !m_texts.isEmpty();}
 			/// Some text of @p conductors was moved or turned by hand
 		static bool canReset(const QList<Conductor *> &conductors);
+			/// The conductors of @p items (a selection): those selected and
+			/// those whose text is, once each; a right click on a text
+			/// selects the text alone
+		static QList<Conductor *> conductorsOf(const QList<QGraphicsItem *> &items);
 
 	private:
 		struct Text

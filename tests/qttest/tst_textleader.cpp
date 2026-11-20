@@ -199,6 +199,10 @@ class tst_textleader : public QObject
 			QVERIFY(away != origin);
 			QVERIFY(ResetConductorTextsCommand::canReset({moved, placed}));
 			QVERIFY(!ResetConductorTextsCommand::canReset({placed}));
+				// a text right-clicked is selected alone: its line is taken,
+				// once
+			QCOMPARE(ResetConductorTextsCommand::conductorsOf({moved->textItem(), placed, moved}),
+					 (QList<Conductor *>{moved, placed}));
 
 			m_project.setTextLeaders(5, LeaderLine::End::None);
 			QUndoStack stack;
