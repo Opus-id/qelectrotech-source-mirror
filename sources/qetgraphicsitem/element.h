@@ -429,6 +429,20 @@ class Element : public QetGraphicsItem
 			/// transform() by keepReadable(), never saved. None for another
 			/// text or symbol, an electrical one among them.
 		QTransform labelBesideLine(const DynamicElementTextItem *text) const;
+			/// The vertical texts of this symbol read from the bottom: for
+			/// its label, its bubble and its nozzles
+			/// (DynamicElementTextItem::verticalFromBottom())
+		bool readsVerticalFromBottom() const;
+			/// What places a part of the tag (the two texts of a bubble,
+			/// DynamicElementTextItem::isLabelPart()) of this P&ID symbol as
+			/// on the symbol upright, turned only by the way it is read
+			/// (readingAngle()): whatever the turn and the mirrors of the
+			/// symbol, the letters come first. Its transform().
+		QTransform labelPartPlace(const DynamicElementTextItem *text) const;
+			/// The angle a text of this symbol at @p angle on the folio
+			/// (0, 90, 180 or 270) is read at: never upside down, and from
+			/// the bottom when readsVerticalFromBottom()
+		qreal readingAngle(qreal angle) const;
 
 			//METHODS related to texts
 		void addDynamicTextItem(DynamicElementTextItem *deti = nullptr);

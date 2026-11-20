@@ -2448,9 +2448,9 @@ TerminalData::NozzleLabels Terminal::nozzleLabelsFor(const QSizeF &name, const Q
 		//the bottom (a vertical one), each quarter turn of the symbol
 		//turning them clockwise; one that would read from the top is
 		//turned round when vertical texts read from the bottom
-		//(DynamicElementTextItem::verticalFromBottom())
+		//(Element::readsVerticalFromBottom())
 	bool top_down = false;
-	if (!upright && parent_element_ && !DynamicElementTextItem::verticalFromBottom()) {
+	if (!upright && parent_element_ && !parent_element_->readsVerticalFromBottom()) {
 		const int quarters = (Qet::isHorizontal(d->m_orientation) ? 0 : 3)
 				+ parent_element_->orientation();
 		top_down = quarters % 4 == 1;

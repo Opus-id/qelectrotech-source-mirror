@@ -22,7 +22,9 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScopeGuard>
 #include <QSpinBox>
+#include <QtMath>
 #include <QTemporaryDir>
 #include <QUndoStack>
 
@@ -633,6 +635,116 @@ class tst_pidtexts : public QObject
 			QCOMPARE(clockwise, 90.0);
 			QCOMPARE(anticlockwise, -90.0);
 			QCOMPARE(from_bottom_on, -90.0);
+		}
+
+			// Step 7k-ter: whatever the turn and the mirror of the symbol,
+			// texts kept level or not, read from the bottom or not, a P&ID
+			// text is never upside down; the label stays on its place; the
+			// two texts of a bubble keep their order, the letters first
+		void noTextIsUpsideDown_data()
+		{
+			QTest::addColumn<bool>("level");
+			QTest::addColumn<bool>("from_bottom");
+			QTest::newRow("turned, from the top") << false << false;
+			QTest::newRow("turned, from the bottom") << false << true;
+			QTest::newRow("level") << true << false;
+		}
+
+		void noTextIsUpsideDown()
+		{
+			QFETCH(bool, level);
+			QFETCH(bool, from_bottom);
+			const bool was_from_bottom = DynamicElementTextItem::verticalFromBottom();
+			DynamicElementTextItem::setVerticalFromBottom(from_bottom);
+			m_project.setUprightSymbolTexts(level);
+			auto restore = qScopeGuard([&]() {
+				DynamicElementTextItem::setVerticalFromBottom(was_from_bottom);
+				m_project.setUprightSymbolTexts(true);
+			});
+
+				//The angle a text reads at on the folio, 0 to 359
+			auto readAt = [](const QGraphicsItem *item) {
+				const QTransform t = item->sceneTransform();
+				const qreal a = qRadiansToDegrees(qAtan2(t.m12(), t.m11()));
+				return qRound(a + 360) % 360;
+			};
+			auto centre = [](const QGraphicsItem *item) {
+				return item->mapToScene(item->boundingRect().center());
+			};
+			auto turned = [](const QPointF &v, int angle) {
+				return QTransform().rotate(angle).map(v);
+			};
+			auto near = [](const QPointF &a, const QPointF &b) {
+				return (a - b).manhattanLength() < 0.5;
+			};
+
+			Element *valve = place(m_turnable);
+			Element *instrument = place(m_bubble);
+			QVERIFY(valve && instrument);
+			DiagramContext info = valve->elementInformations();
+			info.addValue(QETInformation::ELMT_LABEL, QStringLiteral("U01 V 101"));
+			valve->setElementInformations(info);
+			DynamicElementTextItem *label = valve->labelTexts().first();
+			DynamicElementTextItem *letters = nullptr, *rest = nullptr;
+			for (DynamicElementTextItem *text : instrument->labelTexts()) {
+				(text->infoName() == QETInformation::PID_TAG_ID ? letters : rest) = text;
+			}
+			QVERIFY(letters && rest);
+				//On the symbol upright: where each text of the bubble is
+				//from the origin of the bubble
+			const QPointF origin0 = instrument->scenePos();
+			const QPointF letters0 = centre(letters) - origin0;
+			const QPointF rest0 = centre(rest) - origin0;
+			QVERIFY(letters0.y() < rest0.y());
+
+			const int vertical = from_bottom ? 270 : 90;
+			for (int mirror = 0 ; mirror < 3 ; ++mirror) {
+				for (Element *e : {valve, instrument}) {
+					e->setHorizontalMirror(mirror == 1);
+					e->setVerticalMirror(mirror == 2);
+				}
+				for (int turn : {0, 90, 180, 270}) {
+					valve->setRotation(turn);
+					instrument->setRotation(turn);
+					const QByteArray where = QStringLiteral("mirror %1, turn %2").arg(mirror).arg(turn).toUtf8();
+					const char *at = where.constData();
+
+					const int label_reads = readAt(label);
+					QVERIFY2(label_reads != 180, at);
+						//Turned clockwise, it reads from the top unless the
+						//vertical texts read from the bottom; turned the
+						//other way, from the bottom
+					if (level) {
+						QVERIFY2(label_reads == 0, at);
+					} else if (turn == 90) {
+						QVERIFY2(label_reads == vertical, at);
+					} else if (turn == 270) {
+						QVERIFY2(label_reads == 270, at);
+					}
+						//The middle of the label on the place the symbol
+						//gives it, turned and mirrored; beside an upright
+						//line when level (step 7k)
+					if (!level || turn == 0 || turn == 180) {
+						const QPointF place = valve->mapToScene(label->pos() + label->boundingRect().center());
+						QVERIFY2(near(centre(label), place), at);
+					}
+
+						//The bubble: both texts read alike, never upside
+						//down, the letters first
+					const int reads = readAt(letters);
+					QVERIFY2(reads == readAt(rest), at);
+					QVERIFY2(reads != 180, at);
+					QVERIFY2(level ? reads == 0 : (reads == 0 || reads == vertical || reads == 270), at);
+					const QPointF origin = instrument->scenePos();
+					QVERIFY2(near(centre(letters) - origin, turned(letters0, reads)), at);
+					QVERIFY2(near(centre(rest) - origin, turned(rest0, reads)), at);
+				}
+			}
+			for (Element *e : {valve, instrument}) {
+				e->setHorizontalMirror(false);
+				e->setVerticalMirror(false);
+				e->setRotation(0);
+			}
 		}
 
 		void theTextsOfABubbleArePartsOfTheLabel()

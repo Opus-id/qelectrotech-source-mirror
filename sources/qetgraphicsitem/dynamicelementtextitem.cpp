@@ -248,6 +248,19 @@ void DynamicElementTextItem::updateReadingDirection()
 QTransform DynamicElementTextItem::readingFlip() const
 {
 	QTransform flip;
+		//The label of a P&ID symbol is never upside down, and reads from
+		//the bottom as its symbol says (Element::readingAngle()); its turn
+		//on the folio is its own and its symbol's, mirrors apart
+		//(Element::keepReadable() keeps it reading normally)
+	if (followsProjectTurn())
+	{
+		const qreal angle = QET::correctAngle(rotation() + m_parent_element->rotation(), true);
+		if (qAbs(m_parent_element->readingAngle(angle) - angle) > 1) {
+			const QPointF c = boundingRect().center();
+			flip.translate(c.x(), c.y()).rotate(180).translate(-c.x(), -c.y());
+		}
+		return flip;
+	}
 	if (verticalFromBottom() && parentItem()) {
 		const QTransform t = QTransform().rotate(rotation()) * parentItem()->sceneTransform();
 		const qreal angle = QET::correctAngle(qRadiansToDegrees(qAtan2(t.m12(), t.m11())), true);
@@ -2247,6 +2260,21 @@ void DynamicElementTextItem::parentElementRotationChanged()
 		this->setRotation(QET::correctAngle(angle, true));
 		connect(this, &DynamicElementTextItem::rotationChanged, this, &DynamicElementTextItem::thisRotationChanged);
 	}
+}
+
+/**
+	@brief DynamicElementTextItem::isLabelPart
+	See the declaration
+*/
+bool DynamicElementTextItem::isLabelPart() const
+{
+	if (!isLabel()) {
+		return false;
+	}
+	if (m_text_from == ElementInfo) {
+		return m_info_name != QLatin1String("label");
+	}
+	return !m_composite_text.contains(QLatin1String("%{label}"));
 }
 
 /**

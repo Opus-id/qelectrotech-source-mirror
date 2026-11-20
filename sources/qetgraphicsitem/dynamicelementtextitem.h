@@ -127,6 +127,9 @@ class DynamicElementTextItem : public DiagramTextItem
 			/// of an instrument bubble), which takes the colour and the size
 			/// of the label
 		bool isLabel() const;
+			/// True for a part of the label only (pid_tag_id,
+			/// pid_tag_rest: the texts of a bubble), not the label itself
+		bool isLabelPart() const;
 			/// True for the label of a P&ID symbol (isLabel()) kept at
 			/// its angle on the folio (keepVisualRotation()): the setting
 			/// of its project (QETProject::uprightSymbolTexts()) decides

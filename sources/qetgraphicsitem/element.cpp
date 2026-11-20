@@ -1197,13 +1197,19 @@ void Element::applyMirrorTransform()
 	{
 		if (!transform().isIdentity())
 			setTransform(QTransform());
-		return;
 	}
-
-		//QTransform's product applies its left operand first
-	setTransform(QTransform().rotate(-rotation())
-				 * mirrorTransform()
-				 * QTransform().rotate(rotation()));
+	else
+	{
+			//QTransform's product applies its left operand first
+		setTransform(QTransform().rotate(-rotation())
+					 * mirrorTransform()
+					 * QTransform().rotate(rotation()));
+	}
+		//The label and the bubble of a P&ID symbol are placed from where
+		//the symbol is on the folio, mirror included: again once it is
+		//known after a turn (the texts may have been placed before)
+	if (!m_data.m_pid_family.isEmpty())
+		keepChildrenReadable();
 }
 
 /**
@@ -1229,6 +1235,14 @@ void Element::keepReadable(QGraphicsItem *child) const
 	if (child->type() == DynamicElementTextItem::Type)
 	{
 		const auto *text = static_cast<DynamicElementTextItem *>(child);
+			//The texts of a bubble keep their places in it, read as said
+		if (text->followsProjectTurn() && text->isLabelPart())
+		{
+			const QTransform place = labelPartPlace(text);
+			if (child->transform() != place)
+				child->setTransform(place);
+			return;
+		}
 		flip = text->readingFlip();
 		beside = labelBesideLine(text);
 	}
@@ -1274,17 +1288,15 @@ QTransform Element::labelBesideLine(const DynamicElementTextItem *text) const
 		return QTransform();
 	}
 		//The label itself, not a part of it written in the symbol (bubble)
-	const bool label = (text->textFrom() == DynamicElementTextItem::ElementInfo
-						&& text->infoName() == QLatin1String("label"))
-			|| (text->textFrom() == DynamicElementTextItem::CompositeText
-				&& text->compositeText().contains(QLatin1String("%{label}")));
-	if (!label) {
+	if (!text->isLabel() || text->isLabelPart()) {
 		return QTransform();
 	}
 	const auto near = [](qreal a, qreal b) { return qAbs(a - b) < 0.01; };
-		//The line of the symbol (its own horizontal) upright on the folio
+		//The line of the symbol (its own horizontal) upright on the folio,
+		//or level: turned a quarter, or half a turn
 	const QTransform symbol = sceneTransform();
-	if (!near(symbol.m11(), 0) || !near(symbol.m22(), 0)) {
+	const bool upright_line = near(symbol.m11(), 0) && near(symbol.m22(), 0);
+	if (!upright_line && (!near(symbol.m12(), 0) || !near(symbol.m21(), 0))) {
 		return QTransform();
 	}
 		//How the text is drawn on the folio without its own transform(),
@@ -1303,14 +1315,19 @@ QTransform Element::labelBesideLine(const DynamicElementTextItem *text) const
 		//The place of the label: the middle its box has in the symbol
 		//upright, turned with it
 	const QPointF place = mapToScene(text->pos() + text->boundingRect().center());
-	const qreal axis = mapToScene(QPointF(0, 0)).x();
-	const qreal side = place.x() - axis;
-		//A text on the line, or across it in the symbol upright, stays
-	if (qAbs(side) <= box.height() / 2) {
-		return QTransform();
+		//Half a turn: its middle on its place (a text turned about its
+		//corner would leave it)
+	QPointF wanted = place;
+	if (upright_line)
+	{
+		const qreal axis = mapToScene(QPointF(0, 0)).x();
+		const qreal side = place.x() - axis;
+			//A text on the line, or across it in the symbol upright, stays
+		if (qAbs(side) <= box.height() / 2) {
+			return QTransform();
+		}
+		wanted.rx() += (side > 0 ? 1 : -1) * (box.width() - box.height()) / 2;
 	}
-	const QPointF wanted(place.x() + (side > 0 ? 1 : -1) * (box.width() - box.height()) / 2,
-						 place.y());
 	const QPointF move = wanted - box.center();
 	if (move.manhattanLength() < 0.01) {
 		return QTransform();
@@ -1320,6 +1337,63 @@ QTransform Element::labelBesideLine(const DynamicElementTextItem *text) const
 	const QTransform linear(symbol.m11(), symbol.m12(), symbol.m21(), symbol.m22(), 0, 0);
 	const QPointF local = linear.inverted().map(move);
 	return QTransform::fromTranslate(local.x(), local.y());
+}
+
+/**
+	@brief Element::readsVerticalFromBottom
+	See the declaration
+*/
+bool Element::readsVerticalFromBottom() const
+{
+	return DynamicElementTextItem::verticalFromBottom();
+}
+
+/**
+	@brief Element::readingAngle
+	See the declaration
+*/
+qreal Element::readingAngle(qreal angle) const
+{
+	const qreal a = QET::correctAngle(angle, true);
+	if (qAbs(a - 180) < 1) {
+		return 0;
+	}
+	if (qAbs(a - 90) < 1 && readsVerticalFromBottom()) {
+		return 270;
+	}
+	return a;
+}
+
+/**
+	@brief Element::labelPartPlace
+	See the declaration. The text is drawn as its place on the symbol upright
+	(its angle there, its position) turned about the origin of the symbol by
+	what the reading asks, then put where the origin is on the folio: the
+	turn and the mirrors of the symbol play no part. Its transform() is what
+	brings the item there from where QGraphicsItem puts it.
+*/
+QTransform Element::labelPartPlace(const DynamicElementTextItem *text) const
+{
+		//The angle of the text on the symbol upright, and on the folio
+	const qreal own = text->turnsWithSymbol() ? text->rotation()
+											  : text->rotation() + rotation();
+	const qreal layout = readingAngle(own + rotation() * (text->turnsWithSymbol() ? 1 : 0)) - own;
+	const QPointF o = text->transformOriginPoint();
+	const QPointF pos = text->pos();
+	const QPointF origin = mapToScene(QPointF(0, 0));
+		//QTransform's product applies its left operand first
+	const QTransform wanted = QTransform::fromTranslate(-o.x(), -o.y())
+							  * QTransform().rotate(own)
+							  * QTransform::fromTranslate(o.x() + pos.x(), o.y() + pos.y())
+							  * QTransform().rotate(layout)
+							  * QTransform::fromTranslate(origin.x(), origin.y());
+		//QGraphicsItem turns the text about o, then applies transform(),
+		//then places it at pos in this symbol
+	const QTransform turn = QTransform::fromTranslate(-o.x(), -o.y())
+							* QTransform().rotate(text->rotation())
+							* QTransform::fromTranslate(o.x(), o.y());
+	const QTransform placed = QTransform::fromTranslate(pos.x(), pos.y()) * sceneTransform();
+	return turn.inverted() * wanted * placed.inverted();
 }
 
 /**
