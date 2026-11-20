@@ -77,7 +77,10 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QLabel>
 #include <QSpinBox>
+#include <QToolBar>
 
 /**
  * @brief QETElementEditor::QETElementEditor
@@ -276,6 +279,7 @@ void QETElementEditor::fromFile(const QString &filepath)
 
 	m_elmt_scene -> fromXml(document_xml);
 	fillPartsList();
+	fillOptionPreview();
 
 	if (!infos_file.isWritable())
 	{
@@ -321,6 +325,58 @@ bool QETElementEditor::toFile(const QString &filepath)
 }
 
 /**
+	@brief QETElementEditor::fillOptionPreview
+	See the declaration
+*/
+void QETElementEditor::fillOptionPreview()
+{
+	if (!m_options_toolbar) {
+		return;
+	}
+	m_options_toolbar->clear();
+	const ElementOptions options = m_elmt_scene->elementData().m_options;
+	m_elmt_scene->setOptionPreview(ElementOptions::Choices());
+	if (options.isEmpty()) {
+		m_options_toolbar->hide();
+		return;
+	}
+	auto *title = new QLabel(tr("Show the case:"), m_options_toolbar);
+	title->setToolTip(tr("Only the parts a placed symbol draws with these values are shown; "
+						 "nothing of the symbol changes. \"All\" shows the parts of every value."));
+	m_options_toolbar->addWidget(title);
+	for (const ElementOptions::Option &option : options.options())
+	{
+		auto *list = new QComboBox(m_options_toolbar);
+		list->setObjectName(QStringLiteral("option_preview_") + option.name);
+		list->setToolTip(option.names.name(option.name));
+		list->addItem(option.names.name(option.name) + QStringLiteral(" : ") + tr("All"), QString());
+		for (const ElementOptions::Value &value : option.values) {
+			list->addItem(option.names.name(option.name) + QStringLiteral(" : ") + value.names.name(value.name),
+						  value.name);
+		}
+		connect(list, &QComboBox::currentIndexChanged, this, &QETElementEditor::applyOptionPreview);
+		m_options_toolbar->addWidget(list);
+	}
+	m_options_toolbar->show();
+}
+
+/**
+	@brief QETElementEditor::applyOptionPreview
+	See the declaration
+*/
+void QETElementEditor::applyOptionPreview()
+{
+	ElementOptions::Choices choices;
+	for (const QComboBox *list : m_options_toolbar->findChildren<QComboBox *>()) {
+		const QString value = list->currentData().toString();
+		if (!value.isEmpty()) {
+			choices.insert(list->objectName().mid(QStringLiteral("option_preview_").size()), value);
+		}
+	}
+	m_elmt_scene->setOptionPreview(choices);
+}
+
+/**
  * @brief QETElementEditor::fromLocation
  * Location of an element to edit.
  */
@@ -347,6 +403,7 @@ void QETElementEditor::fromLocation(const ElementsLocation &location)
 		//Load the element
 	m_elmt_scene -> fromXml(document_xml);
 	fillPartsList();
+	fillOptionPreview();
 
 		//location is read only
 	if (!location.isWritable()) {
@@ -1207,6 +1264,11 @@ void QETElementEditor::setupActions()
 	depth_toolbar -> setObjectName("depth_toolbar");
 	depth_toolbar -> addActions(m_depth_action_group -> actions());
 	addToolBar(Qt::TopToolBarArea, depth_toolbar);
+
+		//The preview of the options of a symbol: filled when it is read
+	m_options_toolbar = addToolBar(tr("Options preview", "toolbar title"));
+	m_options_toolbar->setObjectName(QStringLiteral("options_toolbar"));
+	m_options_toolbar->hide();
 
 		//Rotate action
 	ShortcutManager::instance().registerAction(ui->m_rotate_action, "elementeditor.rotate", tr("Element editors"), Qt::Key_Space);

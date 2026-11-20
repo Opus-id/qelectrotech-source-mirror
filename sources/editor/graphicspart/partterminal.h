@@ -161,6 +161,9 @@ class PartTerminal : public CustomElementGraphicPart
 			/// label and tell the editor
 		void refreshFollows();
 
+			/// The options for which the terminal is drawn (show_if), empty
+			/// for always
+		QString showIf() const { return d->m_show_if; }
 		bool showName() const { return d->m_show_name; }
 		void setShowName(bool show);
 

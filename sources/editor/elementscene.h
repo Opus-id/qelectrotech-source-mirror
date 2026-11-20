@@ -73,6 +73,8 @@ class ElementScene : public QGraphicsScene
 		// attributes
 	private:
 		ElementData m_element_data; ///ElementData. Actually in transition with old data storage
+			/// The values of the options shown, see setOptionPreview()
+		ElementOptions::Choices m_option_preview;
 		QGIManager m_qgi_manager;
 		QUndoStack m_undo_stack;
 
@@ -104,6 +106,15 @@ class ElementScene : public QGraphicsScene
 		ElementData elementData();
 		QStringList pipeNozzleNames() const;
 		void setElementData(ElementData data);
+			/// Show only the parts (shapes, texts, terminals) a symbol
+			/// placed with the values @p choices of its options draws
+			/// (ElementOptions::isShown()); an option without a value
+			/// chosen hides nothing, and none chosen shows every part. Only
+			/// what is shown: nothing saved changes.
+		void setOptionPreview(const ElementOptions::Choices &choices);
+		ElementOptions::Choices optionPreview() const { return m_option_preview; }
+			/// The show_if of the part @p item, empty for none
+		static QString showIfOf(const QGraphicsItem *item);
 
 		void setEventInterface (ESEventInterface *event_interface);
 		void clearEventInterface();

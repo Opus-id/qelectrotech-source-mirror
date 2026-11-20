@@ -131,6 +131,45 @@ ElementData ElementScene::elementData() {
 	return m_element_data;
 }
 
+/**
+	@brief ElementScene::showIfOf
+	See the declaration
+*/
+QString ElementScene::showIfOf(const QGraphicsItem *item)
+{
+	if (const auto *shape = dynamic_cast<const CustomElementGraphicPart *>(item)) {
+		return shape->showIf();
+	}
+	if (const auto *text = dynamic_cast<const PartText *>(item)) {
+		return text->showIf();
+	}
+	if (const auto *terminal = qgraphicsitem_cast<const PartTerminal *>(item)) {
+		return terminal->showIf();
+	}
+	return QString();
+}
+
+/**
+	@brief ElementScene::setOptionPreview
+	See the declaration. A part hidden cannot be selected: what is done to
+	the selection leaves the parts of the other cases alone.
+*/
+void ElementScene::setOptionPreview(const ElementOptions::Choices &choices)
+{
+	m_option_preview = choices;
+	for (QGraphicsItem *item : items()) {
+		const QString show_if = showIfOf(item);
+		if (show_if.isEmpty()) {
+			continue;
+		}
+		const bool shown = choices.isEmpty() || ElementOptions::isShown(show_if, choices);
+		if (!shown) {
+			item->setSelected(false);
+		}
+		item->setVisible(shown);
+	}
+}
+
 void ElementScene::setElementData(ElementData data)
 {
 	bool emit_info = (m_element_data != data);

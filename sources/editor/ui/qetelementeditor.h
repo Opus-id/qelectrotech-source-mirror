@@ -31,6 +31,7 @@ class QListWidget;
 class QStackedWidget;
 class QLabel;
 class QDockWidget;
+class QToolBar;
 class ElementsCollectionWidget;
 class PipingBlockWidget;
 
@@ -133,6 +134,13 @@ class QETElementEditor : public QMainWindow
 		void pasteElement(const ElementsLocation &location);
 		void refreshPipingBlock();
 		void pipingBlockEdited();
+			/// The bar of the preview of the options: a list of the values
+			/// of each option of the symbol, "All" first; hidden for a
+			/// symbol without options. Shows every part again.
+		void fillOptionPreview();
+			/// Show the parts of the case the lists of the bar choose
+			/// (ElementScene::setOptionPreview())
+		void applyOptionPreview();
 
 	private:
 		Ui::QETElementEditor *ui;
@@ -149,6 +157,8 @@ class QETElementEditor : public QMainWindow
 			*m_depth_action_group  = nullptr;
 
 		QList<QAction *> m_context_menu_action_list;
+			/// The preview of the options, see fillOptionPreview()
+		QToolBar *m_options_toolbar = nullptr;
 
 		QAction
 			*m_scale_element_action = nullptr,

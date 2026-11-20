@@ -965,6 +965,51 @@ class tst_elementoptions : public QObject
 											  QStringLiteral("seal=double")}));
 		}
 
+			// Step 7m: the editor may show the parts of one case of the
+			// options only; nothing saved changes
+		void theEditorShowsOneCase()
+		{
+			QDomDocument doc;
+			QVERIFY(doc.setContent(pump()));
+			ElementScene scene(nullptr);
+			scene.fromXml(doc, QPointF(), true);
+			auto shown = [&scene]() {
+				QMap<QString, bool> parts;
+				for (QGraphicsItem *item : scene.items()) {
+					const QString show_if = ElementScene::showIfOf(item);
+					if (!show_if.isEmpty()) {
+						parts.insert(show_if, item->isVisible());
+					}
+				}
+				return parts;
+			};
+			QCOMPARE(shown().size(), 3);
+			QVERIFY(!shown().values().contains(false));
+
+			scene.setOptionPreview({{QStringLiteral("motor"), QStringLiteral("none")}});
+			QVERIFY(!shown().value(QStringLiteral("motor=fixed,variable")));
+			QVERIFY(!shown().value(QStringLiteral("motor=variable")));
+				// a condition on an option the symbol has not: drawn
+			QVERIFY(shown().value(QStringLiteral("seal=double")));
+			scene.setOptionPreview({{QStringLiteral("motor"), QStringLiteral("fixed")}});
+			QVERIFY(shown().value(QStringLiteral("motor=fixed,variable")));
+			QVERIFY(!shown().value(QStringLiteral("motor=variable")));
+
+				// saved whole, the parts hidden too
+			QStringList conditions;
+			const QDomElement description = scene.toXml().documentElement()
+					.firstChildElement(QStringLiteral("description"));
+			for (QDomElement part = description.firstChildElement() ; !part.isNull() ;
+				 part = part.nextSiblingElement()) {
+				if (part.hasAttribute(QStringLiteral("show_if")))
+					conditions << part.attribute(QStringLiteral("show_if"));
+			}
+			QCOMPARE(conditions.size(), 3);
+
+			scene.setOptionPreview(ElementOptions::Choices());
+			QVERIFY(!shown().values().contains(false));
+		}
+
 		void aSymbolWithoutOptionsIsSavedAsBefore()
 		{
 			QDomDocument doc;

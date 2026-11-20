@@ -20599,6 +20599,27 @@ Déponter et/ou supprimer les niveaux des bornes concerné afin de pouvoir les s
         <translation>Profondeur</translation>
     </message>
     <message>
+        <location filename="../sources/editor/ui/qetelementeditor.cpp" line="1201"/>
+        <source>Options preview</source>
+        <comment>toolbar title</comment>
+        <translation>Aperçu des options</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/qetelementeditor.cpp" line="1201"/>
+        <source>Show the case:</source>
+        <translation>Afficher le cas :</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/qetelementeditor.cpp" line="1201"/>
+        <source>Only the parts a placed symbol draws with these values are shown; nothing of the symbol changes. &quot;All&quot; shows the parts of every value.</source>
+        <translation>Seules les parties qu&apos;un symbole posé dessine avec ces valeurs sont affichées ; rien du symbole ne change. « Tous » affiche les parties de toutes les valeurs.</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/ui/qetelementeditor.cpp" line="1201"/>
+        <source>All</source>
+        <translation>Tous</translation>
+    </message>
+    <message>
         <location filename="../sources/editor/ui/qetelementeditor.ui" line="385"/>
         <source>Zoom In</source>
         <translation>Zoom avant</translation>
