@@ -143,7 +143,8 @@ line.*
   reads the codes of the fluids and materials from a CSV file the company
   keeps (lines `kind;code;name;family`); none is shipped. The page of a pipe
   offers them ("W01 – Raw water"), a pipe keeps the code, free text stays
-  possible. Saved in a `<pid_codification>` block, written only when there
+  possible; what is typed is looked for anywhere in the code and the name
+  ("water" offers "W01 – Raw water"). Saved in a `<pid_codification>` block, written only when there
   is one, in `.qet`, `.qetz` and `.qetdb` files.
   It is also edited in the *Codification* tab of the *P&ID* page of the
   project properties: fluids, materials and functional units in tables, a
@@ -398,6 +399,9 @@ line.*
   starts a new line. The label
   follows a change of model or of type, and a label held twice in the
   project is told. Without a model, the label is typed by hand as before.
+  A symbol turned a quarter on an upright line keeps its label level
+  beside the line, not across it: its near edge as far from the line as
+  under the symbol upright (drawn so, nothing saved changes).
   The functional units come with the codification of the project (CSV line
   `unit;U01;Lifting`), the models with its presentation (CSV line
   `tag_model;equipment;...`) or are typed in the *Models* section of the
@@ -415,7 +419,9 @@ line.*
   order of the bill of materials, and is drawn `LIT` above `U01 102`.
   Two information a text field can show, never saved, do it (*Tag,
   identifier (letters)* and *Tag, without its identifier*); without a
-  model, the first line of the label typed by hand goes above.
+  model, the first line of the label typed by hand goes above. Both texts
+  are parts of the label: they take its colour and the size of its
+  category.
   A bubble is not meant to be rotated: its texts stay level but their
   places turn with it and overlap. Draw its signal lines from the
   terminal on the side wanted instead.
@@ -438,15 +444,23 @@ line.*
   *Models* section of the *Texts* tab) puts the
   data of a pipe together: `{fluid}`, `{line_number}`, `{material}`,
   `{piping_class}`, `{pn}`, `{flow}`, `{size}` as drawn (`DN 100`,
-  `Ø 110`, `DN ?` when it has none) and `{dn}`, the number alone. A pipe
+  `Ø 110`, `DN ?` when it has none) and `{dn}`, the number alone;
+  `{fluid_name}` and `{material_name}` write the names the codification
+  gives the codes (the code when it has none). A pipe
   shows it when *Show the designation on the folio* is ticked in its page
   (none by default): above a horizontal pipe, on the left of a vertical one
   read from the bottom, in the middle of its longest segment; it can be
   moved by hand, not typed, and follows any change of the data or of the
   model. It is saved as the text of the conductor. Its size is set in the
-  *Texts* tab (*Designations of the lines*); it takes the colour of its
-  pipe when the labels are coloured. A symbol dropped on the pipe leaves
-  it written once: on the longest piece, or where it was if it was moved.
+  *Texts* tab (*Designations of the lines*). A symbol dropped on the pipe
+  leaves it written once: on the longest piece, or where it was if it was
+  moved.
+- **Colour of the labels and of the designations**: two rows of the
+  *Texts* tab, each with the colour of its object (the symbol, the pipe)
+  or a fixed colour, black by default (`label_ink` and `designation_ink`
+  in the block, `object` or a colour, written only when not the default;
+  CSV lines `text_option;label_ink;object`). The former `colored_labels`
+  is read for both. A folio drawn in black keeps black labels.
 - **Texts moved away from their line** (wires and pipes alike): the main
   page of the project properties may tie a text moved by hand further
   than a distance (5 mm proposed) to its line by a thin leader line of
@@ -457,6 +471,9 @@ line.*
   dot being a junction on an electrical diagram). *Put the texts back in
   their place* (context menu) gives the texts of the selected
   lines the place their line gives them, path left as it is; undoable.
+  A Ctrl+click on the text of a line adds it to the selection, or takes
+  it out, as on the other texts (a Ctrl+drag still places it off the
+  grid).
 - **Create similar**: right-click a placed symbol, *Create similar* starts
   the usual placement mode with the same symbol, options, status of works
   and rotation. Device information is not copied; a P&ID tag takes the
