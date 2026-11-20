@@ -20,6 +20,8 @@
 #include <QRegularExpression>
 #include <QSet>
 
+#include <algorithm>
+
 namespace
 {
 	const QString options_tag = QStringLiteral("options");
@@ -166,13 +168,23 @@ ElementOptions::Choices ElementOptions::resolved(const Choices &chosen) const
 /**
 	@brief ElementOptions::isShown
 	@param show_if : the show_if attribute of a part, "option=value,value"
-	conditions separated by ";"
+	conditions separated by ";", which must all hold; or several such
+	lists separated by "|", one of which must hold:
+	"command=motor,piston|limit_switches=true"
 	@param resolved : the value of every option of the symbol, see resolved()
 	@return true if the part is drawn: every condition that can be read and
-	names an option of @p resolved holds
+	names an option of @p resolved holds, in one of the lists
 */
 bool ElementOptions::isShown(const QString &show_if, const Choices &resolved)
 {
+	if (show_if.contains(QLatin1Char('|'))) {
+		const QStringList alternatives = show_if.split(QLatin1Char('|'), Qt::SkipEmptyParts);
+		return alternatives.isEmpty()
+				|| std::any_of(alternatives.cbegin(), alternatives.cend(),
+							   [&resolved](const QString &alternative) {
+								   return isShown(alternative, resolved);
+							   });
+	}
 	const QStringList conditions = show_if.split(QLatin1Char(';'), Qt::SkipEmptyParts);
 	for (const QString &condition : conditions)
 	{

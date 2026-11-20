@@ -353,6 +353,12 @@ class tst_elementoptions : public QObject
 			QTest::newRow("unknown option") << "colour=red" << true;
 			QTest::newRow("unreadable") << "motor" << true;
 			QTest::newRow("no name") << "=fixed" << true;
+				// step 7m: one of several lists ("|")
+			QTest::newRow("or, first met") << "motor=fixed|seal=double" << true;
+			QTest::newRow("or, second met") << "motor=variable|seal=single" << true;
+			QTest::newRow("or, none met") << "motor=variable|seal=double" << false;
+			QTest::newRow("or of ands") << "motor=variable;seal=single|motor=fixed;seal=single" << true;
+			QTest::newRow("or of ands, none") << "motor=variable;seal=single|motor=fixed;seal=double" << false;
 		}
 
 		void theConditions()
