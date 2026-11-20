@@ -14092,6 +14092,126 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Désignations des lignes :</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="549"/>
+        <source>Functional unit</source>
+        <translation>Unité fonctionnelle</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="550"/>
+        <source>Identifier of the symbol (letters of an instrument)</source>
+        <translation>Identifiant du symbole (lettres d&apos;un instrument)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="551"/>
+        <source>Train</source>
+        <translation>File</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="552"/>
+        <source>Order</source>
+        <translation>Ordre</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="553"/>
+        <source>Order on two digits (05)</source>
+        <translation>Ordre sur deux chiffres (05)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="554"/>
+        <source>New line</source>
+        <translation>Nouvelle ligne de texte</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="556"/>
+        <source>Fluid</source>
+        <translation>Fluide</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="557"/>
+        <source>Line number</source>
+        <translation>Numéro de ligne</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="558"/>
+        <source>Size as drawn (DN 100, Ø 110; DN ? without one)</source>
+        <translation>Taille comme sur le dessin (DN 100, Ø 110 ; DN ? sans taille)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="559"/>
+        <source>DN alone (100; ? without one)</source>
+        <translation>DN seul (100 ; ? sans taille)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="560"/>
+        <source>Material</source>
+        <translation>Matériau</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="561"/>
+        <source>Piping class</source>
+        <translation>Classe de tuyauterie</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="562"/>
+        <source>Nominal pressure</source>
+        <translation>Pression nominale</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="563"/>
+        <source>Flow</source>
+        <translation>Débit</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="572"/>
+        <source>No model: no designation is written</source>
+        <translation>Pas de modèle : aucune désignation n&apos;est écrite</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="573"/>
+        <source>No model: the labels are typed by hand</source>
+        <translation>Pas de modèle : les repères se tapent à la main</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="578"/>
+        <source>Fields the model may hold, between other text:</source>
+        <translation>Champs possibles du modèle, entre d&apos;autres textes :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="587"/>
+        <source>Insert a field</source>
+        <translation>Insérer un champ</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="745"/>
+        <source>Models</source>
+        <translation>Modèles</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="747"/>
+        <source>A model puts the data of a symbol or of a pipe together, between other text: &quot;{unit} {id} {train}{order:2}&quot; gives &quot;U01 P 105&quot;. A tag without a model is typed by hand; a pipe without one writes no designation.</source>
+        <translation>Un modèle assemble les données d&apos;un symbole ou d&apos;une tuyauterie, entre d&apos;autres textes : « {unit} {id} {train}{order:2} » donne « U01 P 105 ». Sans modèle, un repère se tape à la main et une tuyauterie n&apos;écrit aucune désignation.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="754"/>
+        <source>Tags of equipment:</source>
+        <translation>Repères des équipements :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="754"/>
+        <source>Tags of valves:</source>
+        <translation>Repères des vannes :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="755"/>
+        <source>Tags of instruments:</source>
+        <translation>Repères des instruments :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="1290"/>
+        <source>Example: %1</source>
+        <translation>Exemple : %1</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="133"/>
         <source>Print and export the names and DN of the nozzles</source>
         <translation>Imprimer et exporter les noms et DN des piquages</translation>

@@ -19,6 +19,8 @@
 
 #include "../../ElementsCollection/elementslocation.h"
 #include "../../elementdialog.h"
+#include "../../pidlinedesignation.h"
+#include "../../pidtag.h"
 #include "../../pidtooltip.h"
 #include "../../pipediameter.h"
 #include "../../pipeproperties.h"
@@ -42,6 +44,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
@@ -53,12 +56,20 @@
 #include <QStyledItemDelegate>
 #include <QTabWidget>
 #include <QTableWidget>
+#include <QToolButton>
 #include <QUndoStack>
 #include <QVBoxLayout>
 
 #include <algorithm>
 
 namespace {
+		/// The keys of the models the tab of the texts edits, in its order:
+		/// the families of symbols which have a tag, then the lines
+	QStringList modelFamilies()
+	{
+		return {QStringLiteral("equipment"), QStringLiteral("valve"),
+				QStringLiteral("instrument"), PidLineDesignation::modelKey()};
+	}
 	constexpr int group_role = Qt::UserRole;
 	constexpr int key_role = Qt::UserRole + 1;
 	constexpr int color_column = 2;
@@ -530,6 +541,66 @@ void PidConfigPage::initWidgets()
 	m_colored_labels = new QCheckBox(tr("Labels take the color of their symbol, designations that of their pipe"), this);
 	m_colored_labels->setObjectName(QStringLiteral("colored_labels"));
 	connect(m_colored_labels, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
+
+		//The models of the tags and of the designations: each field of a
+		//family, what the list of "Insert a field" calls it
+	const QList<QPair<QString, QString>> tag_fields{
+		{QStringLiteral("{unit}"), tr("Functional unit")},
+		{QStringLiteral("{id}"), tr("Identifier of the symbol (letters of an instrument)")},
+		{QStringLiteral("{train}"), tr("Train")},
+		{QStringLiteral("{order}"), tr("Order")},
+		{QStringLiteral("{order:2}"), tr("Order on two digits (05)")},
+		{QStringLiteral("\\n"), tr("New line")}};
+	const QList<QPair<QString, QString>> line_fields{
+		{QStringLiteral("{fluid}"), tr("Fluid")},
+		{QStringLiteral("{line_number}"), tr("Line number")},
+		{QStringLiteral("{size}"), tr("Size as drawn (DN 100, Ø 110; DN ? without one)")},
+		{QStringLiteral("{dn}"), tr("DN alone (100; ? without one)")},
+		{QStringLiteral("{material}"), tr("Material")},
+		{QStringLiteral("{piping_class}"), tr("Piping class")},
+		{QStringLiteral("{pn}"), tr("Nominal pressure")},
+		{QStringLiteral("{flow}"), tr("Flow")},
+		{QStringLiteral("\\n"), tr("New line")}};
+	for (const QString &family : modelFamilies())
+	{
+		const bool line = family == PidLineDesignation::modelKey();
+		const QList<QPair<QString, QString>> &fields = line ? line_fields : tag_fields;
+		auto *model = new QLineEdit(this);
+		model->setObjectName(QStringLiteral("tag_model_") + family);
+		model->setPlaceholderText(line ? tr("No model: no designation is written")
+									   : tr("No model: the labels are typed by hand"));
+		QStringList help;
+		for (const auto &field : fields) {
+			help << field.first + QStringLiteral(" : ") + field.second;
+		}
+		model->setToolTip(wrapped(tr("Fields the model may hold, between other text:") + QStringLiteral("\n")
+								  + help.join(QLatin1Char('\n'))));
+		connect(model, &QLineEdit::textChanged, this, &PidConfigPage::readModelWidgets);
+		m_tag_models.insert(family, model);
+
+			//A field put where the cursor is, from a list in the words of the
+			//user: nothing to remember, no typing mistake
+		auto *insert = new QToolButton(this);
+		insert->setObjectName(QStringLiteral("insert_field_") + family);
+		insert->setText(tr("Insert a field"));
+		insert->setPopupMode(QToolButton::InstantPopup);
+		auto *menu = new QMenu(insert);
+		for (const auto &field : fields) {
+			QAction *action = menu->addAction(field.second + QStringLiteral("  ") + field.first);
+			action->setData(field.first);
+			connect(action, &QAction::triggered, model, [model, action]() {
+				model->insert(action->data().toString());
+				model->setFocus();
+			});
+		}
+		insert->setMenu(menu);
+		m_insert_fields.insert(family, insert);
+
+		auto *preview = new QLabel(this);
+		preview->setObjectName(QStringLiteral("model_preview_") + family);
+		preview->setTextFormat(Qt::PlainText);
+		m_model_previews.insert(family, preview);
+	}
 	m_nozzle_texts_on_paper = new QCheckBox(tr("Print and export the names and DN of the nozzles"), this);
 	m_nozzle_texts_on_paper->setObjectName(QStringLiteral("nozzle_texts_on_paper"));
 	m_nozzle_texts_on_paper->setToolTip(wrapped(tr("How the box \"Draw the names and DN of the nozzles\" starts "
@@ -690,6 +761,29 @@ void PidConfigPage::initLayout()
 	auto *decimal = new QFormLayout();
 	decimal->addRow(tr("Decimal separator of the sizes:"), decimal_row);
 	texts_layout->addLayout(decimal);
+
+		//The models, each with its example under it
+	auto *models_box = new QGroupBox(tr("Models"), texts_tab);
+	auto *models_layout = new QVBoxLayout(models_box);
+	auto *models_help = new QLabel(tr("A model puts the data of a symbol or of a pipe together, between other "
+									  "text: \"{unit} {id} {train}{order:2}\" gives \"U01 P 105\". A tag without "
+									  "a model is typed by hand; a pipe without one writes no designation."),
+								   models_box);
+	models_help->setWordWrap(true);
+	models_layout->addWidget(models_help);
+	auto *models = new QFormLayout();
+	const QStringList model_names{tr("Tags of equipment:"), tr("Tags of valves:"),
+								  tr("Tags of instruments:"), tr("Designations of the lines:")};
+	const QStringList families = modelFamilies();
+	for (int i = 0 ; i < families.size() ; ++i) {
+		auto *row = new QHBoxLayout();
+		row->addWidget(m_tag_models.value(families.at(i)), 1);
+		row->addWidget(m_insert_fields.value(families.at(i)));
+		models->addRow(model_names.at(i), row);
+		models->addRow(QString(), m_model_previews.value(families.at(i)));
+	}
+	models_layout->addLayout(models);
+	texts_layout->addWidget(models_box);
 	texts_layout->addStretch();
 
 	auto *connections_tab = new QWidget(this);
@@ -933,6 +1027,11 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 		const QSignalBlocker blocker(it.value());
 		it.value()->setChecked(codification.drawn_families.contains(it.key()));
 	}
+	for (auto it = m_tag_models.cbegin() ; it != m_tag_models.cend() ; ++it) {
+		const QSignalBlocker blocker(it.value());
+		it.value()->setText(codification.tag_models.value(it.key()));
+	}
+	showModelPreviews();
 	showToolSymbols();
 	showSignalMarks();
 	showOptionDefaults();
@@ -1157,6 +1256,12 @@ void PidConfigPage::adjustReadOnly()
 		reset->setEnabled(!read_only);
 	}
 	m_colored_labels->setEnabled(!read_only);
+	for (QLineEdit *model : std::as_const(m_tag_models)) {
+		model->setReadOnly(read_only);
+	}
+	for (QToolButton *insert : std::as_const(m_insert_fields)) {
+		insert->setEnabled(!read_only);
+	}
 	m_nozzle_texts_on_paper->setEnabled(!read_only);
 	for (QCheckBox *drawn : std::as_const(m_drawn_connections)) {
 		drawn->setEnabled(!read_only);
@@ -1224,6 +1329,70 @@ void PidConfigPage::readTextWidgets()
 			//The sizes of the page are written with it
 		showSizes();
 		decorateSizeRows();
+	}
+}
+
+/**
+	@brief PidConfigPage::readModelWidgets
+	See the declaration. A model emptied is none: the family has no model.
+	The models of other families, read from a file, stay as they are.
+*/
+void PidConfigPage::readModelWidgets()
+{
+	for (auto it = m_tag_models.cbegin() ; it != m_tag_models.cend() ; ++it) {
+		const QString model = it.value()->text();
+		if (model.trimmed().isEmpty()) {
+			m_codification.tag_models.remove(it.key());
+		} else {
+			m_codification.tag_models.insert(it.key(), model);
+		}
+	}
+	showModelPreviews();
+}
+
+/**
+	@brief PidConfigPage::showModelPreviews
+	What each model makes of an example: a tag of the first functional unit
+	of the project (else U01), train 1, order 5; a pipe of its first fluid
+	and material (else W01 and ST), DN 100, line L100, class A1, PN10, flow
+	50 m3/h. A new line of the model is shown as one.
+*/
+void PidConfigPage::showModelPreviews()
+{
+	const PidCodification &codes = m_codification;
+	auto firstCode = [](const QList<PidCodification::Entry> &list, const QString &other) {
+		for (const PidCodification::Entry &entry : list) {
+			if (!entry.code.trimmed().isEmpty()) {
+				return entry.code.trimmed();
+			}
+		}
+		return other;
+	};
+	const QString unit = firstCode(codes.functional_units, QStringLiteral("U01"));
+	PipeProperties pipe;
+	pipe.fluid = firstCode(codes.fluids, QStringLiteral("W01"));
+	pipe.material = firstCode(codes.materials, QStringLiteral("ST"));
+	pipe.nominal = PipeDiameter::nominal(100);
+	pipe.line_number = QStringLiteral("L100");
+	pipe.piping_class = QStringLiteral("A1");
+	pipe.nominal_pressure = QStringLiteral("PN10");
+	pipe.flow = QStringLiteral("50 m3/h");
+
+	for (auto it = m_model_previews.cbegin() ; it != m_model_previews.cend() ; ++it) {
+		const QString model = codes.tag_models.value(it.key());
+		QString example;
+		if (model.trimmed().isEmpty()) {
+			example.clear();
+		} else if (it.key() == PidLineDesignation::modelKey()) {
+			example = PidLineDesignation::text(model, pipe, codes);
+		} else {
+			const QString id = it.key() == QLatin1String("equipment")  ? QStringLiteral("P")
+							 : it.key() == QLatin1String("valve")      ? QStringLiteral("V")
+							 : firstCode(codes.instrument_letters, QStringLiteral("FT"));
+			example = PidTag::label(model, unit, id, QStringLiteral("1"), QStringLiteral("5"));
+		}
+		it.value()->setText(example.isEmpty() ? QString() : tr("Example: %1").arg(example));
+		it.value()->setVisible(!example.isEmpty());
 	}
 }
 

@@ -17,8 +17,12 @@
 #include <QDomDocument>
 #include <QFile>
 #include <QHeaderView>
+#include <QAction>
 #include <QLabel>
+#include <QLineEdit>
+#include <QMenu>
 #include <QPushButton>
+#include <QToolButton>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QTemporaryDir>
@@ -533,6 +537,73 @@ class tst_pidcodificationeditor : public QObject
 			QVERIFY(write("size;M09;;50\n"));
 			QVERIFY(!page.importCsv(path));
 			QVERIFY(message(page).contains(QStringLiteral("M09")));
+		}
+
+			// ---- the models (step 7h) ----
+
+			// The tab of the texts shows the models of the project and what
+			// each makes of an example; a model typed is the project's when
+			// the page is applied, one emptied is none, that of a family the
+			// page does not show stays; one undo step
+		void theModelsAreEditedInThePage()
+		{
+			PidCodification codification = m_project.pidCodification();
+			codification.tag_models.insert(QStringLiteral("equipment"),
+										   QStringLiteral("{unit} {id} {train}{order:2}"));
+			codification.tag_models.insert(QStringLiteral("pipe"), QStringLiteral("{unit}-{id}"));
+			m_project.undoStack()->push(new ChangePidCodificationCommand(&m_project, codification));
+			const PidCodification before = m_project.pidCodification();
+
+			PidConfigPage page(&m_project);
+			auto *equipment = page.findChild<QLineEdit *>(QStringLiteral("tag_model_equipment"));
+			auto *line = page.findChild<QLineEdit *>(QStringLiteral("tag_model_line"));
+			QVERIFY(equipment && line);
+			QCOMPARE(equipment->text(), QStringLiteral("{unit} {id} {train}{order:2}"));
+			QVERIFY(line->text().isEmpty());
+			QCOMPARE(page.findChild<QLabel *>(QStringLiteral("model_preview_equipment"))->text(),
+					 QStringLiteral("Example: U01 P 105"));
+			QVERIFY(page.findChild<QLabel *>(QStringLiteral("model_preview_line"))->text().isEmpty());
+
+				// the example of a pipe: the first fluid and material of the
+				// project, in the order of their codes
+			line->setText(QStringLiteral("{fluid} {size} {material}"));
+			QCOMPARE(page.findChild<QLabel *>(QStringLiteral("model_preview_line"))->text(),
+					 QStringLiteral("Example: A01 DN 100 M01"));
+			equipment->clear();
+			QVERIFY(page.findChild<QLabel *>(QStringLiteral("model_preview_equipment"))->text().isEmpty());
+
+			page.applyProjectConf();
+			const PidCodification after = m_project.pidCodification();
+			QVERIFY(!after.tag_models.contains(QStringLiteral("equipment")));
+			QCOMPARE(after.tag_models.value(QStringLiteral("line")), QStringLiteral("{fluid} {size} {material}"));
+			QCOMPARE(after.tag_models.value(QStringLiteral("pipe")), QStringLiteral("{unit}-{id}"));
+			m_project.undoStack()->undo();
+			QCOMPARE(m_project.pidCodification(), before);
+		}
+
+			// "Insert a field" puts the field chosen where the cursor is
+		void aFieldIsInsertedWhereTheCursorIs()
+		{
+			PidConfigPage page(&m_project);
+			auto *line = page.findChild<QLineEdit *>(QStringLiteral("tag_model_line"));
+			auto *insert = page.findChild<QToolButton *>(QStringLiteral("insert_field_line"));
+			QVERIFY(line && insert && insert->menu());
+			line->setText(QStringLiteral("{fluid}  {material}"));
+			line->setCursorPosition(8);
+			QAction *size = nullptr;
+			for (QAction *action : insert->menu()->actions()) {
+				if (action->data().toString() == QLatin1String("{size}")) size = action;
+			}
+			QVERIFY(size);
+			size->trigger();
+			QCOMPARE(line->text(), QStringLiteral("{fluid} {size} {material}"));
+				// the fields of a symbol are not those of a pipe
+			auto *valve = page.findChild<QToolButton *>(QStringLiteral("insert_field_valve"));
+			QVERIFY(valve && valve->menu());
+			QStringList fields;
+			for (QAction *action : valve->menu()->actions()) fields << action->data().toString();
+			QVERIFY(fields.contains(QStringLiteral("{unit}")));
+			QVERIFY(!fields.contains(QStringLiteral("{size}")));
 		}
 };
 

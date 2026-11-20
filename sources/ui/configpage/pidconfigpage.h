@@ -34,6 +34,7 @@ class QSpinBox;
 class QTabWidget;
 class QTableWidget;
 class QTableWidgetItem;
+class QToolButton;
 
 /**
 	@brief The PidConfigPage class
@@ -155,6 +156,10 @@ class PidConfigPage : public ProjectConfigPage
 		QList<int> selectedRows() const;
 		QMap<QString, QColor> &colors(Group group);
 		void readTextWidgets();
+			/// Take the models the tab of the texts shows, then show what
+			/// each one makes of an example
+		void readModelWidgets();
+		void showModelPreviews();
 		void readConnectionWidgets();
 		void showToolSymbols();
 		void showSignalMarks();
@@ -220,6 +225,12 @@ class PidConfigPage : public ProjectConfigPage
 			/// What gives each category of texts back the size of the symbol
 		QMap<QString, QPushButton *> m_text_size_resets;
 		QCheckBox *m_colored_labels = nullptr;
+			/// The model of the tags of each family of symbols and that of
+			/// the designation of the lines (PidCodification::tag_models), what
+			/// inserts a field in it, and what it makes of an example
+		QMap<QString, QLineEdit *> m_tag_models;
+		QMap<QString, QToolButton *> m_insert_fields;
+		QMap<QString, QLabel *> m_model_previews;
 		QCheckBox *m_nozzle_texts_on_paper = nullptr;
 			/// Whether the mark of each connection is drawn at the end of
 			/// the nozzles; a plain end has none
