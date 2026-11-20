@@ -348,7 +348,8 @@ void Terminal::paint(
 				   ? m_conductors_list.first()->drawnColor()
 				   : stemColor(d->m_medium));
 			//Hidden by the options, a wire still on it: an orange stem,
-			//wider, with a ring at its end (isKeptByWire())
+			//wider, and an orange disc of 3 mm at its end, seen above and
+			//under the line at any zoom (isKeptByWire())
 		const bool kept = isKeptByWire();
 		if (kept) {
 			t.setColor(QET::Palette::signalColor());
@@ -357,10 +358,15 @@ void Terminal::paint(
 		painter -> setPen(t);
 		painter -> drawLine(c, e);
 		if (kept) {
+			QColor disc = QET::Palette::signalColor();
+			disc.setAlpha(110);
 			t.setWidthF(1.0);
 			painter -> setPen(t);
+			painter -> setBrush(disc);
+			painter -> setRenderHint(QPainter::Antialiasing, true);
+			painter -> drawEllipse(c, keptMarkRadius, keptMarkRadius);
+			painter -> setRenderHint(QPainter::Antialiasing, false);
 			painter -> setBrush(Qt::NoBrush);
-			painter -> drawEllipse(QRectF(c.x() - 2.5, c.y() - 2.5, 5.0, 5.0));
 		}
 
 		// dessin du point d'amarrage au conducteur en bleu
@@ -640,7 +646,13 @@ QLineF Terminal::HelpLine() const
 */
 QRectF Terminal::boundingRect() const
 {
-	const QRectF own = ownRect();
+	QRectF own = ownRect();
+		//Room for the disc of isKeptByWire(), on any terminal the options
+		//may hide (none is electrical: their room is as before)
+	if (!d->m_show_if.isEmpty()) {
+		const qreal r = keptMarkRadius + 1;
+		own = own.united(QRectF(d->m_pos - QPointF(r, r), QSizeF(2 * r, 2 * r)));
+	}
 	if (d->m_medium != TerminalData::Pipe) {
 		return own;
 	}

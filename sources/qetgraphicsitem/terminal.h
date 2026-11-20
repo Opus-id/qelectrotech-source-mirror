@@ -344,6 +344,8 @@ class Terminal : public QGraphicsObject
 		static QColor warningColor;
 		/// color for forbidden actions
 		static QColor forbiddenColor;
+		/// radius of the orange disc of isKeptByWire(): 3 mm across
+		static constexpr qreal keptMarkRadius = 6.0;
 		/// color of the stem of a terminal, after the medium it connects
 		static QColor stemColor(TerminalData::Medium medium);
 		/// name of a medium, to be read in a sentence
