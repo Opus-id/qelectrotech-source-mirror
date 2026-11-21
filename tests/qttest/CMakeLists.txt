@@ -683,6 +683,11 @@ qet_add_app_test(tst_signaldrawing tst_signaldrawing.cpp)
 # that part orange on the screen, the symbol named on hovering it; not the
 # symbols it begins or ends at, nor a basin it ends in; a wire as before.
 qet_add_app_test(tst_pidtraversal tst_pidtraversal.cpp)
+# The insulation of a pipe (step 7d): hatched or dashed stubs where the
+# insulated part of a line begins and ends, none between two pipes insulated
+# alike; a mark in the middle with its text; their length and colours,
+# settings of the project.
+qet_add_app_test(tst_insulation tst_insulation.cpp)
 # Which mark the signal lines of each type of signal take: a setting of the
 # project, nothing written by default; its file, the CSV files, the P&ID page.
 qet_add_app_test(tst_signalmarksettings tst_signalmarksettings.cpp)

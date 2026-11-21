@@ -339,6 +339,38 @@ void PipePropertiesWidget::buildUi()
 		applyChange([status](PipeProperties &p) { p.status = status; });
 	});
 
+		//Its insulation, heat tracing or both: on this pipe only, never
+		//passed on, one part of a line being insulated and not the other
+		//(step 7d). It draws stubs where the insulated part begins and ends
+	m_insulation_kind = new QComboBox(this);
+	m_insulation_kind->setObjectName(QStringLiteral("insulation_kind"));
+	for (const auto &kind : PipeProperties::insulationKinds()) {
+		m_insulation_kind->addItem(kind.second, int(kind.first));
+	}
+	m_insulation_kind->setToolTip(PidToolTip::wrapped(
+		tr("A hatched stub (insulation), dashed (heat tracing) or both is drawn where the "
+		   "insulated part of the line begins and ends: at equipment, at a free end, at an "
+		   "insulation limit, beside a pipe which has none. Nothing at a valve or a tee "
+		   "between two insulated pipes.")));
+	layout->addRow(tr("Insulation:"), m_insulation_kind);
+	connect(m_insulation_kind, &QComboBox::activated, this, [this](int index) {
+		const auto kind = PipeProperties::InsulationKind(m_insulation_kind->itemData(index).toInt());
+		applyChange([kind](PipeProperties &p) { p.insulation_kind = kind; });
+	});
+	QLineEdit *insulation = addTextField(QStringLiteral("insulation"), tr("Insulation text:"),
+				 [](const PipeProperties &p) { return p.insulation; },
+				 [](PipeProperties &p, const QString &t) { p.insulation = t; });
+	insulation->setPlaceholderText(tr("Q 80"));
+	insulation->setToolTip(PidToolTip::wrapped(
+		tr("Written by {insulation} in the designation, and beside the mark in the middle.")));
+	m_insulation_mark = new QCheckBox(tr("Hatched mark in the middle"), this);
+	m_insulation_mark->setObjectName(QStringLiteral("insulation_mark"));
+	layout->addRow(QString(), m_insulation_mark);
+	connect(m_insulation_mark, &QCheckBox::clicked, this, [this]() {
+		const bool marked = m_insulation_mark->checkState() != Qt::Unchecked;
+		applyChange([marked](PipeProperties &p) { p.insulation_mark = marked; });
+	});
+
 		//One button shows the colour drawn and where it comes from, and
 		//opens the dialog; a small one beside it gives the automatic colour
 		//back
@@ -1471,6 +1503,25 @@ void PipePropertiesWidget::updateUi()
 			m_status->setCurrentIndex(i);
 		}
 	}
+
+	const QSignalBlocker insulation_blocker(m_insulation_kind);
+	const PipeProperties::InsulationKind insulation = list.first()->properties().m_pipe.insulation_kind;
+	bool same_insulation = true;
+	int marks = 0;
+	for (Conductor *pipe : list) {
+		const PipeProperties p = pipe->properties().m_pipe;
+		same_insulation = same_insulation && p.insulation_kind == insulation;
+		if (p.insulation_mark) {
+			++marks;
+		}
+	}
+	m_insulation_kind->setCurrentIndex(same_insulation ? m_insulation_kind->findData(int(insulation)) : -1);
+		//On some of them only: half checked, and a click draws it on all
+	const QSignalBlocker mark_blocker(m_insulation_mark);
+	const bool mixed_marks = marks && marks < list.size();
+	m_insulation_mark->setTristate(mixed_marks);
+	m_insulation_mark->setCheckState(mixed_marks ? Qt::PartiallyChecked
+												 : marks ? Qt::Checked : Qt::Unchecked);
 
 		//Shown on some of them only: half checked, and a click shows it on all
 	int designations = 0;

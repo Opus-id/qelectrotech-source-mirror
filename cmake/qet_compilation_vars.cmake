@@ -249,6 +249,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidtag.h
   ${QET_DIR}/sources/pidlinedesignation.cpp
   ${QET_DIR}/sources/pidlinedesignation.h
+  ${QET_DIR}/sources/pidinsulation.cpp
+  ${QET_DIR}/sources/pidinsulation.h
   ${QET_DIR}/sources/leaderline.cpp
   ${QET_DIR}/sources/leaderline.h
   ${QET_DIR}/sources/pidstatus.cpp

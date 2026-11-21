@@ -346,6 +346,18 @@ class PidCodification
 			/// without, "100". An outside diameter and a thread keep their
 			/// sign. Written only when it is false.
 		bool nozzle_dn_prefix = true;
+			/// The length in mm of the stubs drawn where the insulated
+			/// part of a line begins and ends, and of the mark in its middle
+			/// (Conductor::insulationStubs(), step 7d): 8 by default, written
+			/// only otherwise. Their colours are object_colors of the keys
+			/// insulationColorKey() and tracingColorKey(); none: that of the
+			/// pipe.
+		qreal insulation_stub = defaultInsulationStub();
+		static constexpr qreal defaultInsulationStub() { return 8.0; }
+			/// A length the stubs may have, in mm
+		static bool isInsulationStub(qreal mm) { return mm >= 2.0 && mm <= 50.0; }
+		static QString insulationColorKey() { return QStringLiteral("insulation"); }
+		static QString tracingColorKey() { return QStringLiteral("tracing"); }
 			/// The connections whose mark is drawn at the end of the nozzles
 			/// (Terminal::drawsConnectionMark()), in the order of
 			/// PipeConnection::all(); none by default, so that a project
@@ -470,6 +482,7 @@ class PidCodification
 					|| colored_designations || designation_color.isValid()
 					|| vertical_texts != VerticalTexts::Computer || !nozzle_texts_on_paper
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
+					|| insulation_stub != defaultInsulationStub()
 					|| parallel_numbering
 					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty()
 				|| !option_defaults.isEmpty();

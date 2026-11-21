@@ -171,6 +171,17 @@ class tst_pipedesignation : public QObject
 					 QStringLiteral("W01 80"));
 			QVERIFY(PidLineDesignation::text(QString(), pipe, codification).isEmpty());
 			QVERIFY(PidLineDesignation::text(QStringLiteral("  "), pipe, codification).isEmpty());
+
+				// step 7d: the insulation as typed, C01 "MNc 47127 75HB13 50 Q 80";
+				// without one, the line ends with the DN
+			const QString c01 = QStringLiteral("{fluid} {line_number} {piping_class} {dn} {insulation}");
+			pipe.line_number = QStringLiteral("47127");
+			pipe.nominal = PipeDiameter::nominal(50);
+			QCOMPARE(PidLineDesignation::text(c01, pipe, codification),
+					 QStringLiteral("W01 47127 75HB13 50"));
+			pipe.insulation = QStringLiteral("Q 80");
+			QCOMPARE(PidLineDesignation::text(c01, pipe, codification),
+					 QStringLiteral("W01 47127 75HB13 50 Q 80"));
 		}
 
 			// The names of the codification, the code when there is none

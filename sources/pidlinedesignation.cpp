@@ -36,7 +36,7 @@ QString PidLineDesignation::text(const QString &model,
 		return QString();
 	}
 	static const QRegularExpression field(QStringLiteral(
-			"\\{(fluid|fluid_name|line_number|material|material_name|piping_class|pn|flow|size|dn)\\}"));
+			"\\{(fluid|fluid_name|line_number|material|material_name|piping_class|pn|flow|insulation|size|dn)\\}"));
 	static const QRegularExpression spaces(QStringLiteral(" {2,}"));
 
 		//The size as the drawing writes it: the material chooses
@@ -78,6 +78,7 @@ QString PidLineDesignation::text(const QString &model,
 			  : name == QLatin1String("piping_class") ? pipe.piping_class
 			  : name == QLatin1String("pn")           ? pipe.nominal_pressure
 			  : name == QLatin1String("flow")         ? pipe.flow
+			  : name == QLatin1String("insulation")   ? pipe.insulation
 			  : name == QLatin1String("size")         ? size
 			  : dn;
 		result += value.trimmed();

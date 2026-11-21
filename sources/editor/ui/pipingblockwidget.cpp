@@ -57,7 +57,9 @@ PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 							 "line change at this symbol, its size goes on through it. Make it an "
 							 "in-line symbol. \"Junction\": a tee, a cross, an injection point. "
 							 "Do not draw its lines: on a folio each is drawn from the origin of "
-							 "the symbol to a nozzle, as the pipe of that nozzle.")));
+							 "the symbol to a nozzle, as the pipe of that nozzle. \"Insulation "
+							 "limit\": the insulation of the line stops or changes at this symbol; "
+							 "make it an in-line symbol.")));
 	grid->addWidget(m_role_cb, 3, 1);
 
 	m_large_label = new QLabel(tr("Large side:"), this);
@@ -120,6 +122,7 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 	m_role_cb->addItem(tr("Free end"), QStringLiteral("free_end"));
 	m_role_cb->addItem(tr("Spec break"), QStringLiteral("spec_break"));
 	m_role_cb->addItem(tr("Junction"), QStringLiteral("junction"));
+	m_role_cb->addItem(tr("Insulation limit"), QStringLiteral("insulation_limit"));
 		//A role the list does not know is kept as it is
 	if (!data.m_pid_role.isEmpty() && m_role_cb->findData(data.m_pid_role) < 0) {
 		m_role_cb->addItem(data.m_pid_role, data.m_pid_role);

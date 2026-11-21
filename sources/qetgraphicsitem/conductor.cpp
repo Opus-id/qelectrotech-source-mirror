@@ -43,12 +43,14 @@
 #include <pidtooltip.h>
 #include <pidtraversal.h>
 #include <pidlinedesignation.h>
+#include <pidinsulation.h>
 #include <shownkinds.h>
 #include <factory/elementpicturefactory.h>
 #include <leaderline.h>
 #include <qetapp.h>
 
 #include <QApplication>
+#include <QFontMetricsF>
 #include <QGraphicsPathItem>
 #include <QMultiHash>
 #include <QStatusBar>
@@ -1138,6 +1140,10 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 
 	if (m_properties.m_medium == TerminalData::Pipe) {
 		drawPipeParts(painter, final_conductor_color, detail);
+			//Its stubs and its mark keep their own colour as long as the
+			//pipe keeps its own (step 7d)
+		const bool plain = !m_preview && must_highlight_ == None && !isSelected();
+		drawInsulation(painter, final_conductor_color, plain, detail);
 		drawDiameterGaps(painter);
 	}
 	drawSignalMarks(painter, final_conductor_color, detail);
@@ -1525,7 +1531,7 @@ QLineF Conductor::lineIntoSpecBreak(const Terminal *terminal) const
 		return QLineF();
 	}
 	const Element *mark = terminal->parentElement();
-	if (!mark || !mark->isSpecBreak()) {
+	if (!mark || !mark->isLineMark()) {
 		return QLineF();
 	}
 	const QList<Terminal *> siblings = terminal->runSiblings();
@@ -1646,6 +1652,283 @@ void Conductor::drawPipeParts(QPainter *painter, const QColor &color, qreal deta
 		painter->drawPath(frame.map(strokes));
 		painter->restore();
 	}
+}
+
+/**
+	@brief Conductor::pipesBeyond
+	See the declaration
+*/
+QList<Conductor *> Conductor::pipesBeyond(const Terminal *terminal, bool *limit) const
+{
+	QList<Conductor *> found;
+	if (limit) {
+		*limit = false;
+	}
+	if (!terminal) {
+		return found;
+	}
+	QList<const Terminal *> todo{terminal};
+	QList<const Terminal *> seen{terminal};
+	for (int i = 0 ; i < todo.size() ; ++i)
+	{
+		const Terminal *at = todo.at(i);
+		const Element *symbol = at->parentElement();
+			//The insulation stops there, on both sides
+		if (symbol && symbol->isInsulationLimit()) {
+			if (limit) {
+				*limit = true;
+			}
+			continue;
+		}
+		QList<Terminal *> next = at->runSiblings();
+		if (Terminal *other = at->reducerOtherSide()) {
+			if (!next.contains(other)) {
+				next << other;
+			}
+		}
+		for (Terminal *sibling : std::as_const(next))
+		{
+			if (seen.contains(sibling)) {
+				continue;
+			}
+			seen << sibling;
+			for (Conductor *pipe : sibling->conductors())
+			{
+				if (pipe == this || pipe->medium() != TerminalData::Pipe) {
+					continue;
+				}
+					//A pipe of no length joins two symbols: on through it
+				if (pipe->endsTouch()) {
+					Terminal *far = pipe->terminal1 == sibling ? pipe->terminal2 : pipe->terminal1;
+					if (far && !seen.contains(far)) {
+						seen << far;
+						todo << far;
+					}
+					continue;
+				}
+				if (!found.contains(pipe)) {
+					found << pipe;
+				}
+			}
+				//Against another symbol: on through the run of that one
+			if (Terminal *against = sibling->contactNozzle()) {
+				if (!seen.contains(against)) {
+					seen << against;
+					todo << against;
+				}
+			}
+		}
+	}
+	return found;
+}
+
+/**
+	@brief Conductor::insulationEndsAt
+	See the declaration
+*/
+bool Conductor::insulationEndsAt(const Terminal *terminal) const
+{
+	const PipeProperties &own = m_properties.m_pipe;
+	if (m_properties.m_medium != TerminalData::Pipe
+		|| own.insulation_kind == PipeProperties::NoInsulation
+		|| !terminal || (terminal != terminal1 && terminal != terminal2)) {
+		return false;
+	}
+	bool limit = false;
+	const QList<Conductor *> beyond = pipesBeyond(terminal, &limit);
+	if (limit) {
+		return true;
+	}
+	for (const Conductor *pipe : beyond) {
+		if (pipe->m_properties.m_pipe.insulation_kind == own.insulation_kind) {
+			return false;
+		}
+	}
+	return true;
+}
+
+namespace {
+		/// The length of the insulation stubs of the project of @p folio,
+		/// in drawing units (4 by mm)
+	qreal insulationStubOf(const Diagram *folio)
+	{
+		const qreal mm = folio && folio->project()
+				? folio->project()->pidCodification().insulation_stub
+				: PidCodification::defaultInsulationStub();
+		return mm * 4.0;
+	}
+}
+
+/**
+	@brief Conductor::insulationMark
+	See the declaration
+*/
+QList<QPointF> Conductor::insulationMark(QRectF *text_rect) const
+{
+	if (text_rect) {
+		*text_rect = QRectF();
+	}
+	const PipeProperties &p = m_properties.m_pipe;
+	if (m_properties.m_medium != TerminalData::Pipe || !p.insulation_mark
+		|| p.insulation_kind == PipeProperties::NoInsulation || endsTouch()) {
+		return {};
+	}
+	const QList<QPointF> points = segmentsToPoints();
+	const qreal total = PidInsulation::length(points);
+	const QList<QPointF> drawn = PidInsulation::stretch(points, pipeStartAt(terminal1),
+														 total - pipeStartAt(terminal2));
+		//The longest segment, the first of two as long
+	int longest = -1;
+	qreal longest_length = 0;
+	for (int i = 0 ; i + 1 < drawn.size() ; ++i) {
+		const qreal l = QLineF(drawn.at(i), drawn.at(i + 1)).length();
+		if (l > longest_length + 0.01) {
+			longest = i;
+			longest_length = l;
+		}
+	}
+		//Room for a hatch at least
+	const qreal length = qMin(insulationStubOf(diagram()),
+							  longest_length - 2 * PidInsulation::half_width);
+	if (longest < 0 || length < 2 * PidInsulation::half_width + 1) {
+		return {};
+	}
+	const QLineF segment(drawn.at(longest), drawn.at(longest + 1));
+	const QPointF middle = segment.pointAt(0.5);
+	const QPointF d = (segment.p2() - segment.p1()) / longest_length;
+	const QList<QPointF> mark{middle - d * length / 2, middle + d * length / 2};
+
+	if (text_rect && !p.insulation.trimmed().isEmpty() && m_text_item)
+	{
+		const QSizeF size = QFontMetricsF(m_text_item->font()).size(0, p.insulation.trimmed());
+		const qreal gap = 2.0;
+		const qreal off = PidInsulation::half_width + gap;
+		const bool horizontal = qAbs(d.x()) >= qAbs(d.y());
+			//Above a horizontal pipe, at the left of a vertical one; on the
+			//other side when the designation is there
+		auto placed = [&](bool first_side) {
+			if (horizontal) {
+				const qreal top = first_side ? middle.y() - off - size.height() : middle.y() + off;
+				return QRectF(QPointF(middle.x() - size.width() / 2, top), size);
+			}
+			const qreal left = first_side ? middle.x() - off - size.width() : middle.x() + off;
+			return QRectF(QPointF(left, middle.y() - size.height() / 2), size);
+		};
+		QRectF rect = placed(true);
+		if (m_text_item->isVisible()
+			&& mapRectFromItem(m_text_item, m_text_item->boundingRect()).intersects(rect)) {
+			rect = placed(false);
+		}
+		*text_rect = rect;
+	}
+	return mark;
+}
+
+/**
+	@brief Conductor::insulationPaths
+	See the declaration
+*/
+void Conductor::insulationPaths(QPainterPath *hatches, QPainterPath *dashes) const
+{
+	*hatches = QPainterPath();
+	*dashes = QPainterPath();
+	const PipeProperties &p = m_properties.m_pipe;
+	if (m_properties.m_medium != TerminalData::Pipe
+		|| p.insulation_kind == PipeProperties::NoInsulation || endsTouch()) {
+		return;
+	}
+	const QList<QPointF> points = segmentsToPoints();
+	const qreal total = PidInsulation::length(points);
+	const qreal from = pipeStartAt(terminal1);
+	const qreal to = total - pipeStartAt(terminal2);
+	const qreal room = to - from;
+	if (room < 1) {
+		return;
+	}
+	const bool at_first = insulationEndsAt(terminal1);
+	const bool at_second = insulationEndsAt(terminal2);
+		//On a short pipe, each stub on its half
+	const qreal stub = qMin(insulationStubOf(diagram()), at_first && at_second ? room / 2 : room);
+	QList<QList<QPointF>> parts;
+	if (at_first) {
+		parts << PidInsulation::stretch(points, from, from + stub);
+	}
+	if (at_second) {
+		parts << PidInsulation::stretch(points, to - stub, to);
+	}
+	const QList<QPointF> mark = insulationMark();
+	if (!mark.isEmpty()) {
+		parts << mark;
+	}
+	for (const QList<QPointF> &part : std::as_const(parts)) {
+		if (p.insulated()) {
+			hatches->addPath(PidInsulation::band(part));
+		}
+		if (p.traced()) {
+			dashes->addPath(PidInsulation::tracing(part, p.insulated()));
+		}
+	}
+}
+
+/**
+	@brief Conductor::drawInsulation
+	Draw the insulation of this pipe (insulationPaths()), and the text of
+	its mark in the middle (insulationMark()), as its designation is
+	written. Part of the drawing: on paper too.
+	@param painter
+	@param color : the colour the pipe is drawn in
+	@param plain : the pipe is drawn in its own colour, neither selected
+	nor highlighted: the stubs take the colour the project gives them, when
+	it gives one and draws in colour
+	@param detail : the level of detail of the drawing
+*/
+void Conductor::drawInsulation(QPainter *painter, const QColor &color, bool plain, qreal detail) const
+{
+	QPainterPath hatches, dashes;
+	insulationPaths(&hatches, &dashes);
+	if (hatches.isEmpty() && dashes.isEmpty()) {
+		return;
+	}
+	const Diagram *folio = diagram();
+	const bool colored = plain && folio && folio->project() && folio->drawColoredConductors();
+	auto inkOf = [&](const QString &key) {
+		if (colored) {
+			const QColor set = folio->project()->pidCodification().object_colors.value(key);
+			if (set.isValid()) {
+				return set;
+			}
+		}
+		return color;
+	};
+	const bool on_screen = painter->device()
+			&& painter->device()->devType() == QInternal::Widget;
+	painter->save();
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	painter->setBrush(Qt::NoBrush);
+	QPen pen(inkOf(PidCodification::insulationColorKey()), PidInsulation::line_width,
+			 Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+	if (on_screen && detail < 1.0) {
+		pen.setCosmetic(true);
+	}
+	if (!hatches.isEmpty()) {
+		painter->setPen(pen);
+		painter->drawPath(hatches);
+	}
+	if (!dashes.isEmpty()) {
+		pen.setColor(inkOf(PidCodification::tracingColorKey()));
+		pen.setDashPattern({PidInsulation::dash / PidInsulation::line_width,
+							PidInsulation::dash_gap / PidInsulation::line_width});
+		painter->setPen(pen);
+		painter->drawPath(dashes);
+	}
+	QRectF text_rect;
+	insulationMark(&text_rect);
+	if (!text_rect.isNull() && m_text_item) {
+		painter->setFont(m_text_item->font());
+		painter->setPen(m_text_item->color());
+		painter->drawText(text_rect, Qt::AlignCenter, m_properties.m_pipe.insulation.trimmed());
+	}
+	painter->restore();
 }
 
 /**
@@ -2323,7 +2606,17 @@ QRectF Conductor::boundingRect() const
 		//A pipe holds its counter-flanges, as long as the side of a valve
 	const qreal margin = m_properties.m_medium == TerminalData::Pipe
 			? PipeConnection::markHalfHeight + 2 : 10;
-	return br.adjusted(-margin, -margin, margin, margin);
+	br.adjust(-margin, -margin, margin, margin);
+		//And the text of its mark of insulation (step 7d); the bands of
+		//the stubs are within the margin
+	if (m_properties.m_medium == TerminalData::Pipe && m_properties.m_pipe.insulation_mark) {
+		QRectF text_rect;
+		insulationMark(&text_rect);
+		if (!text_rect.isNull()) {
+			br = br.united(text_rect.adjusted(-1, -1, 1, 1));
+		}
+	}
+	return br;
 }
 
 /**
@@ -4149,11 +4442,18 @@ void Conductor::updateFittings() const
 		}
 			//The pipe on the other side of a spec break goes into it, or
 			//no more (lineIntoSpecBreak())
-		if (element && element->isSpecBreak() && terminal) {
+		if (element && element->isLineMark() && terminal) {
 			for (Terminal *sibling : terminal->runSiblings()) {
 				for (Conductor *pipe : sibling->conductors()) {
 					pipe->update();
 				}
+			}
+		}
+			//The pipes beyond draw their insulation stubs there, or no
+			//more, by the insulation of this one (step 7d)
+		if (terminal) {
+			for (Conductor *pipe : pipesBeyond(terminal)) {
+				pipe->update();
 			}
 		}
 	}

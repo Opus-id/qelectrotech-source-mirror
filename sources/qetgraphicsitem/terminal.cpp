@@ -1835,9 +1835,9 @@ bool Terminal::drawsConnectionMark() const
 	if (d->m_medium != TerminalData::Pipe) {
 		return false;
 	}
-		//A spec break is a mark on the line, no piece: it never draws a
-		//connection, whatever is chosen for its nozzles
-	if (parent_element_ && parent_element_->isSpecBreak()) {
+		//A spec break, an insulation limit is a mark on the line, no piece:
+		//it never draws a connection, whatever is chosen for its nozzles
+	if (parent_element_ && parent_element_->isLineMark()) {
 		return false;
 	}
 	const Diagram *folio = diagram();
@@ -1885,7 +1885,7 @@ bool Terminal::touchesNozzle() const
 {
 		//Against a spec break: as if the mark were not there (step 5l-1l)
 	auto on_spec_break = [](const Terminal *other) {
-		return other && other->parent_element_ && other->parent_element_->isSpecBreak();
+		return other && other->parent_element_ && other->parent_element_->isLineMark();
 	};
 	for (const Conductor *conductor : m_conductors_list) {
 		const Terminal *other = conductor->terminal1 == this ? conductor->terminal2 : conductor->terminal1;
@@ -1912,7 +1912,7 @@ bool Terminal::touchesNozzle() const
 
 const Terminal *Terminal::acrossSpecBreak() const
 {
-	if (d->m_medium != TerminalData::Pipe || !parent_element_ || !parent_element_->isSpecBreak()) {
+	if (d->m_medium != TerminalData::Pipe || !parent_element_ || !parent_element_->isLineMark()) {
 		return nullptr;
 	}
 	for (const Terminal *sibling : runSiblings()) {
@@ -2274,7 +2274,7 @@ void Terminal::refreshContact()
 		//connection now (acrossSpecBreak()): drawn again, the symbol which
 		//came or went too
 	for (Terminal *terminal : {this, now, before}) {
-		if (!terminal || !terminal->parent_element_ || !terminal->parent_element_->isSpecBreak()) {
+		if (!terminal || !terminal->parent_element_ || !terminal->parent_element_->isLineMark()) {
 			continue;
 		}
 		for (Terminal *sibling : terminal->runSiblings()) {

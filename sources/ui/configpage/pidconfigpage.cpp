@@ -35,6 +35,7 @@
 #include <QClipboard>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -582,6 +583,7 @@ void PidConfigPage::initWidgets()
 		{QStringLiteral("{piping_class}"), tr("Piping class")},
 		{QStringLiteral("{pn}"), tr("Nominal pressure")},
 		{QStringLiteral("{flow}"), tr("Flow")},
+		{QStringLiteral("{insulation}"), tr("Insulation as written (Q 80)")},
 		{QStringLiteral("\\n"), tr("New line")}};
 	for (const QString &family : modelFamilies())
 	{
@@ -657,6 +659,18 @@ void PidConfigPage::initWidgets()
 									"looks the same on every computer; else each one follows its own "
 									"setting (Settings > Appearance).")));
 	connect(m_vertical_texts, &QComboBox::activated, this, &PidConfigPage::readTextWidgets);
+		//The stubs where the insulated part of a line begins and ends, and
+		//the mark in its middle (step 7d)
+	m_insulation_stub = new QDoubleSpinBox(this);
+	m_insulation_stub->setObjectName(QStringLiteral("insulation_stub"));
+	m_insulation_stub->setRange(2.0, 50.0);
+	m_insulation_stub->setDecimals(1);
+	m_insulation_stub->setSingleStep(1.0);
+	m_insulation_stub->setSuffix(tr(" mm"));
+	m_insulation_stub->setToolTip(wrapped(tr("The hatched (insulation) or dashed (heat tracing) stub drawn where "
+											 "the insulated part of a line begins and ends, and the mark in the "
+											 "middle of a pipe which asks for one.")));
+	connect(m_insulation_stub, &QDoubleSpinBox::valueChanged, this, &PidConfigPage::readTextWidgets);
 
 	for (PipeConnection::Type type : PipeConnection::all())
 	{
@@ -756,12 +770,19 @@ void PidConfigPage::initLayout()
 	auto *colors_tab = new QWidget(this);
 	auto *layout = new QVBoxLayout(colors_tab);
 	auto *help = new QLabel(tr("What has no color here is drawn in black. A status comes first, then a "
-							   "color set on a pipe line, then its fluid, then the family of the object."),
+							   "color set on a pipe line, then its fluid, then the family of the object. "
+							   "Insulation stubs without a color take that of their pipe line."),
 							colors_tab);
 	help->setWordWrap(true);
 	layout->addWidget(help);
 	layout->addWidget(m_table);
 	layout->addLayout(buttons);
+	auto *stub_row = new QHBoxLayout();
+	stub_row->addWidget(m_insulation_stub);
+	stub_row->addStretch(1);
+	auto *stub_form = new QFormLayout();
+	stub_form->addRow(tr("Length of the insulation stubs:"), stub_row);
+	layout->addLayout(stub_form);
 
 	auto *texts_tab = new QWidget(this);
 	auto *texts_layout = new QVBoxLayout(texts_tab);
@@ -1080,6 +1101,8 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 	m_decimal->setCurrentIndex(m_decimal->findData(int(codification.effectiveDecimal())));
 	const QSignalBlocker vertical_blocker(m_vertical_texts);
 	m_vertical_texts->setCurrentIndex(m_vertical_texts->findData(int(codification.vertical_texts)));
+	const QSignalBlocker stub_blocker(m_insulation_stub);
+	m_insulation_stub->setValue(codification.insulation_stub);
 	for (auto it = m_drawn_connections.cbegin() ; it != m_drawn_connections.cend() ; ++it) {
 		const QSignalBlocker blocker(it.value());
 		it.value()->setChecked(codification.drawsConnection(it.key()));
@@ -1307,6 +1330,7 @@ void PidConfigPage::adjustReadOnly()
 	m_nozzle_dn_prefix->setEnabled(!read_only && m_show_nozzle_sizes->isChecked());
 	m_decimal->setEnabled(!read_only);
 	m_vertical_texts->setEnabled(!read_only);
+	m_insulation_stub->setEnabled(!read_only);
 	m_import->setEnabled(!read_only);
 	m_table->setEnabled(!read_only);
 	m_choose->setEnabled(!read_only);
@@ -1392,6 +1416,7 @@ void PidConfigPage::readTextWidgets()
 	m_codification.show_nozzle_sizes = m_show_nozzle_sizes->isChecked();
 	m_codification.nozzle_dn_prefix = m_nozzle_dn_prefix->isChecked();
 	m_codification.vertical_texts = PidCodification::VerticalTexts(m_vertical_texts->currentData().toInt());
+	m_codification.insulation_stub = m_insulation_stub->value();
 		//Set only when it is chosen: else it waits to be fixed with codes
 	const auto decimal = PidCodification::Decimal(m_decimal->currentData().toInt());
 	if (decimal != m_codification.effectiveDecimal()) {
@@ -1605,6 +1630,11 @@ void PidConfigPage::fillTable()
 	for (int i = 0 ; i < object_keys.size() ; ++i) {
 		add(ObjectFamily, tr("Family of objects"), object_keys.at(i), objects.at(i));
 	}
+		//The stubs of the insulated parts of the lines (step 7d)
+	add(ObjectFamily, tr("Insulation"), PidCodification::insulationColorKey(),
+		tr("Stubs of an insulation (hatches)"));
+	add(ObjectFamily, tr("Insulation"), PidCodification::tracingColorKey(),
+		tr("Stubs of a heat tracing (dashes)"));
 
 	const QStringList statuses{tr("Existing, kept"), tr("To be demolished")};
 	const QStringList status_keys = PidCodification::statuses();

@@ -41,7 +41,8 @@ class QToolButton;
 	The data of the pipes selected on a folio, conductors of the pipe medium
 	(PipeProperties): line number, fluid, material, size (a DN, and an
 	outside diameter for a material named by it, in one field), flow,
-	piping class, nominal pressure, spool, external finish and kind of line.
+	piping class, nominal pressure, spool, external finish, kind of line,
+	insulation (its kind, what is written of it, a mark in the middle).
 	It stands for the page of a wire, whose fields mean nothing for a pipe.
 	Each change is applied at once, with undo, to every pipe selected and to
 	that field only: a field whose value differs from one pipe to another
@@ -222,6 +223,8 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QComboBox *m_material = nullptr;
 		QComboBox *m_kind = nullptr;
 		QComboBox *m_status = nullptr;
+		QComboBox *m_insulation_kind = nullptr;
+		QCheckBox *m_insulation_mark = nullptr;
 		QCheckBox *m_show_designation = nullptr;
 		QPushButton *m_color = nullptr;
 		QToolButton *m_automatic_color = nullptr;

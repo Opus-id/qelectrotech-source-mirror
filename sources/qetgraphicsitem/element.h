@@ -345,6 +345,20 @@ class Element : public QetGraphicsItem
 		bool isJunction() const {
 			return m_data.m_pid_role == QLatin1String("junction");
 		}
+			/// True for an insulation limit (pid_role="insulation_limit",
+			/// step 7d): an in-line symbol where the insulation of a line
+			/// stops or changes. The insulated pipe on each side draws its
+			/// stub there; what else a line carries goes through it.
+		bool isInsulationLimit() const {
+			return m_data.m_pid_role == QLatin1String("insulation_limit");
+		}
+			/// A mark on the line, no piece: a spec break or an insulation
+			/// limit. It never draws a connection, the pipes are drawn into
+			/// its middle, and a symbol placed against it meets the
+			/// connection beyond it, as if it were not there.
+		bool isLineMark() const {
+			return isSpecBreak() || isInsulationLimit();
+		}
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
 			/// The colour the project gives the label of this symbol: that

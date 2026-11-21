@@ -986,6 +986,49 @@ class tst_conductormedium : public QObject
 			return p;
 		}
 
+			// Step 7d: the insulation of a pipe, three attributes written
+			// only when set; a word this version does not know is an
+			// insulation, so its stubs are still drawn
+		void theInsulationOfAPipeIsWrittenWhenSet()
+		{
+			PipeProperties p;
+			p.insulation_kind = PipeProperties::InsulationAndTracing;
+			p.insulation = QStringLiteral("Q 80");
+			p.insulation_mark = true;
+			QHash<QString, QString> a;
+			for (const auto &pair : p.attributes()) a.insert(pair.first, pair.second);
+			QCOMPARE(a.size(), 3);
+			QCOMPARE(a.value("pid_insulation_kind"), QStringLiteral("insulation_tracing"));
+			QCOMPARE(a.value("pid_insulation"), QStringLiteral("Q 80"));
+			QCOMPARE(a.value("pid_insulation_mark"), QStringLiteral("true"));
+			QVERIFY(p.insulated() && p.traced());
+
+			QDomDocument doc;
+			QDomElement e = doc.createElement(QStringLiteral("conductor"));
+			for (const auto &pair : p.attributes()) e.setAttribute(pair.first, pair.second);
+			PipeProperties in;
+			in.fromXml(e);
+			QVERIFY(in == p);
+
+			for (const auto &word : {qMakePair(QStringLiteral("insulation"), PipeProperties::Insulation),
+									 qMakePair(QStringLiteral("tracing"), PipeProperties::Tracing),
+									 qMakePair(QStringLiteral("steam_jacket"), PipeProperties::Insulation)}) {
+				e.setAttribute(QStringLiteral("pid_insulation_kind"), word.first);
+				in.fromXml(e);
+				QCOMPARE(in.insulation_kind, word.second);
+			}
+			QVERIFY(!PipeProperties().insulated() && !PipeProperties().traced());
+			PipeProperties traced;
+			traced.insulation_kind = PipeProperties::Tracing;
+			QVERIFY(!traced.insulated() && traced.traced());
+				// a pipe without insulation writes nothing of it
+			e.removeAttribute(QStringLiteral("pid_insulation_kind"));
+			e.removeAttribute(QStringLiteral("pid_insulation"));
+			e.removeAttribute(QStringLiteral("pid_insulation_mark"));
+			in.fromXml(e);
+			QVERIFY(in.attributes().isEmpty());
+		}
+
 			// Only what is set is written, each attribute prefixed "pid_";
 			// the words of the format are part of the files
 		void theDataOfAPipeAreItsPipeAttributes()

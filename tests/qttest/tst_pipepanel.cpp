@@ -16,6 +16,7 @@
 #include "ui/pipepropertieswidget.h"
 
 #include <QAbstractItemModel>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QCompleter>
 #include <QDomDocument>
@@ -206,12 +207,63 @@ class tst_pipepanel : public QObject
 			for (const char *name : {"line_number", "piping_class", "nominal_pressure"}) {
 				QVERIFY2(rowOf(name) > titles.at(0) && rowOf(name) < titles.at(1), name);
 			}
-			for (const char *name : {"line_kind", "status"}) {
+			for (const char *name : {"line_kind", "status", "insulation_kind", "insulation",
+									 "insulation_mark"}) {
 				QVERIFY2(rowOf(name) > titles.at(1) && rowOf(name) < titles.at(2), name);
 			}
 			for (const char *name : {"flow", "spool", "external_finish"}) {
 				QVERIFY2(rowOf(name) > titles.at(2), name);
 			}
+		}
+
+			// Step 7d: the kind of insulation, its text and the mark in the
+			// middle reach the pipes selected, one undo step each; two pipes
+			// of other values show none, the box half checked
+		void theInsulationReachesThePipesSelected()
+		{
+			Conductor *a = draw(m_nozzles);
+			Conductor *b = draw(m_nozzles);
+			QVERIFY(a && b);
+			PipePropertiesWidget page({a});
+			auto *kind = page.findChild<QComboBox *>(QStringLiteral("insulation_kind"));
+			auto *text = page.findChild<QLineEdit *>(QStringLiteral("insulation"));
+			auto *mark = page.findChild<QCheckBox *>(QStringLiteral("insulation_mark"));
+			QVERIFY(kind && text && mark);
+			QCOMPARE(kind->count(), 4);
+			QCOMPARE(kind->currentData().toInt(), int(PipeProperties::NoInsulation));
+			QCOMPARE(mark->checkState(), Qt::Unchecked);
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.count();
+
+			const int traced = kind->findData(int(PipeProperties::InsulationAndTracing));
+			QVERIFY(traced > 0);
+			kind->setCurrentIndex(traced);
+			emit kind->activated(traced);
+			type(text, QStringLiteral("Q 80"));
+			mark->click();
+			const PipeProperties data = a->properties().m_pipe;
+			QCOMPARE(data.insulation_kind, PipeProperties::InsulationAndTracing);
+			QCOMPARE(data.insulation, QStringLiteral("Q 80"));
+			QVERIFY(data.insulation_mark);
+			QCOMPARE(stack.count(), steps + 3);
+			QCOMPARE(b->properties().m_pipe, PipeProperties());
+
+				// two pipes, one insulated: nothing shown, half checked
+			page.setPipes({a, b});
+			QCOMPARE(kind->currentIndex(), -1);
+			QVERIFY(text->text().isEmpty());
+			QCOMPARE(mark->checkState(), Qt::PartiallyChecked);
+				// a click draws the mark on both
+			mark->click();
+			QVERIFY(a->properties().m_pipe.insulation_mark && b->properties().m_pipe.insulation_mark);
+
+			stack.undo();
+			stack.undo();
+			stack.undo();
+			stack.undo();
+			QCOMPARE(a->properties().m_pipe, PipeProperties());
+			page.setPipes({a});
+			QCOMPARE(kind->currentData().toInt(), int(PipeProperties::NoInsulation));
 		}
 
 		void everyFieldReachesItsData()

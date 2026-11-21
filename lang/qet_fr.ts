@@ -5210,6 +5210,10 @@ Continuer ?</translation>
 <context>
     <name>PidFreeEnd</name>
     <message>
+        <source>insulation</source>
+        <translation>calorifuge</translation>
+    </message>
+    <message>
         <location filename="../sources/pidfreeend.cpp" line="205"/>
         <source>size %1</source>
         <translation>taille %1</translation>
@@ -15360,6 +15364,34 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
 <context>
     <name>PidConfigPage</name>
     <message>
+        <source> mm</source>
+        <translation> mm</translation>
+    </message>
+    <message>
+        <source>The hatched (insulation) or dashed (heat tracing) stub drawn where the insulated part of a line begins and ends, and the mark in the middle of a pipe which asks for one.</source>
+        <translation>L&apos;amorce hachurée (calorifuge) ou en tirets (traçage) dessinée là où la partie calorifugée d&apos;une ligne commence et finit, et la marque au milieu d&apos;une tuyauterie qui en demande une.</translation>
+    </message>
+    <message>
+        <source>Length of the insulation stubs:</source>
+        <translation>Longueur des amorces de calorifuge :</translation>
+    </message>
+    <message>
+        <source>Insulation</source>
+        <translation>Calorifuge</translation>
+    </message>
+    <message>
+        <source>Stubs of an insulation (hatches)</source>
+        <translation>Amorces d&apos;un calorifuge (hachures)</translation>
+    </message>
+    <message>
+        <source>Stubs of a heat tracing (dashes)</source>
+        <translation>Amorces d&apos;un traçage (tirets)</translation>
+    </message>
+    <message>
+        <source>Insulation as written (Q 80)</source>
+        <translation>Calorifuge tel qu&apos;écrit (Q 80)</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
         <source>P&amp;ID</source>
         <comment>configuration page title</comment>
@@ -16141,8 +16173,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
-        <source>What has no color here is drawn in black. A status comes first, then a color set on a pipe line, then its fluid, then the family of the object.</source>
-        <translation>Ce qui n&apos;a pas de couleur ici est dessiné en noir. Le statut passe d&apos;abord, puis la couleur posée sur une tuyauterie, puis son fluide, puis la famille de l&apos;objet.</translation>
+        <source>What has no color here is drawn in black. A status comes first, then a color set on a pipe line, then its fluid, then the family of the object. Insulation stubs without a color take that of their pipe line.</source>
+        <translation>Ce qui n&apos;a pas de couleur ici est dessiné en noir. Le statut passe d&apos;abord, puis la couleur posée sur une tuyauterie, puis son fluide, puis la famille de l&apos;objet. Les amorces de calorifuge sans couleur prennent celle de leur tuyauterie.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="50"/>
@@ -16287,6 +16319,10 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message><source>Symbols</source><translation>Symboles</translation></message>
     <message><source>By functional unit</source><translation>Par unité fonctionnelle</translation></message>
     <message><source>No functional unit</source><translation>Sans unité fonctionnelle</translation></message>
+    <message><source>By insulation</source><translation>Par calorifuge</translation></message>
+    <message><source>No insulation</source><translation>Sans calorifuge</translation></message>
+    <message><source>By insulation text</source><translation>Par repère du calorifuge</translation></message>
+    <message><source>No insulation text</source><translation>Sans repère du calorifuge</translation></message>
 </context>
 <context>
     <name>SelectByCriteriaDialog</name>
@@ -16422,9 +16458,50 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <source>Reagent</source>
         <translation>Réactif</translation>
     </message>
+    <message>
+        <source>(None)</source>
+        <comment>insulation</comment>
+        <translation>(Aucun)</translation>
+    </message>
+    <message>
+        <source>Insulation</source>
+        <translation>Calorifuge</translation>
+    </message>
+    <message>
+        <source>Heat tracing</source>
+        <translation>Traçage</translation>
+    </message>
+    <message>
+        <source>Insulation and heat tracing</source>
+        <translation>Calorifuge et traçage</translation>
+    </message>
 </context>
 <context>
     <name>PipePropertiesWidget</name>
+    <message>
+        <source>Insulation:</source>
+        <translation>Calorifuge :</translation>
+    </message>
+    <message>
+        <source>A hatched stub (insulation), dashed (heat tracing) or both is drawn where the insulated part of the line begins and ends: at equipment, at a free end, at an insulation limit, beside a pipe which has none. Nothing at a valve or a tee between two insulated pipes.</source>
+        <translation>Une amorce hachurée (calorifuge), en tirets (traçage) ou les deux est dessinée là où la partie calorifugée de la ligne commence et finit : à un équipement, à une extrémité libre, à une limite de calorifuge, à côté d&apos;une tuyauterie qui n&apos;en a pas. Rien à une vanne ou à un Té entre deux tuyauteries calorifugées.</translation>
+    </message>
+    <message>
+        <source>Insulation text:</source>
+        <translation>Repère du calorifuge :</translation>
+    </message>
+    <message>
+        <source>Q 80</source>
+        <translation>Q 80</translation>
+    </message>
+    <message>
+        <source>Written by {insulation} in the designation, and beside the mark in the middle.</source>
+        <translation>Écrit par {insulation} dans la désignation, et à côté de la marque au milieu.</translation>
+    </message>
+    <message>
+        <source>Hatched mark in the middle</source>
+        <translation>Marque hachurée au milieu</translation>
+    </message>
     <message>
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="100"/>
         <source>Status of works:</source>
@@ -32036,8 +32113,8 @@ Les autres champs ne sont pas utilisés.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="52"/>
-        <source>&quot;Reducer&quot;: the size of the line changes at this symbol. Each of its nozzles takes the size of its pipe or a size of its own, and a change of size stops there. Tick no nozzle of the run of the line. &quot;Spec break&quot;: the material, piping class and nominal pressure of the line change at this symbol, its size goes on through it. Make it an in-line symbol. &quot;Junction&quot;: a tee, a cross, an injection point. Do not draw its lines: on a folio each is drawn from the origin of the symbol to a nozzle, as the pipe of that nozzle.</source>
-        <translation>« Réduction » : la taille de la ligne change sur ce symbole. Chaque piquage prend la taille de sa tuyauterie ou une taille propre, et un changement de taille s&apos;y arrête. Ne cocher aucun piquage du groupe de la ligne. « Rupture de spécification » : le matériau, la classe de tuyauterie et le PN de la ligne changent sur ce symbole, sa taille le traverse. En faire un symbole en ligne. « Jonction » : un Té, une croix, un piquage d&apos;injection. Ne pas dessiner ses traits : sur un folio, chacun est tracé de l&apos;origine du symbole à un piquage, avec l&apos;aspect de la tuyauterie de ce piquage.</translation>
+        <source>&quot;Reducer&quot;: the size of the line changes at this symbol. Each of its nozzles takes the size of its pipe or a size of its own, and a change of size stops there. Tick no nozzle of the run of the line. &quot;Spec break&quot;: the material, piping class and nominal pressure of the line change at this symbol, its size goes on through it. Make it an in-line symbol. &quot;Junction&quot;: a tee, a cross, an injection point. Do not draw its lines: on a folio each is drawn from the origin of the symbol to a nozzle, as the pipe of that nozzle. &quot;Insulation limit&quot;: the insulation of the line stops or changes at this symbol; make it an in-line symbol.</source>
+        <translation>« Réduction » : la taille de la ligne change sur ce symbole. Chaque piquage prend la taille de sa tuyauterie ou une taille propre, et un changement de taille s&apos;y arrête. Ne cocher aucun piquage du groupe de la ligne. « Rupture de spécification » : le matériau, la classe de tuyauterie et le PN de la ligne changent sur ce symbole, sa taille le traverse. En faire un symbole en ligne. « Jonction » : un Té, une croix, un piquage d&apos;injection. Ne pas dessiner ses traits : sur un folio, chacun est tracé de l&apos;origine du symbole à un piquage, avec l&apos;aspect de la tuyauterie de ce piquage. « Limite de calorifuge » : le calorifuge de la ligne s&apos;arrête ou change sur ce symbole ; en faire un symbole en ligne.</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="61"/>
@@ -32073,6 +32150,10 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="123"/>
         <source>Junction</source>
         <translation>Jonction</translation>
+    </message>
+    <message>
+        <source>Insulation limit</source>
+        <translation>Limite de calorifuge</translation>
     </message>
     <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="35"/>

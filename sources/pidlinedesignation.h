@@ -45,7 +45,8 @@ namespace PidLineDesignation
 			The designation @p model gives to a pipe of @p pipe data, in a
 			project of @p codification:
 			- {fluid}, {line_number}, {material}, {piping_class}, {pn} (the
-			  nominal pressure), {flow}: the data, as typed (codes);
+			  nominal pressure), {flow}, {insulation} (what is written of
+			  it, "Q 80"): the data, as typed (codes);
 			- {fluid_name}, {material_name}: the name the codification
 			  gives the code of the fluid, of the material; the code when
 			  it has none, or is not one of the codification;

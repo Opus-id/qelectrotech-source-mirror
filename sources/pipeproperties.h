@@ -32,8 +32,8 @@
 	The data of a pipe: a conductor of the pipe medium
 	(ConductorProperties::m_medium). Nominal diameter, and outside diameter
 	for a material named by it, material, fluid,
-	flow, line number, piping class, nominal pressure, kind of line, spool
-	and external finish.
+	flow, line number, piping class, nominal pressure, kind of line, spool,
+	external finish, insulation and heat tracing.
 	They belong to one pipe only: they are never passed on to the pipes it
 	is connected to (a pipe has no potential).
 	They are saved as attributes of the conductor, prefixed with "pid_",
@@ -47,6 +47,10 @@ class PipeProperties
 			/// energy carrier and auxiliary system lines. DEXPI knows a
 			/// primary and a secondary segment only.
 		enum LineKind { Main, Secondary, Auxiliary };
+			/// What the pipe is wrapped in, which sets the stubs drawn where
+			/// it begins and ends (Conductor::insulationStubs()): hatches for
+			/// an insulation, dashes for a heat tracing, both for both
+		enum InsulationKind { NoInsulation, Insulation, Tracing, InsulationAndTracing };
 
 			/// The size of the line: its DN (attribute pid_dn), whatever
 			/// the material. It is what is passed on along the line,
@@ -95,6 +99,26 @@ class PipeProperties
 		QString spool;
 			/// External finish of the pipe (paint...), free text
 		QString external_finish;
+			/// Insulated, heat traced, both or none (attribute
+			/// pid_insulation_kind). It belongs to this pipe only, never
+			/// passed on: one part of a line may be insulated, the other not.
+		InsulationKind insulation_kind = NoInsulation;
+			/// What is written of the insulation, free text ("Q 80"): the
+			/// {insulation} of the designation, and the text beside the mark
+			/// in the middle (attribute pid_insulation)
+		QString insulation;
+			/// A hatched mark is drawn in the middle of the pipe, with
+			/// insulation beside it, besides the stubs at its ends (attribute
+			/// pid_insulation_mark); none by default
+		bool insulation_mark = false;
+			/// An insulation is drawn: hatches
+		bool insulated() const {
+			return insulation_kind == Insulation || insulation_kind == InsulationAndTracing;
+		}
+			/// A heat tracing is drawn: dashes
+		bool traced() const {
+			return insulation_kind == Tracing || insulation_kind == InsulationAndTracing;
+		}
 			/// A colour set on this pipe, before that of its fluid; none by
 			/// default
 		QColor color;
@@ -106,6 +130,11 @@ class PipeProperties
 
 		static QString lineKindToString(LineKind kind);
 		static LineKind lineKindFromString(const QString &string);
+		static QString insulationKindToString(InsulationKind kind);
+		static InsulationKind insulationKindFromString(const QString &string);
+			/// The kinds of insulation the user picks from, with their
+			/// names, in order, none first
+		static QList<QPair<InsulationKind, QString>> insulationKinds();
 		static QStringList defaultFluids();
 			/// The preferred DN values of ISO 6708:1995, clause 3
 		static QList<int> preferredDiameters();

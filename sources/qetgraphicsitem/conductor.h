@@ -333,6 +333,36 @@ class Conductor : public QGraphicsObject
 		QString traversalNote() const;
 		void drawTraversals(QPainter *painter, qreal line_width, qreal detail) const;
 		void drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const;
+			/// The insulated part of the line of this pipe ends at its end
+			/// on @p terminal (step 7d): the pipe is insulated or heat
+			/// traced, and its end is on equipment, a free end, an
+			/// insulation limit (Element::isInsulationLimit()), or beyond
+			/// the symbol there is no pipe of the same kind of insulation
+			/// (pipesBeyond()). Nothing at a valve or a tee between two
+			/// pipes insulated alike. False for any other medium.
+		bool insulationEndsAt(const Terminal *terminal) const;
+			/// The pipes beyond the symbol of @p terminal, one of the ends
+			/// of this pipe: on the other nozzles of its run, the other side
+			/// of a reducer, those of a symbol placed against them, through
+			/// pipes of no length; none on equipment. @p limit says the walk
+			/// met an insulation limit, which it does not cross.
+		QList<Conductor *> pipesBeyond(const Terminal *terminal, bool *limit = nullptr) const;
+			/// What draws the insulation of this pipe, in its frame: the
+			/// hatched bands in @p hatches, the lines of a heat tracing in
+			/// @p dashes, of the stubs at the ends where insulationEndsAt(),
+			/// and of the mark in its middle when it asks for one
+			/// (PipeProperties::insulation_mark). The length of a stub is
+			/// that of the project (PidCodification::insulation_stub), less
+			/// on a short pipe; nothing within the parts brought at the
+			/// nozzles (pipeStartAt()).
+		void insulationPaths(QPainterPath *hatches, QPainterPath *dashes) const;
+			/// The axis of the mark in the middle of this pipe, on the middle
+			/// of its longest segment, and where its text goes in
+			/// @p text_rect (PipeProperties::insulation; null without one),
+			/// beside the band, on the side the designation is not; none
+			/// when the pipe asks for no mark, or is too short for one
+		QList<QPointF> insulationMark(QRectF *text_rect = nullptr) const;
+		void drawInsulation(QPainter *painter, const QColor &color, bool plain, qreal detail) const;
 			/// How this signal line says its type of signal: the mark its
 			/// project gives its type (PidCodification::signalMark(), the
 			/// default one unless it says otherwise); none for any other

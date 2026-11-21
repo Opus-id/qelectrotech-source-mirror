@@ -32,6 +32,7 @@ class QLineEdit;
 class QPushButton;
 class QRadioButton;
 class QSpinBox;
+class QDoubleSpinBox;
 class QTabWidget;
 class QTableWidget;
 class QTableWidgetItem;
@@ -207,6 +208,8 @@ class PidConfigPage : public ProjectConfigPage
 			/// How the vertical texts of the P&ID symbols read
 			/// (PidCodification::vertical_texts)
 		QComboBox *m_vertical_texts = nullptr;
+			/// The length of the insulation stubs, in mm (step 7d)
+		QDoubleSpinBox *m_insulation_stub = nullptr;
 
 		QTabWidget *m_code_tabs = nullptr;
 		QMap<PidCodification::List, QTableWidget *> m_code_tables;

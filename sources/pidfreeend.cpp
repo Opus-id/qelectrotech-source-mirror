@@ -238,6 +238,18 @@ PipeProperties PidFreeEnd::mergedData(const PipeProperties &first, const PipePro
 	text(data.flow, second.flow, tr("flow"));
 	text(data.spool, second.spool, tr("spool"));
 	text(data.external_finish, second.external_finish, tr("external finish"));
+	text(data.insulation, second.insulation, tr("insulation"));
+	if (data.insulation_kind == PipeProperties::NoInsulation) {
+		data.insulation_kind = second.insulation_kind;
+	} else if (second.insulation_kind != PipeProperties::NoInsulation
+			   && second.insulation_kind != data.insulation_kind) {
+		for (const auto &kind : PipeProperties::insulationKinds()) {
+			if (kind.first == second.insulation_kind) {
+				aside << kind.second;
+			}
+		}
+	}
+	data.insulation_mark = data.insulation_mark || second.insulation_mark;
 	if (!data.color.isValid()) {
 		data.color = second.color;
 	}

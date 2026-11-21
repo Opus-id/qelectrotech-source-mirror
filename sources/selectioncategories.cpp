@@ -344,6 +344,16 @@ void SelectionCategories::addPipes(const QList<QGraphicsItem *> &pipes,
 	for (const auto &kind : kinds) {
 		kind_order << PipeProperties::lineKindToString(kind.first);
 	}
+	const QList<QPair<PipeProperties::InsulationKind, QString>> insulation_kinds
+			= PipeProperties::insulationKinds();
+	QStringList insulation_order;
+	for (const auto &kind : insulation_kinds) {
+		if (kind.first != PipeProperties::NoInsulation) {
+			insulation_order << PipeProperties::insulationKindToString(kind.first);
+		}
+	}
+		//None last, as in the other branches
+	insulation_order << QString();
 
 	const QList<Branch> branches {
 		{QStringLiteral("size"), tr("By size"), nullptr,
@@ -396,6 +406,20 @@ void SelectionCategories::addPipes(const QList<QGraphicsItem *> &pipes,
 		 QString(), {}},
 		{QStringLiteral("external_finish"), tr("By external finish"), nullptr,
 		 [](QGraphicsItem *item) { return typed(pipeOf(item).external_finish, tr("No external finish")); },
+		 QString(), {}},
+		{QStringLiteral("insulation_kind"), tr("By insulation"), nullptr,
+		 [insulation_kinds](QGraphicsItem *item) {
+			const PipeProperties::InsulationKind kind = pipeOf(item).insulation_kind;
+			for (const auto &known : insulation_kinds) {
+				if (known.first == kind) {
+					return Value{PipeProperties::insulationKindToString(kind),
+								 kind == PipeProperties::NoInsulation ? tr("No insulation") : known.second};
+				}
+			}
+			return Value{PipeProperties::insulationKindToString(kind), PipeProperties::insulationKindToString(kind)};
+		 }, QString(), insulation_order},
+		{QStringLiteral("insulation"), tr("By insulation text"), nullptr,
+		 [](QGraphicsItem *item) { return typed(pipeOf(item).insulation, tr("No insulation text")); },
 		 QString(), {}}};
 
 	Node node;

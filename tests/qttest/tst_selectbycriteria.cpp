@@ -230,6 +230,36 @@ class tst_selectbycriteria : public QObject
 			QVERIFY(categories.kept({}).isEmpty());
 		}
 
+			// Step 7d: "By insulation", by kind, "No insulation" last; "By
+			// insulation text" as typed; both there only when a pipe has one
+		void pipesAreCrossedByInsulation()
+		{
+			Conductor *a = pipe(0, QString());
+			Conductor *b = pipe(0, QString());
+			Conductor *c = pipe(0, QString());
+			QVERIFY(a && b && c);
+			ConductorProperties p = a->properties();
+			p.m_pipe.insulation_kind = PipeProperties::Insulation;
+			p.m_pipe.insulation = QStringLiteral("Q 80");
+			a->setProperties(p);
+			p = b->properties();
+			p.m_pipe.insulation_kind = PipeProperties::Tracing;
+			b->setProperties(p);
+			const SelectionCategories categories({a, b, c}, PidCodification());
+			const Node &pipes = categories.tree().first();
+			QCOMPARE(labels(pipes.children),
+					 QStringList({QStringLiteral("By insulation"), QStringLiteral("By insulation text")}));
+			const Node &by_kind = pipes.children.at(0);
+			QCOMPARE(labels(by_kind.children),
+					 QStringList({QStringLiteral("Insulation"), QStringLiteral("Heat tracing"),
+								  QStringLiteral("No insulation")}));
+			QCOMPARE(categories.kept({by_kind.children.at(2).key}), QList<QGraphicsItem *>({c}));
+			const Node &by_text = pipes.children.at(1);
+			QCOMPARE(labels(by_text.children),
+					 QStringList({QStringLiteral("Q 80"), QStringLiteral("No insulation text")}));
+			QCOMPARE(categories.kept({by_text.children.at(0).key}), QList<QGraphicsItem *>({a}));
+		}
+
 			// Pipes holding nothing: no branch, the category is a leaf
 		void pipesWithoutDataMakeALeaf()
 		{

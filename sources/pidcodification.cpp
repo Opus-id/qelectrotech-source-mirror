@@ -62,6 +62,19 @@ namespace
 	const QString nozzle_sizes_word = QStringLiteral("show_nozzle_sizes");
 	const QString dn_prefix_word = QStringLiteral("nozzle_dn_prefix");
 	const QString decimal_word = QStringLiteral("decimal_separator");
+	const QString insulation_stub_word = QStringLiteral("insulation_stub");
+		/// A length of the insulation stubs read from @p text, in mm with a
+		/// point or a comma; false, nothing changed, when it is not one
+	bool insulationStubFromText(const QString &text, qreal &mm)
+	{
+		bool ok = false;
+		const qreal read = QString(text).replace(QLatin1Char(','), QLatin1Char('.')).trimmed().toDouble(&ok);
+		if (!ok || !PidCodification::isInsulationStub(read)) {
+			return false;
+		}
+		mm = read;
+		return true;
+	}
 	const QString drawn_connections_word = QStringLiteral("drawn_connections");
 	const QString drawn_families_word = QStringLiteral("drawn_families");
 	const QString size_tag = QStringLiteral("size");
@@ -1264,6 +1277,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.nozzle_texts_on_paper = other.nozzle_texts_on_paper;
 		result.show_nozzle_sizes = other.show_nozzle_sizes;
 		result.nozzle_dn_prefix = other.nozzle_dn_prefix;
+		result.insulation_stub = other.insulation_stub;
 		result.decimal = other.decimal;
 		result.tag_models = other.tag_models;
 		result.parallel_numbering = other.parallel_numbering;
@@ -1345,6 +1359,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	}
 	if (decimal != Decimal::Language) {
 		block.setAttribute(decimal_word, decimalToString(decimal));
+	}
+	if (insulation_stub != defaultInsulationStub()) {
+		block.setAttribute(insulation_stub_word, QString::number(insulation_stub));
 	}
 	if (!drawn_connections.isEmpty()) {
 		block.setAttribute(drawn_connections_word, connectionsToText(drawn_connections));
@@ -1448,6 +1465,8 @@ void PidCodification::fromXml(const QDomElement &parent)
 	show_nozzle_sizes = block.attribute(nozzle_sizes_word) != QLatin1String("false");
 	nozzle_dn_prefix = block.attribute(dn_prefix_word) != QLatin1String("false");
 	decimal = decimalFromString(block.attribute(decimal_word));
+	insulation_stub = defaultInsulationStub();
+	insulationStubFromText(block.attribute(insulation_stub_word), insulation_stub);
 	drawn_connections = connectionsFromText(block.attribute(drawn_connections_word));
 		//None written: all of them
 	drawn_families = block.hasAttribute(drawn_families_word)
@@ -1534,8 +1553,12 @@ QString PidCodification::presentationToCsv() const
 		text += QStringLiteral("text_option;") + decimal_word + QLatin1Char(';')
 				+ decimalToString(decimal) + QLatin1Char('\n');
 	}
+	if (insulation_stub != defaultInsulationStub()) {
+		text += QStringLiteral("text_option;") + insulation_stub_word + QLatin1Char(';')
+				+ QString::number(insulation_stub) + QLatin1Char('\n');
+	}
 	if (!drawn_connections.isEmpty()) {
-		text += QStringLiteral("text_option;") + drawn_connections_word + QLatin1Char(';')
+		text +=QStringLiteral("text_option;") + drawn_connections_word + QLatin1Char(';')
 				+ connectionsToText(drawn_connections) + QLatin1Char('\n');
 	}
 	if (!drawsOnAllFamilies()) {
@@ -1746,6 +1769,10 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 			} else if (fields.value(1) == designation_ink_word) {
 				if (!inkFromText(value, codification.colored_designations,
 								 codification.designation_color)) {
+					++left_out;
+				}
+			} else if (fields.value(1) == insulation_stub_word) {
+				if (!insulationStubFromText(value, codification.insulation_stub)) {
 					++left_out;
 				}
 			} else if (fields.value(1) == decimal_word) {
@@ -1975,6 +2002,7 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& nozzle_texts_on_paper == other.nozzle_texts_on_paper
 			&& show_nozzle_sizes == other.show_nozzle_sizes
 			&& nozzle_dn_prefix == other.nozzle_dn_prefix
+			&& insulation_stub == other.insulation_stub
 			&& decimal == other.decimal
 			&& drawn_connections == other.drawn_connections
 			&& drawn_families == other.drawn_families
