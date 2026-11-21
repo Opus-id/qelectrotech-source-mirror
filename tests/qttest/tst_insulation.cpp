@@ -171,6 +171,15 @@ class tst_insulation : public QObject
 			QCOMPARE(lines(band), 7);
 			QVERIFY(band.boundingRect().left() >= -0.01 && band.boundingRect().right() <= 32.01);
 			QCOMPARE(band.boundingRect().top(), -PidInsulation::half_width);
+				// a point in line inside the stub, as a pipe often has
+				// (going south, as at a nozzle on top of a tank): one straight
+				// run, five hatches still, not three on its longer step
+			const QList<QPointF> in_line{QPointF(0, 0), QPointF(0, 25), QPointF(0, 32)};
+			QCOMPARE(lines(PidInsulation::band(in_line)), 7);
+			QCOMPARE(PidInsulation::stretch(in_line, 0, 32),
+					 QList<QPointF>({QPointF(0, 0), QPointF(0, 32)}));
+				// a turn back is no straight run: its point is kept
+			QCOMPARE(PidInsulation::offset({QPointF(0, 0), QPointF(20, 0), QPointF(10, 0)}, 6).size(), 3);
 				// too short for a hatch: its sides only
 			QCOMPARE(lines(PidInsulation::band({QPointF(0, 0), QPointF(10, 0)})), 2);
 
@@ -338,6 +347,28 @@ class tst_insulation : public QObject
 			line->insulationPaths(&hatches, &dashes);
 			QVERIFY(hatches.isEmpty());
 			QVERIFY(!line->insulationEndsAt(nozzle(s[0], "N2")));
+		}
+
+			// The bounding rectangle of a pipe with a mark asks nothing of the
+			// folio: a nozzle which draws its mark looks in the folio for a
+			// nozzle against it, and the folio asked the rectangle again while
+			// it indexed the pipe, without end (crash of the hand test of the
+			// 21/11). It holds the text of the mark, whatever the side.
+		void theBoundsOfAMarkAskNothingOfTheFolio()
+		{
+			const auto e = row({m_equipment, m_equipment});
+			e[0]->setNozzleMarks({{QStringLiteral("N2"), PipeConnection::MarkChoice::Always}});
+			e[1]->setNozzleMarks({{QStringLiteral("N1"), PipeConnection::MarkChoice::Always}});
+			Conductor *pipe = draw(nozzle(e[0], "N2"), nozzle(e[1], "N1"), PipeProperties::Insulation);
+			insulate(pipe, PipeProperties::Insulation, true, QStringLiteral("Q 80"));
+				// the folio indexes the pipe: no recursion
+			QVERIFY(!m_folio->items(nozzle(e[0], "N2")->dockConductor()).isEmpty());
+			QRectF text;
+			const QList<QPointF> mark = pipe->insulationMark(&text);
+			QCOMPARE(mark.size(), 2);
+			QVERIFY(m_folio->items(pipe->mapToScene((mark.first() + mark.last()) / 2)).contains(pipe));
+			QVERIFY(!text.isNull());
+			QVERIFY(pipe->boundingRect().contains(text));
 		}
 
 			// Painted in the colour the project gives the stubs, on paper as

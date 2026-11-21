@@ -28,14 +28,29 @@ namespace {
 		return l < 1e-9 ? QPointF() : (line.p2() - line.p1()) / l;
 	}
 
-		/// The path @p points without its steps of no length
+		/// The path @p points without its steps of no length, and without
+		/// the points between two steps going on in the same direction: a
+		/// pipe often has such a point, and a straight run must stay one
+		/// segment (its hatches are spread over each segment)
 	QList<QPointF> cleaned(const QList<QPointF> &points)
 	{
 		QList<QPointF> kept;
-		for (const QPointF &p : points) {
-			if (kept.isEmpty() || QLineF(kept.last(), p).length() > 1e-6) {
-				kept << p;
+		for (const QPointF &p : points)
+		{
+			if (!kept.isEmpty() && QLineF(kept.last(), p).length() <= 1e-6) {
+				continue;
 			}
+			if (kept.size() >= 2) {
+				const QPointF a = direction(QLineF(kept.at(kept.size() - 2), kept.last()));
+				const QPointF b = direction(QLineF(kept.last(), p));
+				const qreal cross = a.x() * b.y() - a.y() * b.x();
+				const qreal dot = a.x() * b.x() + a.y() * b.y();
+				if (qAbs(cross) < 1e-6 && dot > 0) {
+					kept.last() = p;
+					continue;
+				}
+			}
+			kept << p;
 		}
 		return kept;
 	}

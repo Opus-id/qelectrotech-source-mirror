@@ -1773,29 +1773,60 @@ QList<QPointF> Conductor::insulationMark(QRectF *text_rect) const
 		|| p.insulation_kind == PipeProperties::NoInsulation || endsTouch()) {
 		return {};
 	}
+	const qreal total = PidInsulation::length(segmentsToPoints());
+	return insulationMarkBetween(pipeStartAt(terminal1), total - pipeStartAt(terminal2),
+								 text_rect, false);
+}
+
+/**
+	@brief Conductor::insulationMarkBetween
+	See the declaration
+*/
+QList<QPointF> Conductor::insulationMarkBetween(qreal from, qreal to, QRectF *text_rect,
+												bool both_sides) const
+{
+	if (text_rect) {
+		*text_rect = QRectF();
+	}
+	const PipeProperties &p = m_properties.m_pipe;
+	if (m_properties.m_medium != TerminalData::Pipe || !p.insulation_mark
+		|| p.insulation_kind == PipeProperties::NoInsulation || endsTouch()) {
+		return {};
+	}
 	const QList<QPointF> points = segmentsToPoints();
 	const qreal total = PidInsulation::length(points);
-	const QList<QPointF> drawn = PidInsulation::stretch(points, pipeStartAt(terminal1),
-														 total - pipeStartAt(terminal2));
-		//The longest segment, the first of two as long
+		//The longest straight run of the whole path, the first of two as
+		//long, then its part drawn
+	const QList<QPointF> whole = PidInsulation::stretch(points, 0, total);
 	int longest = -1;
-	qreal longest_length = 0;
-	for (int i = 0 ; i + 1 < drawn.size() ; ++i) {
-		const qreal l = QLineF(drawn.at(i), drawn.at(i + 1)).length();
+	qreal longest_length = 0, longest_start = 0, at = 0;
+	for (int i = 0 ; i + 1 < whole.size() ; ++i) {
+		const qreal l = QLineF(whole.at(i), whole.at(i + 1)).length();
 		if (l > longest_length + 0.01) {
 			longest = i;
 			longest_length = l;
+			longest_start = at;
 		}
+		at += l;
 	}
-		//Room for a hatch at least
-	const qreal length = qMin(insulationStubOf(diagram()),
-							  longest_length - 2 * PidInsulation::half_width);
-	if (longest < 0 || length < 2 * PidInsulation::half_width + 1) {
+	if (longest < 0) {
 		return {};
 	}
-	const QLineF segment(drawn.at(longest), drawn.at(longest + 1));
+	const QList<QPointF> drawn = PidInsulation::stretch(
+				whole, qMax(from, longest_start), qMin(to, longest_start + longest_length));
+	if (drawn.size() != 2) {
+		return {};
+	}
+	const qreal drawn_length = QLineF(drawn.first(), drawn.last()).length();
+		//Room for a hatch at least
+	const qreal length = qMin(insulationStubOf(diagram()),
+							  drawn_length - 2 * PidInsulation::half_width);
+	if (length < 2 * PidInsulation::half_width + 1) {
+		return {};
+	}
+	const QLineF segment(drawn.first(), drawn.last());
 	const QPointF middle = segment.pointAt(0.5);
-	const QPointF d = (segment.p2() - segment.p1()) / longest_length;
+	const QPointF d = (segment.p2() - segment.p1()) / drawn_length;
 	const QList<QPointF> mark{middle - d * length / 2, middle + d * length / 2};
 
 	if (text_rect && !p.insulation.trimmed().isEmpty() && m_text_item)
@@ -1815,8 +1846,10 @@ QList<QPointF> Conductor::insulationMark(QRectF *text_rect) const
 			return QRectF(QPointF(left, middle.y() - size.height() / 2), size);
 		};
 		QRectF rect = placed(true);
-		if (m_text_item->isVisible()
-			&& mapRectFromItem(m_text_item, m_text_item->boundingRect()).intersects(rect)) {
+		if (both_sides) {
+			rect = rect.united(placed(false));
+		} else if (m_text_item->isVisible()
+				   && mapRectFromItem(m_text_item, m_text_item->boundingRect()).intersects(rect)) {
 			rect = placed(false);
 		}
 		*text_rect = rect;
@@ -2608,12 +2641,15 @@ QRectF Conductor::boundingRect() const
 			? PipeConnection::markHalfHeight + 2 : 10;
 	br.adjust(-margin, -margin, margin, margin);
 		//And the text of its mark of insulation (step 7d); the bands of
-		//the stubs are within the margin
+		//the stubs are within the margin. Found on the whole path, on both
+		//sides, as far as the middle of what is drawn may move: where the
+		//pipe starts is not asked here (insulationMarkBetween())
 	if (m_properties.m_medium == TerminalData::Pipe && m_properties.m_pipe.insulation_mark) {
 		QRectF text_rect;
-		insulationMark(&text_rect);
+		insulationMarkBetween(0, PidInsulation::length(segmentsToPoints()), &text_rect, true);
 		if (!text_rect.isNull()) {
-			br = br.united(text_rect.adjusted(-1, -1, 1, 1));
+			const qreal m = PipeConnection::pipeExit / 2 + 1;
+			br = br.united(text_rect.adjusted(-m, -m, m, m));
 		}
 	}
 	return br;

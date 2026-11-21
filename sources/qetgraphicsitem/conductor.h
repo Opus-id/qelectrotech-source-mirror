@@ -397,6 +397,16 @@ class Conductor : public QGraphicsObject
 	private:
 		void setUpConnectionForFormula(
 				QString old_formula, QString new_formula);
+			/// See insulationMark(): the mark of the part of this pipe drawn
+			/// from @p from to @p to along it; with @p both_sides,
+			/// @p text_rect holds the two places its text may take.
+			/// The segment is chosen on the whole path, whatever is drawn
+			/// at its ends: boundingRect() asks with the whole path and
+			/// must not ask the folio where the pipe starts (pipeStartAt()
+			/// looks for nozzles in the folio, which asks the bounding
+			/// rectangle of this pipe again while its index is updated)
+		QList<QPointF> insulationMarkBetween(qreal from, qreal to, QRectF *text_rect,
+											 bool both_sides) const;
 			/// See inlineRun(): the pipes reached from @p starts only,
 			/// this one first, then the nearest first; with @p unsized_only,
 			/// never through a pipe which has a size (unsizedRun())
