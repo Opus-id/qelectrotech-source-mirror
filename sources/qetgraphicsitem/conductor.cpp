@@ -1864,12 +1864,19 @@ QList<QPointF> Conductor::insulationMarkBetween(qreal from, qreal to, QRectF *te
 			const bool normal_first = horizontal ? normal.y() < 0 : normal.x() < 0;
 			designation_first_side = ((across_min + across_max) / 2 > 0) == normal_first;
 			const bool over = along_min < middle_at + half + gap && along_max > middle_at - half - gap;
-			const qreal after = along_max + gap + half;
-			const qreal before = along_min - gap - half;
+				//After the end of the designation as it reads: at its right on
+				//a horizontal pipe, above it on a vertical one (its text turned
+				//to read upwards), whichever way the pipe was drawn
+			const bool reading_along = horizontal ? d.x() > 0 : d.y() < 0;
+			const qreal past_max = along_max + gap + half;
+			const qreal past_min = along_min - gap - half;
+			const qreal after = reading_along ? past_max : past_min;
+			const qreal before = reading_along ? past_min : past_max;
+			auto fits = [&](qreal at) { return at - half >= 0 && at + half <= drawn_length; };
 			if (!both_sides && over) {
-				if (after + half <= drawn_length) {
+				if (fits(after)) {
 					places = {after};
-				} else if (before - half >= 0) {
+				} else if (fits(before)) {
 					places = {before};
 				}
 			}

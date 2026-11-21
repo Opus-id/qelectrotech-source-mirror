@@ -415,6 +415,21 @@ class tst_insulation : public QObject
 			pipe->setProperties(data);
 			const QList<QPointF> alone = pipe->insulationMark();
 			QCOMPARE(pipe->mapToScene((alone.first() + alone.last()) / 2).x(), 100.0);
+				// a pipe drawn from right to left: at the right of its
+				// designation all the same, as it reads
+			const auto r = row({m_equipment, m_equipment});
+			Conductor *back = draw(nozzle(r[1], "N1"), nozzle(r[0], "N2"));
+			data = back->properties();
+			data.m_show_text = true;
+			data.m_pipe.insulation_kind = PipeProperties::Insulation;
+			data.m_pipe.insulation_mark = true;
+			data.m_pipe.insulation = QStringLiteral("Q 80");
+			back->setProperties(data);
+			const QRectF its = back->mapRectFromItem(back->textItem(), back->textItem()->boundingRect());
+			const QList<QPointF> back_mark = back->insulationMark();
+			QCOMPARE(back_mark.size(), 2);
+			QVERIFY(back->mapToScene(back_mark.first()).x() > back->mapToScene(its.topRight()).x()
+					&& back->mapToScene(back_mark.last()).x() > back->mapToScene(its.topRight()).x());
 			m_project.setPidCodification(kept);
 		}
 
