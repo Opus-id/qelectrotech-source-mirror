@@ -602,6 +602,9 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
 | `.qet`, `<conductor>` | `pid_fluid`, `pid_material`, `pid_flow`, `pid_line_number`, `pid_piping_class`, `pid_nominal_pressure`, `pid_spool`, `pid_external_finish` | text (a code of the codification, or free) | empty | set |
 | `.qet`, `<conductor>` | `pid_line_kind` | `secondary`, `auxiliary` | `main` | not main |
+| `.qet`, `<conductor>` | `pid_insulation_kind` | `insulation`, `tracing`, `insulation_tracing` | none | the pipe is insulated, heat traced or both |
+| `.qet`, `<conductor>` | `pid_insulation` | text (`Q 80`) | empty | set |
+| `.qet`, `<conductor>` | `pid_insulation_mark` | `true` | `false` | a hatched mark is drawn in the middle of the pipe |
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | a pipe or a signal line not to be built |
 | `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link`, `process_connection` | undefined | a signal line whose type is chosen |
