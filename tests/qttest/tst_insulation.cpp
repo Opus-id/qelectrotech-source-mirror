@@ -7,6 +7,8 @@
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
 #include "pidinsulation.h"
+#include "pidlinedesignation.h"
+#include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
@@ -369,6 +371,51 @@ class tst_insulation : public QObject
 			QVERIFY(m_folio->items(pipe->mapToScene((mark.first() + mark.last()) / 2)).contains(pipe));
 			QVERIFY(!text.isNull());
 			QVERIFY(pipe->boundingRect().contains(text));
+		}
+
+			// The mark in the middle and the designation, both on the middle
+			// of the longest segment, touched (hand test of 21/11): the mark
+			// goes past the designation, its text on the other side
+		void theMarkGoesPastTheDesignation()
+		{
+			PidCodification codes = m_project.pidCodification();
+			const PidCodification kept = codes;
+			codes.tag_models.insert(PidLineDesignation::modelKey(), QStringLiteral("{insulation}"));
+			m_project.setPidCodification(codes);
+			const auto e = row({m_equipment, m_equipment});
+			Conductor *pipe = draw(nozzle(e[0], "N2"), nozzle(e[1], "N1"));
+			ConductorProperties data = pipe->properties();
+			data.m_show_text = true;
+			data.m_pipe.insulation_kind = PipeProperties::Insulation;
+			data.m_pipe.insulation_mark = true;
+			data.m_pipe.insulation = QStringLiteral("Q 80");
+			pipe->setProperties(data);
+			QVERIFY(pipe->textItem()->isVisible());
+			const QRectF designation = pipe->mapRectFromItem(pipe->textItem(),
+															 pipe->textItem()->boundingRect());
+			QRectF text;
+			const QList<QPointF> mark = pipe->insulationMark(&text);
+			QCOMPARE(mark.size(), 2);
+				// past it along the pipe
+			QVERIFY(qMin(mark.first().x(), mark.last().x()) > designation.right());
+				// its text on the other side of the pipe, in the bounds
+			QVERIFY(!text.isNull());
+			QVERIFY((text.center().y() - mark.first().y())
+					* (designation.center().y() - mark.first().y()) < 0);
+			QVERIFY(pipe->boundingRect().contains(text));
+				// a designation moved by hand moves the mark, never the
+				// bounds, of which the folio would not be told
+			const QRectF bounds = pipe->boundingRect();
+			pipe->textItem()->setPos(pipe->textItem()->pos() + QPointF(40, 0));
+			QCOMPARE(pipe->boundingRect(), bounds);
+			QVERIFY(pipe->insulationMark() != mark);
+			QVERIFY(pipe->insulationMark(&text).size() == 2 && bounds.contains(text));
+				// without the designation: in the middle again
+			data.m_show_text = false;
+			pipe->setProperties(data);
+			const QList<QPointF> alone = pipe->insulationMark();
+			QCOMPARE(pipe->mapToScene((alone.first() + alone.last()) / 2).x(), 100.0);
+			m_project.setPidCodification(kept);
 		}
 
 			// Painted in the colour the project gives the stubs, on paper as

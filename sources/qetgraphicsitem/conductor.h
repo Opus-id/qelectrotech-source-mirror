@@ -399,7 +399,8 @@ class Conductor : public QGraphicsObject
 				QString old_formula, QString new_formula);
 			/// See insulationMark(): the mark of the part of this pipe drawn
 			/// from @p from to @p to along it; with @p both_sides,
-			/// @p text_rect holds the two places its text may take.
+			/// @p text_rect holds every place its text may take along its
+			/// segment, on both sides, wherever the designation is.
 			/// The segment is chosen on the whole path, whatever is drawn
 			/// at its ends: boundingRect() asks with the whole path and
 			/// must not ask the folio where the pipe starts (pipeStartAt()

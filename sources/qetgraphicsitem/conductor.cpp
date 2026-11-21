@@ -1824,33 +1824,84 @@ QList<QPointF> Conductor::insulationMarkBetween(qreal from, qreal to, QRectF *te
 	if (length < 2 * PidInsulation::half_width + 1) {
 		return {};
 	}
-	const QLineF segment(drawn.first(), drawn.last());
-	const QPointF middle = segment.pointAt(0.5);
-	const QPointF d = (segment.p2() - segment.p1()) / drawn_length;
-	const QList<QPointF> mark{middle - d * length / 2, middle + d * length / 2};
+	const QPointF start = drawn.first();
+	const QPointF d = (drawn.last() - start) / drawn_length;
+	const QPointF normal(d.y(), -d.x());
+	const bool horizontal = qAbs(d.x()) >= qAbs(d.y());
+	const qreal half = length / 2;
+		//Where the mark goes along the segment: in its middle, or past the
+		//designation when that lies along it (hand test of 21/11): after
+		//its end, else before its start, else in the middle all the same
+	const qreal gap = 4.0;
+	const qreal middle_at = drawn_length / 2;
+	QList<qreal> places{middle_at};
+	bool designation_first_side = false;
+	if (m_text_item && m_text_item->isVisible()
+		&& !m_text_item->toPlainText().trimmed().isEmpty())
+	{
+		const QRectF designation = mapRectFromItem(m_text_item, m_text_item->boundingRect());
+		qreal along_min = 0, along_max = 0, across_min = 0, across_max = 0;
+		const QList<QPointF> corners{designation.topLeft(), designation.topRight(),
+									 designation.bottomLeft(), designation.bottomRight()};
+		for (int i = 0 ; i < corners.size() ; ++i) {
+			const QPointF v = corners.at(i) - start;
+			const qreal along = v.x() * d.x() + v.y() * d.y();
+			const qreal across = v.x() * normal.x() + v.y() * normal.y();
+			along_min = i ? qMin(along_min, along) : along;
+			along_max = i ? qMax(along_max, along) : along;
+			across_min = i ? qMin(across_min, across) : across;
+			across_max = i ? qMax(across_max, across) : across;
+		}
+			//Beside the segment, as QET writes a designation
+		const qreal reach = PidInsulation::half_width + 2 * gap;
+		const bool beside = across_min < reach && across_max > -reach
+				&& along_max > 0 && along_min < drawn_length;
+		if (beside)
+		{
+				//The first side is above a horizontal pipe, at the left of a
+				//vertical one: the side of the normal for a step to the
+				//east or to the south, the other one otherwise
+			const bool normal_first = horizontal ? normal.y() < 0 : normal.x() < 0;
+			designation_first_side = ((across_min + across_max) / 2 > 0) == normal_first;
+			const bool over = along_min < middle_at + half + gap && along_max > middle_at - half - gap;
+			const qreal after = along_max + gap + half;
+			const qreal before = along_min - gap - half;
+			if (!both_sides && over) {
+				if (after + half <= drawn_length) {
+					places = {after};
+				} else if (before - half >= 0) {
+					places = {before};
+				}
+			}
+		}
+	}
+	const QPointF centre = start + d * places.first();
+	const QList<QPointF> mark{centre - d * half, centre + d * half};
 
 	if (text_rect && !p.insulation.trimmed().isEmpty() && m_text_item)
 	{
 		const QSizeF size = QFontMetricsF(m_text_item->font()).size(0, p.insulation.trimmed());
-		const qreal gap = 2.0;
-		const qreal off = PidInsulation::half_width + gap;
-		const bool horizontal = qAbs(d.x()) >= qAbs(d.y());
+		const qreal off = PidInsulation::half_width + 2.0;
 			//Above a horizontal pipe, at the left of a vertical one; on the
-			//other side when the designation is there
-		auto placed = [&](bool first_side) {
+			//other side when the designation is on that side
+		auto placed = [&](bool first_side, const QPointF &c) {
 			if (horizontal) {
-				const qreal top = first_side ? middle.y() - off - size.height() : middle.y() + off;
-				return QRectF(QPointF(middle.x() - size.width() / 2, top), size);
+				const qreal top = first_side ? c.y() - off - size.height() : c.y() + off;
+				return QRectF(QPointF(c.x() - size.width() / 2, top), size);
 			}
-			const qreal left = first_side ? middle.x() - off - size.width() : middle.x() + off;
-			return QRectF(QPointF(left, middle.y() - size.height() / 2), size);
+			const qreal left = first_side ? c.x() - off - size.width() : c.x() + off;
+			return QRectF(QPointF(left, c.y() - size.height() / 2), size);
 		};
-		QRectF rect = placed(true);
+		QRectF rect;
 		if (both_sides) {
-			rect = rect.united(placed(false));
-		} else if (m_text_item->isVisible()
-				   && mapRectFromItem(m_text_item, m_text_item->boundingRect()).intersects(rect)) {
-			rect = placed(false);
+				//Anywhere along the segment, on both sides: the bounds do not
+				//follow the designation, which moves without telling the
+				//folio that the bounds of this pipe change
+			for (const QPointF &c : {start, drawn.last()}) {
+				rect = rect.united(placed(true, c)).united(placed(false, c));
+			}
+		} else {
+			rect = placed(!designation_first_side, centre);
 		}
 		*text_rect = rect;
 	}
