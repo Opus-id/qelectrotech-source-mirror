@@ -106,6 +106,9 @@
 #include "ui/duplicatelabelsdialog.h"
 #include "ui/devicetypecheckdialog.h"
 #include "ui/devicetypesdialog.h"
+#include "materiallist/materiallist.h"
+#include "ui/parttypesdialog.h"
+#include "ui/reportsdialog.h"
 #include "ui/potentialcheckdialog.h"
 #include "ui/duplicateoffsetdialog.h"
 #include "ui/jumptoelementdialog.h"
@@ -1293,7 +1296,29 @@ void QETDiagramEditor::setUpActions()
 			dialog.exec();
 		}
 	});
+	// The project's lists: parts, wires, terminals, cables, PLC
+	m_reports = new QAction(QET::Icons::DocumentSpreadsheet, tr("Reports..."), this);
+	m_reports->setObjectName(QStringLiteral("projectReports"));
+	m_reports->setStatusTip(tr("Shows the project's lists and exports them to CSV or PDF", "status bar tip"));
+	ShortcutManager::instance().registerAction(m_reports, "diagrameditor.reports", tr("Diagram editors"), QKeySequence());
+	connect(m_reports, &QAction::triggered, this, [this]() {
+		if (ProjectView *view = currentProjectView()) {
+			auto *dialog = new ReportsDialog(view->project(), this);
+			dialog->setAttribute(Qt::WA_DeleteOnClose);
+			dialog->show();
+		}
+	});
 	// Devices not drawn the way their device type says
+	m_part_types = new QAction(tr("Parts without a device type..."), this);
+	m_part_types->setObjectName(QStringLiteral("partTypes"));
+	m_part_types->setStatusTip(tr("Lists the parts of your material list which do not say their device type"));
+	ShortcutManager::instance().registerAction(m_part_types, "diagrameditor.part_types", tr("Diagram editors"), QKeySequence());
+	connect(m_part_types, &QAction::triggered, this, [this]() {
+		QString path = MaterialList::configuredPath();
+		if (path.isEmpty()) path = MaterialList::defaultPath();
+		PartTypesDialog dialog(currentProject(), path, this);
+		dialog.exec();
+	});
 	m_check_device_types = new QAction(tr("Check device types..."), this);
 	m_check_device_types->setObjectName(QStringLiteral("checkDeviceTypes"));
 	m_check_device_types->setStatusTip(tr("Lists the parts of each device's type which are not drawn, and the symbols beyond it", "status bar tip"));
@@ -2463,6 +2488,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project->addAction(m_check_potentials);
 	menu_project->addAction(m_device_types);
 	menu_project->addAction(m_check_device_types);
+	menu_project->addAction(m_part_types);
 	menu_project->addAction(m_project_languages);
 	menu_project->addAction(m_import_pid_codification);
 	menu_project -> addSeparator();
@@ -2471,6 +2497,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_project_export_conductor_num);
 	menu_project -> addAction(m_project_export_wiring_list);
 	menu_project -> addAction(m_project_wiring_list_view);
+	menu_project -> addAction(m_reports);
 	menu_project -> addAction(m_reload_element_drawings);
 	menu_project -> addAction(m_update_elements_from_collections);
 	menu_project -> addAction(m_reset_symbol_texts);
@@ -4242,6 +4269,8 @@ void QETDiagramEditor::slot_updateActions()
 	m_check_potentials->setEnabled(opened_project);
 	m_device_types->setEnabled(opened_project);
 	m_check_device_types->setEnabled(opened_project);
+	m_part_types->setEnabled(opened_project);
+	m_reports->setEnabled(opened_project);
 	m_project_languages->setEnabled(opened_project);
 	m_import_pid_codification->setEnabled(opened_project);
 	m_project_history             -> setEnabled(opened_project);

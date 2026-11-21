@@ -555,6 +555,12 @@ qet_add_app_test(tst_devicetypeeditor tst_devicetypeeditor.cpp)
 qet_add_app_test(tst_devicetypelink tst_devicetypelink.cpp)
 # Asking which device type a master placed is
 qet_add_app_test(tst_devicetypechooser tst_devicetypechooser.cpp)
+# The label and the part asked when a symbol is placed
+qet_add_app_test(tst_placelabelpart tst_placelabelpart.cpp)
+# Finding a part by the words typed: exact, prefix, inside, rough, wildcard.
+qet_add_app_test(tst_partsearch tst_partsearch.cpp)
+# The Find part window: faceted filters, chips, reset, empty state, categories.
+qet_add_app_test(tst_findpart tst_findpart.cpp)
 # Giving a device another device type, its contacts carried over
 qet_add_app_test(tst_devicetypechange tst_devicetypechange.cpp)
 # The device types listed, full and brief; contacts without their device
@@ -568,6 +574,10 @@ qet_add_app_test(tst_partdata tst_partdata.cpp)
 qet_add_app_test(tst_pasteaxislock tst_pasteaxislock.cpp)
 # Split-view materials list dialog with inline editing and creation.
 qet_add_app_test(tst_materiallistedit tst_materiallistedit.cpp)
+# Saying once the device type of a part of the material list.
+qet_add_app_test(tst_parttypes tst_parttypes.cpp)
+# The project's lists: on screen, per place, to CSV and PDF.
+qet_add_app_test(tst_projectreports tst_projectreports.cpp)
 # A read-only project builds its lazy folios whole: shown, exported, written out.
 qet_add_app_test(tst_readonlyfolios tst_readonlyfolios.cpp)
 target_compile_definitions(tst_readonlyfolios PRIVATE
@@ -991,6 +1001,24 @@ qet_add_app_test(tst_linepivotresize tst_linepivotresize.cpp)
 # SortTerminalStripCommand share one comparator for it, so a strip the import
 # creates cannot come out in another order than the sort it then pushes.
 qet_add_app_test(tst_terminalstriporder tst_terminalstriporder.cpp)
+
+# A terminal strip's kind (terminal strip, plug or socket): kept by the
+# strip's xml, .qet, .qetz and .qetdb, told by qet_terminals, set by the editor.
+qet_add_app_test(tst_terminalstripkind tst_terminalstripkind.cpp)
+
+# A connector's device type: its pins are the type's parts of role terminal.
+# The check of the device types reads the connector as one device (a pin the
+# type lacks, a pin drawn twice, the free pins); strips are checked as before.
+qet_add_app_test(tst_connectordevicetype tst_connectordevicetype.cpp)
+
+# The plan of a connector as data: one row for each pin, the pins of its
+# device type drawn nowhere as spare rows, given to the drawer as they are.
+qet_add_app_test(tst_connectorpinplan tst_connectorpinplan.cpp)
+
+# A connector drawn as a device (a head symbol with its pins): the same rows,
+# read from the terminals of its symbols and their wires; offered in the
+# dialog adding a plan, saved with the folio by the uuid of its head.
+qet_add_app_test(tst_connectordeviceplan tst_connectordeviceplan.cpp)
 
 # The strip graphic names where a cable goes at its far end -- Installation,
 # Location and Label of the first piece its wires land on past the strip, in
