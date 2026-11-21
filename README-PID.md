@@ -189,6 +189,44 @@ line.*
   branch of a deleted tee goes with it. A free end left alone by a
   deletion is removed too.
 - A pipe is picked over its drawn width, a little more when hovered.
+- **Crossings**: the hops of the project (off by default) may let the
+  thinner of two crossing lines give way (`hop="thinner"`; the vertical
+  one when they are as thick), with an arc or a gap of 1 mm
+  (`shape="gap"`), for wires, pipes and signal lines alike. The marks of a
+  signal line are moved off a crossing, and a dashed line is drawn solid
+  on either side of a gap (ISO 128-20). The hops of QElectroTech are
+  unchanged.
+- **The route is kept**: a symbol dropped on a pipe or a signal line cuts
+  it where it lies, each piece keeping the route it had; deleting the
+  symbol joins them again on that route. Wires are routed as before.
+- **Dragging a segment** of a pipe stops 7.5 mm from the nozzle it leaves
+  (a message in the status bar says so), and a line folded back on itself
+  is routed anew; a detour drawn by hand stays on its side when a symbol
+  moves.
+- **A line through a symbol is signalled**: the part of a pipe or a signal
+  line that enters a symbol and leaves it again is painted orange, and its
+  tool tip names the symbol. Its ends, where it meets its own nozzles, do
+  not count.
+- **Insulation and heat tracing** (the *Insulation* row of the page of a
+  pipe): none, insulation, heat tracing, or both, with a free text
+  (`Q 80`) the designation writes by `{insulation}`, and a box *Hatched
+  mark in the middle*. Each pipe has its own, never passed on. A short
+  stub is drawn where the insulated part of the line begins and ends: at
+  equipment, a free end, an insulation limit, or a valve or tee beyond
+  which the pipe is not insulated the same way; nothing at a valve or a
+  tee between two pipes alike. Insulation: two lines either side of the
+  pipe, hatched; heat tracing: a dashed line beside it; both: the dashed
+  line in the hatched band. The length of the stubs (8 mm) and their
+  colours (none: that of the pipe) are settings of the project (*P&ID*
+  page, *Colors* tab; CSV lines `text_option;insulation_stub;8`,
+  `object_color;insulation;#rrggbb`, `object_color;tracing;#rrggbb`).
+  The mark in the middle goes on the longest segment, after the
+  designation as it reads, its text on the other side of the pipe. An
+  insulation limit (a symbol of `pid_role` = `insulation_limit`, a short
+  line across the pipe) cuts a line where its insulation stops; the data
+  of the line go through it, each side keeps its own insulation. On the
+  screen, on paper and in a PDF. *Select by criteria* finds the pipes by
+  insulation and by its text.
 - **Select by criteria…** (*Edit* menu, context menu of the folio): a
   window that stays open beside the folio, with a tree of boxes: symbols
   by family, symbol, functional unit or status; pipes by size, fluid,
@@ -552,7 +590,7 @@ QElectroTech are saved byte for byte as by master.
 
 ## What is missing
 
-- Flow direction, crossings as ISO 10628-1 draws them.
+- Flow direction; the kind of a heat tracing (electrical, steam...).
 - A signal line ending in an empty place, or taken from a pipe where it
   has no symbol (an instrument tap, a junction, is placed on the pipe for
   now); equipment data tables.
@@ -573,7 +611,7 @@ is saved as by master. A name added for the P&ID starts with `pid_`; what
 is inside a `pid_` block keeps short names. `medium` keeps its name, and
 the additions that are not P&ID-only keep plain names (`prefix`,
 `<options>`, `show_if`, `replaces`, `line-cap` / `line-join`,
-`<text_leaders>`). Booleans are `true` /
+`<text_leaders>`, the `thinner` and `gap` of `<wire_crossings>`). Booleans are `true` /
 `false`.
 
 | Where | Name | Values | Default | Written when |
@@ -581,7 +619,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<definition>` | `pid_family` | `equipment`, `valve`, `instrument`, `pipe` | none: not a P&ID symbol | the symbol has a family |
 | `.elmt`, `<definition>` | `pid_inline` | `true` | a line does not run through it | a line runs through its two nozzles (valve) |
 | `.elmt`, `<definition>` | `pid_run` | names of nozzles, space separated (`N1 N2 N3`) | the two nozzles of a `pid_inline` symbol | a tee or a three-way valve |
-| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break`, `junction`, `closure` | none | the symbol plays that role for the lines |
+| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break`, `junction`, `closure`, `insulation_limit` | none | the symbol plays that role for the lines |
 | `.elmt`, `<definition>` | `pid_large` | name of a nozzle (`N1`) | none: the way of the reducer is not checked | a reducer names its large side; a large side smaller than the other one is marked |
 | `.elmt`, `<definition>` | `prefix` | identifier of the tag (`PC`) | that of the collection folder | the symbol gives one |
 | `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
@@ -610,6 +648,8 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link`, `process_connection` | undefined | a signal line whose type is chosen |
 | `.qet`, `<project>` | `<text_leaders distance end/>` | `distance` in mm (`5`); `end` = `dot`, `arrow` | none: no leader line; a plain end | the leader lines of the texts are on |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, instrument letters (`<instrument_letters code name/>`), equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
+| `.qet`, `<project>` | `<wire_crossings hop shape/>` | `hop` = `thinner` (QElectroTech: `horizontal`, `vertical`); `shape` = `gap` | no hop; an arc | the thinner line gives way; a gap instead of an arc |
+| `.qet`, `<pid_codification>` | `insulation_stub` | length of the insulation stubs in mm | `8` | another length |
 | `.qet`, `<pid_codification>` | `instrument_numbering` | `parallel` | in series | the loops of the instruments are numbered in parallel |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee` or `blind_flange`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end | a symbol is chosen for the role |
 | `.qet`, `<pid_codification>` | `<option_default family option value/>` | `family` = a `pid_family`; `option`, `value` = names of the `<options>` block of its symbols (`instrument`, `shape`, `oval`) | none: a symbol placed new takes the defaults of its own file | the project gives an option of a family a value (page *P&ID*, *Symbols*; right click, *Options*); only a symbol placed new takes it, written in its own `<options>` |
