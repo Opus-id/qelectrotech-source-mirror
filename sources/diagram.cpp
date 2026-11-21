@@ -3132,6 +3132,18 @@ void Diagram::addItem(QGraphicsItem *item)
 			if ((elmt->linkType() & Element::AllReport) && m_project->chainedReports()) {
 				m_project->scheduleAutoLink();
 			}
+				//A folio report reads its key from the wire its terminal
+				//holds, when this project chains by that wire's function
+			if (elmt->linkType() & Element::AllReport) {
+				for (Terminal *terminal : elmt->terminals()) {
+					connect(terminal, &Terminal::conductorWasAdded,
+							m_project, &QETProject::reportKeySourceChanged,
+							Qt::UniqueConnection);
+					connect(terminal, &Terminal::conductorWasRemoved,
+							m_project, &QETProject::reportKeySourceChanged,
+							Qt::UniqueConnection);
+				}
+			}
 			break;
 		}
 		case Conductor::Type:
@@ -3145,6 +3157,12 @@ void Diagram::addItem(QGraphicsItem *item)
 			conductor->calculateTextItemPosition();
 			conductor->updateFittings();
 			m_project->dataBase()->addConductor(conductor);
+				//The function of this wire can be what chains the folio
+				//reports it ends on
+			connect(conductor, &Conductor::functionChanged,
+					m_project, &QETProject::reportKeySourceChanged,
+					Qt::UniqueConnection);
+			m_project->reportKeySourceChanged(conductor);
 			break;
 		}
 		case QetShapeItem::Type:
@@ -3192,6 +3210,8 @@ void Diagram::removeItem(QGraphicsItem *item)
 				//One wire the strips above them drew may be gone
 			refreshTerminalStrips();
 			m_project->dataBase()->removeConductor(conductor);
+				//The wire a folio report read its key from may be this one
+			m_project->reportKeySourceChanged(conductor);
 			break;
 		}
 		case QetShapeItem::Type:

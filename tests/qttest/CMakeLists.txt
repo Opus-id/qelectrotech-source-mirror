@@ -578,6 +578,8 @@ target_compile_definitions(tst_linklists PRIVATE
   QET_EXAMPLES_DIR="${QET_DIR}/examples")
 # IEC 81346 plant/location: an element takes its folio's, %{structure_id} composes them.
 qet_add_app_test(tst_structureid tst_structureid.cpp)
+# What a symbol's label field shows: the label, or its designation (#1878 C5).
+qet_add_app_test(tst_designationdisplay tst_designationdisplay.cpp)
 qet_add_app_test(tst_stripplacefrombox tst_stripplacefrombox.cpp)
 # qet_device_list: one row per reference designation, a contact with its coil.
 qet_add_app_test(tst_devicelist tst_devicelist.cpp)
@@ -821,6 +823,13 @@ qet_add_app_test(tst_symbolcustominfo tst_symbolcustominfo.cpp)
 # another place changes it -- the contact shows the new label at once, the
 # way a contact of a coil shows the coil's.
 qet_add_app_test(tst_plcslavelabel tst_plcslavelabel.cpp)
+
+# Deleting a folio and then linking one of its symbols to another symbol:
+# undo twice brings the folio back and the symbol with the partner it had
+# before, which it used to lose entirely.
+qet_add_app_test(tst_linkundoafterfolioremoval tst_linkundoafterfolioremoval.cpp)
+target_compile_definitions(tst_linkundoafterfolioremoval PRIVATE
+  QET_EXAMPLES_DIR="${QET_DIR}/examples")
 
 # The bridge drawn over terminals: what a bridge holds (colour, how many
 # terminals it may take, its sections), which terminals a line about to be
@@ -2626,6 +2635,10 @@ qet_add_app_test(tst_potentialtypes tst_potentialtypes.cpp)
 # potential_view: one row per potential (wires, terminals, folios, wire
 # numbers, more than one number), as QElectroTech groups the wires.
 qet_add_app_test(tst_potentialview tst_potentialview.cpp)
+# Chained folio reports: what two reports must share to be chained
+# together is the project's choice -- the labels they carry, or the
+# function of the wires their terminals hold.
+qet_add_app_test(tst_chainedreportkey tst_chainedreportkey.cpp)
 
 # A core of a cable: section, colour and type are locked in the dialog and
 # show a small sign saying why, so an edit cannot write over the cable
@@ -2755,3 +2768,8 @@ qet_add_app_test(tst_titleblockcache tst_titleblockcache.cpp)
 qet_add_app_test(tst_propertieseditordialog tst_propertieseditordialog.cpp)
 # A list table reopens at the width it was saved with
 qet_add_app_test(tst_tablereopen tst_tablereopen.cpp)
+
+# An embedded symbol's location written as "project<id>+embed://..." was read
+# back only for one-digit ids: from the eleventh project opened, editing an
+# embedded symbol or placing one silently failed (#1958).
+qet_add_app_test(tst_projectidlocation tst_projectidlocation.cpp)
