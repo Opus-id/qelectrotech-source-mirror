@@ -41,7 +41,10 @@
 #include <utils/qetutils.h>
 #include <wirehops.h>
 #include <pidtooltip.h>
+#include <pidtraversal.h>
 #include <pidlinedesignation.h>
+#include <shownkinds.h>
+#include <factory/elementpicturefactory.h>
 #include <leaderline.h>
 #include <qetapp.h>
 
@@ -77,6 +80,18 @@ namespace {
 	const Diagram *s_hop_candidates_diagram = nullptr;
 	quint64 s_hop_candidates_generation = 0;
 	QVector<HopCandidate> s_hop_candidates;
+
+		//The symbols of the last folio whose traversals were worked out,
+		//with what they draw on the folio (7c-bis). Rebuilt only when the
+		//folio changes or a symbol changed (PidTraversal::symbolsChanged()),
+		//so that a repaint costs no reading of the drawings
+	struct TraversalCandidate {
+		const Element *element;
+		PidTraversal::Outline outline;
+	};
+	const Diagram *s_traversal_candidates_diagram = nullptr;
+	quint64 s_traversal_candidates_generation = 0;
+	QVector<TraversalCandidate> s_traversal_candidates;
 }
 
 #define PR(x) qDebug() << #x " = " << x;
@@ -1126,6 +1141,8 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		drawDiameterGaps(painter);
 	}
 	drawSignalMarks(painter, final_conductor_color, detail);
+		//Over a symbol it is not docked to there: in orange, on top (7c-bis)
+	drawTraversals(painter, line_width, detail);
 
 	painter -> restore();
 }
@@ -1736,6 +1753,155 @@ void Conductor::drawOffSeries(QPainter *painter, const QPainterPath &path,
 	painter->restore();
 }
 
+/**
+	@brief Conductor::updateTraversals
+	Work out again, when a conductor or a symbol changed since the last
+	time, the symbols this pipe or signal line runs over and the parts of
+	it which do (PidTraversal::traversals()): every symbol of its folio but
+	the drawing aids, those hidden (View > Show) and the T-junctions shown
+	as a dot. Nothing for a wire.
+*/
+void Conductor::updateTraversals() const
+{
+	const Diagram *folio = diagram();
+	if (m_properties.m_medium == TerminalData::Electrical || !folio)
+	{
+		m_traversed.clear();
+		m_traversal_path = QPainterPath();
+		m_traversals_folio = nullptr;
+		return;
+	}
+	const quint64 symbols = PidTraversal::symbolsGeneration();
+	if (m_traversals_folio == folio
+		&& m_traversals_conductors == s_conductor_geometry_generation
+		&& m_traversals_symbols == symbols) {
+		return;
+	}
+	m_traversals_folio = folio;
+	m_traversals_conductors = s_conductor_geometry_generation;
+	m_traversals_symbols = symbols;
+	m_traversed.clear();
+	m_traversal_path = QPainterPath();
+
+	if (s_traversal_candidates_diagram != folio
+		|| s_traversal_candidates_generation != symbols)
+	{
+		s_traversal_candidates.clear();
+		const QList<Element *> elements = folio->elements();
+		for (const Element *element : elements)
+		{
+			if (!element->isVisible() || ShownKinds::isHidden(element)
+				|| element->isDrawingAid() || element->isShownAsDot()) {
+				continue;
+			}
+			TraversalCandidate candidate;
+			candidate.element = element;
+			candidate.outline = PidTraversal::outline(
+						ElementPictureFactory::instance()->getPrimitives(
+							element->location(), element->resolvedOptions()),
+						element->sceneTransform());
+			if (!candidate.outline.isEmpty()) {
+				s_traversal_candidates.append(candidate);
+			}
+		}
+		s_traversal_candidates_diagram = folio;
+		s_traversal_candidates_generation = symbols;
+	}
+
+	const QList<QPointF> points = segmentsToPoints();
+	if (points.size() < 2) {
+		return;
+	}
+	QVector<QPointF> line;
+	for (const QPointF &point : points) {
+		line.append(mapToScene(point));
+	}
+	const QRectF rect = QPolygonF(line).boundingRect().adjusted(-1, -1, 1, 1);
+		//A crossing of a mere line is a point: drawn a little longer
+	const qreal min_length = qMax(6.0, 3 * drawnWidth(nullptr));
+	for (const TraversalCandidate &candidate : std::as_const(s_traversal_candidates))
+	{
+		if (!rect.intersects(candidate.outline.rect.adjusted(-1, -1, 1, 1))) {
+			continue;
+		}
+		const QList<PidTraversal::Span> spans = PidTraversal::traversals(line, candidate.outline);
+		if (spans.isEmpty()) {
+			continue;
+		}
+		m_traversed.append(const_cast<Element *>(candidate.element));
+		m_traversal_path.addPath(mapFromScene(PidTraversal::pathAlong(line, spans, min_length)));
+	}
+}
+
+/**
+	@brief Conductor::traversedSymbols
+	See the declaration
+*/
+QList<Element *> Conductor::traversedSymbols() const
+{
+	updateTraversals();
+	return m_traversed;
+}
+
+/**
+	@brief Conductor::traversalNote
+	See the declaration
+*/
+QString Conductor::traversalNote() const
+{
+	QStringList notes;
+	const QList<Element *> symbols = traversedSymbols();
+	for (const Element *symbol : symbols)
+	{
+		const QString label = symbol->actualLabel().trimmed();
+		const QString named = label.isEmpty()
+				? symbol->name()
+				: tr("%1 (%2)", "a symbol a line goes through: its label (its name)")
+				  .arg(label, symbol->name());
+		notes << (m_properties.m_medium == TerminalData::Pipe
+				  ? tr("This pipe goes through the symbol %1.")
+				  : tr("This signal line goes through the symbol %1.")).arg(named);
+	}
+	return notes.join(QLatin1Char('\n'));
+}
+
+/**
+	@brief Conductor::drawTraversals
+	Draw again in orange, over the line, each part of this pipe or signal
+	line which runs over a symbol (updateTraversals()): never thinner than
+	a few pixels when the folio is zoomed out. It says so and blocks
+	nothing. Like the other marks of the P&ID, on the screen only, never
+	printed nor exported.
+	@param painter
+	@param line_width : the width of the line
+	@param detail : the level of detail of the painter
+*/
+void Conductor::drawTraversals(QPainter *painter, qreal line_width, qreal detail) const
+{
+	const Diagram *folio = diagram();
+	if (!folio || !folio->drawTerminals() || m_properties.m_medium == TerminalData::Electrical) {
+		return;
+	}
+	updateTraversals();
+	if (m_traversal_path.isEmpty()) {
+		return;
+	}
+	painter->save();
+	QPen pen(QET::Palette::signalColor());
+	pen.setWidthF(line_width);
+	if (pen.widthF() * detail < 3.0) {
+		pen.setCosmetic(true);
+		pen.setWidthF(3.0);
+	}
+	pen.setCapStyle(Qt::FlatCap);
+	pen.setJoinStyle(Qt::MiterJoin);
+	painter->setPen(pen);
+	painter->setBrush(Qt::NoBrush);
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	painter->drawPath(m_traversal_path);
+	painter->restore();
+}
+
 /// @return le Diagram auquel ce conducteur appartient, ou 0 si ce conducteur est independant
 Diagram *Conductor::diagram() const
 {
@@ -1835,9 +2001,16 @@ void Conductor::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
 		prepareGeometryChange();
 	}
 	m_mouse_over = true;
-		//What its orange band says (drawOffSeries()); a wire has no tip
-	if (m_properties.m_medium == TerminalData::Pipe) {
-		setToolTip(PidToolTip::wrapped(offSeriesNote()));
+		//What its orange band says (drawOffSeries()), and the symbols it
+		//runs over (drawTraversals()); a wire has no tip
+	if (m_properties.m_medium != TerminalData::Electrical) {
+		QStringList notes;
+		for (const QString &note : {offSeriesNote(), traversalNote()}) {
+			if (!note.isEmpty()) {
+				notes << note;
+			}
+		}
+		setToolTip(PidToolTip::wrapped(notes.join(QLatin1Char('\n'))));
 	}
 	update();
 }

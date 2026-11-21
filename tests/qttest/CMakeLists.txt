@@ -677,6 +677,10 @@ target_link_libraries(tst_signalmark PRIVATE Qt::Test Qt::Gui Qt::Xml)
 # the project gives the signal lines, with the marks of its type of signal;
 # a wire and a pipe are drawn as before.
 qet_add_app_test(tst_signaldrawing tst_signaldrawing.cpp)
+# A pipe or a signal line which runs over a symbol, into it and out of it:
+# that part orange on the screen, the symbol named on hovering it; not the
+# symbols it begins or ends at, nor a basin it ends in; a wire as before.
+qet_add_app_test(tst_pidtraversal tst_pidtraversal.cpp)
 # Which mark the signal lines of each type of signal take: a setting of the
 # project, nothing written by default; its file, the CSV files, the P&ID page.
 qet_add_app_test(tst_signalmarksettings tst_signalmarksettings.cpp)

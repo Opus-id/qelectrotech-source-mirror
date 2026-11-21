@@ -29,6 +29,7 @@
 #include <diagram.h>
 #include <elementsmover.h>
 #include <pidnozzlemagnet.h>
+#include <pidtraversal.h>
 #include <shownkinds.h>
 #include <diagramcommands.h>
 #include <diagramcontext.h>
@@ -215,6 +216,11 @@ Element::Element(
 	connect(this, &Element::xChanged, update_docked_conductors);
 	connect(this, &Element::yChanged, update_docked_conductors);
 	connect(this, &Element::mirrorChanged, update_docked_conductors);
+		//A pipe or a signal line may now run over it, or no more (7c-bis)
+	connect(this, &Element::xChanged, this, &PidTraversal::symbolsChanged);
+	connect(this, &Element::yChanged, this, &PidTraversal::symbolsChanged);
+	connect(this, &Element::rotationChanged, this, &PidTraversal::symbolsChanged);
+	connect(this, &Element::mirrorChanged, this, &PidTraversal::symbolsChanged);
 		//The project's database holds the symbol's place
 	connect(this, &Element::xChanged, this, &Element::storePlacement);
 	connect(this, &Element::yChanged, this, &Element::storePlacement);
@@ -254,6 +260,7 @@ Element::Element(
 */
 Element::~Element()
 {
+	PidTraversal::symbolsChanged();
 		//Nothing of this element answers anything while it goes: its
 		//terminals say "a wire left" on their way out, and the texts they
 		//would ask are gone before them. Without this the element is
@@ -1725,6 +1732,7 @@ void Element::setShownAsDot(bool dot)
 	if (m_shown_as_dot == dot)
 		return;
 	m_shown_as_dot = dot;
+	PidTraversal::symbolsChanged();
 	scheduleTextsStore();
 	update();
 }
@@ -1785,6 +1793,8 @@ QRectF Element::boundingRect() const
 */
 void Element::updateDrawnRect()
 {
+		//Called whenever the drawing changes: options, change of type...
+	PidTraversal::symbolsChanged();
 	QRectF drawn;
 	for (const QPicture *picture : {&m_picture, &m_readable_picture})
 		if (!picture->isNull() && picture->boundingRect().isValid())
@@ -4216,7 +4226,11 @@ QVariant Element::itemChange(GraphicsItemChange change, const QVariant &value)
 	}
 		//Whether the texts of a turned symbol stay horizontal is the
 		//project's setting, known once the element is on one of its folios
+	else if (change == QGraphicsItem::ItemVisibleHasChanged) {
+		PidTraversal::symbolsChanged();
+	}
 	else if (change == QGraphicsItem::ItemSceneHasChanged) {
+		PidTraversal::symbolsChanged();
 		updateSymbolPictures();
 			//Placed against a nozzle of the folio, or taken away from it
 		for (Terminal *terminal : std::as_const(m_terminals)) {

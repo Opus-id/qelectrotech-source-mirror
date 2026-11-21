@@ -2859,6 +2859,22 @@ Voulez-vous les renuméroter aussi ?</numerusform>
         <translation>Butée : sortie droite de %1 mm du piquage %2</translation>
     </message>
     <message>
+        <location filename="../sources/qetgraphicsitem/conductor.cpp" line="1825"/>
+        <source>%1 (%2)</source>
+        <comment>a symbol a line goes through: its label (its name)</comment>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/conductor.cpp" line="1827"/>
+        <source>This pipe goes through the symbol %1.</source>
+        <translation>Cette tuyauterie traverse le symbole %1.</translation>
+    </message>
+    <message>
+        <location filename="../sources/qetgraphicsitem/conductor.cpp" line="1828"/>
+        <source>This signal line goes through the symbol %1.</source>
+        <translation>Cette ligne de signal traverse le symbole %1.</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/conductor.cpp" line="2262"/>
         <source>Edit conductor properties</source>
         <comment>undo caption</comment>

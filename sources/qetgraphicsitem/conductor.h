@@ -316,6 +316,16 @@ class Conductor : public QGraphicsObject
 		QString offSeriesNote() const;
 		void drawOffSeries(QPainter *painter, const QPainterPath &path,
 						   qreal line_width, qreal detail) const;
+			/// The symbols of its folio this pipe or signal line runs over,
+			/// into them and out of them (PidTraversal, step 7c-bis): not
+			/// the symbols where it begins or ends, nor a basin it ends in.
+			/// Worked out again only when a conductor or a symbol changed.
+			/// None for a wire.
+		QList<Element *> traversedSymbols() const;
+			/// What is said on hovering this line about traversedSymbols(),
+			/// one line by symbol; nothing when it runs over none
+		QString traversalNote() const;
+		void drawTraversals(QPainter *painter, qreal line_width, qreal detail) const;
 		void drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const;
 			/// How this signal line says its type of signal: the mark its
 			/// project gives its type (PidCodification::signalMark(), the
@@ -437,6 +447,14 @@ class Conductor : public QGraphicsObject
 			///with the cache of paintedPath() (7c)
 		mutable QList<WireHops::Interruption> m_hops_cuts;
 		mutable QList<QPointF> m_hops_crossings;
+			///See traversedSymbols(): kept while no conductor nor symbol
+			///changed; the parts drawn orange, in its own coordinates
+		void updateTraversals() const;
+		mutable const Diagram *m_traversals_folio = nullptr;
+		mutable quint64 m_traversals_conductors = 0;
+		mutable quint64 m_traversals_symbols = 0;
+		mutable QList<Element *> m_traversed;
+		mutable QPainterPath m_traversal_path;
 			/// Functional properties
 		ConductorProperties m_properties;
 			/// Text input for non simple, non-singleline conductors

@@ -234,6 +234,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pipediameter.h
   ${QET_DIR}/sources/pipeconnection.h
   ${QET_DIR}/sources/pidtooltip.h
+  ${QET_DIR}/sources/pidtraversal.h
+  ${QET_DIR}/sources/pidtraversal.cpp
   ${QET_DIR}/sources/pidsection.h
   ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/pipeproperties.h
