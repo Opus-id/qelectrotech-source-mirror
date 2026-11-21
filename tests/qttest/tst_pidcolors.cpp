@@ -818,8 +818,11 @@ class tst_pidcolors : public QObject
 				PidConfigPage page(&m_project);
 				auto *table = page.findChild<QTableWidget *>(QStringLiteral("color_table"));
 				QVERIFY(table);
-					// two families of fluid, five of object, two statuses
-				QCOMPARE(table->rowCount(), 9);
+					// two families of fluid, five of object, the stubs of an
+					// insulation and of a heat tracing (step 7d), two statuses
+				QCOMPARE(table->rowCount(), 11);
+				QCOMPARE(table->item(7, 1)->text(), QStringLiteral("Stubs of an insulation (hatches)"));
+				QCOMPARE(table->item(8, 1)->text(), QStringLiteral("Stubs of a heat tracing (dashes)"));
 
 				page.setColor(PidConfigPage::FluidFamily, QStringLiteral("E"), QColor(0, 0, 255));
 				page.setColor(PidConfigPage::ObjectFamily, QStringLiteral("pipe"), QColor(1, 1, 1));
@@ -834,16 +837,16 @@ class tst_pidcolors : public QObject
 				table->selectRow(0);
 				table->setSelectionMode(QAbstractItemView::MultiSelection);
 				table->selectRow(1);
-				table->selectRow(8);
+				table->selectRow(10);
 				page.setColorOfSelection(QColor(3, 3, 3));
 				QCOMPARE(table->item(0, 2)->text(), QColor(3, 3, 3).name());
 				QCOMPARE(table->item(1, 2)->text(), QColor(3, 3, 3).name());
-				QCOMPARE(table->item(8, 2)->text(), QColor(3, 3, 3).name());
+				QCOMPARE(table->item(10, 2)->text(), QColor(3, 3, 3).name());
 					// the selection stays, for what comes next
 				QCOMPARE(table->selectionModel()->selectedRows().size(), 3);
 				page.setColorOfSelection(QColor());
 				QVERIFY(table->item(0, 2)->text().isEmpty());
-				QVERIFY(table->item(8, 2)->text().isEmpty());
+				QVERIFY(table->item(10, 2)->text().isEmpty());
 				page.setColor(PidConfigPage::FluidFamily, QStringLiteral("E"), QColor(0, 0, 255));
 				page.setColor(PidConfigPage::Status, QStringLiteral("existing"), QColor(2, 2, 2));
 				page.applyProjectConf();
