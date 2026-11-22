@@ -549,9 +549,12 @@ line.*
   run of a tee or a cross, or a symbol with two nozzles only face to face
   (a pump), mirrored or turned by a half (two quarter turns), would leave
   its pipes running back through it: in each pair of opposite nozzles,
-  the pipes go to the nozzles facing their other ends best, in the same
-  undo step. A quarter turn of a straight line changes nothing; a line in
-  L that now leaves behind the symbol is taken by the other nozzle. The
+  the pipes go over to the other nozzles when fewer of them then run back
+  through the symbol, in the same undo step; as many either way, they
+  stay (a valve at the top of a U turned by a quarter). The route drawn
+  is kept when the new nozzle stands where the first one stood. A quarter
+  turn of a straight line changes nothing; a line in L that now leaves
+  behind the symbol is taken by the other nozzle. The
   branch of a tee keeps its pipe, even when it then runs back through the
   tee, as does any nozzle of an equipment with more than two; a pair drawn
   the wrong way round before the turn, or a pipe which turns with both its
