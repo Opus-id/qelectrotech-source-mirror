@@ -2606,12 +2606,19 @@ void Conductor::splitEndSegments()
 	The end segment is only shortened, never turned round: the segment
 	dragged stops short of a nozzle (stoppedAtExits()).
 */
-bool Conductor::mergeFoldedEnds()
+bool Conductor::mergeFoldedEnds(const ConductorSegment *dragged)
 {
 	if (m_properties.m_medium == TerminalData::Electrical) {
 		return false;
 	}
 	QList<QPointF> points = segmentsToPoints();
+		//The segment between @p i and @p i + 1 is the one dragged: never
+		//made one with an end segment (a straight line split in three on
+		//the press, splitEndSegments(), the mouse not yet moved a step)
+	auto isDragged = [&](int i) {
+		return dragged && points.at(i) == dragged->firstPoint()
+				&& points.at(i + 1) == dragged->secondPoint();
+	};
 		//@p end the end of the line, @p bend where its end segment bends,
 		//@p next the point after: on one line, whichever way the segment
 		//between goes (back over the end segment, on, or no length), as
@@ -2622,12 +2629,14 @@ bool Conductor::mergeFoldedEnds()
 		return one_line && QPointF::dotProduct(next - end, bend - end) > 0.01;
 	};
 	bool merged = false;
-	while (points.size() >= 3 && folded(points.at(0), points.at(1), points.at(2))) {
+	while (points.size() >= 3 && !isDragged(1)
+		   && folded(points.at(0), points.at(1), points.at(2))) {
 		points.removeAt(1);
 		merged = true;
 	}
-	while (points.size() >= 3 && folded(points.last(), points.at(points.size() - 2),
-										points.at(points.size() - 3))) {
+	while (points.size() >= 3 && !isDragged(points.size() - 3)
+		   && folded(points.last(), points.at(points.size() - 2),
+					 points.at(points.size() - 3))) {
 		points.removeAt(points.size() - 2);
 		merged = true;
 	}
@@ -2669,7 +2678,7 @@ void Conductor::handlerMouseMoveEvent(QetGraphicsHandlerItem *qghi, QGraphicsSce
 			//rather than run back over; the segments are made anew, the one
 			//moved is found again by its points
 		const QPointF first = m_moved_segment->firstPoint(), second = m_moved_segment->secondPoint();
-		if (mergeFoldedEnds()) {
+		if (mergeFoldedEnds(m_moved_segment)) {
 			m_moved_segment = nullptr;
 			for (ConductorSegment *segment : segmentsList()) {
 				if (segment->firstPoint() == first && segment->secondPoint() == second) {

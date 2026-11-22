@@ -489,6 +489,10 @@ class tst_pipefreeend : public QObject
 				if (qAbs(h.x() - 150) < qAbs(handle.x() - 150)) handle = h;
 			}
 			mouse(QEvent::GraphicsSceneMousePress, handle, Qt::LeftButton, Qt::LeftButton);
+				// as a real mouse does, a first move within one step of the
+				// grid (the user's trial of 22/11: the three parts of the
+				// line were made one again, the drag stopped there)
+			mouse(QEvent::GraphicsSceneMouseMove, handle + QPointF(0, 1), Qt::NoButton, Qt::LeftButton);
 			mouse(QEvent::GraphicsSceneMouseMove, handle + QPointF(0, 40), Qt::NoButton, Qt::LeftButton);
 			mouse(QEvent::GraphicsSceneMouseRelease, handle + QPointF(0, 40), Qt::LeftButton, Qt::NoButton);
 				// no crash: the line goes down between two runs of 7.5 mm

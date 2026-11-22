@@ -470,8 +470,10 @@ class Conductor : public QGraphicsObject
 			/// line of an end segment (back over it, on, or of no length) is
 			/// made one with it, which is shortened or lengthened instead;
 			/// each end segment is one straight piece up to its bend. Nothing
-			/// for a wire. @return true when the segments were made anew
-		bool mergeFoldedEnds();
+			/// for a wire. While dragging, the segment @p dragged is never
+			/// made one with an end segment. @return true when the segments
+			/// were made anew
+		bool mergeFoldedEnds(const ConductorSegment *dragged = nullptr);
 			/// The movement @p asked of the segment @p moved, stopped where
 			/// the pipe would leave one of its nozzles less than exitRoom()
 			/// straight, or behind it (step 7c-bis): only the segment
