@@ -29,8 +29,9 @@
 
 /**
 	@brief PidRunReattachCommand::PidRunReattachCommand
-	To be built before the turn or the mirror is done: notes which pipes
-	already run back through their symbol.
+	To be built before the turn or the mirror is done: notes the pairs
+	the user drew the wrong way round, their pipes on the nozzles facing
+	away from them (betterSwapped()), left as they are.
 	@param elements : the elements turned or mirrored
 	@param parent : the command which turns or mirrors them
 */
@@ -46,11 +47,8 @@ PidRunReattachCommand::PidRunReattachCommand(const QList<Element *> &elements,
 		}
 		m_elements << element;
 		for (const auto &pair : pairs) {
-			for (const Terminal *nozzle : {pair.first, pair.second}) {
-				const Conductor *pipe = pipeOn(nozzle);
-				if (pipe && runsBack(nozzle, pipe)) {
-					m_back_before.insert({pipe, nozzle});
-				}
+			if (betterSwapped(pair.first, pair.second)) {
+				m_drawn_swapped.insert(QPair<const Terminal *, const Terminal *>(pair.first, pair.second));
 			}
 		}
 	}
@@ -181,19 +179,20 @@ bool PidRunReattachCommand::runsBack(const Terminal *nozzle, const Conductor *pi
 	if (!nozzle || !pipe || (pipe->terminal1 != nozzle && pipe->terminal2 != nozzle)) {
 		return false;
 	}
-	return behind(nozzle, pipe->terminal1 == nozzle ? pipe->terminal2 : pipe->terminal1);
+	return facing(nozzle, pipe->terminal1 == nozzle ? pipe->terminal2 : pipe->terminal1) < -0.5;
 }
 
 /**
-	@brief PidRunReattachCommand::behind
-	@return true when @p other lies behind @p nozzle (see runsBack()), on
-	another symbol
+	@brief PidRunReattachCommand::facing
+	@return how far @p other lies in front of @p nozzle: positive in front,
+	negative behind (see runsBack()), 0 on the line across the hotspot of
+	its symbol, for no other end, or for one on the same symbol
 */
-bool PidRunReattachCommand::behind(const Terminal *nozzle, const Terminal *other)
+qreal PidRunReattachCommand::facing(const Terminal *nozzle, const Terminal *other)
 {
 	if (!nozzle || !other || other == nozzle
 		|| other->parentElement() == nozzle->parentElement()) {
-		return false;
+		return 0;
 	}
 	QPointF facing;
 	switch (nozzle->orientation()) {
@@ -206,28 +205,39 @@ bool PidRunReattachCommand::behind(const Terminal *nozzle, const Terminal *other
 		//nozzle: turned by a quarter, a nozzle stands off the line, and the
 		//other end of a straight line would seem behind it
 	const QPointF towards = other->dockConductor() - nozzle->parentElement()->scenePos();
-		//Not 0: a turn leaves a little noise on the positions
-	return QPointF::dotProduct(facing, towards) < -0.5;
+	return QPointF::dotProduct(facing, towards);
 }
 
 /**
-	@brief PidRunReattachCommand::turnedBack
-	@return true when @p pipe runs back through the symbol of @p nozzle and
-	did not before the turn
+	@brief PidRunReattachCommand::betterSwapped
+	@return true when the pipes of @p a and @p b, two opposite nozzles,
+	would face their other ends better each on the other nozzle: the sum of
+	how far each other end lies in front of its nozzle (facing()) is
+	greater swapped. A straight line on a symbol turned by a quarter gives
+	the same sum both ways: not better. A nozzle without a pipe counts 0;
+	two without, nothing to swap.
 */
-bool PidRunReattachCommand::turnedBack(Terminal *nozzle, Conductor *pipe) const
+bool PidRunReattachCommand::betterSwapped(const Terminal *a, const Terminal *b)
 {
-	return pipe && runsBack(nozzle, pipe) && !m_back_before.contains({pipe, nozzle});
+	const Conductor *pipe_a = pipeOn(a), *pipe_b = pipeOn(b);
+	if (!pipe_a && !pipe_b) {
+		return false;
+	}
+	const Terminal *end_a = otherEnd(pipe_a, a), *end_b = otherEnd(pipe_b, b);
+	const qreal now = facing(a, end_a) + facing(b, end_b);
+	const qreal swapped = facing(b, end_a) + facing(a, end_b);
+		//Not 0: a turn leaves a little noise on the positions
+	return swapped > now + 0.5;
 }
 
 /**
 	@brief PidRunReattachCommand::moveEnds
-	In each straight pair: two pipes turned back swap their nozzles; one
-	pipe turned back goes over to the other nozzle when it is free and
-	faces it. A pipe which already ran back, or which has nowhere to go,
-	stays where it is. Each move is done at once, so that the next pairs
-	see the pipes where they now are (two symbols side by side, turned
-	each in place).
+	In each straight pair, the pipes are put on the nozzles which face
+	their other ends best (betterSwapped()): two pipes swap, one goes over
+	to the other nozzle when that one is free. A pair the user drew the
+	wrong way round before the turn stays as it is. Each move is done at
+	once, so that the next pairs see the pipes where they now are (two
+	symbols side by side, turned each in place).
 */
 void PidRunReattachCommand::moveEnds()
 {
@@ -239,19 +249,21 @@ void PidRunReattachCommand::moveEnds()
 		for (const auto &pair : straightPairs(element))
 		{
 			Terminal *a = pair.first, *b = pair.second;
+			using Pair = QPair<const Terminal *, const Terminal *>;
+			if (m_drawn_swapped.contains(Pair(a, b)) || m_drawn_swapped.contains(Pair(b, a))
+				|| !betterSwapped(a, b)) {
+				continue;
+			}
 			Conductor *pipe_a = pipeOn(a), *pipe_b = pipeOn(b);
-			const bool back_a = turnedBack(a, pipe_a);
-			const bool back_b = turnedBack(b, pipe_b);
-			if (back_a && back_b
-				&& !behind(b, otherEnd(pipe_a, a)) && !behind(a, otherEnd(pipe_b, b))) {
+			if (pipe_a && pipe_b) {
 				if (movePipe(pipe_a, a, b) && !movePipe(pipe_b, b, a)) {
 						//Never two pipes on one nozzle
 					pipe_a->moveEnd(b, a);
 					m_moves.removeLast();
 				}
-			} else if (back_a && !pipe_b && b->hasRoomForWire() && !behind(b, otherEnd(pipe_a, a))) {
+			} else if (pipe_a && b->hasRoomForWire()) {
 				movePipe(pipe_a, a, b);
-			} else if (back_b && !pipe_a && a->hasRoomForWire() && !behind(a, otherEnd(pipe_b, b))) {
+			} else if (pipe_b && a->hasRoomForWire()) {
 				movePipe(pipe_b, b, a);
 			}
 		}

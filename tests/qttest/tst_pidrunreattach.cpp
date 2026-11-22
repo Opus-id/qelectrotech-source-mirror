@@ -289,6 +289,47 @@ class tst_pidrunreattach : public QObject
 			delete first;
 		}
 
+			// The trial of the user (22/11): a tee with its run upright, a line
+			// in L up to a valve on the left, one down to a valve below, the
+			// branch to a valve on the right. A quarter turn already puts the
+			// line in L on the nozzle facing west; a half turn gives a clean
+			// run again, upright; the branch keeps N3 all along
+		void aTeeWithLinesInLTurnedByHalf()
+		{
+			m_next_y += 400;
+			Element *tee = place(m_tee, QPointF(300, m_next_y));
+			Element *up_left = place(m_valve, QPointF(100, m_next_y - 250));
+			Element *below = place(m_valve, QPointF(310, m_next_y + 200));
+			Element *right = place(m_valve, QPointF(500, m_next_y));
+			QVERIFY(tee && up_left && below && right);
+			tee->setRotation(270);
+			Terminal *n1 = nozzle(tee, "N1"), *n2 = nozzle(tee, "N2"), *n3 = nozzle(tee, "N3");
+			QCOMPARE(n1->orientation(), Qet::South);
+			QCOMPARE(n2->orientation(), Qet::North);
+			QCOMPARE(n3->orientation(), Qet::East);
+			Conductor *up = join(nozzle(up_left, "N2"), n2);
+			Conductor *down = join(n1, nozzle(below, "N1"));
+			Conductor *branch = join(n3, nozzle(right, "N1"));
+			select({tee});
+
+			RotateSelectionCommand *first = turn();
+			QCOMPARE(n1->orientation(), Qet::West);
+			QVERIFY(on(up, n1) && on(down, n2) && on(branch, n3));
+
+			RotateSelectionCommand *second = turn();
+			QCOMPARE(n1->orientation(), Qet::North);
+			QVERIFY(on(up, n1) && on(down, n2) && on(branch, n3));
+			QVERIFY(!PidRunReattachCommand::runsBack(n1, up));
+			QVERIFY(!PidRunReattachCommand::runsBack(n2, down));
+			QVERIFY(PidRunReattachCommand::runsBack(n3, branch));
+
+			second->undo();
+			first->undo();
+			QVERIFY(on(up, n2) && on(down, n1) && on(branch, n3));
+			delete second;
+			delete first;
+		}
+
 			// Two valves turned together by half, as a group: the pipe
 			// between them still joins the nozzles facing each other
 		void aPipeTurnedWithBothEndsStays()
