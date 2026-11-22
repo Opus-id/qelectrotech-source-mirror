@@ -385,6 +385,34 @@ class tst_pidrunreattach : public QObject
 			delete first;
 		}
 
+			// The trial of the user (22/11): a valve at the top of a U, its
+			// two lines drawn going down on each side, their ends at about the
+			// same height; turned by a quarter, one line has to go round
+			// whichever the nozzle: each line stays on its nozzle, although
+			// the end of the left one is a little lower
+		void aQuarterTurnOfAValveOnAU()
+		{
+			m_next_y += 500;
+			Element *valve = place(m_valve, QPointF(300, m_next_y));
+			Element *left = place(m_valve, QPointF(0, m_next_y + 310));
+			Element *right = place(m_valve, QPointF(700, m_next_y + 300));
+			QVERIFY(valve && left && right);
+			Terminal *n1 = nozzle(valve, "N1"), *n2 = nozzle(valve, "N2");
+			Conductor *in = join(nozzle(left, "N2"), n1);
+			Conductor *out = join(n2, nozzle(right, "N1"));
+			const QPointF l = nozzle(left, "N2")->dockConductor(), r = nozzle(right, "N1")->dockConductor();
+			QVERIFY(l.y() > r.y());
+			QVERIFY(in->setPathPoints({l, QPointF(170, l.y()), QPointF(170, n1->dockConductor().y()), n1->dockConductor()}));
+			QVERIFY(out->setPathPoints({n2->dockConductor(), QPointF(450, n2->dockConductor().y()), QPointF(450, r.y()), r}));
+			select({valve});
+			RotateSelectionCommand *first = turn();
+			QCOMPARE(n1->orientation(), Qet::North);
+			QVERIFY(on(in, n1) && on(out, n2));
+			first->undo();
+			QVERIFY(on(in, n1) && on(out, n2));
+			delete first;
+		}
+
 			// Two valves turned together by half, as a group: the pipe
 			// between them still joins the nozzles facing each other
 		void aPipeTurnedWithBothEndsStays()

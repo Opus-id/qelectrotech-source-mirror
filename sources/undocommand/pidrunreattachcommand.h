@@ -35,8 +35,9 @@ class Terminal;
 /**
 	@brief The PidRunReattachCommand class
 	The pipes of P&ID symbols turned or mirrored (P&ID, 5l-1h): in each
-	pair of opposite nozzles, the pipes go over to the nozzles which now
-	face their other ends best (two swap, or one goes to the free nozzle).
+	pair of opposite nozzles, the pipes go over to the other nozzles when
+	fewer of them then run back through the symbol (two swap, or one goes
+	to the free nozzle).
 	Made a child of the command which turns or mirrors the symbols
 	(RotateSelectionCommand, MirrorSelectionCommand), after the children
 	which do it: built before the turn, it notes the pairs the user drew

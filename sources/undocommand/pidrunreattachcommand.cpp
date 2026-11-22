@@ -267,11 +267,12 @@ qreal PidRunReattachCommand::facing(const Terminal *nozzle, const Terminal *othe
 /**
 	@brief PidRunReattachCommand::betterSwapped
 	@return true when the pipes of @p a and @p b, two opposite nozzles,
-	would face their other ends better each on the other nozzle: the sum of
-	how far each other end lies in front of its nozzle (facing()) is
-	greater swapped. A straight line on a symbol turned by a quarter gives
-	the same sum both ways: not better. A nozzle without a pipe counts 0;
-	two without, nothing to swap.
+	each on the other nozzle, would run back through their symbol fewer
+	(their other ends behind their nozzles, facing()). As many either way
+	(a straight line on a symbol turned by a quarter: none; a valve at the
+	top of a U turned by a quarter: one, whichever the nozzle): not better,
+	however little nearer one other end may be. A nozzle without a pipe
+	counts 0; two without, nothing to swap.
 */
 bool PidRunReattachCommand::betterSwapped(const Terminal *a, const Terminal *b)
 {
@@ -280,17 +281,20 @@ bool PidRunReattachCommand::betterSwapped(const Terminal *a, const Terminal *b)
 		return false;
 	}
 	const Terminal *end_a = otherEnd(pipe_a, a), *end_b = otherEnd(pipe_b, b);
-	const qreal now = facing(a, end_a) + facing(b, end_b);
-	const qreal swapped = facing(b, end_a) + facing(a, end_b);
 		//Not 0: a turn leaves a little noise on the positions
-	return swapped > now + 0.5;
+	auto behind = [](const Terminal *nozzle, const Terminal *other) {
+		return other && facing(nozzle, other) < -0.5 ? 1 : 0;
+	};
+	const int now = behind(a, end_a) + behind(b, end_b);
+	const int swapped = behind(b, end_a) + behind(a, end_b);
+	return swapped < now;
 }
 
 /**
 	@brief PidRunReattachCommand::moveEnds
-	In each straight pair, the pipes are put on the nozzles which face
-	their other ends best (betterSwapped()): two pipes swap, one goes over
-	to the other nozzle when that one is free. A pair the user drew the
+	In each straight pair, the pipes go over to the other nozzles when
+	fewer then run back through the symbol (betterSwapped()): two pipes
+	swap, one goes over to the other nozzle when that one is free. A pair the user drew the
 	wrong way round before the turn stays as it is. Each move is done at
 	once, so that the next pairs see the pipes where they now are (two
 	symbols side by side, turned each in place).
