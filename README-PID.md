@@ -209,7 +209,8 @@ line.*
 - **Dragging a segment** of a pipe stops 7.5 mm from the nozzle it leaves
   (a message in the status bar says so), and a line folded back on itself
   is routed anew; a detour drawn by hand stays on its side when a symbol
-  moves.
+  moves. Dragged towards a long end segment, the segment shortens it
+  instead of running back over it (wires keep their short exits).
 - **A line through a symbol is signalled**: the part of a pipe or a signal
   line that enters a symbol and leaves it again is painted orange, and its
   tool tip names the symbol. Its ends, where it meets its own nozzles, do
