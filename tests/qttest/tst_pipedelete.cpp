@@ -7,6 +7,7 @@
 #include "diagramcontent.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
+#include "pidcodification.h"
 #include "pidfreeend.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
@@ -19,7 +20,9 @@
 // the reverse of a symbol dropped on a pipe. The branch of a tee goes with
 // it; a side touching another symbol gives the pipe left that symbol's
 // nozzle; both sides touching, a pipe picked with the symbol, a side with
-// nothing, a symbol with no run: nothing is joined. Symbols removed one
+// nothing, a symbol with no run: nothing is joined. A pump (two nozzles
+// face to face) is joined as a valve; an equipment with more nozzles leaves
+// its pipes on free ends when the project has one. Symbols removed one
 // after the other leave one pipe. One step to undo. Wires are as before.
 class tst_pipedelete : public QObject
 {
@@ -53,7 +56,10 @@ class tst_pipedelete : public QObject
 
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_valve, m_tee, m_equipment, m_electrical, m_reducer, m_free_end, m_strainer;
+		// m_equipment: two nozzles face to face, no run (a pump); m_tank:
+		// three nozzles, no run
+	ElementsLocation m_valve, m_tee, m_equipment, m_electrical, m_reducer, m_free_end, m_strainer,
+			m_tank;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -182,6 +188,10 @@ class tst_pipedelete : public QObject
 			m_strainer = add("strainer.elmt", endDefinition(s, "87777777-7777-7777-7777-777777777777",
 															 QString()));
 			QVERIFY(m_free_end.exist() && m_strainer.exist());
+			QDomDocument t;
+			m_tank = add("tank.elmt", definition(t, "88888888-8888-8888-8888-888888888888",
+												 "pipe", QString(), true));
+			QVERIFY(m_tank.exist());
 			m_folio = m_project.addNewDiagram();
 		}
 
@@ -391,16 +401,86 @@ class tst_pipedelete : public QObject
 			QVERIFY(b->conductors().isEmpty());
 		}
 
-			// A symbol with no run (equipment) takes its pipes, as before
-		void aSymbolWithoutARunIsNotJoined()
+			// A pump has no run (no change of size goes through it), but its
+			// two nozzles face each other: taken away, it leaves one pipe as
+			// a valve does, with the data of the N1 side (5l-1h, 22/11)
+		void aPumpIsJoinedAsAValve()
 		{
 			const auto e = row({m_equipment, m_equipment, m_equipment});
+			Terminal *a = nozzle(e[0], "N2"), *b = nozzle(e[2], "N1");
+			draw(a, nozzle(e[1], "N1"), QStringLiteral("W01"), 100);
+			draw(nozzle(e[1], "N2"), b, QStringLiteral("W02"), 80);
+			remove({e[1]});
+			QVERIFY(joins(pipeOn(a), a, b));
+			QCOMPARE(pipeOn(a)->properties().m_pipe.fluid, QStringLiteral("W01"));
+			m_folio->undoStack().undo();
+			QCOMPARE(a->conductors().size(), 1);
+			QVERIFY(!joins(pipeOn(a), a, b));
+		}
+
+			// An equipment with more than two nozzles, without a free end set
+			// for the project, takes its pipes, as before
+		void anEquipmentWithoutAFreeEndTakesItsPipes()
+		{
+			const auto e = row({m_equipment, m_tank, m_equipment});
 			Terminal *a = nozzle(e[0], "N2"), *b = nozzle(e[2], "N1");
 			draw(a, nozzle(e[1], "N1"), QStringLiteral("W01"), 100);
 			draw(nozzle(e[1], "N2"), b, QStringLiteral("W01"), 100);
 			remove({e[1]});
 			QVERIFY(a->conductors().isEmpty());
 			QVERIFY(b->conductors().isEmpty());
+		}
+
+			// With a free end set, it leaves each of its pipes on a free end
+			// where its nozzle was, its data kept, as a closure does (5l-1h,
+			// 22/11); a pipe picked with it goes as asked; one step to undo
+		void anEquipmentLeavesItsPipesOnFreeEnds()
+		{
+			PidCodification codification = m_project.pidCodification();
+			codification.tool_symbols.insert(PidCodification::freeEndRole(),
+											 QStringLiteral("embed://import/pdelete/freeend.elmt"));
+			m_project.setPidCodification(codification);
+
+			const auto e = row({m_equipment, m_tank, m_equipment});
+			Terminal *a = nozzle(e[0], "N2"), *b = nozzle(e[2], "N1");
+			Conductor *in = draw(a, nozzle(e[1], "N1"), QStringLiteral("W01"), 100);
+			Conductor *out = draw(nozzle(e[1], "N2"), b, QStringLiteral("W02"), 80);
+			const QPointF dock_in = nozzle(e[1], "N1")->dockConductor();
+			const QPointF dock_out = nozzle(e[1], "N2")->dockConductor();
+			auto freeEndAt = [this](const QPointF &dock) -> Element * {
+				for (Element *element : m_folio->elements()) {
+					if (element->isFreeEnd()
+						&& QLineF(element->terminals().first()->dockConductor(), dock).length() < 0.5) {
+						return element;
+					}
+				}
+				return nullptr;
+			};
+			const int steps = m_folio->undoStack().index();
+
+			removeAsTheUser({e[1]});
+			QVERIFY(!e[1]->scene() && !in->scene() && !out->scene());
+			Element *end_in = freeEndAt(dock_in), *end_out = freeEndAt(dock_out);
+			QVERIFY(end_in && end_out);
+			QVERIFY(joins(pipeOn(a), a, end_in->terminals().first()));
+			QVERIFY(joins(pipeOn(b), b, end_out->terminals().first()));
+			QCOMPARE(pipeOn(a)->properties().m_pipe.fluid, QStringLiteral("W01"));
+			QCOMPARE(pipeOn(b)->properties().m_pipe.fluid, QStringLiteral("W02"));
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+
+			m_folio->undoStack().undo();
+			QCOMPARE(pipeOn(a), in);
+			QCOMPARE(pipeOn(b), out);
+			QVERIFY(!freeEndAt(dock_in) && !freeEndAt(dock_out));
+
+				// The pipe picked with it goes, the other stays open
+			removeAsTheUser({e[1], in});
+			QVERIFY(a->conductors().isEmpty());
+			QVERIFY(freeEndAt(dock_out) && !freeEndAt(dock_in));
+			m_folio->undoStack().undo();
+
+			codification.tool_symbols.remove(PidCodification::freeEndRole());
+			m_project.setPidCodification(codification);
 		}
 
 			// Wires: as before, a symbol between two wires takes them

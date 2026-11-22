@@ -409,10 +409,24 @@ namespace {
 		return PidFreeEnd::cleaned(points);
 	}
 
+		/// The pipe nozzles of @p element its options show
+	QList<const Terminal *> shownNozzles(const Element *element)
+	{
+		QList<const Terminal *> nozzles;
+		for (const Terminal *t : element->terminals()) {
+			if (t->medium() == TerminalData::Pipe && !t->isHiddenByOptions()) {
+				nozzles << t;
+			}
+		}
+		return nozzles;
+	}
+
 	/**
 		@return the nozzles a line runs through, to be joined when
 		@a element goes: its run (Element::pipeRun()), else, for a reducer,
-		which has no run since a change of DN stops there, its nozzles
+		which has no run since a change of DN stops there, its nozzles; for
+		a symbol with two nozzles only, face to face (a pump, a blower), which
+		has no run either, those two (5l-1h)
 	*/
 	QStringList joinedRun(const Element *element)
 	{
@@ -423,8 +437,27 @@ namespace {
 					run << t->baseName();
 				}
 			}
+		} else if (run.isEmpty()) {
+			const QList<const Terminal *> nozzles = shownNozzles(element);
+			if (nozzles.size() == 2
+				&& Qet::isOpposed(nozzles[0]->orientation(), nozzles[1]->orientation())) {
+				for (const Terminal *t : nozzles) {
+					if (!t->baseName().isEmpty()) {
+						run << t->baseName();
+					}
+				}
+			}
 		}
 		return run.size() >= 2 ? run : QStringList();
+	}
+
+		/// Whether @p element is an equipment with more than two nozzles (a
+		/// tank, a heat exchanger): removed, it leaves its pipes on free ends
+		/// (5l-1h, 22/11), as a closure does
+	bool isEquipment(const Element *element)
+	{
+		return !element->goesWithItsPipe() && !element->isClosure()
+				&& joinedRun(element).isEmpty() && shownNozzles(element).size() > 2;
 	}
 
 	/**
@@ -543,11 +576,12 @@ namespace {
 		would leave them a pipe. A strainer or a vent stays.
 	*/
 		/// Whether @p element, removed, leaves @p pipe open on a free end of
-		/// the project (reopenPipesOfRemovedClosures()): a closure, the pipe
-		/// not picked with it, a free end set
+		/// the project (reopenPipesOfRemovedClosures()): a closure or an
+		/// equipment (isEquipment()), the pipe not picked with it, a free end
+		/// set
 	bool reopens(const Element *element, const Conductor *pipe, const QSet<const Conductor *> &picked)
 	{
-		return element->isClosure() && !picked.contains(pipe)
+		return (element->isClosure() || isEquipment(element)) && !picked.contains(pipe)
 				&& PidFreeEnd::symbol(element->diagram()).isElement();
 	}
 
@@ -621,7 +655,8 @@ namespace {
 	  that stays, goes as asked: that side is not joined;
 	- a reducer the same way, though it has no run (a change of DN stops
 	  there): a size that differs at the far end is marked on its nozzle,
-	  as anywhere else.
+	  as anywhere else; and a symbol with two nozzles only, face to face (a
+	  pump, a blower), which has no run either (5l-1h).
 	Pipes only: an electrical terminal is never in a run.
 */
 void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
@@ -713,9 +748,11 @@ void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
 	alone leaves the line open, as it was before it was closed: its pipe
 	goes on to a free end of the project, placed where the closure was, its
 	route and its data kept (PidFreeEnd::reopen()). Its process connection
-	goes with it. A pipe the user picked along with it goes as asked, and
-	so does one whose other end goes too. Without a free end set for the
-	project, the pipe goes, as before.
+	goes with it. An equipment with more than two nozzles (a tank, a heat
+	exchanger) leaves each of its pipes the same way (5l-1h). A pipe the
+	user picked along with it goes as asked, and so does one whose other
+	end goes too. Without a free end set for the project, the pipe goes,
+	as before.
 */
 void DeleteQGraphicsItemCommand::reopenPipesOfRemovedClosures()
 {
@@ -727,7 +764,7 @@ void DeleteQGraphicsItemCommand::reopenPipesOfRemovedClosures()
 	const QSet<const Conductor *> picked = pickedConductors(m_removed_contents);
 	for (Element *element : removed)
 	{
-		if (!element->isClosure()) {
+		if (!element->isClosure() && !isEquipment(element)) {
 			continue;
 		}
 		for (Terminal *nozzle : element->terminals())
