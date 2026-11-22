@@ -33085,6 +33085,10 @@ Les autres champs ne sont pas utilisés.</translation>
         <translation>Limite de calorifuge</translation>
     </message>
     <message>
+        <source>Flow arrow</source>
+        <translation>Flèche de sens</translation>
+    </message>
+    <message>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="35"/>
         <source>Family:</source>
         <translation>Famille :</translation>

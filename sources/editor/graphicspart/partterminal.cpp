@@ -314,11 +314,11 @@ QPainterPath PartTerminal::connectionMark(QPainterPath *fills) const
 	QPainterPath lines, dots;
 	if (d->m_medium == TerminalData::Pipe && PipeConnection::hasOwnMark(d->m_connection))
 	{
-			//As Element::isPipeInline() and isSpecBreak() of a placed symbol
-		bool in_line = false, spec_break = false;
+			//As Element::isPipeInline() and isLineMark() of a placed symbol
+		bool in_line = false, line_mark = false;
 		if (auto *scene = qobject_cast<ElementScene *>(QGraphicsItem::scene())) {
 			const ElementData data = scene->elementData();
-			spec_break = data.m_pid_role == QLatin1String("spec_break");
+			line_mark = ElementData::isLineMarkRole(data.m_pid_role);
 			if (data.m_pipe_inline) {
 				int nozzles = 0;
 				for (QGraphicsItem *item : scene->items()) {
@@ -330,7 +330,7 @@ QPainterPath PartTerminal::connectionMark(QPainterPath *fills) const
 				in_line = nozzles == 2;
 			}
 		}
-		if (!spec_break && !(in_line && d->m_connection == PipeConnection::Flange)) {
+		if (!line_mark && !(in_line && d->m_connection == PipeConnection::Flange)) {
 			PipeConnection::markShapes(d->m_connection,
 									   in_line ? PipeConnection::inlineMarkDistance : 0,
 									   &lines, &dots);

@@ -370,9 +370,20 @@ class ElementData : public PropertiesInterface
 			/// the specification of the line changes (Element::isSpecBreak());
 			/// "junction", a tee, a cross, an injection point, whose lines
 			/// the program draws as the pipes they go on
-			/// (Element::isJunction()); none for any other symbol. A role
-			/// this version does not know is kept as it is.
+			/// (Element::isJunction()); "insulation_limit", where the
+			/// insulation of a line stops (Element::isInsulationLimit());
+			/// "flow_arrow", the arrow of the direction of flow, a drawing
+			/// only (Element::isFlowArrow()); none for any other symbol. A
+			/// role this version does not know is kept as it is.
 		QString m_pid_role;
+			/// True for the roles of a mark on the line, no piece (@see
+			/// Element::isLineMark()): a spec break, an insulation limit,
+			/// a flow arrow
+		static bool isLineMarkRole(const QString &role) {
+			return role == QLatin1String("spec_break")
+				|| role == QLatin1String("insulation_limit")
+				|| role == QLatin1String("flow_arrow");
+		}
 			/// The large side of a reducer, by the name of its nozzle
 			/// (attribute pid_large="N1", Element::largeNozzle()): a large
 			/// side whose size is smaller than the other one is marked as a

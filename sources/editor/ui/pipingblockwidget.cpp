@@ -123,6 +123,7 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 	m_role_cb->addItem(tr("Spec break"), QStringLiteral("spec_break"));
 	m_role_cb->addItem(tr("Junction"), QStringLiteral("junction"));
 	m_role_cb->addItem(tr("Insulation limit"), QStringLiteral("insulation_limit"));
+	m_role_cb->addItem(tr("Flow arrow"), QStringLiteral("flow_arrow"));
 		//A role the list does not know is kept as it is
 	if (!data.m_pid_role.isEmpty() && m_role_cb->findData(data.m_pid_role) < 0) {
 		m_role_cb->addItem(data.m_pid_role, data.m_pid_role);

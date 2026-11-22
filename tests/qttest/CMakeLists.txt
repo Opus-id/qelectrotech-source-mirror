@@ -701,6 +701,9 @@ qet_add_app_test(tst_pidtraversal tst_pidtraversal.cpp)
 # alike; a mark in the middle with its text; their length and colours,
 # settings of the project.
 qet_add_app_test(tst_insulation tst_insulation.cpp)
+# The flow direction arrow (step 8a): a mark on the line, the pipes drawn into
+# it; nothing stops there, a cut writes the designation once.
+qet_add_app_test(tst_flowarrow tst_flowarrow.cpp)
 # Which mark the signal lines of each type of signal take: a setting of the
 # project, nothing written by default; its file, the CSV files, the P&ID page.
 qet_add_app_test(tst_signalmarksettings tst_signalmarksettings.cpp)

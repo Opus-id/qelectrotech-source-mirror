@@ -352,12 +352,19 @@ class Element : public QetGraphicsItem
 		bool isInsulationLimit() const {
 			return m_data.m_pid_role == QLatin1String("insulation_limit");
 		}
-			/// A mark on the line, no piece: a spec break or an insulation
-			/// limit. It never draws a connection, the pipes are drawn into
-			/// its middle, and a symbol placed against it meets the
-			/// connection beyond it, as if it were not there.
+			/// True for a flow arrow (pid_role="flow_arrow", step 8a): the
+			/// arrow of the direction of flow, a drawing on the line, as
+			/// the PipeFlowArrow of DEXPI. Nothing stops there.
+		bool isFlowArrow() const {
+			return m_data.m_pid_role == QLatin1String("flow_arrow");
+		}
+			/// A mark on the line, no piece: a spec break, an insulation
+			/// limit, a flow arrow (ElementData::isLineMarkRole()). It
+			/// never draws a connection, the pipes are drawn into its
+			/// middle, and a symbol placed against it meets the connection
+			/// beyond it, as if it were not there.
 		bool isLineMark() const {
-			return isSpecBreak() || isInsulationLimit();
+			return ElementData::isLineMarkRole(m_data.m_pid_role);
 		}
 			/// Draw the symbol again in the colour its project sets now
 		void updateInk();
