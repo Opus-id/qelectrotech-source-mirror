@@ -24919,6 +24919,10 @@ Que désirez vous faire ?</translation>
 <context>
     <name>QObject</name>
     <message>
+        <source>Insulation limit deleted: the insulation of its N1 side (%1) replaces that of the other side (%2) on the line joined.</source>
+        <translation>Limite de calorifuge supprimée : le calorifuge de son côté N1 (%1) remplace celui de l&apos;autre côté (%2) sur la ligne réunie.</translation>
+    </message>
+    <message>
         <location filename="../sources/elementtextpattern.cpp" line="434"/>
         <source>Apply text format</source>
         <translation>Appliquer le style de texte</translation>

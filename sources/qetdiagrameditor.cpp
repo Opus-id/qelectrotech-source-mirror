@@ -174,6 +174,8 @@
 #include <QJsonObject>
 #include <QTime>
 #include <QStatusBar>
+#include <QCursor>
+#include <QToolTip>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QUrl>
@@ -4089,12 +4091,16 @@ void QETDiagramEditor::selectionGroupTriggered(QAction *action)
 				const bool other_items = dc.hasDeletableItems();
 
                 diagram->clearSelection();
+					//What the deletion has to say (two insulations met where a
+					//limit was taken away, 7d-bis), told once it is done
+				QString note;
 
 				if (cable_parts.isEmpty() && bridge_parts.isEmpty() && AutoConnect::isOn(diagram)) {
 						//The terminals the removed symbols stood between, or
 						//were wired to, look for a new partner in the same step
 					auto *undo = new QUndoCommand(QObject::tr("Delete"));
 					auto *del = new DeleteQGraphicsItemCommand(diagram, dc, undo);
+					note = del->note();
 					undo->setText(del->text());
 					AutoConnect::update(diagram, {}, {}, undo,
 										QSet<Element *>(picked_elements.begin(), picked_elements.end()));
@@ -4102,7 +4108,9 @@ void QETDiagramEditor::selectionGroupTriggered(QAction *action)
 				} else {
 					QList<QUndoCommand *> steps;
 					if (other_items || (cable_parts.isEmpty() && bridge_parts.isEmpty())) {
-						steps << new DeleteQGraphicsItemCommand(diagram, dc);
+						auto *del = new DeleteQGraphicsItemCommand(diagram, dc);
+						note = del->note();
+						steps << del;
 					}
 					if (!cable_parts.isEmpty()) {
 						steps << new RemoveCableCommand(diagram, cable_parts);
@@ -4118,6 +4126,9 @@ void QETDiagramEditor::selectionGroupTriggered(QAction *action)
 					} else {
 						diagram->undoStack().push(new BatchCommand(steps, tr("Delete")));
 					}
+				}
+				if (!note.isEmpty()) {
+					QToolTip::showText(QCursor::pos(), note, dv);
 				}
                 dv->adjustSceneRect();
             }

@@ -14,6 +14,8 @@
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 #include "ui/pipepropertieswidget.h"
+#include "undocommand/deleteqgraphicsitemcommand.h"
+#include "diagramcontent.h"
 
 #include <algorithm>
 
@@ -377,7 +379,7 @@ class tst_insulation : public QObject
 			mark->click();
 			QCOMPARE(stack.count(), steps + 3);
 			for (Conductor *pipe : {p1, p2, p3}) {
-				const PipeProperties &p = pipe->properties().m_pipe;
+				const PipeProperties p = pipe->properties().m_pipe;
 				QCOMPARE(p.insulation_kind, PipeProperties::InsulationAndTracing);
 				QCOMPARE(p.insulation, QStringLiteral("Q 80"));
 				QVERIFY(p.insulation_mark);
@@ -411,6 +413,63 @@ class tst_insulation : public QObject
 			for (Conductor *pipe : {left, right, branch}) {
 				QCOMPARE(pipe->properties().m_pipe.insulation_kind, PipeProperties::Insulation);
 			}
+		}
+
+			// An insulation limit deleted: the insulation no longer stops
+			// there; the insulated side gives its insulation to the line
+			// joined, up to the next limit or equipment, whichever way the
+			// limit was drawn; two insulations which differ: that of the
+			// N1 side, and the user is told; one undo step (7d-bis, choice
+			// of the user of 22/11)
+		void anInsulationLimitDeletedSpreadsTheInsulation()
+		{
+				// equipment ─p1─ valve ─p2─ limit ─p3─ valve ─p4─ equipment,
+				// insulated beyond the limit only
+			const auto e = row({m_equipment, m_valve, m_limit, m_valve, m_equipment});
+			Conductor *p1 = draw(nozzle(e[0], "N2"), nozzle(e[1], "N1"));
+			draw(nozzle(e[1], "N2"), nozzle(e[2], "N1"));
+			Conductor *p3 = draw(nozzle(e[2], "N2"), nozzle(e[3], "N1"));
+			Conductor *p4 = draw(nozzle(e[3], "N2"), nozzle(e[4], "N1"));
+			for (Conductor *pipe : {p3, p4}) {
+				insulate(pipe, PipeProperties::InsulationAndTracing, false, QStringLiteral("Q 80"));
+			}
+			auto remove = [this](Element *limit) {
+				m_folio->clearSelection();
+				limit->setSelected(true);
+				auto *del = new DeleteQGraphicsItemCommand(m_folio, DiagramContent(m_folio, true));
+				const QString note = del->note();
+				m_folio->undoStack().push(del);
+				return note;
+			};
+			auto joined = [](Terminal *at) {
+				return at->conductors().isEmpty() ? nullptr : at->conductors().first();
+			};
+			QVERIFY(remove(e[2]).isEmpty());
+			Conductor *line = joined(nozzle(e[1], "N2"));
+			QVERIFY(line && line != p3);
+			for (Conductor *pipe : {p1, line, p4}) {
+				QCOMPARE(pipe->properties().m_pipe.insulation_kind, PipeProperties::InsulationAndTracing);
+				QCOMPARE(pipe->properties().m_pipe.insulation, QStringLiteral("Q 80"));
+			}
+				// stubs at the equipment only
+			QVERIFY(p1->insulationEndsAt(nozzle(e[0], "N2")));
+			QVERIFY(!line->insulationEndsAt(nozzle(e[1], "N2")));
+				// one step back: the limit and the bare side again
+			m_folio->undoStack().undo();
+			QVERIFY(e[2]->scene());
+			QCOMPARE(p1->properties().m_pipe.insulation_kind, PipeProperties::NoInsulation);
+
+				// two insulations: that of the N1 side, said
+			const auto f = row({m_equipment, m_limit, m_valve, m_equipment});
+			Conductor *q1 = draw(nozzle(f[0], "N2"), nozzle(f[1], "N1"), PipeProperties::Insulation);
+			draw(nozzle(f[1], "N2"), nozzle(f[2], "N1"), PipeProperties::Tracing);
+			Conductor *q3 = draw(nozzle(f[2], "N2"), nozzle(f[3], "N1"), PipeProperties::Tracing);
+			const QString note = remove(f[1]);
+			QVERIFY(!note.isEmpty());
+			Conductor *joined_q = joined(nozzle(f[0], "N2"));
+			QVERIFY(joined_q && joined_q != q1);
+			QCOMPARE(joined_q->properties().m_pipe.insulation_kind, PipeProperties::Insulation);
+			QCOMPARE(q3->properties().m_pipe.insulation_kind, PipeProperties::Insulation);
 		}
 
 			// A tee: nothing where the run goes on insulated, the branch

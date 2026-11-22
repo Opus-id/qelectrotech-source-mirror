@@ -22,6 +22,7 @@
 #include <diagram.h>
 #include <qetproject.h>
 #include "addgraphicsobjectcommand.h"
+#include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include <qetdiagrameditor.h>
 #include <qetgraphicsitem/ViewItem/qetgraphicstableitem.h>
 #include <qetgraphicsitem/conductor.h>
@@ -721,6 +722,13 @@ void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
 				continue;
 			}
 			pipe->setProperties(data.pipe->properties());
+				//An insulation limit taken away: the insulation no longer
+				//stops there (7d-bis)
+			if (element->isInsulationLimit() && one.pipe && two.pipe) {
+				const bool first_is_n1 = first->baseName() != QLatin1String("N2");
+				spreadInsulationOverRemovedLimit(pipe, first_is_n1 ? one.pipe : two.pipe,
+												 first_is_n1 ? two.pipe : one.pipe, gone);
+			}
 			pipe->takeNozzleDiameter();
 				//The route of the line kept, through where the symbol stood,
 				//its bends moved by hand included (7c); else a new one
@@ -739,6 +747,80 @@ void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
 			}
 			new AddGraphicsObjectCommand(pipe, m_diagram, QPointF(), this);
 		}
+	}
+}
+
+/**
+	@brief DeleteQGraphicsItemCommand::spreadInsulationOverRemovedLimit
+	An insulation limit taken away between @p n1_side and @p n2_side, the
+	pipes on its N1 and N2 sides, which @p joined replaces: the insulation
+	no longer stops there, so the line joined has one (choice of the user
+	of 22/11, step 7d-bis). An insulated side gives its insulation (kind,
+	text, mark) to @p joined and to the whole line of the other side, up to
+	the next limit or equipment (Conductor::LineReach::Insulation), each in
+	this step; whichever way the limit was drawn. Two insulations which
+	differ: that of the N1 side, as for the other data of the line, and
+	note() says so. Neither insulated, or alike: nothing.
+*/
+void DeleteQGraphicsItemCommand::spreadInsulationOverRemovedLimit(
+		Conductor *joined, Conductor *n1_side, Conductor *n2_side, const QList<Conductor *> &gone)
+{
+	const PipeProperties a = n1_side->properties().m_pipe;
+	const PipeProperties b = n2_side->properties().m_pipe;
+	const bool a_on = a.insulation_kind != PipeProperties::NoInsulation;
+	const bool b_on = b.insulation_kind != PipeProperties::NoInsulation;
+	const bool alike = a.insulation_kind == b.insulation_kind && a.insulation == b.insulation
+			&& a.insulation_mark == b.insulation_mark;
+	if ((!a_on && !b_on) || alike) {
+		return;
+	}
+		//The N1 side, unless it has none
+	const bool from_n1 = a_on;
+	Conductor *winner = from_n1 ? n1_side : n2_side;
+	Conductor *loser = from_n1 ? n2_side : n1_side;
+	const PipeProperties given = winner->properties().m_pipe;
+	auto take = [&given](ConductorProperties &properties) {
+		properties.m_pipe.insulation_kind = given.insulation_kind;
+		properties.m_pipe.insulation = given.insulation;
+		properties.m_pipe.insulation_mark = given.insulation_mark;
+	};
+
+	ConductorProperties joined_data = joined->properties();
+	take(joined_data);
+	joined->setProperties(joined_data);
+
+		//The line of the other side, the limit still there: it stops at it
+	for (Conductor *pipe : loser->inlineRun(Conductor::LineReach::Insulation))
+	{
+		if (gone.contains(pipe)) {
+			continue;
+		}
+		ConductorProperties data = pipe->properties();
+		take(data);
+		if (data == pipe->properties()) {
+			continue;
+		}
+		QVariant old_value, new_value;
+		old_value.setValue(pipe->properties());
+		new_value.setValue(data);
+		new QPropertyUndoCommand(pipe, "properties", old_value, new_value, this);
+	}
+
+	if (a_on && b_on)
+	{
+		auto said = [](const PipeProperties &p) {
+			QString name;
+			for (const auto &entry : PipeProperties::insulationKinds()) {
+				if (entry.first == p.insulation_kind) {
+					name = entry.second;
+				}
+			}
+			return p.insulation.trimmed().isEmpty()
+					? name : QStringLiteral("%1 %2").arg(name, p.insulation.trimmed());
+		};
+		m_note = QObject::tr("Insulation limit deleted: the insulation of its N1 side (%1) "
+							 "replaces that of the other side (%2) on the line joined.")
+				 .arg(said(a), said(b));
 	}
 }
 

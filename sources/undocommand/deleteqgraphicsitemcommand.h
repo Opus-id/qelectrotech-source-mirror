@@ -41,12 +41,18 @@ class DeleteQGraphicsItemCommand : public QUndoCommand
 			/// symbol dropped on it (autoBreakConductors()) keeps its free
 			/// end. A strainer or a vent stays. Returns how many were added.
 		static int addLonelyFreeEnds(DiagramContent &content);
+			/// What the user is told after this deletion: two insulations
+			/// met where an insulation limit was taken away (7d-bis); empty
+			/// otherwise
+		QString note() const { return m_note; }
 
 	private:
 		DeleteQGraphicsItemCommand(const DeleteQGraphicsItemCommand &);
 		void setPotentialsOfRemovedElements();
 		Terminal *terminalInSamePotential(Terminal *terminal, Conductor *conductor_to_exclude);
 		void rejoinPipesOfRemovedElements();
+		void spreadInsulationOverRemovedLimit(Conductor *joined, Conductor *n1_side,
+											  Conductor *n2_side, const QList<Conductor *> &gone);
 			/// A closure removed alone (Element::isClosure()) leaves its pipe
 			/// on a free end of the project (PidFreeEnd::reopen(), 6b-3c2)
 		void reopenPipesOfRemovedClosures();
@@ -65,6 +71,7 @@ class DeleteQGraphicsItemCommand : public QUndoCommand
 		QList <std::pair<Terminal *, Terminal *>> m_connected_terminals;
 		QHash <QetGraphicsTableItem *, QPointer<QGraphicsScene>> m_table_scene_hash;
 		bool m_remove_linked_table = false;
+		QString m_note;
 };
 
 #endif // DELETEQGRAPHICSITEMCOMMAND_H
