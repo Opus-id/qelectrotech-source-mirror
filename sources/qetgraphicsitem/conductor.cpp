@@ -2606,10 +2606,10 @@ void Conductor::splitEndSegments()
 	The end segment is only shortened, never turned round: the segment
 	dragged stops short of a nozzle (stoppedAtExits()).
 */
-void Conductor::mergeFoldedEnds()
+bool Conductor::mergeFoldedEnds()
 {
 	if (m_properties.m_medium == TerminalData::Electrical) {
-		return;
+		return false;
 	}
 	QList<QPointF> points = segmentsToPoints();
 		//@p end the end of the line, @p bend where its end segment bends,
@@ -2636,6 +2636,7 @@ void Conductor::mergeFoldedEnds()
 		pointsToSegments(points);
 		segmentsToPath();
 	}
+	return merged;
 }
 
 /**
@@ -2665,6 +2666,23 @@ void Conductor::handlerMouseMoveEvent(QetGraphicsHandlerItem *qghi, QGraphicsSce
 		modified_path = true;
 		has_to_save_profile = true;
 		segmentsToPath();
+			//Already while dragging, an end segment of a pipe is shortened
+			//rather than run back over; the segments are made anew, the one
+			//moved is found again by its points
+		const QPointF first = m_moved_segment->firstPoint(), second = m_moved_segment->secondPoint();
+		if (mergeFoldedEnds()) {
+			m_moved_segment = nullptr;
+			for (ConductorSegment *segment : segmentsList()) {
+				if (segment->firstPoint() == first && segment->secondPoint() == second) {
+					m_moved_segment = segment;
+					break;
+				}
+			}
+			if (!m_moved_segment) {
+				m_moving_segment = false;
+				return;
+			}
+		}
 		calculateTextItemPosition();
 		qghi->setPos(mapToScene(m_moved_segment->middle()));
 	}
