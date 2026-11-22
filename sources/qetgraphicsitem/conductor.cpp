@@ -2199,6 +2199,14 @@ void Conductor::updateTraversals() const
 		if (!rect.intersects(candidate.outline.rect.adjusted(-1, -1, 1, 1))) {
 			continue;
 		}
+			//A mark on the line is drawn over its own pipes: the points of the
+			//arrow of both ways go beyond its nozzles (step 8a-bis-1c). Any
+			//other pipe running over it is still said
+		if (candidate.element->isLineMark()
+			&& ((terminal1 && terminal1->parentElement() == candidate.element)
+				|| (terminal2 && terminal2->parentElement() == candidate.element))) {
+			continue;
+		}
 		const QList<PidTraversal::Span> spans = PidTraversal::traversals(line, candidate.outline);
 		if (spans.isEmpty()) {
 			continue;

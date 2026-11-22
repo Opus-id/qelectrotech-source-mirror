@@ -113,9 +113,15 @@ class tst_pipeflow : public QObject
 									QLatin1String("medium=\"pipe\" pid_chamber=\"1\""))
 					+ north(chamber("2")))},
 				//The arrow of both ways
+				//its points beyond its nozzles, as the arrow of the collection
 			{QStringLiteral("both.elmt"), symbol(QStringLiteral("7f11111a-1111-1111-1111-111111111111"),
 					QStringLiteral("pid_family=\"pipe\" pid_inline=\"true\" pid_role=\"flow_arrow\""),
-					QStringLiteral("pid_flow_role=\"both\""), QStringLiteral("pid_flow_role=\"both\""))},
+					QStringLiteral("pid_flow_role=\"both\""), QStringLiteral("pid_flow_role=\"both\""),
+					QStringLiteral(
+				"<polygon x1=\"-10\" y1=\"-10\" x2=\"-30\" y2=\"0\" x3=\"-10\" y3=\"10\" closed=\"false\" "
+				"antialias=\"false\" style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"
+				"<polygon x1=\"10\" y1=\"-10\" x2=\"30\" y2=\"0\" x3=\"10\" y3=\"10\" closed=\"false\" "
+				"antialias=\"false\" style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"))},
 				//A vessel: its three nozzles one chamber
 			{QStringLiteral("vessel.elmt"), symbol(QStringLiteral("7f111119-1111-1111-1111-111111111111"),
 					QStringLiteral("pid_family=\"equipment\""), chamber("1"), chamber("1"),
@@ -528,6 +534,10 @@ class tst_pipeflow : public QObject
 				// nothing found beyond it, never a disagreement
 			QCOMPARE(PidFlow::direction(waste), PidFlow::Direction::Unknown);
 			QVERIFY(nozzle(both, "N1")->toolTip().contains(QLatin1String("both ways")));
+				// its points, beyond its nozzles, lie over its own pipes: no
+				// traversal said
+			QVERIFY(!to_arrow->traversedSymbols().contains(both));
+			QVERIFY(!to_filter->traversedSymbols().contains(both));
 		}
 
 		void aSignalLineHasNoDirection()
