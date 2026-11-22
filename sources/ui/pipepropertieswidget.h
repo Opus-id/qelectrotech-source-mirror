@@ -80,8 +80,8 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// class, nominal pressure) passes to; those their fluid, their
 			/// line number or their flow passes to, see Conductor::inlineRun();
 			/// those their kind of line passes to, the same as their line
-			/// number
-		enum class Reach { Selection, Size, Spec, Fluid, LineNumber, LineKind, Flow };
+			/// number; those their insulation passes to (step 7d-bis)
+		enum class Reach { Selection, Size, Spec, Fluid, LineNumber, LineKind, Flow, Insulation };
 
 		void buildUi();
 		QLineEdit *addTextField(const QString &name, const QString &label,

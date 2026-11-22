@@ -340,27 +340,47 @@ void PipePropertiesWidget::buildUi()
 		applyChange([status](PipeProperties &p) { p.status = status; });
 	});
 
-		//Its insulation, heat tracing or both: on this pipe only, never
-		//passed on, one part of a line being insulated and not the other
-		//(step 7d). It draws stubs where the insulated part begins and ends
+		//Its insulation, heat tracing or both, its text and its mark: on the
+		//whole line, through valves, reducers, tees, spec breaks and flow
+		//arrows, up to an insulation limit or equipment (step 7d-bis, choice
+		//of the user of 22/11, instead of this pipe only). It draws stubs
+		//where the insulated part begins and ends
 	m_insulation_kind = new QComboBox(this);
 	m_insulation_kind->setObjectName(QStringLiteral("insulation_kind"));
 	for (const auto &kind : PipeProperties::insulationKinds()) {
 		m_insulation_kind->addItem(kind.second, int(kind.first));
 	}
 	m_insulation_kind->setToolTip(PidToolTip::wrapped(
-		tr("A hatched stub (insulation), dashed (heat tracing) or both is drawn where the "
-		   "insulated part of the line begins and ends: at equipment, at a free end, at an "
-		   "insulation limit, beside a pipe which has none. Nothing at a valve or a tee "
-		   "between two insulated pipes.")));
+		tr("Given to the whole line, through valves, tees and flow arrows, up to an "
+		   "insulation limit or equipment. A hatched stub (insulation), dashed (heat tracing) "
+		   "or both is drawn where the insulated part of the line begins and ends: at "
+		   "equipment, at a free end, at an insulation limit, beside a pipe which has none.")));
 	layout->addRow(tr("Insulation:"), m_insulation_kind);
 	connect(m_insulation_kind, &QComboBox::activated, this, [this](int index) {
 		const auto kind = PipeProperties::InsulationKind(m_insulation_kind->itemData(index).toInt());
-		applyChange([kind](PipeProperties &p) { p.insulation_kind = kind; });
+			//The other kinds said by their names in the list
+		auto name = [](PipeProperties::InsulationKind k) {
+			for (const auto &entry : PipeProperties::insulationKinds()) {
+				if (entry.first == k) {
+					return entry.second;
+				}
+			}
+			return QString();
+		};
+		const QString note = lineNote([name](const PipeProperties &p) {
+			return p.insulation_kind == PipeProperties::NoInsulation ? QString()
+																	 : name(p.insulation_kind);
+		}, kind == PipeProperties::NoInsulation ? QString() : name(kind), Reach::Insulation);
+		applyChange([kind](PipeProperties &p) { p.insulation_kind = kind; }, Reach::Insulation);
+			//Said after the change, which clears what was said
+		if (!note.isEmpty()) {
+			m_refused = note;
+			updateUi();
+		}
 	});
 	QLineEdit *insulation = addTextField(QStringLiteral("insulation"), tr("Insulation text:"),
 				 [](const PipeProperties &p) { return p.insulation; },
-				 [](PipeProperties &p, const QString &t) { p.insulation = t; });
+				 [](PipeProperties &p, const QString &t) { p.insulation = t; }, Reach::Insulation);
 	insulation->setPlaceholderText(tr("Q 80"));
 	insulation->setToolTip(PidToolTip::wrapped(
 		tr("Written by {insulation} in the designation, and beside the mark in the middle.")));
@@ -369,7 +389,7 @@ void PipePropertiesWidget::buildUi()
 	layout->addRow(QString(), m_insulation_mark);
 	connect(m_insulation_mark, &QCheckBox::clicked, this, [this]() {
 		const bool marked = m_insulation_mark->checkState() != Qt::Unchecked;
-		applyChange([marked](PipeProperties &p) { p.insulation_mark = marked; });
+		applyChange([marked](PipeProperties &p) { p.insulation_mark = marked; }, Reach::Insulation);
 	});
 
 		//One button shows the colour drawn and where it comes from, and
@@ -1239,6 +1259,7 @@ QList<Conductor *> PipePropertiesWidget::changedPipes(Reach reach) const
 											  : reach == Reach::LineNumber ? Conductor::LineReach::LineNumber
 											  : reach == Reach::LineKind   ? Conductor::LineReach::LineNumber
 											  : reach == Reach::Flow       ? Conductor::LineReach::Flow
+											  : reach == Reach::Insulation ? Conductor::LineReach::Insulation
 																		   : Conductor::LineReach::Size;
 		for (Conductor *pipe : pipes()) {
 			for (Conductor *next : pipe->inlineRun(line_reach)) {
@@ -1302,6 +1323,11 @@ QString PipePropertiesWidget::lineNote(const std::function<QString(const PipePro
 		note += QLatin1Char(' ')
 				+ tr("%n of them had another flow (%1): only a tee, an injection point or "
 					 "equipment keeps two flows apart.", "", replaced)
+				  .arg(values.join(QStringLiteral(", ")));
+	} else if (replaced && reach == Reach::Insulation) {
+		note += QLatin1Char(' ')
+				+ tr("%n of them had another insulation (%1): only an insulation limit or "
+					 "equipment keeps two insulations apart.", "", replaced)
 				  .arg(values.join(QStringLiteral(", ")));
 	} else if (replaced) {
 		note += QLatin1Char(' ')

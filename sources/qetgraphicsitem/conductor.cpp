@@ -4791,6 +4791,11 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 			&& (siblings.size() >= 2 || (element && element->isJunction()))) {
 			continue;
 		}
+			//The insulation stops at its limit, on both sides; it goes
+			//through anything else on the line, as the fluid does
+		if (reach == LineReach::Insulation && element && element->isInsulationLimit()) {
+			continue;
+		}
 			//Through a tee or a cross the line goes on straight, with its
 			//size and its number: a branch is another line
 		if (reach == LineReach::Size || reach == LineReach::LineNumber) {

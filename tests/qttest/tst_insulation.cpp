@@ -13,8 +13,14 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "ui/pipepropertieswidget.h"
 
 #include <algorithm>
+
+#include <QCheckBox>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QUndoStack>
 
 #include <QDomDocument>
 #include <QImage>
@@ -332,6 +338,79 @@ class tst_insulation : public QObject
 			const qreal from = right->mapRectToScene(hatches.boundingRect()).left();
 			QVERIFY(qAbs(from - nozzle(e[1], "N2")->dockConductor().x()) < 0.01);
 			QVERIFY(from > e[1]->pos().x() + 1);
+		}
+
+			// The insulation given on the page of a pipe goes to the whole
+			// line, through a valve, a flow arrow, a tee and its branch, up
+			// to an insulation limit or equipment: its kind, its text and
+			// its mark, one undo step each (step 7d-bis, choice of the user
+			// of 22/11, instead of the pipe selected only)
+		void theInsulationGoesToTheWholeLine()
+		{
+				// equipment ─p1─ valve ─p2─ arrow ─p3─ limit ─p4─ equipment
+			const auto e = row({m_equipment, m_valve, m_arrow, m_limit, m_equipment});
+			Conductor *p1 = draw(nozzle(e[0], "N2"), nozzle(e[1], "N1"));
+			Conductor *p2 = draw(nozzle(e[1], "N2"), nozzle(e[2], "N1"));
+			Conductor *p3 = draw(nozzle(e[2], "N2"), nozzle(e[3], "N1"));
+			Conductor *p4 = draw(nozzle(e[3], "N2"), nozzle(e[4], "N1"));
+			QList<Conductor *> run = p2->inlineRun(Conductor::LineReach::Insulation);
+			std::sort(run.begin(), run.end());
+			QList<Conductor *> expected{p1, p2, p3};
+			std::sort(expected.begin(), expected.end());
+			QCOMPARE(run, expected);
+				// a limit stops it, on both sides
+			QCOMPARE(p4->inlineRun(Conductor::LineReach::Insulation), QList<Conductor *>({p4}));
+
+			PipePropertiesWidget page({p2});
+			auto *kind = page.findChild<QComboBox *>(QStringLiteral("insulation_kind"));
+			auto *text = page.findChild<QLineEdit *>(QStringLiteral("insulation"));
+			auto *mark = page.findChild<QCheckBox *>(QStringLiteral("insulation_mark"));
+			QVERIFY(kind && text && mark);
+			QUndoStack &stack = m_folio->undoStack();
+			const int steps = stack.count();
+			const int traced = kind->findData(int(PipeProperties::InsulationAndTracing));
+			kind->setCurrentIndex(traced);
+			emit kind->activated(traced);
+			text->setText(QStringLiteral("Q 80"));
+			text->setModified(true);
+			emit text->editingFinished();
+			mark->click();
+			QCOMPARE(stack.count(), steps + 3);
+			for (Conductor *pipe : {p1, p2, p3}) {
+				const PipeProperties &p = pipe->properties().m_pipe;
+				QCOMPARE(p.insulation_kind, PipeProperties::InsulationAndTracing);
+				QCOMPARE(p.insulation, QStringLiteral("Q 80"));
+				QVERIFY(p.insulation_mark);
+			}
+			QCOMPARE(p4->properties().m_pipe, PipeProperties());
+				// stubs at the equipment and the limit only
+			QVERIFY(p1->insulationEndsAt(nozzle(e[0], "N2")));
+			QVERIFY(!p1->insulationEndsAt(nozzle(e[1], "N1")));
+			QVERIFY(!p2->insulationEndsAt(nozzle(e[2], "N1")));
+			QVERIFY(p3->insulationEndsAt(nozzle(e[3], "N1")));
+				// back to none, on the whole line again
+			const int none = kind->findData(int(PipeProperties::NoInsulation));
+			kind->setCurrentIndex(none);
+			emit kind->activated(none);
+			for (Conductor *pipe : {p1, p2, p3}) {
+				QCOMPARE(pipe->properties().m_pipe.insulation_kind, PipeProperties::NoInsulation);
+			}
+			stack.undo();
+			QCOMPARE(p1->properties().m_pipe.insulation_kind, PipeProperties::InsulationAndTracing);
+
+				// a tee: on through it, the branch included
+			const auto t = row({m_equipment, m_tee, m_equipment});
+			Element *below = place(m_equipment, t[1]->pos() + QPointF(0, 100));
+			Conductor *left = draw(nozzle(t[0], "N2"), nozzle(t[1], "N1"));
+			Conductor *right = draw(nozzle(t[1], "N2"), nozzle(t[2], "N1"));
+			Conductor *branch = draw(nozzle(t[1], "N3"), nozzle(below, "N1"));
+			page.setPipes({left});
+			const int insulated = kind->findData(int(PipeProperties::Insulation));
+			kind->setCurrentIndex(insulated);
+			emit kind->activated(insulated);
+			for (Conductor *pipe : {left, right, branch}) {
+				QCOMPARE(pipe->properties().m_pipe.insulation_kind, PipeProperties::Insulation);
+			}
 		}
 
 			// A tee: nothing where the run goes on insulated, the branch

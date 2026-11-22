@@ -307,8 +307,10 @@ class Conductor : public QGraphicsObject
 			/// How far a line goes on through its symbols, see inlineRun():
 			/// what its size passes through, what its material, piping
 			/// class and nominal pressure pass through, what its fluid
-			/// passes through, its line number, or its flow
-		enum class LineReach { Size, Spec, Fluid, LineNumber, Flow };
+			/// passes through, its line number, its flow, or its insulation
+			/// (as its fluid, but stopped by an insulation limit; step
+			/// 7d-bis, choice of the user of 22/11)
+		enum class LineReach { Size, Spec, Fluid, LineNumber, Flow, Insulation };
 		QList<Conductor *> inlineRun(LineReach reach = LineReach::Size);
 			/// This pipe, when it has no size, and the pipes without a size
 			/// its size would pass to (inlineRun(), LineReach::Size): a pipe

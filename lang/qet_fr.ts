@@ -16917,8 +16917,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Calorifuge :</translation>
     </message>
     <message>
-        <source>A hatched stub (insulation), dashed (heat tracing) or both is drawn where the insulated part of the line begins and ends: at equipment, at a free end, at an insulation limit, beside a pipe which has none. Nothing at a valve or a tee between two insulated pipes.</source>
-        <translation>Une amorce hachurée (calorifuge), en tirets (traçage) ou les deux est dessinée là où la partie calorifugée de la ligne commence et finit : à un équipement, à une extrémité libre, à une limite de calorifuge, à côté d&apos;une tuyauterie qui n&apos;en a pas. Rien à une vanne ou à un Té entre deux tuyauteries calorifugées.</translation>
+        <source>Given to the whole line, through valves, tees and flow arrows, up to an insulation limit or equipment. A hatched stub (insulation), dashed (heat tracing) or both is drawn where the insulated part of the line begins and ends: at equipment, at a free end, at an insulation limit, beside a pipe which has none.</source>
+        <translation>Donné à toute la ligne, à travers vannes, Tés et flèches de sens, jusqu&apos;à une limite de calorifuge ou un équipement. Une amorce hachurée (calorifuge), en tirets (traçage) ou les deux est dessinée là où la partie calorifugée de la ligne commence et finit : à un équipement, à une extrémité libre, à une limite de calorifuge, à côté d&apos;une tuyauterie qui n&apos;en a pas.</translation>
     </message>
     <message>
         <source>Insulation text:</source>
@@ -17196,6 +17196,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>
             <numerusform>Dont %n qui avait une autre valeur (%1) : une rupture de spécification protège un tronçon d&apos;un tel changement.</numerusform>
             <numerusform>Dont %n qui avaient une autre valeur (%1) : une rupture de spécification protège un tronçon d&apos;un tel changement.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n of them had another insulation (%1): only an insulation limit or equipment keeps two insulations apart.</source>
+        <translation>
+            <numerusform>Dont %n qui avait un autre calorifuge (%1) : seuls une limite de calorifuge ou un équipement séparent deux calorifuges.</numerusform>
+            <numerusform>Dont %n qui avaient un autre calorifuge (%1) : seuls une limite de calorifuge ou un équipement séparent deux calorifuges.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
