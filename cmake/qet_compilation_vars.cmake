@@ -1174,6 +1174,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/undocommand/alignselectioncommand.h
   ${QET_DIR}/sources/undocommand/mirrorselectioncommand.cpp
   ${QET_DIR}/sources/undocommand/mirrorselectioncommand.h
+  ${QET_DIR}/sources/undocommand/pidrunreattachcommand.cpp
+  ${QET_DIR}/sources/undocommand/pidrunreattachcommand.h
   ${QET_DIR}/sources/undocommand/resetconductortextscommand.cpp
   ${QET_DIR}/sources/undocommand/resetconductortextscommand.h
   ${QET_DIR}/sources/undocommand/resetsymboltextscommand.cpp

@@ -674,6 +674,10 @@ qet_add_app_test(tst_pipedesignation tst_pipedesignation.cpp)
 # of its line: a valve upside down stays on it. An electrical one keeps its
 # centre.
 qet_add_app_test(tst_pidmirror tst_pidmirror.cpp)
+# A P&ID symbol turned or mirrored on its line: a pipe the turn leaves
+# running back through it goes over to the nozzle facing it, in the same
+# undo step; the branch of a tee keeps its pipe.
+qet_add_app_test(tst_pidrunreattach tst_pidrunreattach.cpp)
 # The text of a conductor moved away from it: a leader line from the distance
 # the project gives (none by default), and a command which puts the texts back
 # in their place.

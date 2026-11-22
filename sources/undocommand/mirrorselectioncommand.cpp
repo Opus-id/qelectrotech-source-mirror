@@ -21,6 +21,7 @@
 #include <diagram.h>
 #include <qetgraphicsitem/element.h>
 #include <qetgraphicsitem/terminal.h>
+#include <undocommand/pidrunreattachcommand.h>
 
 #include <algorithm>
 
@@ -107,6 +108,11 @@ MirrorSelectionCommand::MirrorSelectionCommand(const QList<Element *> &elements,
 		if (new_pos != old_pos)
 			new QPropertyUndoCommand(element, "pos", old_pos, new_pos, this);
 	}
+
+		//The pipes the mirror leaves running back through their symbol go
+		//over to the nozzle facing them (P&ID, 5l-1h), after the mirror
+	if (childCount() && PidRunReattachCommand::concerns(elements))
+		new PidRunReattachCommand(elements, this);
 }
 
 /**

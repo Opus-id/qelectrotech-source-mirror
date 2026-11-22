@@ -27,6 +27,7 @@
 #include <qetgraphicsitem/element.h>
 #include <qetgraphicsitem/elementtextitemgroup.h>
 #include <qetgraphicsitem/independenttextitem.h>
+#include <undocommand/pidrunreattachcommand.h>
 
 #include <QGraphicsItem>
 #include <QtMath>
@@ -125,6 +126,17 @@ m_diagram(diagram)
 					break;
 			}
 		}
+
+			//The pipes the turn leaves running back through their symbol go
+			//over to the nozzle facing them (P&ID, 5l-1h): a child after
+			//those which turn, so that its redo comes after the turn and
+			//its undo before it
+		QList<Element *> elements;
+		for (QGraphicsItem *item : m_diagram->selectedItems())
+			if (Element *element = qgraphicsitem_cast<Element *>(item))
+				elements << element;
+		if (childCount() && PidRunReattachCommand::concerns(elements))
+			new PidRunReattachCommand(elements, this);
 
 		for (QPropertyUndoCommand *undo : m_undo)
 			undo->setAnimated(true, false);
