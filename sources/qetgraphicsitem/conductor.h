@@ -228,8 +228,9 @@ class Conductor : public QGraphicsObject
 		void refreshDesignation();
 			/// The pieces of the pipe @a whole cut by a symbol, which all took
 			/// its data: only one keeps showing its designation, so that a cut
-			/// never writes it twice. The longest one, or, when the designation
-			/// of @a whole was moved by hand, the one nearest to it, where it was
+			/// never writes it twice. The one nearest to the designation of
+			/// @a whole, where it was when moved by hand; the longest one
+			/// without @a whole
 		static void keepOneDesignation(const QList<Conductor *> &pieces,
 									   const Conductor *whole = nullptr);
 			/// Draw again the leader line which ties the text of this

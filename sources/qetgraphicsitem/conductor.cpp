@@ -3394,14 +3394,18 @@ QPainterPath Conductor::leaderPath() const
 /**
 	@brief Conductor::keepOneDesignation
 	Of the pieces of the pipe @a whole cut by a symbol, only one which shows
-	its designation keeps showing it: it is written once. The longest one; or,
-	when the designation of @a whole was moved by hand, the piece nearest to
-	it, which takes it where it was (and as it was turned).
+	its designation keeps showing it: it is written once. The piece nearest
+	to where the designation of @a whole was, so that it stays on its side
+	of the symbol (step 8a: a flow arrow dropped on a pipe moved it to the
+	other side, onto a longer piece); the longest one without @a whole.
+	When the designation was moved by hand, the piece takes it where it
+	was (and as it was turned); otherwise it is placed again on that piece.
 */
 void Conductor::keepOneDesignation(const QList<Conductor *> &pieces, const Conductor *whole)
 {
-	const bool moved = whole && whole->m_text_item && whole->m_text_item->wasMovedByUser();
-	const QPointF text_centre = moved
+	const bool known = whole && whole->m_text_item;
+	const bool moved = known && whole->m_text_item->wasMovedByUser();
+	const QPointF text_centre = known
 			? whole->m_text_item->mapToScene(whole->m_text_item->boundingRect().center())
 			: QPointF();
 		//The distance from the designation where it was to a piece
@@ -3425,7 +3429,7 @@ void Conductor::keepOneDesignation(const QList<Conductor *> &pieces, const Condu
 	for (Conductor *piece : pieces) {
 		if (piece && piece->m_properties.m_medium == TerminalData::Pipe
 			&& piece->m_properties.m_show_text
-			&& (!kept || (moved ? distance(piece) < distance(kept)
+			&& (!kept || (known ? distance(piece) < distance(kept)
 								: piece->length() > kept->length()))) {
 			kept = piece;
 		}

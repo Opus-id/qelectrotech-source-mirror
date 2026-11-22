@@ -445,6 +445,40 @@ class tst_pipedesignation : public QObject
 			QCOMPARE(short_piece->textItem()->scenePos(), was);
 		}
 
+			// Not moved by hand, it stays on its side of the cut all the same
+			// (step 8a: a flow arrow dropped on a pipe sent it to a longer
+			// piece, round a corner): the piece nearest to it keeps it,
+			// placed again on that piece, not as moved by hand
+		void aDesignationStaysOnItsSideOfTheCut()
+		{
+			useModel(QStringLiteral("tag_model;line;{fluid}\n"));
+			Conductor *whole = draw(m_nozzles, 600);
+			QVERIFY(whole);
+			setData(whole, QStringLiteral("W01"), 100);
+			QVERIFY(whole->textItem() && !whole->textItem()->wasMovedByUser());
+			const QPointF left = whole->terminal1->dockConductor();
+
+				//A short piece under the designation, in the middle of the
+				//pipe; a longer one beyond it
+			const qreal y = left.y();
+			Element *a = place(m_nozzles, QPointF(left.x() + 240, y));
+			Element *cut = place(m_nozzles, QPointF(left.x() + 360, y));
+			Element *b = place(m_nozzles, QPointF(left.x() + 960, y));
+			QVERIFY(a && cut && b);
+			auto *near_piece = new Conductor(a->terminals().at(1), cut->terminals().at(0));
+			auto *far_piece = new Conductor(cut->terminals().at(1), b->terminals().at(0));
+			near_piece->setProperties(whole->properties());
+			far_piece->setProperties(whole->properties());
+			QVERIFY(near_piece->length() < far_piece->length());
+			Conductor::keepOneDesignation({far_piece, near_piece}, whole);
+			m_folio->addItem(near_piece);
+			m_folio->addItem(far_piece);
+
+			QVERIFY(near_piece->properties().m_show_text);
+			QVERIFY(!far_piece->properties().m_show_text);
+			QVERIFY(!near_piece->textItem()->wasMovedByUser());
+		}
+
 			// A piece of a cut pipe gets its properties before it is on the
 			// folio: put there, it takes the size and the colour of the project
 		void aPieceTakesTheLookOnceOnTheFolio()
