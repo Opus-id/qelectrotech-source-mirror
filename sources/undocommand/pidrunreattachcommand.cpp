@@ -107,7 +107,8 @@ bool PidRunReattachCommand::concerns(const QList<Element *> &elements)
 	See the declaration. A nozzle with two opposite ones (a symbol drawn
 	oddly) is left out: which one its pipe would go to is not known.
 	@param element
-	@return the pairs, none for a symbol without a run (an electrical one)
+	@return the pairs, none for a symbol without a run nor two nozzles
+	(an electrical one, a tank)
 */
 QList<QPair<Terminal *, Terminal *>> PidRunReattachCommand::straightPairs(const Element *element)
 {
@@ -116,16 +117,20 @@ QList<QPair<Terminal *, Terminal *>> PidRunReattachCommand::straightPairs(const 
 		return pairs;
 	}
 	const QStringList run = element->pipeRun();
-	if (run.isEmpty()) {
-		return pairs;
-	}
 	QList<Terminal *> nozzles;
 	for (Terminal *terminal : element->terminals()) {
 		if (terminal->medium() == TerminalData::Pipe
-			&& run.contains(terminal->baseName())
+			&& (run.isEmpty() || run.contains(terminal->baseName()))
 			&& !terminal->isHiddenByOptions()) {
 			nozzles << terminal;
 		}
+	}
+		//Without a run, a symbol with two nozzles only (a pump, a blower):
+		//no change of size goes through it, but turned or mirrored its
+		//pipes follow as those of a valve. Not one with more: the two
+		//circuits of a heat exchanger must not be mixed
+	if (run.isEmpty() && nozzles.size() != 2) {
+		return pairs;
 	}
 	auto opposite = [](const Terminal *a, const Terminal *b) {
 		return (int(a->orientation()) + 2) % 4 == int(b->orientation());

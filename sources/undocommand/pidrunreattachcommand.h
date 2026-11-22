@@ -40,8 +40,10 @@ class Terminal;
 	turn, moves the ends (Conductor::moveEnd()), its undo moves them back
 	before the turn is undone, the next redos move them the same way again.
 	Only between the two nozzles of a straight run (straightPairs()): a
-	valve, a flow arrow, the run of a tee or a cross; the branch of a tee
-	keeps its pipe. Pipes only: signal lines and wires stay where they are.
+	valve, a flow arrow, the run of a tee or a cross, or a symbol with two
+	opposite nozzles only (a pump, a blower); the branch of a tee keeps its
+	pipe, as does any nozzle of an equipment with more than two. Pipes
+	only: signal lines and wires stay where they are.
 */
 class PidRunReattachCommand : public QUndoCommand
 {
@@ -55,7 +57,8 @@ class PidRunReattachCommand : public QUndoCommand
 		static bool concerns(const QList<Element *> &elements);
 			/// The pairs of nozzles of @p element a line runs straight
 			/// through: two nozzles of its run (Element::pipeRun()) which
-			/// face opposite ways, neither hidden by its options
+			/// face opposite ways, neither hidden by its options; without a
+			/// run, its two nozzles if it has only two, face to face
 		static QList<QPair<Terminal *, Terminal *>> straightPairs(const Element *element);
 			/// The pipe ending on @p nozzle, if there is one
 		static Conductor *pipeOn(const Terminal *nozzle);

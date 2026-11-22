@@ -18,25 +18,29 @@
 // the turn leaves running back through its symbol goes over to the nozzle
 // which now faces its other end, in the same undo step. A quarter turn of a
 // straight line changes nothing; two of them do as a half turn. The branch
-// of a tee keeps its pipe; a pipe turned with both its ends, or which
-// already ran back, stays; wires are left alone.
+// of a tee keeps its pipe; a pump, with two nozzles face to face, swaps
+// them as a valve, an equipment with more does not; a pipe turned with both
+// its ends, or which already ran back, stays; wires are left alone.
 class tst_pidrunreattach : public QObject
 {
 	Q_OBJECT
 
 		// A symbol with its hotspot on the line, a nozzle N1 west and N2
-		// east of it, of the medium @p medium ("" for none), and N3 south of
-		// it for a tee; @p attributes go on the definition (pid_inline,
-		// pid_run)
+		// east of it, of the medium @p medium ("" for none), N3 south of it
+		// for a tee (@p more = 1), and N4 north of it too for a heat
+		// exchanger (@p more = 2); @p attributes go on the definition
+		// (pid_inline, pid_run)
 	static QDomElement symbol(QDomDocument &doc, const QString &uuid, const QString &medium,
-							  bool tee, const QString &attributes)
+							  int more, const QString &attributes)
 	{
 		const QString attr = medium.isEmpty()
 				? QString()
 				: QStringLiteral(" medium=\"%1\"").arg(medium);
-		const QString branch = tee
-				? QStringLiteral("<terminal name=\"N3\" x=\"0\" y=\"10\" orientation=\"s\" type=\"Generic\"%1/>").arg(attr)
-				: QString();
+		QString branch;
+		if (more >= 1)
+			branch += QStringLiteral("<terminal name=\"N3\" x=\"0\" y=\"10\" orientation=\"s\" type=\"Generic\"%1/>").arg(attr);
+		if (more >= 2)
+			branch += QStringLiteral("<terminal name=\"N4\" x=\"0\" y=\"-10\" orientation=\"n\" type=\"Generic\"%1/>").arg(attr);
 		doc.setContent(QStringLiteral(
 			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
 			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\" %1>"
@@ -54,7 +58,7 @@ class tst_pidrunreattach : public QObject
 
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_valve, m_tee, m_electrical;
+	ElementsLocation m_valve, m_tee, m_electrical, m_pump, m_exchanger;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -132,14 +136,19 @@ class tst_pidrunreattach : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("reattach"), NamesList());
-			QDomDocument a, b, c;
+			QDomDocument a, b, c, d, e;
 			m_valve = add("valve.elmt", symbol(a, "e1111111-1111-1111-1111-111111111111", "pipe",
-											   false, "pid_inline=\"true\""));
+											   0, "pid_inline=\"true\""));
 			m_tee = add("tee.elmt", symbol(b, "e2222222-2222-2222-2222-222222222222", "pipe",
-										   true, "pid_run=\"N1 N2 N3\""));
+										   1, "pid_run=\"N1 N2 N3\""));
 			m_electrical = add("electrical.elmt", symbol(c, "e3333333-3333-3333-3333-333333333333", "",
-														 false, QString()));
-			QVERIFY(m_valve.exist() && m_tee.exist() && m_electrical.exist());
+														 0, QString()));
+			m_pump = add("pump.elmt", symbol(d, "e4444444-4444-4444-4444-444444444444", "pipe",
+											 0, QString()));
+			m_exchanger = add("exchanger.elmt", symbol(e, "e5555555-5555-5555-5555-555555555555", "pipe",
+													   2, QString()));
+			QVERIFY(m_valve.exist() && m_tee.exist() && m_electrical.exist()
+					&& m_pump.exist() && m_exchanger.exist());
 			m_folio = m_project.addNewDiagram();
 		}
 
@@ -159,6 +168,30 @@ class tst_pidrunreattach : public QObject
 			QCOMPARE(tee_pairs.first().second->baseName(), QStringLiteral("N2"));
 			QVERIFY(PidRunReattachCommand::straightPairs(electrical).isEmpty());
 			QVERIFY(!PidRunReattachCommand::concerns({electrical}));
+		}
+
+			// A pump has no run (no change of size goes through it), but its
+			// two nozzles face each other: mirrored, its pipes swap as those
+			// of a valve
+		void aPumpMirroredSwapsItsPipes()
+		{
+			Line l = line(m_pump);
+			QVERIFY(l.middle->pipeRun().isEmpty());
+			QCOMPARE(PidRunReattachCommand::straightPairs(l.middle).size(), 1);
+			MirrorSelectionCommand mirror({l.middle}, Qt::Horizontal);
+			mirror.redo();
+			QVERIFY(on(l.in, nozzle(l.middle, "N2")) && on(l.out, nozzle(l.middle, "N1")));
+		}
+
+			// An equipment with more than two nozzles keeps its pipes: the
+			// two circuits of a heat exchanger are not mixed
+		void anExchangerKeepsItsPipes()
+		{
+			Line l = line(m_exchanger);
+			QVERIFY(PidRunReattachCommand::straightPairs(l.middle).isEmpty());
+			MirrorSelectionCommand mirror({l.middle}, Qt::Horizontal);
+			mirror.redo();
+			QVERIFY(on(l.in, nozzle(l.middle, "N1")) && on(l.out, nozzle(l.middle, "N2")));
 		}
 
 			// Mirrored, a valve keeps its pipes on their sides: they swap
