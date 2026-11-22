@@ -215,14 +215,27 @@ class tst_flowarrow : public QObject
 			QVERIFY(left->inlineRun(Conductor::LineReach::LineNumber).contains(right));
 		}
 
-			// Change type: an arrow never becomes a spec break, where the
-			// specification of the line would stop; another mark which stops
-			// nothing of the specification, it may
-		void changeTypeKeepsWhatStops()
+			// Change type: an arrow stays an arrow, a limit a limit. Never a
+			// spec break, where the specification of the line would stop,
+			// nor an insulation limit, though both are marks on the line
+			// alike (hand test of 22/11: the arrow will give its line a
+			// direction); nor a valve. Another arrow, it may
+		void changeTypeKeepsTheRole()
 		{
-			Element *arrow = row({m_arrow}).first();
+			QDomDocument doc;
+			const ElementsLocation other_arrow = add("arrow2.elmt", definition(
+				doc, "86666666-6666-6666-6666-666666666666",
+				"pid_inline=\"true\" pid_family=\"pipe\" pid_role=\"flow_arrow\" "));
+			QVERIFY(other_arrow.exist());
+			const auto e = row({m_arrow, m_limit});
+			Element *arrow = e[0];
+			Element *limit = e[1];
 			QVERIFY(!arrow->canChangeLocationTo(m_spec_break));
-			QVERIFY(arrow->canChangeLocationTo(m_limit));
+			QVERIFY(!arrow->canChangeLocationTo(m_limit));
+			QVERIFY(!arrow->canChangeLocationTo(m_valve));
+			QVERIFY(arrow->canChangeLocationTo(other_arrow));
+			QVERIFY(!limit->canChangeLocationTo(m_arrow));
+			QVERIFY(!limit->canChangeLocationTo(m_spec_break));
 		}
 };
 

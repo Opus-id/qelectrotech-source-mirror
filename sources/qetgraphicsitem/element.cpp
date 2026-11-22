@@ -4950,10 +4950,13 @@ bool Element::canChangeLocationTo(const ElementsLocation &location) const
 		//this one: the same run on the nozzles of this element (a tee, whose
 		//branch is of the line, is no injection point, whose reagent is
 		//not), and where the size or the specification of a line changes
-		//it still does. A free end is not compared: it may become an
+		//it still does; an insulation limit stays one, a flow arrow too
+		//(step 8a: an arrow will give its line a direction, a limit stops
+		//its insulation). A free end is not compared: it may become an
 		//arrow, a strainer, a blind flange.
 	const QString new_role = definition.attribute(QStringLiteral("pid_role")).trimmed();
-	for (const QString &role : {QStringLiteral("reducer"), QStringLiteral("spec_break")}) {
+	for (const QString &role : {QStringLiteral("reducer"), QStringLiteral("spec_break"),
+								QStringLiteral("insulation_limit"), QStringLiteral("flow_arrow")}) {
 		if ((new_role == role) != (m_data.m_pid_role == role)) {
 			return false;
 		}
