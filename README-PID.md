@@ -548,13 +548,14 @@ line.*
 - **Pipes follow a turned or mirrored symbol**: a valve, a flow arrow, the
   run of a tee or a cross, or a symbol with two nozzles only face to face
   (a pump), mirrored or turned by a half (two quarter turns), would leave
-  its pipes running back through it: each goes over to the nozzle now
-  facing its other end, in the same undo step. A quarter turn of a
-  straight line changes nothing; a line in L that now leaves behind the
-  symbol is taken by the other nozzle. The branch of a tee keeps its pipe,
-  as does any nozzle of an equipment with more than two; a pipe which
-  already ran back, or which turns with both its ends, stays. Pipes only:
-  wires and signal lines stay where they are.
+  its pipes running back through it: in each pair of opposite nozzles,
+  the pipes go to the nozzles facing their other ends best, in the same
+  undo step. A quarter turn of a straight line changes nothing; a line in
+  L that now leaves behind the symbol is taken by the other nozzle. The
+  branch of a tee keeps its pipe, even when it then runs back through the
+  tee, as does any nozzle of an equipment with more than two; a pair drawn
+  the wrong way round before the turn, or a pipe which turns with both its
+  ends, stays. Pipes only: wires and signal lines stay where they are.
 - **Ends and corners of lines**: the element editor can draw the ends of a
   line round or flat and its corners round, mitred or bevelled (`line-cap`
   and `line-join` in the style of a part; nothing written for the default).
