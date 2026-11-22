@@ -247,6 +247,8 @@ class Conductor : public QGraphicsObject
 				const bool stop_at_report_links = false);
 		QSet<Conductor *> functionSeparatedConductors(
 				const bool all_diagram = true);
+		void applySeparatedNodeProperties(ConductorProperties &properties);
+		void applySeparatedNodePropertiesIfEmpty();
 		QETDiagramEditor* diagramEditor() const;
 		void editProperty ();
 

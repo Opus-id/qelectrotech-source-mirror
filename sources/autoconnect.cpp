@@ -262,6 +262,10 @@ void makeWire(State &s, Terminal *a, Terminal *b, QUndoCommand *parent)
 	} else {
 		conductor->setProperties(ConductorProperties::defaultsFor(
 			conductor->medium(), diagram->defaultConductorProperties));
+			//An empty side of a function separated terminal element takes
+			//what the separation lets through from its other side (@see
+			//Conductor::applySeparatedNodePropertiesIfEmpty)
+		conductor->applySeparatedNodePropertiesIfEmpty();
 		ConductorAutoNumerotation can(conductor, diagram, parent);
 		can.numerate();
 	}

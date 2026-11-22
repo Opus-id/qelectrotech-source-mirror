@@ -494,6 +494,7 @@ QSet<Terminal *> autoBreakConductors(
 				first_half = new_c;
 			}
 			new AddGraphicsObjectCommand(new_c, diagram, QPointF(), parent);
+			new_c->applySeparatedNodePropertiesIfEmpty();
 			ConductorAutoNumerotation can(new_c, diagram, parent);
 			can.numerate();
 			if (diagram->freezeNewConductors() || diagram->project()->isFreezeNewConductors())
@@ -514,6 +515,7 @@ QSet<Terminal *> autoBreakConductors(
 				Conductor::keepOneDesignation({first_half, new_c2}, matches.first().conductor);
 			}
 			new AddGraphicsObjectCommand(new_c2, diagram, QPointF(), parent);
+			new_c2->applySeparatedNodePropertiesIfEmpty();
 			ConductorAutoNumerotation can2(new_c2, diagram, parent);
 			can2.numerate();
 			if (diagram->freezeNewConductors() || diagram->project()->isFreezeNewConductors())
