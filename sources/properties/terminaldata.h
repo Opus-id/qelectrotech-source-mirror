@@ -341,6 +341,11 @@ class TerminalData : public PropertiesInterface
 			/// Where the fluid goes through a nozzle, see FlowRole; none by
 			/// default, and for any other medium
 		TerminalData::FlowRole m_flow_role = TerminalData::NoFlowRole;
+			/// The chamber of its equipment a nozzle belongs to (attribute
+			/// pid_chamber, step 8a-bis): the two sides of a heat exchanger.
+			/// The direction of flow goes through a chamber of two nozzles,
+			/// as through a valve. Empty: none, and for any other medium
+		QString m_chamber;
 			/// The condition on the options of the symbol under which the
 			/// terminal is shown, as the show_if of a part of the drawing
 			/// (ElementOptions::isShown()); empty: always shown

@@ -232,8 +232,14 @@ namespace {
 				}
 				solver.addJunction(nodes, id);
 			}
-				//Through a reducer, and into a symbol placed against it
+				//Through a reducer, through a chamber of two nozzles (a side
+				//of a heat exchanger), and into a symbol placed against it
 			if (const Terminal *other = terminal->reducerOtherSide()) {
+				if (!siblings.contains(other)) {
+					solver.link(id, idOf(other));
+				}
+			}
+			if (const Terminal *other = terminal->chamberPartner()) {
 				if (!siblings.contains(other)) {
 					solver.link(id, idOf(other));
 				}

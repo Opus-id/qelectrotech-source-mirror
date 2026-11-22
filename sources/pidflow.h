@@ -37,8 +37,11 @@ class Terminal;
 	and the discharge of a pump). It goes on through the symbols a line runs
 	through (a run of two nozzles: a valve, an instrument, a mark on the
 	line, an injection point straight on), through a reducer, and between
-	two nozzles placed against each other. Equipment stops it, but for its
-	nozzles which have a role. At a tee or a cross, the last nozzle whose
+	two nozzles placed against each other, and through a chamber of two
+	nozzles of equipment (a side of a heat exchanger, pid_chamber).
+	Equipment stops it otherwise, but for its nozzles which have a role; a
+	chamber of three nozzles or more is a vessel, which may fill or empty,
+	and gives nothing. At a tee or a cross, the last nozzle whose
 	direction is not known goes the other way when all the others come in,
 	or all go out; otherwise nothing is found there.
 

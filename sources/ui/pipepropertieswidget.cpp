@@ -411,7 +411,8 @@ void PipePropertiesWidget::buildUi()
 	m_flow_direction->setTextInteractionFlags(Qt::TextSelectableByMouse);
 	m_flow_direction->setToolTip(PidToolTip::wrapped(
 		tr("Found from the symbols of the line: flow arrows, check valves, pumps, and through "
-		   "valves, reducers and tees. Turn or mirror a symbol to change it.")));
+		   "valves, reducers, tees and the sides of heat exchangers. Turn or mirror a symbol to "
+		   "change it.")));
 	layout->addRow(tr("Direction of flow:"), m_flow_direction);
 		//The flow of the line up to its tees, where it parts (step 5l-1k),
 		//and to its injection points (step 6b-1c)

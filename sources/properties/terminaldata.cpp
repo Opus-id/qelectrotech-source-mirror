@@ -133,6 +133,9 @@ QDomElement TerminalData::toXml(QDomDocument &xml_document) const
 		//Where the fluid goes in or out, only when the symbol says it
 	if (m_medium == Pipe && m_flow_role != NoFlowRole)
 		xml_element.setAttribute(QStringLiteral("pid_flow_role"), flowRoleToString(m_flow_role));
+		//The chamber of its equipment, only when the symbol gives one
+	if (m_medium == Pipe && !m_chamber.isEmpty())
+		xml_element.setAttribute(QStringLiteral("pid_chamber"), m_chamber);
 		//Written only when the terminal depends on the options of the symbol
 	if (!m_show_if.isEmpty())
 		xml_element.setAttribute(QStringLiteral("show_if"), m_show_if);
@@ -214,6 +217,8 @@ bool TerminalData::fromXml (const QDomElement &xml_element)
 	m_diameter = m_medium == Pipe ? symbolDiameterFromXml(xml_element) : PipeDiameter();
 	m_flow_role = m_medium == Pipe ? flowRoleFromString(xml_element.attribute(QStringLiteral("pid_flow_role")))
 								   : NoFlowRole;
+	m_chamber = m_medium == Pipe ? xml_element.attribute(QStringLiteral("pid_chamber")).trimmed()
+								 : QString();
 		//A thread given a DN before the threads existed: in inches, by the
 		//fixed table; any other size is kept as written
 	const PipeDiameter fitted = PipeConnection::fitted(m_connection, m_diameter);

@@ -38,6 +38,7 @@ class PartTerminal : public CustomElementGraphicPart
 	Q_PROPERTY(QString diameter READ diameterText WRITE setDiameterText)
 	Q_PROPERTY(QString connection READ connectionWord WRITE setConnectionWord)
 	Q_PROPERTY(QString flow_role READ flowRoleWord WRITE setFlowRoleWord)
+	Q_PROPERTY(QString chamber READ chamber WRITE setChamber)
 	Q_PROPERTY(bool show_name READ showName WRITE setShowName)
 	Q_PROPERTY(QPointF label_pos READ labelPos WRITE setLabelPos)
 	Q_PROPERTY(QFont label_font READ labelFont WRITE setLabelFont)
@@ -65,6 +66,7 @@ class PartTerminal : public CustomElementGraphicPart
 		void diameterChanged();
 		void connectionChanged();
 		void flowRoleChanged();
+		void chamberChanged();
 		void potentialChanged();
 		void showNameChanged();
 		void labelPosChanged();
@@ -145,6 +147,10 @@ class PartTerminal : public CustomElementGraphicPart
 			/// property the undo of the editor changes
 		QString flowRoleWord() const {return TerminalData::flowRoleToString(d->m_flow_role);}
 		void setFlowRoleWord(const QString &word) {setFlowRole(TerminalData::flowRoleFromString(word));}
+			/// The chamber of its equipment a nozzle belongs to (step
+			/// 8a-bis), empty for none
+		QString chamber() const {return d->m_chamber;}
+		void setChamber(const QString &chamber);
 			/// The mark of the connection of this nozzle, as a placed symbol
 			/// draws it when its project draws the connections
 			/// (Terminal::drawConnectionMark()), in the coordinates of this

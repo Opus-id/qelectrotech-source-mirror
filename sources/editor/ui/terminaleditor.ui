@@ -165,7 +165,21 @@
      </property>
     </widget>
    </item>
-   <item row="10" column="0" colspan="2">
+   <item row="10" column="0">
+    <widget class="QLabel" name="label_chamber">
+     <property name="text">
+      <string>Chamber:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="1">
+    <widget class="QLineEdit" name="m_chamber_le">
+     <property name="toolTip">
+      <string>The chamber of the equipment this nozzle belongs to, as 1 or 2 for the two sides of a heat exchanger. The direction of flow goes through a chamber of two nozzles, from the one where the fluid comes in to the other. Nothing for a vessel, which may fill or empty.</string>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="0" colspan="2">
     <widget class="QGroupBox" name="m_label_gb">
      <property name="title">
       <string>Terminal name</string>
@@ -301,7 +315,7 @@
      </layout>
     </widget>
    </item>
-   <item row="11" column="0" colspan="2">
+   <item row="12" column="0" colspan="2">
     <widget class="QGroupBox" name="m_master_label_gb">
      <property name="title">
       <string>Master’s label</string>

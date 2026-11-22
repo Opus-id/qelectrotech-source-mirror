@@ -5203,6 +5203,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 					terminal->setSymbolConnection(TerminalData::connectionFromXml(part));
 					terminal->setSymbolFlowRole(TerminalData::flowRoleFromString(
 													part.attribute(QStringLiteral("pid_flow_role"))));
+					terminal->setSymbolChamber(part.attribute(QStringLiteral("pid_chamber")).trimmed());
 				}
 			}
 		}

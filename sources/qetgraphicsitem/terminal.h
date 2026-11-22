@@ -217,6 +217,18 @@ class Terminal : public QGraphicsObject
 			return d->m_medium == TerminalData::Pipe ? d->m_flow_role : TerminalData::NoFlowRole;
 		}
 		void setSymbolFlowRole(TerminalData::FlowRole role);
+			/// The chamber of its equipment this nozzle belongs to, as its
+			/// symbol says (step 8a-bis); empty for none and for any other
+			/// medium
+		QString chamber() const {
+			return d->m_medium == TerminalData::Pipe ? d->m_chamber : QString();
+		}
+		void setSymbolChamber(const QString &chamber) { d->m_chamber = chamber; }
+			/// The other nozzle of its chamber, when the chamber has two:
+			/// the fluid which comes in at one goes out at the other (a side
+			/// of a heat exchanger); nullptr otherwise, a chamber of three
+			/// nozzles or more being a vessel, which may fill or empty
+		Terminal *chamberPartner() const;
 			/// Whether this nozzle draws the mark of its connection: as its
 			/// project says, unless its element says always or never
 		PipeConnection::MarkChoice markChoice() const;

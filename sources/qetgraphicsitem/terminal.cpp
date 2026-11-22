@@ -1841,6 +1841,25 @@ void Terminal::setSymbolFlowRole(TerminalData::FlowRole role)
 	updateDiameterToolTip();
 }
 
+Terminal *Terminal::chamberPartner() const
+{
+	const QString own = chamber();
+	if (own.isEmpty() || !parent_element_) {
+		return nullptr;
+	}
+	Terminal *partner = nullptr;
+	for (Terminal *terminal : parent_element_->terminals()) {
+		if (terminal == this || terminal->chamber() != own) {
+			continue;
+		}
+		if (partner) {
+			return nullptr;
+		}
+		partner = terminal;
+	}
+	return partner;
+}
+
 PipeConnection::MarkChoice Terminal::markChoice() const
 {
 	if (d->m_medium != TerminalData::Pipe || !parent_element_) {

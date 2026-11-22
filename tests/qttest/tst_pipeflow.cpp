@@ -37,7 +37,8 @@
 	The direction of flow of the pipes (step 8a-bis), found from the
 	symbols, never written: the role of a nozzle (pid_flow_role="in" / "out")
 	in its symbol; the direction going through the symbols a line runs
-	through, a reducer, a tee or a cross by its rule; a disagreement said;
+	through, a reducer, a chamber of two nozzles (pid_chamber, a heat
+	exchanger), a tee or a cross by its rule; never through a vessel; a disagreement said;
 	the page of a pipe and its tool tip.
 */
 class tst_pipeflow : public QObject
@@ -70,6 +71,15 @@ class tst_pipeflow : public QObject
 			"orientation=\"s\" type=\"Generic\" medium=\"pipe\"/>");
 	}
 
+	static QString north(const QString &attributes = QString())
+	{
+		return QStringLiteral(
+			"<terminal uuid=\"{7f000000-0000-0000-0000-000000000004}\" name=\"N4\" x=\"0\" y=\"-20\" "
+			"orientation=\"n\" type=\"Generic\" medium=\"pipe\" %1/>").arg(attributes);
+	}
+
+	static QString chamber(const char *name) { return QStringLiteral("pid_chamber=\"%1\"").arg(QLatin1String(name)); }
+
 	static QString in()  { return QStringLiteral("pid_flow_role=\"in\""); }
 	static QString out() { return QStringLiteral("pid_flow_role=\"out\""); }
 
@@ -95,6 +105,17 @@ class tst_pipeflow : public QObject
 				//A reducer: N1 the large side
 			{QStringLiteral("reducer.elmt"), symbol(QStringLiteral("7f111117-1111-1111-1111-111111111111"),
 					QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" pid_large=\"N1\""))},
+				//A heat exchanger: N1 and N3 one chamber, N2 and N4 the other
+			{QStringLiteral("exchanger.elmt"), symbol(QStringLiteral("7f111118-1111-1111-1111-111111111111"),
+					QStringLiteral("pid_family=\"equipment\""), chamber("1"), chamber("2"),
+					south().replace(QLatin1String("medium=\"pipe\""),
+									QLatin1String("medium=\"pipe\" pid_chamber=\"1\""))
+					+ north(chamber("2")))},
+				//A vessel: its three nozzles one chamber
+			{QStringLiteral("vessel.elmt"), symbol(QStringLiteral("7f111119-1111-1111-1111-111111111111"),
+					QStringLiteral("pid_family=\"equipment\""), chamber("1"), chamber("1"),
+					south().replace(QLatin1String("medium=\"pipe\""),
+									QLatin1String("medium=\"pipe\" pid_chamber=\"1\"")))},
 		};
 	}
 
@@ -399,6 +420,53 @@ class tst_pipeflow : public QObject
 			Conductor *back = scene.pipe(arrow, "N2", tee, "N2");
 			QCOMPARE(PidFlow::direction(back), PidFlow::Direction::Forward);
 			QCOMPARE(PidFlow::direction(branch), PidFlow::Direction::Forward);
+		}
+
+		void theDirectionGoesThroughAChamberOfTwoNozzles()
+		{
+				// read and written, as the role; a placed nozzle knows its partner
+			QDomDocument doc;
+			doc.setContent(symbols().at(7).second);
+			ElementScene scene(nullptr);
+			scene.fromXml(doc, QPointF(), true);
+			QCOMPARE(scene.toXml().toString().count(QLatin1String("pid_chamber=")), 4);
+			QDomDocument valve;
+			valve.setContent(symbols().at(0).second);
+			ElementScene plain(nullptr);
+			plain.fromXml(valve, QPointF(), true);
+			QVERIFY(!plain.toXml().toString().contains(QLatin1String("pid_chamber")));
+
+			Scene folio;
+			Element *pump = folio.add("pump.elmt");
+			Element *exchanger = folio.add("exchanger.elmt");
+			Element *valve_out = folio.add("valve.elmt");
+			Element *other = folio.add("valve.elmt");
+			QCOMPARE(nozzle(exchanger, "N1")->chamber(), QStringLiteral("1"));
+			QCOMPARE(nozzle(exchanger, "N1")->chamberPartner(), nozzle(exchanger, "N3"));
+			QCOMPARE(nozzle(exchanger, "N4")->chamberPartner(), nozzle(exchanger, "N2"));
+			QVERIFY(!nozzle(pump, "N1")->chamberPartner());
+
+			Conductor *in_pipe = folio.pipe(pump, "N2", exchanger, "N1");
+			Conductor *out_pipe = folio.pipe(exchanger, "N3", valve_out, "N1");
+			Conductor *other_side = folio.pipe(exchanger, "N2", other, "N1");
+			QCOMPARE(PidFlow::direction(in_pipe), PidFlow::Direction::Forward);
+				// the same fluid goes out of its chamber
+			QCOMPARE(PidFlow::direction(out_pipe), PidFlow::Direction::Forward);
+				// the other fluid: nothing said
+			QCOMPARE(PidFlow::direction(other_side), PidFlow::Direction::Unknown);
+		}
+
+		void aVesselGivesNothing()
+		{
+			Scene folio;
+			Element *pump = folio.add("pump.elmt");
+			Element *vessel = folio.add("vessel.elmt");
+			Element *valve = folio.add("valve.elmt");
+			QVERIFY(!nozzle(vessel, "N1")->chamberPartner());
+			Conductor *in_pipe = folio.pipe(pump, "N2", vessel, "N1");
+			Conductor *out_pipe = folio.pipe(vessel, "N2", valve, "N1");
+			QCOMPARE(PidFlow::direction(in_pipe), PidFlow::Direction::Forward);
+			QCOMPARE(PidFlow::direction(out_pipe), PidFlow::Direction::Unknown);
 		}
 
 		void aSignalLineHasNoDirection()

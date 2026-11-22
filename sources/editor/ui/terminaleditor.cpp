@@ -147,6 +147,9 @@ void TerminalEditor::updateForm()
 	ui->label_flow->setVisible(nozzle);
 	ui->m_flow_cb->setVisible(nozzle);
 	ui->m_flow_cb->setCurrentIndex(ui->m_flow_cb->findData(int(m_part->flowRole())));
+	ui->label_chamber->setVisible(nozzle);
+	ui->m_chamber_le->setVisible(nozzle);
+	ui->m_chamber_le->setText(m_part->chamber());
 		//The kinds of size the connection takes
 	fillKinds(m_part->connection());
 		//The kind of a diameter given; else the one chosen last
@@ -757,6 +760,16 @@ void TerminalEditor::activeConnections(bool active)
 			undo->setText(tr("Change the flow through a nozzle"));
 			undoStack().push(undo);
 		});
+		m_editor_connections << connect(ui->m_chamber_le, &QLineEdit::editingFinished,
+										this, [this]() {
+			const QString chamber = ui->m_chamber_le->text().trimmed();
+			if (m_locked || !m_part || chamber == m_part->chamber()) {
+				return;
+			}
+			auto undo = new QPropertyUndoCommand(m_part, "chamber", m_part->chamber(), chamber);
+			undo->setText(tr("Change the chamber of a nozzle"));
+			undoStack().push(undo);
+		});
 		m_editor_connections << connect(ui->m_dn_cb->lineEdit(), &QLineEdit::editingFinished,
 										this, &TerminalEditor::dnEdited);
 		m_editor_connections << connect(ui->m_dn_cb, QOverload<int>::of(&QComboBox::activated),
@@ -812,6 +825,7 @@ void TerminalEditor::activeChangeConnections(bool active)
 		m_change_connections << connect(m_part, &PartTerminal::diameterChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::connectionChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::flowRoleChanged, this, &TerminalEditor::updateForm);
+		m_change_connections << connect(m_part, &PartTerminal::chamberChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::showNameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelPosChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelFontChanged, this, &TerminalEditor::updateForm);

@@ -16904,8 +16904,8 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Sens d&apos;écoulement :</translation>
     </message>
     <message>
-        <source>Found from the symbols of the line: flow arrows, check valves, pumps, and through valves, reducers and tees. Turn or mirror a symbol to change it.</source>
-        <translation>Déduit des symboles de la ligne : flèches de sens, clapets, pompes, et à travers les vannes, les réductions et les tés. Tourner ou retourner un symbole pour le changer.</translation>
+        <source>Found from the symbols of the line: flow arrows, check valves, pumps, and through valves, reducers, tees and the sides of heat exchangers. Turn or mirror a symbol to change it.</source>
+        <translation>Déduit des symboles de la ligne : flèches de sens, clapets, pompes, et à travers les vannes, les réductions, les tés et les côtés des échangeurs. Tourner ou retourner un symbole pour le changer.</translation>
     </message>
     <message>
         <source>Insulation:</source>
@@ -33192,6 +33192,18 @@ Les autres champs ne sont pas utilisés.</translation>
     <message>
         <source>Flow:</source>
         <translation>Sens :</translation>
+    </message>
+    <message>
+        <source>Chamber:</source>
+        <translation>Chambre :</translation>
+    </message>
+    <message>
+        <source>The chamber of the equipment this nozzle belongs to, as 1 or 2 for the two sides of a heat exchanger. The direction of flow goes through a chamber of two nozzles, from the one where the fluid comes in to the other. Nothing for a vessel, which may fill or empty.</source>
+        <translation>La chambre de l&apos;équipement à laquelle appartient ce piquage, par exemple 1 ou 2 pour les deux côtés d&apos;un échangeur de chaleur. Le sens d&apos;écoulement traverse une chambre de deux piquages, de celui où le fluide entre à l&apos;autre. Rien pour une cuve, qui peut se remplir ou se vider.</translation>
+    </message>
+    <message>
+        <source>Change the chamber of a nozzle</source>
+        <translation>Modifier la chambre d&apos;un piquage</translation>
     </message>
     <message>
         <source>Where the fluid comes in or goes out through this nozzle, as the drawing of the symbol shows it (a check valve, a pump). Nothing for a symbol which has no direction of its own (a gate valve, a tank): the flow goes through it either way. A placed symbol follows its drawing, turned or mirrored.</source>

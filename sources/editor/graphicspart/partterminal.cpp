@@ -598,6 +598,22 @@ void PartTerminal::setFlowRole(TerminalData::FlowRole role)
 }
 
 /**
+	@brief PartTerminal::setChamber
+	Set the chamber of its equipment this nozzle belongs to (step 8a-bis):
+	the direction of flow goes through a chamber of two nozzles
+	@param chamber : its name, trimmed; empty for none
+*/
+void PartTerminal::setChamber(const QString &chamber)
+{
+	const QString trimmed = chamber.trimmed();
+	if (d->m_chamber == trimmed) {
+		return;
+	}
+	d->m_chamber = trimmed;
+	emit chamberChanged();
+}
+
+/**
 	@brief PartTerminal::labelText
 	@return the text shown at the terminal: its name, and the DN of a nozzle
 */
