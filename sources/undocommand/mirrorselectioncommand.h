@@ -23,6 +23,7 @@
 
 class Diagram;
 class Element;
+class PidRunReattachCommand;
 
 /**
 	@brief The MirrorSelectionCommand class
@@ -39,6 +40,7 @@ class MirrorSelectionCommand : public QUndoCommand
 							   Qt::Orientation orientation,
 							   QUndoCommand *parent = nullptr);
 
+		void undo() override;
 		bool isValid() const;
 			/// A P&ID symbol is mirrored about its hotspot, an electrical
 			/// one about its centre
@@ -46,6 +48,9 @@ class MirrorSelectionCommand : public QUndoCommand
 
 	private:
 		static QList<Element *> selectedElements(const Diagram *diagram);
+
+			/// The child moving the pipes of P&ID symbols (5l-1h), if any
+		PidRunReattachCommand *m_reattach = nullptr;
 };
 
 #endif // MIRRORSELECTIONCOMMAND_H

@@ -26,6 +26,7 @@
 class Diagram;
 class ConductorTextItem;
 class QPropertyUndoCommand;
+class PidRunReattachCommand;
 class QGraphicsItem;
 
 /**
@@ -49,6 +50,8 @@ class RotateSelectionCommand : public QUndoCommand
 		QList<QPointer<ConductorTextItem>> m_cond_text;
 		QHash<ConductorTextItem *, bool> m_rotate_by_user;
 		QList<QPropertyUndoCommand*> m_undo;
+			/// The child moving the pipes of P&ID symbols (5l-1h), if any
+		PidRunReattachCommand *m_reattach = nullptr;
 
 };
 

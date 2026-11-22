@@ -21,6 +21,7 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/terminal.h"
 
+#include <QLineF>
 #include <QPointF>
 #include <QStringList>
 
@@ -49,6 +50,14 @@ PidRunReattachCommand::PidRunReattachCommand(const QList<Element *> &elements,
 		for (const auto &pair : pairs) {
 			if (betterSwapped(pair.first, pair.second)) {
 				m_drawn_swapped.insert(QPair<const Terminal *, const Terminal *>(pair.first, pair.second));
+			}
+			for (const Terminal *nozzle : {pair.first, pair.second}) {
+				Conductor *pipe = pipeOn(nozzle);
+				const Terminal *other = otherEnd(pipe, nozzle);
+				if (pipe && other) {
+					m_routes_before.append({pipe, nozzle, nozzle->dockConductor(),
+											other->dockConductor(), pipe->profiles()});
+				}
 			}
 		}
 	}
@@ -80,8 +89,55 @@ void PidRunReattachCommand::redo()
 		return;
 	}
 	for (const EndMove &move : std::as_const(m_moves)) {
-		if (move.conductor && move.from && move.to) {
-			move.conductor->moveEnd(move.from, move.to);
+		if (move.conductor && move.from && move.to
+			&& move.conductor->moveEnd(move.from, move.to)) {
+			takeRouteBack(move.conductor, move.from, move.to);
+		}
+	}
+}
+
+/**
+	@brief PidRunReattachCommand::takeRouteBack
+	@p pipe, its end moved from @p from to @p to: when @p to stands where
+	@p from stood before the turn, and its other end where it was, it takes
+	back the route it had (see movePipe())
+*/
+void PidRunReattachCommand::takeRouteBack(Conductor *pipe, const Terminal *from, const Terminal *to)
+{
+	const Terminal *other = otherEnd(pipe, to);
+	if (!pipe || !to || !other) {
+		return;
+	}
+	for (const RouteBefore &before : std::as_const(m_routes_before)) {
+		if (before.conductor == pipe && before.nozzle == from
+			&& QLineF(before.dock, to->dockConductor()).length() < 0.5
+			&& QLineF(before.other_dock, other->dockConductor()).length() < 0.5) {
+			pipe->setProfiles(before.profiles);
+			return;
+		}
+	}
+}
+
+/**
+	@brief PidRunReattachCommand::restoreRoutes
+	See the declaration. A pipe whose ends are not both where they were
+	(a turn undone with its animation, still going on) is left as it is.
+*/
+void PidRunReattachCommand::restoreRoutes()
+{
+	for (const RouteBefore &before : std::as_const(m_routes_before))
+	{
+		Conductor *pipe = before.conductor;
+		if (!pipe || !pipe->terminal1 || !pipe->terminal2) {
+			continue;
+		}
+		const Terminal *nozzle = pipe->terminal1 == before.nozzle ? pipe->terminal1
+							   : pipe->terminal2 == before.nozzle ? pipe->terminal2 : nullptr;
+		const Terminal *other = otherEnd(pipe, nozzle);
+		if (nozzle && other
+			&& QLineF(before.dock, nozzle->dockConductor()).length() < 0.5
+			&& QLineF(before.other_dock, other->dockConductor()).length() < 0.5) {
+			pipe->setProfiles(before.profiles);
 		}
 	}
 }
@@ -284,7 +340,11 @@ Terminal *PidRunReattachCommand::otherEnd(const Conductor *pipe, const Terminal 
 
 /**
 	@brief PidRunReattachCommand::movePipe
-	Move the end of @p pipe on @p from to @p to, and keep the move
+	Move the end of @p pipe on @p from to @p to, and keep the move. When
+	@p to now stands where @p from stood before the turn (a symbol
+	mirrored, or turned by a half about its hotspot), the pipe takes back
+	the route it had: turned, its end had gone over to the other side of
+	the symbol, and its route drawn by hand had been given up for a new one.
 	@return true when it was moved
 */
 bool PidRunReattachCommand::movePipe(Conductor *pipe, Terminal *from, Terminal *to)
@@ -292,6 +352,7 @@ bool PidRunReattachCommand::movePipe(Conductor *pipe, Terminal *from, Terminal *
 	if (!pipe || !pipe->moveEnd(from, to)) {
 		return false;
 	}
+	takeRouteBack(pipe, from, to);
 	m_moves.append({pipe, from, to});
 	return true;
 }

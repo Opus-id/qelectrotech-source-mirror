@@ -18,8 +18,12 @@
 #ifndef PIDRUNREATTACHCOMMAND_H
 #define PIDRUNREATTACHCOMMAND_H
 
+#include "../conductorprofile.h"
+#include "../qetgraphicsitem/conductor.h"
+
 #include <QList>
 #include <QPair>
+#include <QPointF>
 #include <QPointer>
 #include <QSet>
 #include <QUndoCommand>
@@ -55,6 +59,10 @@ class PidRunReattachCommand : public QUndoCommand
 			/// Whether one of @p elements has a straight run of nozzles,
 			/// for which this command is worth adding
 		static bool concerns(const QList<Element *> &elements);
+			/// To be called by the parent command once the turn is undone:
+			/// each pipe back where it was before the turn takes back its
+			/// route (its profiles); see movePipe()
+		void restoreRoutes();
 			/// The pairs of nozzles of @p element a line runs straight
 			/// through: two nozzles of its run (Element::pipeRun()) which
 			/// face opposite ways, neither hidden by its options; without a
@@ -71,6 +79,7 @@ class PidRunReattachCommand : public QUndoCommand
 		static bool betterSwapped(const Terminal *a, const Terminal *b);
 		static Terminal *otherEnd(const Conductor *pipe, const Terminal *nozzle);
 		void moveEnds();
+		void takeRouteBack(Conductor *pipe, const Terminal *from, const Terminal *to);
 		bool movePipe(Conductor *pipe, Terminal *from, Terminal *to);
 
 			/// A pipe end moved from one nozzle to another
@@ -83,6 +92,15 @@ class PidRunReattachCommand : public QUndoCommand
 			/// The straight pairs the user drew the wrong way round before
 			/// the turn (betterSwapped()), left as they are
 		QSet<QPair<const Terminal *, const Terminal *>> m_drawn_swapped;
+			/// A pipe on a nozzle of a straight pair before the turn: where
+			/// its two ends were, and its route (its profiles)
+		struct RouteBefore {
+			QPointer<Conductor> conductor;
+			const Terminal *nozzle = nullptr;
+			QPointF dock, other_dock;
+			ConductorProfilesGroup profiles;
+		};
+		QList<RouteBefore> m_routes_before;
 		QList<EndMove> m_moves;
 		bool m_moves_known = false;
 };

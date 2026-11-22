@@ -112,7 +112,19 @@ MirrorSelectionCommand::MirrorSelectionCommand(const QList<Element *> &elements,
 		//The pipes the mirror leaves running back through their symbol go
 		//over to the nozzle facing them (P&ID, 5l-1h), after the mirror
 	if (childCount() && PidRunReattachCommand::concerns(elements))
-		new PidRunReattachCommand(elements, this);
+		m_reattach = new PidRunReattachCommand(elements, this);
+}
+
+/**
+	@brief MirrorSelectionCommand::undo
+	The mirror undone, the pipes of P&ID symbols back where they were take
+	back their routes (5l-1h)
+*/
+void MirrorSelectionCommand::undo()
+{
+	QUndoCommand::undo();
+	if (m_reattach)
+		m_reattach->restoreRoutes();
 }
 
 /**

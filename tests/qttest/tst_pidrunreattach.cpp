@@ -4,6 +4,7 @@
 #include "ElementsCollection/xmlelementcollection.h"
 #include "diagram.h"
 #include "factory/elementfactory.h"
+#include "pidfreeend.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
@@ -215,6 +216,60 @@ class tst_pidrunreattach : public QObject
 			QVERIFY(on(l.in, n1) && on(l.out, n2));
 			mirror.redo();
 			QVERIFY(on(l.in, n2) && on(l.out, n1));
+		}
+
+			// The trial of the user (22/11): a line in L drawn by hand to a
+			// flow arrow; mirrored, the arrow gives the line its other nozzle,
+			// which stands where the first one stood: the route drawn is kept,
+			// its bend where it was
+		void aMirrorKeepsTheRouteDrawn()
+		{
+			m_next_y += 300;
+			Element *left = place(m_valve, QPointF(0, m_next_y - 100));
+			Element *middle = place(m_valve, QPointF(200, m_next_y));
+			QVERIFY(left && middle);
+			Terminal *n1 = nozzle(middle, "N1"), *n2 = nozzle(middle, "N2");
+			Conductor *in = join(nozzle(left, "N2"), n1);
+			const QPointF from = nozzle(left, "N2")->dockConductor(), to = n1->dockConductor();
+			QVERIFY(in->setPathPoints({from, QPointF(60, from.y()), QPointF(60, to.y()), to}));
+			const QList<QPointF> route = PidFreeEnd::cleaned(PidFreeEnd::pathTo(in, n1));
+
+			MirrorSelectionCommand mirror({middle}, Qt::Horizontal);
+			mirror.redo();
+			QVERIFY(on(in, n2));
+			QCOMPARE(PidFreeEnd::cleaned(PidFreeEnd::pathTo(in, n2)), route);
+
+				// Ctrl+Z gives the route back too, and so does Redo
+			mirror.undo();
+			QVERIFY(on(in, n1));
+			QCOMPARE(PidFreeEnd::cleaned(PidFreeEnd::pathTo(in, n1)), route);
+			mirror.redo();
+			QVERIFY(on(in, n2));
+			QCOMPARE(PidFreeEnd::cleaned(PidFreeEnd::pathTo(in, n2)), route);
+		}
+
+			// Turned by a half, then undone: the route drawn comes back
+		void aHalfTurnUndoneGivesTheRouteBack()
+		{
+			m_next_y += 300;
+			Element *left = place(m_valve, QPointF(0, m_next_y - 100));
+			Element *middle = place(m_valve, QPointF(200, m_next_y));
+			QVERIFY(left && middle);
+			Terminal *n1 = nozzle(middle, "N1");
+			Conductor *in = join(nozzle(left, "N2"), n1);
+			const QPointF from = nozzle(left, "N2")->dockConductor(), to = n1->dockConductor();
+			QVERIFY(in->setPathPoints({from, QPointF(60, from.y()), QPointF(60, to.y()), to}));
+			const QList<QPointF> route = PidFreeEnd::cleaned(PidFreeEnd::pathTo(in, n1));
+			select({middle});
+			RotateSelectionCommand *first = turn();
+			RotateSelectionCommand *second = turn();
+			QVERIFY(on(in, nozzle(middle, "N2")));
+			second->undo();
+			first->undo();
+			QVERIFY(on(in, n1));
+			QCOMPARE(PidFreeEnd::cleaned(PidFreeEnd::pathTo(in, n1)), route);
+			delete second;
+			delete first;
 		}
 
 			// A mirror across the line changes nothing

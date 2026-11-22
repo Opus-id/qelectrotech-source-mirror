@@ -136,7 +136,7 @@ m_diagram(diagram)
 			if (Element *element = qgraphicsitem_cast<Element *>(item))
 				elements << element;
 		if (childCount() && PidRunReattachCommand::concerns(elements))
-			new PidRunReattachCommand(elements, this);
+			m_reattach = new PidRunReattachCommand(elements, this);
 
 		for (QPropertyUndoCommand *undo : m_undo)
 			undo->setAnimated(true, false);
@@ -236,7 +236,10 @@ void RotateSelectionCommand::undo()
 {
 	m_diagram->showMe();
 	QUndoCommand::undo();
-	
+		//The pipes back where they were take back their routes (5l-1h)
+	if (m_reattach)
+		m_reattach->restoreRoutes();
+
 	for(const QPointer<ConductorTextItem>& cti : m_cond_text)
 	{
 		cti->forceRotateByUser(m_rotate_by_user.value(cti.data()));
