@@ -913,6 +913,19 @@ class tst_connectionmark : public QObject
 			QCOMPARE(scene.at(scene.size() - 3), QPointF(550, 200));
 			QVERIFY(!scene.contains(QPointF(250, 500)));
 			QVERIFY(!pipe->foldsBack(pointsOf(pipe)));
+
+				// Each end segment is one straight piece up to its bend: the
+				// segment upstream adds on the line of the first one is part
+				// of it
+			const QList<QPointF> once = pointsOf(pipe);
+			QCOMPARE(once.size(), 4);
+				// Dragged on, then back a little (trial of the user): the
+				// segment added on the line of the end one, the same way,
+				// left a short one in the corner, its handle there; none is
+				// left
+			QVERIFY(pipe->moveSegment(1, 20, 0));
+			QVERIFY(pipe->moveSegment(1, -20, 0));
+			QCOMPARE(pointsOf(pipe), once);
 		}
 
 			// Step 7c-bis: a detour drawn by hand stays on its side when the

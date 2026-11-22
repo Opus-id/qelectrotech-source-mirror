@@ -466,11 +466,11 @@ class Conductor : public QGraphicsObject
 			/// may move (step 7c-bis). Nothing when a segment is too short
 		void splitEndSegments();
 			/// After a segment of a pipe or a signal line is moved, while
-			/// dragged too: an end segment the next one runs back over (a
-			/// segment drawn back to where the end segment bent,
-			/// ConductorSegment::moveX()) is shortened instead, the two made
-			/// one. Nothing for a wire. @return true when the segments were
-			/// made anew
+			/// dragged too: the segment ConductorSegment::moveX() adds on the
+			/// line of an end segment (back over it, on, or of no length) is
+			/// made one with it, which is shortened or lengthened instead;
+			/// each end segment is one straight piece up to its bend. Nothing
+			/// for a wire. @return true when the segments were made anew
 		bool mergeFoldedEnds();
 			/// The movement @p asked of the segment @p moved, stopped where
 			/// the pipe would leave one of its nozzles less than exitRoom()

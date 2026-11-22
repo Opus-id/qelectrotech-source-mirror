@@ -2613,14 +2613,13 @@ bool Conductor::mergeFoldedEnds()
 	}
 	QList<QPointF> points = segmentsToPoints();
 		//@p end the end of the line, @p bend where its end segment bends,
-		//@p next the point after: on one line, the way back, and @p next
-		//between @p end and @p bend
+		//@p next the point after: on one line, whichever way the segment
+		//between goes (back over the end segment, on, or no length), as
+		//long as the end segment keeps its way
 	auto folded = [](const QPointF &end, const QPointF &bend, const QPointF &next) {
 		const bool one_line = (qAbs(end.y() - bend.y()) < 0.01 && qAbs(bend.y() - next.y()) < 0.01)
 							  || (qAbs(end.x() - bend.x()) < 0.01 && qAbs(bend.x() - next.x()) < 0.01);
-		return one_line
-				&& QPointF::dotProduct(bend - end, next - bend) < 0
-				&& QPointF::dotProduct(next - end, bend - end) > 0.01;
+		return one_line && QPointF::dotProduct(next - end, bend - end) > 0.01;
 	};
 	bool merged = false;
 	while (points.size() >= 3 && folded(points.at(0), points.at(1), points.at(2))) {
