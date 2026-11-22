@@ -472,6 +472,43 @@ class tst_insulation : public QObject
 			QCOMPARE(q3->properties().m_pipe.insulation_kind, PipeProperties::Insulation);
 		}
 
+			// A new pipe takes the insulation of its line, as its fluid: a
+			// branch drawn from a tee of an insulated line, the pipe drawn
+			// on beyond a valve; none from beyond an insulation limit, nor
+			// from a bare line (step 7d-bis, question of the user of 22/11)
+		void aNewPipeTakesTheInsulationOfItsLine()
+		{
+				// as the user draws it: what the pipe takes left as it is
+			auto connect = [this](Terminal *from, Terminal *to) {
+				auto *pipe = new Conductor(from, to);
+				m_folio->addItem(pipe);
+				return pipe;
+			};
+			const auto t = row({m_equipment, m_tee, m_valve, m_limit, m_equipment});
+			Conductor *left = connect(nozzle(t[0], "N2"), nozzle(t[1], "N1"));
+			QCOMPARE(left->properties().m_pipe.insulation_kind, PipeProperties::NoInsulation);
+			insulate(left, PipeProperties::InsulationAndTracing, true, QStringLiteral("Q 80"));
+				// drawn after the line was insulated
+			Element *below = place(m_equipment, t[1]->pos() + QPointF(0, 100));
+			Conductor *branch = connect(nozzle(t[1], "N3"), nozzle(below, "N1"));
+			Conductor *on = connect(nozzle(t[1], "N2"), nozzle(t[2], "N1"));
+			Conductor *to_limit = connect(nozzle(t[2], "N2"), nozzle(t[3], "N1"));
+			for (Conductor *pipe : {branch, on, to_limit}) {
+				const PipeProperties p = pipe->properties().m_pipe;
+				QCOMPARE(p.insulation_kind, PipeProperties::InsulationAndTracing);
+				QCOMPARE(p.insulation, QStringLiteral("Q 80"));
+				QVERIFY(p.insulation_mark);
+			}
+				// beyond the limit: bare
+			Conductor *beyond = connect(nozzle(t[3], "N2"), nozzle(t[4], "N1"));
+			QCOMPARE(beyond->properties().m_pipe.insulation_kind, PipeProperties::NoInsulation);
+				// a bare line gives none
+			const auto b = row({m_equipment, m_valve, m_equipment});
+			connect(nozzle(b[0], "N2"), nozzle(b[1], "N1"));
+			Conductor *next = connect(nozzle(b[1], "N2"), nozzle(b[2], "N1"));
+			QCOMPARE(next->properties().m_pipe.insulation_kind, PipeProperties::NoInsulation);
+		}
+
 			// A tee: nothing where the run goes on insulated, the branch
 			// included; a stub on the branch when nothing beyond is insulated
 		void aTeeBetweenInsulatedPipesHasNoStub()

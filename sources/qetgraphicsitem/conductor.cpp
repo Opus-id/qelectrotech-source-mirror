@@ -235,7 +235,9 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	through spec breaks too (LineReach::Fluid, step 5l-1z); its line number
 	and its flow as far as they go (LineReach::LineNumber, LineReach::Flow,
 	step 5l-1k); its kind of line (main, secondary, auxiliary) as its line
-	number, a branch of a tee starting as a main line (step 6b-1c). Done once, when
+	number, a branch of a tee starting as a main line (step 6b-1c); its
+	insulation from the nearest pipe of its line (LineReach::Insulation,
+	step 7d-bis). Done once, when
 	it is connected: a pipe given data of its own afterwards (the halves of a
 	pipe cut, a pipe read from a file) keeps them, empty fields included.
 */
@@ -295,6 +297,32 @@ void Conductor::takeLineSpec()
 			if (other != this && other->m_properties.m_medium == TerminalData::Pipe) {
 				data.line_kind = other->m_properties.m_pipe.line_kind;
 				kind_taken = true;
+				break;
+			}
+		}
+	}
+		//Its insulation (kind, text, mark), that of the nearest pipe of its
+		//line when insulated, as far as an insulation goes: through tees,
+		//the branch of a tee included, up to an insulation limit or
+		//equipment (step 7d-bis, choice of the user of 22/11)
+	if (data.insulation_kind == PipeProperties::NoInsulation)
+	{
+		for (Terminal *end : {terminal1, terminal2})
+		{
+			if (!end || data.insulation_kind != PipeProperties::NoInsulation) {
+				continue;
+			}
+			for (const Conductor *other : runFrom({end}, LineReach::Insulation)) {
+				if (other == this || other->m_properties.m_medium != TerminalData::Pipe) {
+					continue;
+				}
+				const PipeProperties &theirs = other->m_properties.m_pipe;
+				if (theirs.insulation_kind != PipeProperties::NoInsulation) {
+					data.insulation_kind = theirs.insulation_kind;
+					data.insulation = theirs.insulation;
+					data.insulation_mark = theirs.insulation_mark;
+				}
+					//The nearest only: a bare one says the line is bare
 				break;
 			}
 		}
