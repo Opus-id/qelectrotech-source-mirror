@@ -2598,6 +2598,47 @@ void Conductor::splitEndSegments()
 }
 
 /**
+	@brief Conductor::mergeFoldedEnds
+	See the declaration. Upstream keeps the end segments of a wire as they
+	are, short exits from the terminals, and adds a segment to join the one
+	moved; the end segment of a pipe is often long (a line cut by a symbol
+	keeps its route, step 7c), and the segment added then runs back over it.
+	The end segment is only shortened, never turned round: the segment
+	dragged stops short of a nozzle (stoppedAtExits()).
+*/
+void Conductor::mergeFoldedEnds()
+{
+	if (m_properties.m_medium == TerminalData::Electrical) {
+		return;
+	}
+	QList<QPointF> points = segmentsToPoints();
+		//@p end the end of the line, @p bend where its end segment bends,
+		//@p next the point after: on one line, the way back, and @p next
+		//between @p end and @p bend
+	auto folded = [](const QPointF &end, const QPointF &bend, const QPointF &next) {
+		const bool one_line = (qAbs(end.y() - bend.y()) < 0.01 && qAbs(bend.y() - next.y()) < 0.01)
+							  || (qAbs(end.x() - bend.x()) < 0.01 && qAbs(bend.x() - next.x()) < 0.01);
+		return one_line
+				&& QPointF::dotProduct(bend - end, next - bend) < 0
+				&& QPointF::dotProduct(next - end, bend - end) > 0.01;
+	};
+	bool merged = false;
+	while (points.size() >= 3 && folded(points.at(0), points.at(1), points.at(2))) {
+		points.removeAt(1);
+		merged = true;
+	}
+	while (points.size() >= 3 && folded(points.last(), points.at(points.size() - 2),
+										points.at(points.size() - 3))) {
+		points.removeAt(points.size() - 2);
+		merged = true;
+	}
+	if (merged) {
+		pointsToSegments(points);
+		segmentsToPath();
+	}
+}
+
+/**
 	@brief Conductor::handlerMouseMoveEvent
 	@param qghi
 	@param event
@@ -2645,6 +2686,7 @@ void Conductor::handlerMouseReleaseEvent(QetGraphicsHandlerItem *qghi, QGraphics
 	showExitStop(nullptr);
 	if (has_to_save_profile)
 	{
+		mergeFoldedEnds();
 		saveProfile();
 		has_to_save_profile = false;
 	}
@@ -3153,6 +3195,7 @@ bool Conductor::moveSegment(int index, qreal dx, qreal dy)
 	seg->moveY(movement.y());
 	modified_path = true;
 	segmentsToPath();
+	mergeFoldedEnds();
 	calculateTextItemPosition();
 	saveProfile();
 	return true;

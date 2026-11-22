@@ -886,6 +886,35 @@ class tst_connectionmark : public QObject
 					 168.0);
 		}
 
+			// Trial of the user (22/11): the segment going down to a long
+			// end segment (a line cut by a valve keeps its route) dragged
+			// towards the valve; upstream adds a segment back to where the
+			// end segment bent, which ran back over it: the end segment is
+			// shortened instead
+		void aDraggedSegmentShortensALongEnd()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+				// N2 of a at (220, 200), east; N1 of b at (680, 500), west
+			Element *a = place(project, folio, QPointF(200, 200));
+			Element *b = place(project, folio, QPointF(700, 500));
+			QVERIFY(a && b);
+			auto *pipe = new Conductor(terminal(a, QStringLiteral("N2")), terminal(b, QStringLiteral("N1")));
+			folio->addItem(pipe);
+			QVERIFY(pipe->setPathPoints({QPointF(220, 200), QPointF(250, 200), QPointF(250, 500),
+										 QPointF(680, 500)}));
+			QVERIFY(pipe->moveSegment(1, 300, 0));
+			QList<QPointF> scene;
+			for (const QPointF &point : pointsOf(pipe)) {
+				scene << pipe->mapToScene(point);
+			}
+			QCOMPARE(scene.last(), QPointF(680, 500));
+			QCOMPARE(scene.at(scene.size() - 2), QPointF(550, 500));
+			QCOMPARE(scene.at(scene.size() - 3), QPointF(550, 200));
+			QVERIFY(!scene.contains(QPointF(250, 500)));
+			QVERIFY(!pipe->foldsBack(pointsOf(pipe)));
+		}
+
 			// Step 7c-bis: a detour drawn by hand stays on its side when the
 			// ends of the pipe come level, and when they pass each other
 		void aDetourDrawnByHandKeepsItsSide()
