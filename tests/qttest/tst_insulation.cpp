@@ -55,7 +55,7 @@ class tst_insulation : public QObject
 
 	QETProject m_project;
 	Diagram *m_folio = nullptr;
-	ElementsLocation m_valve, m_tee, m_equipment, m_limit, m_signals;
+	ElementsLocation m_valve, m_tee, m_equipment, m_limit, m_signals, m_arrow;
 	qreal m_next_y = 0;
 
 	ElementsLocation add(const QString &file, const QDomElement &definition)
@@ -136,7 +136,7 @@ class tst_insulation : public QObject
 		{
 			m_project.embeddedElementCollection()->createDir(
 						QStringLiteral("import"), QStringLiteral("insulation"), NamesList());
-			QDomDocument a, b, c, d, e;
+			QDomDocument a, b, c, d, e, f;
 			m_valve = add("valve.elmt", definition(a, "91111111-1111-1111-1111-111111111111",
 												   "pid_inline=\"true\" pid_family=\"valve\" "));
 			m_tee = add("tee.elmt", definition(b, "92222222-2222-2222-2222-222222222222",
@@ -148,8 +148,11 @@ class tst_insulation : public QObject
 												   "pid_role=\"insulation_limit\" "));
 			m_signals = add("signals.elmt", definition(e, "95555555-5555-5555-5555-555555555555",
 													   QString(), false, QStringLiteral("signal")));
+			m_arrow = add("arrow.elmt", definition(f, "96666666-6666-6666-6666-666666666666",
+												   "pid_inline=\"true\" pid_family=\"pipe\" "
+												   "pid_role=\"flow_arrow\" "));
 			QVERIFY(m_valve.exist() && m_tee.exist() && m_equipment.exist() && m_limit.exist()
-					&& m_signals.exist());
+					&& m_signals.exist() && m_arrow.exist());
 			m_folio = m_project.addNewDiagram();
 		}
 
@@ -305,6 +308,30 @@ class tst_insulation : public QObject
 			q2->insulationPaths(&hatches, &dashes);
 			QVERIFY(qAbs(q2->mapRectToScene(dashes.boundingRect()).left() - middle) < 0.01);
 			insulate(q2, PipeProperties::Insulation);
+		}
+
+			// A flow arrow stops nothing: no stub between two pipes
+			// insulated alike; where only one is, its stub starts at the
+			// nozzle of the arrow, not in its middle, which it would hide
+			// (choice of the user, 22/11, step 7d-bis)
+		void aFlowArrowKeepsItsStubAtItsNozzle()
+		{
+			const auto e = row({m_equipment, m_arrow, m_equipment});
+			Conductor *left = draw(nozzle(e[0], "N2"), nozzle(e[1], "N1"), PipeProperties::Insulation);
+			Conductor *right = draw(nozzle(e[1], "N2"), nozzle(e[2], "N1"), PipeProperties::Insulation);
+			QVERIFY(e[1]->isFlowArrow() && e[1]->isLineMark());
+			QVERIFY(!left->insulationEndsAt(nozzle(e[1], "N1")));
+			QVERIFY(!right->insulationEndsAt(nozzle(e[1], "N2")));
+			insulate(left, PipeProperties::NoInsulation);
+			QVERIFY(right->insulationEndsAt(nozzle(e[1], "N2")));
+				// the pipe still goes into its middle
+			QVERIFY(!right->lineIntoSpecBreak(nozzle(e[1], "N2")).isNull());
+			QPainterPath hatches, dashes;
+			right->insulationPaths(&hatches, &dashes);
+			QCOMPARE(lines(hatches), 2 * 7);
+			const qreal from = right->mapRectToScene(hatches.boundingRect()).left();
+			QVERIFY(qAbs(from - nozzle(e[1], "N2")->dockConductor().x()) < 0.01);
+			QVERIFY(from > e[1]->pos().x() + 1);
 		}
 
 			// A tee: nothing where the run goes on insulated, the branch

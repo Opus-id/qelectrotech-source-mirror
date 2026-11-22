@@ -1941,11 +1941,14 @@ void Conductor::insulationPaths(QPainterPath *hatches, QPainterPath *dashes) con
 	const bool at_second = insulationEndsAt(terminal2);
 		//On a short pipe, each stub on its half
 	const qreal stub = qMin(insulationStubOf(diagram()), at_first && at_second ? room / 2 : room);
-		//Into a line mark (an insulation limit, a spec break), the pipe is
-		//drawn to its middle: the stub starts there, where its stroke is
-		//(step 7d-bis), its length the same
+		//Into a line mark across the line (an insulation limit, a spec
+		//break), the pipe is drawn to its middle: the stub starts there,
+		//where its stroke is (step 7d-bis), its length the same. Not at a
+		//flow arrow, which the stub would hide: from its nozzle (choice of
+		//the user, 22/11)
 	auto stub_at = [this, &points, stub](const Terminal *terminal, qreal start, qreal end) {
-		const QLineF into = lineIntoSpecBreak(terminal);
+		const Element *mark = terminal->parentElement();
+		const QLineF into = mark && mark->isFlowArrow() ? QLineF() : lineIntoSpecBreak(terminal);
 		const qreal lead = into.isNull() ? 0 : into.length();
 		QList<QPointF> part = terminal == terminal1
 				? PidInsulation::stretch(points, start, start + qMax(stub - lead, 0.0))
