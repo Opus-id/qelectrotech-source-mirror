@@ -709,6 +709,10 @@ qet_add_app_test(tst_insulation tst_insulation.cpp)
 # The flow direction arrow (step 8a): a mark on the line, the pipes drawn into
 # it; nothing stops there, a cut writes the designation once.
 qet_add_app_test(tst_flowarrow tst_flowarrow.cpp)
+# The direction of flow of the pipes (step 8a-bis): found from the role of
+# the nozzles (pid_flow), through valves, reducers and tees, never written;
+# a disagreement said; the page of a pipe.
+qet_add_app_test(tst_pipeflow tst_pipeflow.cpp)
 # Which mark the signal lines of each type of signal take: a setting of the
 # project, nothing written by default; its file, the CSV files, the P&ID page.
 qet_add_app_test(tst_signalmarksettings tst_signalmarksettings.cpp)

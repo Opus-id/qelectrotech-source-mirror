@@ -229,6 +229,8 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QPushButton *m_color = nullptr;
 		QToolButton *m_automatic_color = nullptr;
 		QLabel *m_count = nullptr;
+			/// The direction of flow, found from the symbols (step 8a-bis)
+		QLabel *m_flow_direction = nullptr;
 };
 
 #endif // PIPEPROPERTIESWIDGET_H

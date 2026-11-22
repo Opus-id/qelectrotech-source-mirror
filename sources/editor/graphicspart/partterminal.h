@@ -37,6 +37,7 @@ class PartTerminal : public CustomElementGraphicPart
 	Q_PROPERTY(TerminalData::Medium medium READ medium WRITE setMedium)
 	Q_PROPERTY(QString diameter READ diameterText WRITE setDiameterText)
 	Q_PROPERTY(QString connection READ connectionWord WRITE setConnectionWord)
+	Q_PROPERTY(QString flow_role READ flowRoleWord WRITE setFlowRoleWord)
 	Q_PROPERTY(bool show_name READ showName WRITE setShowName)
 	Q_PROPERTY(QPointF label_pos READ labelPos WRITE setLabelPos)
 	Q_PROPERTY(QFont label_font READ labelFont WRITE setLabelFont)
@@ -63,6 +64,7 @@ class PartTerminal : public CustomElementGraphicPart
 		void mediumChanged();
 		void diameterChanged();
 		void connectionChanged();
+		void flowRoleChanged();
 		void potentialChanged();
 		void showNameChanged();
 		void labelPosChanged();
@@ -135,6 +137,14 @@ class PartTerminal : public CustomElementGraphicPart
 			/// undo of the editor changes
 		QString connectionWord() const {return PipeConnection::toString(d->m_connection);}
 		void setConnectionWord(const QString &word) {setConnection(PipeConnection::fromString(word));}
+			/// Where the fluid comes in or goes out through a nozzle (step
+			/// 8a-bis), none by default
+		TerminalData::FlowRole flowRole() const {return d->m_flow_role;}
+		void setFlowRole(TerminalData::FlowRole role);
+			/// flowRole() as the word of the files, empty for none: the
+			/// property the undo of the editor changes
+		QString flowRoleWord() const {return TerminalData::flowRoleToString(d->m_flow_role);}
+		void setFlowRoleWord(const QString &word) {setFlowRole(TerminalData::flowRoleFromString(word));}
 			/// The mark of the connection of this nozzle, as a placed symbol
 			/// draws it when its project draws the connections
 			/// (Terminal::drawConnectionMark()), in the coordinates of this

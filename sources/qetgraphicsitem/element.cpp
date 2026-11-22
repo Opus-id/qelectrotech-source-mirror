@@ -5201,6 +5201,8 @@ bool Element::changeLocation(const ElementsLocation &location)
 					terminal->setUuid(uuid);
 					terminal->setSymbolDiameter(TerminalData::symbolDiameterFromXml(part));
 					terminal->setSymbolConnection(TerminalData::connectionFromXml(part));
+					terminal->setSymbolFlowRole(TerminalData::flowRoleFromString(
+													part.attribute(QStringLiteral("pid_flow_role"))));
 				}
 			}
 		}

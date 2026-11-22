@@ -583,6 +583,21 @@ void PartTerminal::setConnection(PipeConnection::Type connection)
 }
 
 /**
+	@brief PartTerminal::setFlowRole
+	Set where the fluid comes in or goes out through this nozzle (step
+	8a-bis): the elements of this symbol follow it, turned or mirrored
+	@param role
+*/
+void PartTerminal::setFlowRole(TerminalData::FlowRole role)
+{
+	if (d->m_flow_role == role) {
+		return;
+	}
+	d->m_flow_role = role;
+	emit flowRoleChanged();
+}
+
+/**
 	@brief PartTerminal::labelText
 	@return the text shown at the terminal: its name, and the DN of a nozzle
 */

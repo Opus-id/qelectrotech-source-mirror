@@ -2875,6 +2875,11 @@ Voulez-vous les renuméroter aussi ?</numerusform>
 <context>
     <name>Conductor</name>
     <message>
+        <source>Flow: %1</source>
+        <comment>direction of flow of a pipe</comment>
+        <translation>Sens : %1</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/conductor.cpp" line="1129"/>
         <source>%1 is not a size of the material %2.</source>
         <translation>%1 n&apos;est pas une taille du matériau %2.</translation>
@@ -5285,6 +5290,29 @@ Continuer ?</translation>
         <source>Click near a free nozzle or a free end (its line goes on), or on a pipe (tee): start a pipe; right click or Esc: quit the tool</source>
         <comment>pipe drawing tool</comment>
         <translation>Cliquez près d&apos;un piquage libre ou d&apos;une extrémité libre (sa ligne continue), ou sur une tuyauterie (Té) : commencer une tuyauterie ; clic droit ou Échap : quitter l&apos;outil</translation>
+    </message>
+</context>
+<context>
+    <name>PidFlow</name>
+    <message>
+        <source>%1 (%2)</source>
+        <comment>a nozzle: its symbol (its name)</comment>
+        <translation>%1 (%2)</translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <comment>direction of flow</comment>
+        <translation>inconnu</translation>
+    </message>
+    <message>
+        <source>disagreement</source>
+        <comment>direction of flow</comment>
+        <translation>en désaccord</translation>
+    </message>
+    <message>
+        <source>from %1 to %2</source>
+        <comment>direction of flow</comment>
+        <translation>de %1 vers %2</translation>
     </message>
 </context>
 <context>
@@ -16871,6 +16899,14 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
 </context>
 <context>
     <name>PipePropertiesWidget</name>
+    <message>
+        <source>Direction of flow:</source>
+        <translation>Sens d&apos;écoulement :</translation>
+    </message>
+    <message>
+        <source>Found from the symbols of the line: flow arrows, check valves, pumps, and through valves, reducers and tees. Turn or mirror a symbol to change it.</source>
+        <translation>Déduit des symboles de la ligne : flèches de sens, clapets, pompes, et à travers les vannes, les réductions et les tés. Tourner ou retourner un symbole pour le changer.</translation>
+    </message>
     <message>
         <source>Insulation:</source>
         <translation>Calorifuge :</translation>
@@ -32948,6 +32984,14 @@ Les autres champs ne sont pas utilisés.</translation>
 <context>
     <name>Terminal</name>
     <message>
+        <source>Inlet of the fluid</source>
+        <translation>Entrée du fluide</translation>
+    </message>
+    <message>
+        <source>Outlet of the fluid</source>
+        <translation>Sortie du fluide</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1215"/>
         <source>Nozzle %1, pipe %2</source>
         <translation>Piquage %1, tuyauterie %2</translation>
@@ -33126,6 +33170,33 @@ Les autres champs ne sont pas utilisés.</translation>
 </context>
 <context>
     <name>TerminalEditor</name>
+    <message>
+        <source>Either way</source>
+        <comment>flow through a nozzle</comment>
+        <translation>Indifférent</translation>
+    </message>
+    <message>
+        <source>Inlet</source>
+        <comment>flow through a nozzle</comment>
+        <translation>Entrée</translation>
+    </message>
+    <message>
+        <source>Outlet</source>
+        <comment>flow through a nozzle</comment>
+        <translation>Sortie</translation>
+    </message>
+    <message>
+        <source>Change the flow through a nozzle</source>
+        <translation>Modifier le sens d&apos;un piquage</translation>
+    </message>
+    <message>
+        <source>Flow:</source>
+        <translation>Sens :</translation>
+    </message>
+    <message>
+        <source>Where the fluid comes in or goes out through this nozzle, as the drawing of the symbol shows it (a check valve, a pump). Nothing for a symbol which has no direction of its own (a gate valve, a tank): the flow goes through it either way. A placed symbol follows its drawing, turned or mirrored.</source>
+        <translation>Où le fluide entre ou sort par ce piquage, comme le montre le dessin du symbole (un clapet, une pompe). Rien pour un symbole sans sens propre (un robinet-vanne, une cuve) : l&apos;écoulement le traverse dans un sens ou dans l&apos;autre. Un symbole posé suit son dessin, tourné ou retourné.</translation>
+    </message>
     <message>
         <location filename="../sources/editor/ui/terminaleditor.cpp" line="143"/>
         <source>This nozzle takes the size of its pipe: it has no size of its own. See the block Piping of the panel Informations (nothing selected).</source>

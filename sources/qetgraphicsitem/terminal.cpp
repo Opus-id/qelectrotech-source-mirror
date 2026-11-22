@@ -177,8 +177,16 @@ void Terminal::init()
 	setAcceptedMouseButtons(Qt::LeftButton);
 	setOwnToolTip(QObject::tr("Terminal", "tooltip"));
 		//A nozzle says how a pipe is joined to it
-	if (d->m_medium == TerminalData::Pipe)
-		setOwnToolTip(PipeConnection::name(d->m_connection));
+		//and where the fluid comes in or goes out (step 8a-bis)
+	if (d->m_medium == TerminalData::Pipe) {
+		QString tip = PipeConnection::name(d->m_connection);
+		if (d->m_flow_role == TerminalData::FlowIn) {
+			tip += QLatin1Char('\n') + tr("Inlet of the fluid");
+		} else if (d->m_flow_role == TerminalData::FlowOut) {
+			tip += QLatin1Char('\n') + tr("Outlet of the fluid");
+		}
+		setOwnToolTip(tip);
+	}
 	setZValue(Z);
 }
 
@@ -1827,6 +1835,12 @@ void Terminal::setSymbolConnection(PipeConnection::Type connection)
 	updateConnectionMark();
 }
 
+void Terminal::setSymbolFlowRole(TerminalData::FlowRole role)
+{
+	d->m_flow_role = role;
+	updateDiameterToolTip();
+}
+
 PipeConnection::MarkChoice Terminal::markChoice() const
 {
 	if (d->m_medium != TerminalData::Pipe || !parent_element_) {
@@ -2433,6 +2447,12 @@ void Terminal::updateDiameterToolTip()
 								   .arg(large->diameterText(), small->diameterText());
 	};
 	QString tip = PipeConnection::name(connection());
+		//Where the fluid comes in or goes out, as the symbol says (step 8a-bis)
+	if (flowRole() == TerminalData::FlowIn) {
+		tip += QLatin1Char('\n') + tr("Inlet of the fluid");
+	} else if (flowRole() == TerminalData::FlowOut) {
+		tip += QLatin1Char('\n') + tr("Outlet of the fluid");
+	}
 	const auto match = compareDiameters(pipe, other);
 	if (!hasDiameterGap()) {
 			//The connection alone

@@ -71,6 +71,37 @@ class TerminalData : public PropertiesInterface
 		};
 		Q_ENUM(Medium)
 
+			/// What a nozzle is to the flow of its symbol (step 8a-bis):
+			/// where the fluid comes in (a check valve, the suction of a
+			/// pump), where it goes out, or nothing said (a gate valve, the
+			/// nozzle of a tank): the flow goes through it either way. The
+			/// symbol says it (attribute pid_flow_role; pid_flow is the flow rate
+			/// of a pipe); a placed symbol follows
+			/// its drawing, turned or mirrored, and changes nothing.
+		enum FlowRole {
+			NoFlowRole,
+			FlowIn,
+			FlowOut
+		};
+		Q_ENUM(FlowRole)
+			/// The word of the files for @p role; none for NoFlowRole
+		static QString flowRoleToString(TerminalData::FlowRole role)
+		{
+			switch (role) {
+				case FlowIn:     return QStringLiteral("in");
+				case FlowOut:    return QStringLiteral("out");
+				case NoFlowRole: break;
+			}
+			return QString();
+		}
+			/// The role @p string names; anything else is none
+		static TerminalData::FlowRole flowRoleFromString(const QString &string)
+		{
+			if (string == QLatin1String("in"))  return FlowIn;
+			if (string == QLatin1String("out")) return FlowOut;
+			return NoFlowRole;
+		}
+
 		TerminalData();
 		TerminalData(QGraphicsObject* parent);
 		~TerminalData() override;
@@ -307,6 +338,9 @@ class TerminalData : public PropertiesInterface
 		PipeDiameter m_diameter;
 			/// How a pipe is joined to a nozzle; a flange by default
 		PipeConnection::Type m_connection = PipeConnection::Flange;
+			/// Where the fluid goes through a nozzle, see FlowRole; none by
+			/// default, and for any other medium
+		TerminalData::FlowRole m_flow_role = TerminalData::NoFlowRole;
 			/// The condition on the options of the symbol under which the
 			/// terminal is shown, as the show_if of a part of the drawing
 			/// (ElementOptions::isShown()); empty: always shown

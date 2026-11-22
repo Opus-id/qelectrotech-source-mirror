@@ -143,6 +143,10 @@ void TerminalEditor::updateForm()
 	ui->label_connection->setVisible(nozzle);
 	ui->m_connection_cb->setVisible(nozzle);
 	ui->m_connection_cb->setCurrentIndex(ui->m_connection_cb->findData(int(m_part->connection())));
+		//Where the fluid comes in or goes out (step 8a-bis)
+	ui->label_flow->setVisible(nozzle);
+	ui->m_flow_cb->setVisible(nozzle);
+	ui->m_flow_cb->setCurrentIndex(ui->m_flow_cb->findData(int(m_part->flowRole())));
 		//The kinds of size the connection takes
 	fillKinds(m_part->connection());
 		//The kind of a diameter given; else the one chosen last
@@ -293,6 +297,10 @@ void TerminalEditor::init()
 	}
 	DiameterList::setUp(ui->m_dn_cb, DiameterList::isoSizes(), PidCodification().locale());
 	fillKinds(PipeConnection::Flange);
+
+	ui->m_flow_cb->addItem(tr("Either way", "flow through a nozzle"), int(TerminalData::NoFlowRole));
+	ui->m_flow_cb->addItem(tr("Inlet", "flow through a nozzle"),      int(TerminalData::FlowIn));
+	ui->m_flow_cb->addItem(tr("Outlet", "flow through a nozzle"),     int(TerminalData::FlowOut));
 
 	ui->m_text_props_gb->setEnabled(false);
 
@@ -738,6 +746,17 @@ void TerminalEditor::activeConnections(bool active)
 										this, &TerminalEditor::mediumEdited);
 		m_editor_connections << connect(ui->m_connection_cb, QOverload<int>::of(&QComboBox::activated),
 										this, &TerminalEditor::connectionEdited);
+		m_editor_connections << connect(ui->m_flow_cb, QOverload<int>::of(&QComboBox::activated),
+										this, [this]() {
+			const auto role = TerminalData::FlowRole(ui->m_flow_cb->currentData().toInt());
+			if (m_locked || !m_part || role == m_part->flowRole()) {
+				return;
+			}
+			auto undo = new QPropertyUndoCommand(m_part, "flow_role", m_part->flowRoleWord(),
+												 TerminalData::flowRoleToString(role));
+			undo->setText(tr("Change the flow through a nozzle"));
+			undoStack().push(undo);
+		});
 		m_editor_connections << connect(ui->m_dn_cb->lineEdit(), &QLineEdit::editingFinished,
 										this, &TerminalEditor::dnEdited);
 		m_editor_connections << connect(ui->m_dn_cb, QOverload<int>::of(&QComboBox::activated),
@@ -792,6 +811,7 @@ void TerminalEditor::activeChangeConnections(bool active)
 		m_change_connections << connect(m_part, &PartTerminal::mediumChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::diameterChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::connectionChanged, this, &TerminalEditor::updateForm);
+		m_change_connections << connect(m_part, &PartTerminal::flowRoleChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::showNameChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelPosChanged, this, &TerminalEditor::updateForm);
 		m_change_connections << connect(m_part, &PartTerminal::labelFontChanged, this, &TerminalEditor::updateForm);

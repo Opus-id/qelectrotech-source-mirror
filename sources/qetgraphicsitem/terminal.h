@@ -210,6 +210,13 @@ class Terminal : public QGraphicsObject
 			/// The one its symbol gives this nozzle
 		PipeConnection::Type symbolConnection() const { return d->m_connection; }
 		void setSymbolConnection(PipeConnection::Type connection);
+			/// Where the fluid comes in or goes out through this nozzle, as
+			/// its symbol says (TerminalData::FlowRole, step 8a-bis); none
+			/// for any other medium
+		TerminalData::FlowRole flowRole() const {
+			return d->m_medium == TerminalData::Pipe ? d->m_flow_role : TerminalData::NoFlowRole;
+		}
+		void setSymbolFlowRole(TerminalData::FlowRole role);
 			/// Whether this nozzle draws the mark of its connection: as its
 			/// project says, unless its element says always or never
 		PipeConnection::MarkChoice markChoice() const;

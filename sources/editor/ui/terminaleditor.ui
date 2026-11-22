@@ -151,7 +151,21 @@
      </item>
     </layout>
    </item>
-   <item row="9" column="0" colspan="2">
+   <item row="9" column="0">
+    <widget class="QLabel" name="label_flow">
+     <property name="text">
+      <string>Flow:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1">
+    <widget class="QComboBox" name="m_flow_cb">
+     <property name="toolTip">
+      <string>Where the fluid comes in or goes out through this nozzle, as the drawing of the symbol shows it (a check valve, a pump). Nothing for a symbol which has no direction of its own (a gate valve, a tank): the flow goes through it either way. A placed symbol follows its drawing, turned or mirrored.</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0" colspan="2">
     <widget class="QGroupBox" name="m_label_gb">
      <property name="title">
       <string>Terminal name</string>
@@ -287,7 +301,7 @@
      </layout>
     </widget>
    </item>
-   <item row="10" column="0" colspan="2">
+   <item row="11" column="0" colspan="2">
     <widget class="QGroupBox" name="m_master_label_gb">
      <property name="title">
       <string>Master’s label</string>

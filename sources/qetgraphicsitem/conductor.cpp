@@ -42,6 +42,7 @@
 #include <wirehops.h>
 #include <pidtooltip.h>
 #include <pidtraversal.h>
+#include <pidflow.h>
 #include <pidlinedesignation.h>
 #include <pidinsulation.h>
 #include <shownkinds.h>
@@ -2376,9 +2377,15 @@ void Conductor::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
 	}
 	m_mouse_over = true;
 		//What its orange band says (drawOffSeries()), and the symbols it
-		//runs over (drawTraversals()); a wire has no tip
+		//runs over (drawTraversals()); a wire has no tip. First, the
+		//direction of flow of a pipe, when it is known or said twice
+		//(step 8a-bis)
 	if (m_properties.m_medium != TerminalData::Electrical) {
 		QStringList notes;
+		if (m_properties.m_medium == TerminalData::Pipe
+			&& PidFlow::direction(this) != PidFlow::Direction::Unknown) {
+			notes << tr("Flow: %1", "direction of flow of a pipe").arg(PidFlow::text(this));
+		}
 		for (const QString &note : {offSeriesNote(), traversalNote()}) {
 			if (!note.isEmpty()) {
 				notes << note;

@@ -21,6 +21,7 @@
 #include "../conductorproperties.h"
 #include "../diagram.h"
 #include "../pidcodification.h"
+#include "../pidflow.h"
 #include "../pidlinedesignation.h"
 #include "../pidsection.h"
 #include "../pidstatus.h"
@@ -402,6 +403,16 @@ void PipePropertiesWidget::buildUi()
 	connect(m_automatic_color, &QToolButton::clicked, this, [this]() { setManualColor(QColor()); });
 
 	layout->addRow(PidSection::title(tr("Other data", "section of the page of a pipe"), this));
+		//The direction of flow, found from the flow arrows, the check valves
+		//and the pumps of the line: read only, nothing written (step 8a-bis)
+	m_flow_direction = new QLabel(this);
+	m_flow_direction->setObjectName(QStringLiteral("flow_direction"));
+	m_flow_direction->setWordWrap(true);
+	m_flow_direction->setTextInteractionFlags(Qt::TextSelectableByMouse);
+	m_flow_direction->setToolTip(PidToolTip::wrapped(
+		tr("Found from the symbols of the line: flow arrows, check valves, pumps, and through "
+		   "valves, reducers and tees. Turn or mirror a symbol to change it.")));
+	layout->addRow(tr("Direction of flow:"), m_flow_direction);
 		//The flow of the line up to its tees, where it parts (step 5l-1k),
 		//and to its injection points (step 6b-1c)
 	addTextField(QStringLiteral("flow"), tr("Flow:"),
@@ -1420,6 +1431,9 @@ void PipePropertiesWidget::updateUi()
 	for (const auto &field : std::as_const(m_text_fields)) {
 		showText(field.first, field.second);
 	}
+		//Each pipe has its own ends: one pipe only
+	m_flow_direction->setText(list.size() == 1 ? PidFlow::text(list.first())
+											   : tr("(several values)"));
 		//A code shown with its name, as the list offers it; no code, nothing
 	auto shown = [](const QComboBox *list, const QString &code) {
 		if (code.isEmpty()) {
