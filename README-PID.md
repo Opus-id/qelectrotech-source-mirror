@@ -185,9 +185,16 @@ line.*
   facing one of its own, by the free end of a pipe, which it takes, or by
   a connected nozzle when its own nozzle lies on that pipe. Two nozzles
   that touch get no pipe between them.
-- **Deleting an in-line symbol** joins its two pipes into one again; the
-  branch of a deleted tee goes with it. A free end left alone by a
-  deletion is removed too.
+- **Deleting an in-line symbol** joins its two pipes into one again, with
+  the data of the pipe on its N1 side; the branch of a deleted tee goes
+  with it. A pump, a blower or any symbol with two nozzles only, face to
+  face, is joined again the same way, though no change of size goes
+  through it; a size that differs at the far end is then marked, as
+  anywhere else. An equipment with more nozzles (a tank, a heat exchanger)
+  leaves each of its pipes on the free end of the project, where its
+  nozzle was, route and data kept (without a free end set, its pipes go
+  with it). A pipe picked along with the symbol goes as asked. A free end
+  left alone by a deletion is removed too. One undo step.
 - A pipe is picked over its drawn width, a little more when hovered.
 - **Crossings**: the hops of the project (off by default) may let the
   thinner of two crossing lines give way (`hop="thinner"`; the vertical
@@ -538,6 +545,16 @@ line.*
   is rotated: a valve with a handwheel turned upside down stays on its
   line and its pipes stay straight. An electrical symbol keeps its centre
   where it was, as before.
+- **Pipes follow a turned or mirrored symbol**: a valve, a flow arrow, the
+  run of a tee or a cross, or a symbol with two nozzles only face to face
+  (a pump), mirrored or turned by a half (two quarter turns), would leave
+  its pipes running back through it: each goes over to the nozzle now
+  facing its other end, in the same undo step. A quarter turn of a
+  straight line changes nothing; a line in L that now leaves behind the
+  symbol is taken by the other nozzle. The branch of a tee keeps its pipe,
+  as does any nozzle of an equipment with more than two; a pipe which
+  already ran back, or which turns with both its ends, stays. Pipes only:
+  wires and signal lines stay where they are.
 - **Ends and corners of lines**: the element editor can draw the ends of a
   line round or flat and its corners round, mitred or bevelled (`line-cap`
   and `line-join` in the style of a part; nothing written for the default).
