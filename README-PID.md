@@ -654,6 +654,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<terminal>` | `pid_dn`, `pid_od`, `pid_thread` | DN; outside diameter to the tenth; inches (`1 1/2`) | the size of its pipe | a nozzle with a size of its own |
 | `.elmt`, `<terminal>` | `pid_connection` | `plain_end`, `socket`, `thread`, `butt_weld`, `grooved`, `quick_coupling` | `flange` | not a flange |
 | `.elmt`, `<terminal>` | `pid_flow_role` | `in`, `out` | none: the flow goes through the nozzle either way | the fluid comes in or goes out there (check valve, pump, flow arrow); the direction of flow of the pipes is found from it, never written |
+| `.elmt`, `<terminal>` | `pid_chamber` | a name (`1`, `2`) | none | the nozzle belongs to that chamber of its equipment (a side of a heat exchanger); the direction of flow goes through a chamber of two nozzles, never through one of three or more (a vessel) |
 | `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
 | `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never`; on the block, `same_connection`, `same_size`, `same_mark` = `false` | those of the symbol and the project; nozzles linked | a nozzle of the placed symbol is changed, or a link undone |
 | `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
