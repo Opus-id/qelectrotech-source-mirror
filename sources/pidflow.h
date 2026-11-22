@@ -46,7 +46,10 @@ class Terminal;
 	or all go out; otherwise nothing is found there.
 
 	Several sources which do not agree, or a tee into which everything
-	comes, are a disagreement: said, never refused nor corrected.
+	comes, are a disagreement: said, never refused nor corrected. A line
+	used both ways in turn (a closed sand filter: production, then
+	backwash) says so by the arrow of both ways: "both ways", never a
+	disagreement, unless another source gives it one way only.
 	Pipes only: a signal line has no direction here.
 */
 namespace PidFlow
@@ -67,6 +70,7 @@ namespace PidFlow
 				Unknown,
 				In,       ///< the fluid comes into the symbol there
 				Out,      ///< the fluid goes out of the symbol there
+				Both,     ///< both ways in turn (the arrow of both ways)
 				Conflict  ///< sources which do not agree
 			};
 
@@ -77,6 +81,10 @@ namespace PidFlow
 				/// The fluid comes in at @p node (@p in), or goes out, as
 				/// @p source says
 			void fix(int node, bool in, int source);
+				/// The fluid goes both ways in turn at @p node, as @p source
+				/// says: its stretch too, unless another source gives it one
+				/// way only, a disagreement
+			void fixBoth(int node, int source);
 				/// A tee, a cross, of the nozzles @p nodes; @p source names
 				/// it among the sources of what it gives
 			void addJunction(const QList<int> &nodes, int source);
@@ -109,6 +117,7 @@ namespace PidFlow
 				int node;
 				bool in;
 				int source;
+				bool both = false;
 			};
 			QList<Fix> m_fixes;
 
@@ -125,6 +134,7 @@ namespace PidFlow
 			struct Group {
 				bool in = false;
 				bool out = false;
+				bool both = false;
 				QList<int> sources;
 			};
 			QHash<int, Group> m_groups;
@@ -136,13 +146,15 @@ namespace PidFlow
 		Unknown,
 		Forward,
 		Backward,
+		Both,     ///< both ways in turn (the arrow of both ways)
 		Conflict
 	};
 		/// The direction of flow along @p pipe; Unknown for a signal line
 		/// or a wire
 	Direction direction(const Conductor *pipe);
 		/// The direction of @p pipe as the user reads it: "from PC-01 (N2)
-		/// to VC-03 (N1)", "unknown" or "disagreement"; nothing for a signal
+		/// to VC-03 (N1)", "both ways", "unknown" or "disagreement"; nothing
+		/// for a signal
 		/// line or a wire
 	QString text(const Conductor *pipe);
 		/// The way a nozzle is named in text(): the label of its symbol,

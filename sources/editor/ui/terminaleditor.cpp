@@ -304,6 +304,7 @@ void TerminalEditor::init()
 	ui->m_flow_cb->addItem(tr("Either way", "flow through a nozzle"), int(TerminalData::NoFlowRole));
 	ui->m_flow_cb->addItem(tr("Inlet", "flow through a nozzle"),      int(TerminalData::FlowIn));
 	ui->m_flow_cb->addItem(tr("Outlet", "flow through a nozzle"),     int(TerminalData::FlowOut));
+	ui->m_flow_cb->addItem(tr("Both ways in turn", "flow through a nozzle"), int(TerminalData::FlowBoth));
 
 	ui->m_text_props_gb->setEnabled(false);
 

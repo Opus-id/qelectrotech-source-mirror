@@ -5310,6 +5310,11 @@ Continuer ?</translation>
         <translation>en désaccord</translation>
     </message>
     <message>
+        <source>both ways</source>
+        <comment>direction of flow</comment>
+        <translation>dans les deux sens</translation>
+    </message>
+    <message>
         <source>from %1 to %2</source>
         <comment>direction of flow</comment>
         <translation>de %1 vers %2</translation>
@@ -32992,6 +32997,10 @@ Les autres champs ne sont pas utilisés.</translation>
         <translation>Sortie du fluide</translation>
     </message>
     <message>
+        <source>The fluid goes both ways</source>
+        <translation>Le fluide passe dans les deux sens</translation>
+    </message>
+    <message>
         <location filename="../sources/qetgraphicsitem/terminal.cpp" line="1215"/>
         <source>Nozzle %1, pipe %2</source>
         <translation>Piquage %1, tuyauterie %2</translation>
@@ -33184,6 +33193,11 @@ Les autres champs ne sont pas utilisés.</translation>
         <source>Outlet</source>
         <comment>flow through a nozzle</comment>
         <translation>Sortie</translation>
+    </message>
+    <message>
+        <source>Both ways in turn</source>
+        <comment>flow through a nozzle</comment>
+        <translation>Dans les deux sens, tour à tour</translation>
     </message>
     <message>
         <source>Change the flow through a nozzle</source>

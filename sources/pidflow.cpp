@@ -72,6 +72,11 @@ void Solver::fix(int node, bool in, int source)
 	m_fixes << Fix{node, in, source};
 }
 
+void Solver::fixBoth(int node, int source)
+{
+	m_fixes << Fix{node, false, source, true};
+}
+
 void Solver::addJunction(const QList<int> &nodes, int source)
 {
 	Junction junction;
@@ -84,8 +89,12 @@ Solver::State Solver::stateOf(int node) const
 {
 	bool parity = false;
 	const Group group = m_groups.value(find(node, &parity));
-	if (group.in && group.out) {
+		//Both ways, and one way only too: a disagreement
+	if ((group.in && group.out) || (group.both && (group.in || group.out))) {
 		return State::Conflict;
+	}
+	if (group.both) {
+		return State::Both;
 	}
 	if (!group.in && !group.out) {
 		return State::Unknown;
@@ -110,7 +119,15 @@ void Solver::solve()
 		}
 	};
 	for (const Fix &fix : std::as_const(m_fixes)) {
-		give(fix.node, fix.in, fix.source);
+		if (fix.both) {
+			Group &group = m_groups[find(fix.node, nullptr)];
+			group.both = true;
+			if (!group.sources.contains(fix.source)) {
+				group.sources << fix.source;
+			}
+		} else {
+			give(fix.node, fix.in, fix.source);
+		}
 	}
 		//A stretch closed on itself the wrong way goes both ways
 	for (int node : std::as_const(m_bad_links)) {
@@ -119,7 +136,8 @@ void Solver::solve()
 	}
 
 		//A tee, a cross: the last nozzle not known goes the other way when
-		//all the others come in, or all go out. What it gives may give
+		//all the others come in, or all go out; a nozzle used both ways
+		//counts as not known, and is never the last one. What it gives may give
 		//another tee its last nozzle: again, until nothing more is found
 	bool found = true;
 	while (found)
@@ -207,6 +225,7 @@ namespace {
 			switch (terminal->flowRole()) {
 				case TerminalData::FlowIn:  solver.fix(id, true, id);  break;
 				case TerminalData::FlowOut: solver.fix(id, false, id); break;
+				case TerminalData::FlowBoth: solver.fixBoth(id, id); break;
 				case TerminalData::NoFlowRole: break;
 			}
 				//Its pipes take out what they bring in at the other end
@@ -265,6 +284,7 @@ Direction direction(const Conductor *pipe)
 	switch (solver.state(ids.value(pipe->terminal2))) {
 		case Solver::State::In:       return Direction::Forward;
 		case Solver::State::Out:      return Direction::Backward;
+		case Solver::State::Both:     return Direction::Both;
 		case Solver::State::Conflict: return Direction::Conflict;
 		case Solver::State::Unknown:  break;
 	}
@@ -304,6 +324,8 @@ QString text(const Conductor *pipe)
 			return QCoreApplication::translate("PidFlow", "unknown", "direction of flow");
 		case Direction::Conflict:
 			return QCoreApplication::translate("PidFlow", "disagreement", "direction of flow");
+		case Direction::Both:
+			return QCoreApplication::translate("PidFlow", "both ways", "direction of flow");
 		case Direction::Backward:
 			std::swap(from, to);
 			break;

@@ -184,6 +184,8 @@ void Terminal::init()
 			tip += QLatin1Char('\n') + tr("Inlet of the fluid");
 		} else if (d->m_flow_role == TerminalData::FlowOut) {
 			tip += QLatin1Char('\n') + tr("Outlet of the fluid");
+		} else if (d->m_flow_role == TerminalData::FlowBoth) {
+			tip += QLatin1Char('\n') + tr("The fluid goes both ways");
 		}
 		setOwnToolTip(tip);
 	}
@@ -2471,6 +2473,8 @@ void Terminal::updateDiameterToolTip()
 		tip += QLatin1Char('\n') + tr("Inlet of the fluid");
 	} else if (flowRole() == TerminalData::FlowOut) {
 		tip += QLatin1Char('\n') + tr("Outlet of the fluid");
+	} else if (flowRole() == TerminalData::FlowBoth) {
+		tip += QLatin1Char('\n') + tr("The fluid goes both ways");
 	}
 	const auto match = compareDiameters(pipe, other);
 	if (!hasDiameterGap()) {

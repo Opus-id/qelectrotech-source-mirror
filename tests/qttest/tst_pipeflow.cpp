@@ -38,7 +38,8 @@
 	symbols, never written: the role of a nozzle (pid_flow_role="in" / "out")
 	in its symbol; the direction going through the symbols a line runs
 	through, a reducer, a chamber of two nozzles (pid_chamber, a heat
-	exchanger), a tee or a cross by its rule; never through a vessel; a disagreement said;
+	exchanger), a tee or a cross by its rule; never through a vessel; a
+	line used both ways in turn (pid_flow_role="both"); a disagreement said;
 	the page of a pipe and its tool tip.
 */
 class tst_pipeflow : public QObject
@@ -111,6 +112,10 @@ class tst_pipeflow : public QObject
 					south().replace(QLatin1String("medium=\"pipe\""),
 									QLatin1String("medium=\"pipe\" pid_chamber=\"1\""))
 					+ north(chamber("2")))},
+				//The arrow of both ways
+			{QStringLiteral("both.elmt"), symbol(QStringLiteral("7f11111a-1111-1111-1111-111111111111"),
+					QStringLiteral("pid_family=\"pipe\" pid_inline=\"true\" pid_role=\"flow_arrow\""),
+					QStringLiteral("pid_flow_role=\"both\""), QStringLiteral("pid_flow_role=\"both\""))},
 				//A vessel: its three nozzles one chamber
 			{QStringLiteral("vessel.elmt"), symbol(QStringLiteral("7f111119-1111-1111-1111-111111111111"),
 					QStringLiteral("pid_family=\"equipment\""), chamber("1"), chamber("1"),
@@ -294,6 +299,39 @@ class tst_pipeflow : public QObject
 			QVERIFY(!solver.junctionInConflict(1));
 		}
 
+		void bothWaysIsNoDisagreement()
+		{
+			PidFlow::Solver solver;
+			const int a = solver.addNode(), b = solver.addNode(), c = solver.addNode();
+			solver.link(a, b);
+			solver.fixBoth(a, 1);
+			solver.fixBoth(b, 2);
+			solver.solve();
+			QCOMPARE(solver.state(a), PidFlow::Solver::State::Both);
+			QCOMPARE(solver.state(b), PidFlow::Solver::State::Both);
+			QCOMPARE(solver.state(c), PidFlow::Solver::State::Unknown);
+
+				// but one way only besides: a disagreement
+			PidFlow::Solver one_way;
+			const int d = one_way.addNode(), e = one_way.addNode();
+			one_way.link(d, e);
+			one_way.fixBoth(d, 1);
+			one_way.fix(e, true, 2);
+			one_way.solve();
+			QCOMPARE(one_way.state(d), PidFlow::Solver::State::Conflict);
+
+				// a tee: a nozzle used both ways is never the last one
+			PidFlow::Solver tee;
+			const int f = tee.addNode(), g = tee.addNode(), h = tee.addNode();
+			tee.addJunction({f, g, h}, 9);
+			tee.fix(f, true, 1);
+			tee.fixBoth(g, 2);
+			tee.solve();
+			QCOMPARE(tee.state(h), PidFlow::Solver::State::Unknown);
+			QCOMPARE(tee.state(g), PidFlow::Solver::State::Both);
+			QVERIFY(!tee.junctionInConflict(0));
+		}
+
 			// ---- the role of a nozzle ----
 		void theSymbolGivesTheRoleOfItsNozzles()
 		{
@@ -467,6 +505,29 @@ class tst_pipeflow : public QObject
 			Conductor *out_pipe = folio.pipe(vessel, "N2", valve, "N1");
 			QCOMPARE(PidFlow::direction(in_pipe), PidFlow::Direction::Forward);
 			QCOMPARE(PidFlow::direction(out_pipe), PidFlow::Direction::Unknown);
+		}
+
+			// A closed sand filter: the line from the tee to the filter is used
+			// both ways in turn, production then backwash
+		void theArrowOfBothWaysSaysSo()
+		{
+			Scene folio;
+			Element *pump = folio.add("pump.elmt");
+			Element *tee = folio.add("tee.elmt");
+			Element *both = folio.add("both.elmt");
+			Element *filter = folio.add("tank.elmt");
+			Element *drain = folio.place_below(tee);
+			Conductor *supply = folio.pipe(pump, "N2", tee, "N1");
+			Conductor *to_arrow = folio.pipe(tee, "N2", both, "N1");
+			Conductor *to_filter = folio.pipe(both, "N2", filter, "N1");
+			Conductor *waste = folio.pipe(tee, "N3", drain, "N1");
+			QCOMPARE(PidFlow::direction(supply), PidFlow::Direction::Forward);
+			QCOMPARE(PidFlow::direction(to_arrow), PidFlow::Direction::Both);
+			QCOMPARE(PidFlow::direction(to_filter), PidFlow::Direction::Both);
+			QCOMPARE(PidFlow::text(to_filter), QStringLiteral("both ways"));
+				// nothing found beyond it, never a disagreement
+			QCOMPARE(PidFlow::direction(waste), PidFlow::Direction::Unknown);
+			QVERIFY(nozzle(both, "N1")->toolTip().contains(QLatin1String("both ways")));
 		}
 
 		void aSignalLineHasNoDirection()

@@ -78,10 +78,14 @@ class TerminalData : public PropertiesInterface
 			/// symbol says it (attribute pid_flow_role; pid_flow is the flow rate
 			/// of a pipe); a placed symbol follows
 			/// its drawing, turned or mirrored, and changes nothing.
+			/// FlowBoth: the fluid goes both ways in turn, the line being
+			/// used one way, then the other (the arrow of both ways; a
+			/// closed sand filter, production then backwash, step 8a-bis-1c)
 		enum FlowRole {
 			NoFlowRole,
 			FlowIn,
-			FlowOut
+			FlowOut,
+			FlowBoth
 		};
 		Q_ENUM(FlowRole)
 			/// The word of the files for @p role; none for NoFlowRole
@@ -90,6 +94,7 @@ class TerminalData : public PropertiesInterface
 			switch (role) {
 				case FlowIn:     return QStringLiteral("in");
 				case FlowOut:    return QStringLiteral("out");
+				case FlowBoth:   return QStringLiteral("both");
 				case NoFlowRole: break;
 			}
 			return QString();
@@ -97,8 +102,9 @@ class TerminalData : public PropertiesInterface
 			/// The role @p string names; anything else is none
 		static TerminalData::FlowRole flowRoleFromString(const QString &string)
 		{
-			if (string == QLatin1String("in"))  return FlowIn;
-			if (string == QLatin1String("out")) return FlowOut;
+			if (string == QLatin1String("in"))   return FlowIn;
+			if (string == QLatin1String("out"))  return FlowOut;
+			if (string == QLatin1String("both")) return FlowBoth;
 			return NoFlowRole;
 		}
 
