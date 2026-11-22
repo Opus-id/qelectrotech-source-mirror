@@ -53,11 +53,17 @@ namespace PidInsulation
 		/// The path @p points moved by @p distance to its left (a negative
 		/// one to its right), each corner at the meeting of its two sides
 	QList<QPointF> offset(const QList<QPointF> &points, qreal distance);
+		/// The path @p points moved by @p distance to the same side on the
+		/// folio, whichever way it was drawn (step 7d-bis): below a
+		/// horizontal step, right of a vertical one; each corner at the
+		/// meeting of its two sides
+	QList<QPointF> beside(const QList<QPointF> &points, qreal distance);
 		/// The band of an insulation along @p points: its two side lines,
 		/// and its hatches, none closer to a corner or an end than they lean
 	QPainterPath band(const QList<QPointF> &points);
-		/// The line of a heat tracing along @p points, on its left: beside
-		/// the pipe (@p insulated false), or inside the band, half way
+		/// The line of a heat tracing along @p points, on the same side of
+		/// the folio (beside()): beside the pipe (@p insulated false), or
+		/// inside the band, half way
 	QPainterPath tracing(const QList<QPointF> &points, bool insulated);
 }
 

@@ -92,34 +92,57 @@ QList<QPointF> PidInsulation::stretch(const QList<QPointF> &points, qreal from, 
 	return cleaned(part);
 }
 
+namespace {
+		/// @p points moved by @p distance along the side @p side gives each
+		/// of its steps (a unit vector across it), each corner at the
+		/// meeting of its two sides
+	template <typename Side>
+	QList<QPointF> moved(const QList<QPointF> &points, qreal distance, Side side)
+	{
+		const QList<QPointF> path = cleaned(points);
+		QList<QPointF> result;
+		if (path.size() < 2) {
+			return result;
+		}
+		auto shifted = [distance, &side](const QLineF &line) {
+			return line.translated(side(direction(line)) * distance);
+		};
+		QLineF previous = shifted(QLineF(path.at(0), path.at(1)));
+		result << previous.p1();
+		for (int i = 1 ; i + 1 < path.size() ; ++i)
+		{
+			const QLineF next = shifted(QLineF(path.at(i), path.at(i + 1)));
+			QPointF corner;
+			if (previous.intersects(next, &corner) == QLineF::NoIntersection) {
+					//Going on straight, or back: the same point
+				corner = next.p1();
+			}
+			result << corner;
+			previous = next;
+		}
+		result << previous.p2();
+		return result;
+	}
+}
+
+QList<QPointF> PidInsulation::beside(const QList<QPointF> &points, qreal distance)
+{
+		//Across a step (dx, dy), y going down on a folio: (-dy, dx) or
+		//(dy, -dx), whichever goes down, or right on a vertical step;
+		//on a slant, the one going down
+	return moved(points, distance, [](const QPointF &d) {
+		const QPointF across(-d.y(), d.x());
+		const bool flip = qAbs(across.y()) > 1e-6 ? across.y() < 0 : across.x() < 0;
+		return flip ? -across : across;
+	});
+}
+
 QList<QPointF> PidInsulation::offset(const QList<QPointF> &points, qreal distance)
 {
-	const QList<QPointF> path = cleaned(points);
-	QList<QPointF> moved;
-	if (path.size() < 2) {
-		return moved;
-	}
 		//The left of a step (dx, dy), y going down on a folio: (dy, -dx)
-	auto shifted = [distance](const QLineF &line) {
-		const QPointF d = direction(line);
-		const QPointF left(d.y(), -d.x());
-		return line.translated(left * distance);
-	};
-	QLineF previous = shifted(QLineF(path.at(0), path.at(1)));
-	moved << previous.p1();
-	for (int i = 1 ; i + 1 < path.size() ; ++i)
-	{
-		const QLineF next = shifted(QLineF(path.at(i), path.at(i + 1)));
-		QPointF corner;
-		if (previous.intersects(next, &corner) == QLineF::NoIntersection) {
-				//Going on straight: the same point
-			corner = next.p1();
-		}
-		moved << corner;
-		previous = next;
-	}
-	moved << previous.p2();
-	return moved;
+	return moved(points, distance, [](const QPointF &d) {
+		return QPointF(d.y(), -d.x());
+	});
 }
 
 QPainterPath PidInsulation::band(const QList<QPointF> &points)
@@ -164,7 +187,7 @@ QPainterPath PidInsulation::band(const QList<QPointF> &points)
 QPainterPath PidInsulation::tracing(const QList<QPointF> &points, bool insulated)
 {
 	QPainterPath path;
-	const QList<QPointF> line = offset(points, insulated ? half_width / 2 : half_width);
+	const QList<QPointF> line = beside(points, insulated ? half_width / 2 : half_width);
 	if (line.size() < 2) {
 		return path;
 	}

@@ -1941,12 +1941,30 @@ void Conductor::insulationPaths(QPainterPath *hatches, QPainterPath *dashes) con
 	const bool at_second = insulationEndsAt(terminal2);
 		//On a short pipe, each stub on its half
 	const qreal stub = qMin(insulationStubOf(diagram()), at_first && at_second ? room / 2 : room);
+		//Into a line mark (an insulation limit, a spec break), the pipe is
+		//drawn to its middle: the stub starts there, where its stroke is
+		//(step 7d-bis), its length the same
+	auto stub_at = [this, &points, stub](const Terminal *terminal, qreal start, qreal end) {
+		const QLineF into = lineIntoSpecBreak(terminal);
+		const qreal lead = into.isNull() ? 0 : into.length();
+		QList<QPointF> part = terminal == terminal1
+				? PidInsulation::stretch(points, start, start + qMax(stub - lead, 0.0))
+				: PidInsulation::stretch(points, end - qMax(stub - lead, 0.0), end);
+		if (lead > 0 && !part.isEmpty()) {
+			if (terminal == terminal1) {
+				part.prepend(into.p2());
+			} else {
+				part.append(into.p2());
+			}
+		}
+		return part;
+	};
 	QList<QList<QPointF>> parts;
 	if (at_first) {
-		parts << PidInsulation::stretch(points, from, from + stub);
+		parts << stub_at(terminal1, from, to);
 	}
 	if (at_second) {
-		parts << PidInsulation::stretch(points, to - stub, to);
+		parts << stub_at(terminal2, from, to);
 	}
 	const QList<QPointF> mark = insulationMark();
 	if (!mark.isEmpty()) {

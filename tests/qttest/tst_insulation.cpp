@@ -14,6 +14,8 @@
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 
+#include <algorithm>
+
 #include <QDomDocument>
 #include <QImage>
 #include <QPainter>
@@ -185,8 +187,26 @@ class tst_insulation : public QObject
 				// too short for a hatch: its sides only
 			QCOMPARE(lines(PidInsulation::band({QPointF(0, 0), QPointF(10, 0)})), 2);
 
-			QCOMPARE(PidInsulation::tracing(straight, false).elementAt(0).y, -PidInsulation::half_width);
-			QCOMPARE(PidInsulation::tracing(straight, true).elementAt(0).y, -PidInsulation::half_width / 2);
+				// the heat tracing on the same side of the folio, whichever
+				// way the pipe was drawn (step 7d-bis): below a horizontal
+				// step, right of a vertical one, after a corner too
+			QCOMPARE(PidInsulation::tracing(straight, false).elementAt(0).y, PidInsulation::half_width);
+			QCOMPARE(PidInsulation::tracing(straight, true).elementAt(0).y, PidInsulation::half_width / 2);
+			QCOMPARE(PidInsulation::beside({QPointF(32, 0), QPointF(0, 0)}, 6),
+					 QList<QPointF>({QPointF(32, 6), QPointF(0, 6)}));
+			QCOMPARE(PidInsulation::beside({QPointF(0, 0), QPointF(0, 32)}, 6),
+					 QList<QPointF>({QPointF(6, 0), QPointF(6, 32)}));
+			QCOMPARE(PidInsulation::beside({QPointF(0, 32), QPointF(0, 0)}, 6),
+					 QList<QPointF>({QPointF(6, 32), QPointF(6, 0)}));
+				// a U: below both of its horizontal steps, right of the
+				// vertical one; the same path drawn back, the same line
+			const QList<QPointF> u{QPointF(0, 0), QPointF(40, 0), QPointF(40, 40), QPointF(0, 40)};
+			const QList<QPointF> u_line{QPointF(0, 6), QPointF(46, 6), QPointF(46, 46), QPointF(0, 46)};
+			QCOMPARE(PidInsulation::beside(u, 6), u_line);
+			QList<QPointF> back_u = u, back_line = u_line;
+			std::reverse(back_u.begin(), back_u.end());
+			std::reverse(back_line.begin(), back_line.end());
+			QCOMPARE(PidInsulation::beside(back_u, 6), back_line);
 		}
 
 			// The settings of the project: 8 mm, not written; another length
@@ -268,6 +288,23 @@ class tst_insulation : public QObject
 			QVERIFY(!q1->lineIntoSpecBreak(nozzle(l[1], "N1")).isNull());
 			QVERIFY(q1->lineIntoSpecBreak(nozzle(l[0], "N2")).isNull());
 			QVERIFY(q1->inlineRun(Conductor::LineReach::Spec).contains(q2));
+
+				// the stubs start in its middle, at its stroke, where the
+				// pipes are drawn to, not at its nozzles (step 7d-bis; gap
+				// of 2.5 mm seen at the hand test of 22/11), as long
+			const qreal middle = l[1]->pos().x();
+			QPainterPath hatches, dashes;
+			q1->insulationPaths(&hatches, &dashes);
+			QVERIFY(qAbs(q1->mapRectToScene(hatches.boundingRect()).right() - middle) < 0.01);
+			QCOMPARE(lines(hatches), 2 * 7);
+			q2->insulationPaths(&hatches, &dashes);
+			QVERIFY(qAbs(q2->mapRectToScene(hatches.boundingRect()).left() - middle) < 0.01);
+			QCOMPARE(lines(hatches), 2 * 7);
+				// the heat tracing too
+			insulate(q2, PipeProperties::Tracing);
+			q2->insulationPaths(&hatches, &dashes);
+			QVERIFY(qAbs(q2->mapRectToScene(dashes.boundingRect()).left() - middle) < 0.01);
+			insulate(q2, PipeProperties::Insulation);
 		}
 
 			// A tee: nothing where the run goes on insulated, the branch
@@ -314,6 +351,17 @@ class tst_insulation : public QObject
 			pipe->insulationPaths(&hatches, &dashes);
 			QVERIFY(hatches.isEmpty());
 			QCOMPARE(lines(dashes), 2);
+				// below the pipe, drawn either way (step 7d-bis: the dashes
+				// were above it when drawn from right to left)
+			const qreal axis = nozzle(e[0], "N2")->dockConductor().y();
+			QVERIFY(pipe->mapRectToScene(dashes.boundingRect()).top() > axis);
+			const auto r = row({m_equipment, m_equipment});
+			Conductor *back = draw(nozzle(r[1], "N1"), nozzle(r[0], "N2"), PipeProperties::Tracing);
+			QPainterPath back_hatches, back_dashes;
+			back->insulationPaths(&back_hatches, &back_dashes);
+			QCOMPARE(lines(back_dashes), 2);
+			QVERIFY(back->mapRectToScene(back_dashes.boundingRect()).top()
+					> nozzle(r[0], "N2")->dockConductor().y());
 
 			insulate(pipe, PipeProperties::Insulation, true, QStringLiteral("Q 80"));
 			pipe->insulationPaths(&hatches, &dashes);
