@@ -58,15 +58,21 @@ ElementsCollectionCache::ElementsCollectionCache(const QString &database_path, Q
 
 			// Previews used to be stored on an opaque white sheet; they are
 			// transparent now, so the collection tree can adapt them to a
-			// dark palette. A cache written before that is dropped once.
+			// dark palette. The end of a P&ID line shows a stub of its pipe
+			// since, framed on its drawing (ElementPictureFactory, 8b). A
+			// cache written before either is dropped once.
 		QSqlQuery(cache_db_).exec("CREATE TABLE IF NOT EXISTS meta"
 					   "(key VARCHAR(32) NOT NULL PRIMARY KEY, value VARCHAR(64));");
 		QSqlQuery meta(cache_db_);
 		meta.exec("SELECT value FROM meta WHERE key = 'pixmaps'");
-		if (!meta.next() || meta.value(0).toString() != QLatin1String("transparent")) {
+		const QLatin1String drawn("transparent, line ends");
+		if (!meta.next() || meta.value(0).toString() != drawn) {
 			QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS pixmaps");
 			QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS names");
-			QSqlQuery(cache_db_).exec("REPLACE INTO meta (key, value) VALUES ('pixmaps', 'transparent')");
+			QSqlQuery drop(cache_db_);
+			drop.prepare("REPLACE INTO meta (key, value) VALUES ('pixmaps', :value)");
+			drop.bindValue(":value", QString(drawn));
+			drop.exec();
 		}
 #if TODO_LIST
 #pragma message("@TODO the tables could already exist, handle that case.")

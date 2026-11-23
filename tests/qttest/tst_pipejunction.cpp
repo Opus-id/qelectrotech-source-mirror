@@ -112,19 +112,21 @@ class tst_pipejunction : public QObject
 	}
 
 		// The end of a line, 40 x 40: a single nozzle N1 at its origin,
-		// facing @p facing; a free end when @p role is "free_end"
-	static QString lineEnd(const QString &uuid, const QString &facing, const QString &role = QString())
+		// facing @p facing; a free end when @p role is "free_end"; the
+		// drawing @p shapes
+	static QString lineEnd(const QString &uuid, const QString &facing, const QString &role = QString(),
+						   const QString &shapes = QString())
 	{
 		return QStringLiteral(
 			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pid_family=\"pipe\"%3 "
 			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
 			"<uuid uuid=\"{%1}\"/>"
-			"<names><name lang=\"en\">End</name></names><description>"
+			"<names><name lang=\"en\">End</name></names><description>%4"
 			"<terminal uuid=\"{7e000000-0000-0000-0000-000000000005}\" name=\"N1\" x=\"0\" y=\"0\" "
 			"orientation=\"%2\" type=\"Generic\" medium=\"pipe\"/>"
 			"</description></definition>")
 				.arg(uuid, facing,
-					 role.isEmpty() ? QString() : QStringLiteral(" pid_role=\"%1\"").arg(role));
+					 role.isEmpty() ? QString() : QStringLiteral(" pid_role=\"%1\"").arg(role), shapes);
 	}
 
 	static Element *place(QETProject &project, Diagram *folio, const QPointF &pos, const QString &file)
@@ -143,7 +145,14 @@ class tst_pipejunction : public QObject
 				 lineEnd(QStringLiteral("7e111116-1111-1111-1111-111111111111"), QStringLiteral("w"),
 						 QStringLiteral("free_end"))},
 				{QStringLiteral("inlet.elmt"),
-				 lineEnd(QStringLiteral("7e111117-1111-1111-1111-111111111111"), QStringLiteral("e"))}};
+				 lineEnd(QStringLiteral("7e111117-1111-1111-1111-111111111111"), QStringLiteral("e"))},
+					// drawn 40 east of its nozzle, beyond its frame
+				{QStringLiteral("long.elmt"),
+				 lineEnd(QStringLiteral("7e111118-1111-1111-1111-111111111111"), QStringLiteral("w"),
+						 QString(),
+						 QStringLiteral("<line x1=\"0\" y1=\"0\" x2=\"40\" y2=\"0\" end1=\"none\" end2=\"none\" "
+										"length1=\"1.5\" length2=\"1.5\" antialias=\"false\" "
+										"style=\"line-style:normal;line-weight:normal;filling:none;color:black\"/>"))}};
 			for (const auto &entry : files) {
 				QDomDocument doc;
 				doc.setContent(entry.second);
@@ -536,6 +545,21 @@ class tst_pipejunction : public QObject
 								->pixmap(inlet.fitting->location()).toImage();
 			QVERIFY(qAlpha(east.pixel(28, 20)) > 128);
 			QVERIFY(qAlpha(east.pixel(12, 20)) < 128);
+
+				// Drawn beyond its frame: the thumbnail takes it all in, its
+				// nozzle still 20 from the left
+			Scene long_end(QStringLiteral("long.elmt"));
+			QVERIFY(long_end.fitting);
+			const QImage whole = ElementPictureFactory::instance()
+								 ->pixmap(long_end.fitting->location()).toImage();
+			QVERIFY2(whole.width() >= 60, qPrintable(QString::number(whole.width())));
+				// its thin line, half on each row around its axis
+			int ink = 0;
+			for (int y = whole.height() / 2 - 2 ; y <= whole.height() / 2 + 2 ; ++y) {
+				ink = qMax(ink, qAlpha(whole.pixel(58, y)));
+			}
+			QVERIFY2(ink > 64, qPrintable(QString::number(ink)));
+			QVERIFY(qAlpha(whole.pixel(12, whole.height() / 2)) > 128);
 		}
 };
 

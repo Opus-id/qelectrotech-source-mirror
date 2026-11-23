@@ -39,6 +39,46 @@
 
 ElementPictureFactory* ElementPictureFactory::m_factory = nullptr;
 
+namespace {
+		/// The stub of pipe the thumbnail of the end of a line shows (a
+		/// symbol of the pipe family with a single nozzle: a free end, an
+		/// arrow of inlet or outlet, a strainer, a closure): 3 mm of main
+		/// line out of its nozzle, the way its pipe leaves it (8b). False,
+		/// @p stub untouched, for any other symbol
+	bool lineEndStub(const pugi::xml_node &root, QLineF *stub)
+	{
+		if (QString::fromUtf8(root.attribute("pid_family").as_string()).trimmed()
+			!= QLatin1String("pipe")) {
+			return false;
+		}
+		pugi::xml_node end;
+		int nozzles = 0;
+		for (const pugi::xml_node &nozzle : root.child("description").children("terminal"))
+		{
+			if (QLatin1String(nozzle.attribute("medium").as_string()) == QLatin1String("pipe")) {
+				end = nozzle;
+				++nozzles;
+			}
+		}
+		if (nozzles != 1) {
+			return false;
+		}
+			//3 mm, at 4 units per mm
+		const qreal length = 12.0;
+		QPointF way;
+		switch (Qet::orientationFromString(QString::fromUtf8(end.attribute("orientation").as_string())))
+		{
+			case Qet::North: way = QPointF(0, -length); break;
+			case Qet::East:  way = QPointF(length, 0);  break;
+			case Qet::South: way = QPointF(0, length);  break;
+			case Qet::West:  way = QPointF(-length, 0); break;
+		}
+		const QPointF from(end.attribute("x").as_double(), end.attribute("y").as_double());
+		*stub = QLineF(from, from + way);
+		return true;
+	}
+}
+
 /**
 	@brief ElementPictureFactory::cacheKey
 	@param location
@@ -227,6 +267,30 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 		int hsx = qMin(doc.document_element().attribute("hotspot_x").as_int(), w);
 		int hsy = qMin(doc.document_element().attribute("hotspot_y").as_int(), h);
 
+			//The end of a line: its frame is that of all ends, centred on
+			//its nozzle (Change type goes from one to another), its drawing
+			//on one side. Its thumbnail takes in the frame, the drawing and
+			//the stub of pipe (lineEndStub()): nothing cut, nothing shifted
+			//out of it
+		const pugi::xml_node root = doc.document_element();
+		QLineF stub;
+		const bool line_end = lineEndStub(root, &stub);
+		if (line_end)
+		{
+			QRect area(-hsx, -hsy, w, h);
+			area |= m_pictures_H.value(uuid).boundingRect();
+				//The stub, as wide as a main line
+			ConductorProperties main_line;
+			main_line.m_medium = TerminalData::Pipe;
+			const qreal half = main_line.lineWidth() / 2.0;
+			area |= QRectF(stub.p1(), stub.p2()).normalized()
+					.adjusted(-half, -half, half, half).toAlignedRect();
+			w = area.width();
+			h = area.height();
+			hsx = -area.left();
+			hsy = -area.top();
+		}
+
 			//The size comes straight from the file. A symbol whose parts
 			//span hundreds of thousands of pixels would ask for a pixmap of
 			//hundreds of gigabytes; draw it scaled down to fit instead. The
@@ -264,7 +328,6 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 			//would be empty otherwise. Main lines; a nozzle left out of the
 			//run (the reagent of an injection point) a secondary one, so
 			//that what the symbol draws there, its arrow, is seen.
-		const pugi::xml_node root = doc.document_element();
 		if (QString::fromUtf8(root.attribute("pid_role").as_string()).trimmed()
 			== QLatin1String("junction"))
 		{
@@ -290,44 +353,18 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 														nozzle.attribute("y").as_double()));
 			}
 		}
-			//The end of a line (a symbol of the pipe family with a single
-			//nozzle: a free end, an arrow of inlet or outlet, a strainer, a
-			//closure) shows a short stub of main line out of its nozzle, the
-			//way its pipe leaves it: the arrows of inlet and outlet, drawn
-			//alike, are told apart, and the free end, which draws nothing, is
-			//seen (8b). The thumbnail only: on the folio, its pipe is there
-		else if (QString::fromUtf8(root.attribute("pid_family").as_string()).trimmed()
-				 == QLatin1String("pipe"))
+			//The end of a line shows its stub of pipe: the arrows of inlet
+			//and outlet, drawn alike, are told apart, and the free end,
+			//which draws nothing, is seen (8b). The thumbnail only: on the
+			//folio, its pipe is there
+		else if (line_end)
 		{
-			pugi::xml_node end;
-			int nozzles = 0;
-			for (const pugi::xml_node &nozzle : root.child("description").children("terminal"))
-			{
-				if (QLatin1String(nozzle.attribute("medium").as_string()) == QLatin1String("pipe")) {
-					end = nozzle;
-					++nozzles;
-				}
-			}
-			if (nozzles == 1)
-			{
-				ConductorProperties main_line;
-				main_line.m_medium = TerminalData::Pipe;
-				const QColor ink(choices.value(inkChoice()));
-				painter.setPen(QPen(ink.isValid() ? ink : QColor(Qt::black), main_line.lineWidth(),
-									Qt::SolidLine, Qt::FlatCap));
-					//3 mm, at 4 units per mm
-				const qreal stub = 12.0;
-				QPointF way;
-				switch (Qet::orientationFromString(QString::fromUtf8(end.attribute("orientation").as_string())))
-				{
-					case Qet::North: way = QPointF(0, -stub); break;
-					case Qet::East:  way = QPointF(stub, 0);  break;
-					case Qet::South: way = QPointF(0, stub);  break;
-					case Qet::West:  way = QPointF(-stub, 0); break;
-				}
-				const QPointF from(end.attribute("x").as_double(), end.attribute("y").as_double());
-				painter.drawLine(from, from + way);
-			}
+			ConductorProperties main_line;
+			main_line.m_medium = TerminalData::Pipe;
+			const QColor ink(choices.value(inkChoice()));
+			painter.setPen(QPen(ink.isValid() ? ink : QColor(Qt::black), main_line.lineWidth(),
+								Qt::SolidLine, Qt::FlatCap));
+			painter.drawLine(stub);
 		}
 
 		m_pixmap_H.insert(uuid, pix);
