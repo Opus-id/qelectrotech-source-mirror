@@ -721,17 +721,37 @@ Corrections corrections(const QGraphicsItem *item, const QPointF &scene_pos)
 		}
 	}
 		//On the arrow right-clicked, of one way (that of both ways is not
-		//among them), when the arrows do not agree
+		//among them)
 	const auto mine = std::find_if(arrows.cbegin(), arrows.cend(),
 								   [clicked](const QPair<Element *, bool> &arrow) {
 		return arrow.first == clicked;
 	});
-	if (mine != arrows.cend() && arrows_in && arrows_out) {
+	if (mine == arrows.cend() || both_ways) {
+		return found;
+	}
+	const bool way = mine->second;
+	const bool others_with_me = way ? others_in : others_out;
+	const bool others_against = way ? others_out : others_in;
+	bool arrows_against = false, arrows_with_me = false;
+	for (const auto &arrow : std::as_const(arrows)) {
+		if (arrow.first != clicked) {
+			(arrow.second == way ? arrows_with_me : arrows_against) = true;
+		}
+	}
+		//The arrows do not agree: the others on this one, unless a check
+		//valve or a pump goes the other way
+	if (arrows_against && !others_against) {
 		for (const auto &arrow : std::as_const(arrows)) {
-			if (arrow.second != mine->second) {
+			if (arrow.second != way) {
 				found.align << arrow.first;
 			}
 		}
+	}
+		//This one alone against the other sources: reversed, it follows
+		//them all; the only arrow of the line is reversed with it already
+	if ((arrows_against || others_against) && !arrows_with_me && !others_with_me
+		&& found.reverse != QList<Element *>{mine->first}) {
+		found.flip << mine->first;
 	}
 	return found;
 }

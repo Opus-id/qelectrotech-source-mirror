@@ -886,11 +886,54 @@ class tst_pipeflow : public QObject
 			QVERIFY(from_pipe.align.isEmpty());
 			QCOMPARE(on(first).align, QList<Element *>{second});
 			QCOMPARE(on(second).align, QList<Element *>{first});
+				// each one, reversed, follows the other
+			QCOMPARE(on(first).flip, QList<Element *>{first});
+			QCOMPARE(on(second).flip, QList<Element *>{second});
 
 			apply(scene.folio, on(second).align);
 			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Backward);
 			QVERIFY(PidFlow::disagreements(first).isEmpty());
 			QVERIFY(PidFlow::disagreements(second).isEmpty());
+		}
+
+			// Trial of the user (23/11): two arrows and a check valve, the
+			// second arrow turned back by hand
+		void theWrongArrowIsReversedAlone()
+		{
+			Scene scene;
+			Element *tank = scene.add("tank.elmt");
+			Element *first = scene.add("arrow.elmt");
+			Element *check = scene.add("check.elmt");
+			Element *second = scene.add("arrow.elmt");
+			Element *end = scene.add("tank.elmt");
+			second->setRotation(180);
+			QVERIFY(scene.pipe(tank, "N2", first, "N1"));
+			QVERIFY(scene.pipe(first, "N2", check, "N1"));
+			Conductor *c = scene.pipe(check, "N2", second, "N2");
+			QVERIFY(scene.pipe(second, "N1", end, "N1"));
+			QCOMPARE(PidFlow::direction(c), PidFlow::Direction::Conflict);
+
+				// on the wrong one: reversed alone; aligning the others on it
+				// would turn the check valve against them
+			const PidFlow::Corrections wrong = on(second);
+			QVERIFY(wrong.disagreement);
+			QVERIFY(wrong.reverse.isEmpty());
+			QVERIFY(wrong.align.isEmpty());
+			QCOMPARE(wrong.flip, QList<Element *>{second});
+				// on the right one: the others aligned on it, not reversed
+			const PidFlow::Corrections right = on(first);
+			QCOMPARE(right.align, QList<Element *>{second});
+			QVERIFY(right.flip.isEmpty());
+
+			apply(scene.folio, wrong.flip);
+			QCOMPARE(PidFlow::direction(c), PidFlow::Direction::Forward);
+			for (const Element *element : {first, check, second}) {
+				QVERIFY(PidFlow::disagreements(element).isEmpty());
+			}
+				// no disagreement any more: nothing under Correct, the line
+				// reversed only against the check valve, so not offered
+			QVERIFY(on(second).flip.isEmpty() && on(second).align.isEmpty());
+			QVERIFY(on(second).reverse.isEmpty());
 		}
 
 		void aTurnedArrowIsMirroredAlongItsPipes()

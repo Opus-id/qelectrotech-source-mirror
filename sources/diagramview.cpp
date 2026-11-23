@@ -3738,7 +3738,8 @@ void DiagramView::updateStatusMenu()
 	the direction of its line (PidFlow::corrections()). Its line in no
 	disagreement, "Reverse the direction of the line" stands in the menu
 	itself; in disagreement, it goes into the "Correct" submenu, with
-	"Align the arrows of the line on this one" on a flow arrow. The first
+	"Align the arrows of the line on this one" and "Reverse this arrow" on
+	a flow arrow. The first
 	entry of "Correct", which is to hold the proposals for each thing
 	reported (phase 8r): never anything done unasked, one undo step each.
 	Left disabled, and so hidden, otherwise, or when the diagram is read-only.
@@ -3783,6 +3784,15 @@ void DiagramView::updateFlowCorrections()
 		const QList<QPointer<Element>> arrows = pointers(found.align);
 		QAction *action = m_correct_menu->addAction(
 					tr("Align the arrows of the line on this one", "context menu action"));
+		connect(action, &QAction::triggered, this, [this, arrows, action]() {
+			mirrorArrows(arrows, action->text());
+		});
+	}
+	if (!found.flip.isEmpty())
+	{
+		const QList<QPointer<Element>> arrows = pointers(found.flip);
+		QAction *action = m_correct_menu->addAction(
+					tr("Reverse this arrow", "context menu action"));
 		connect(action, &QAction::triggered, this, [this, arrows, action]() {
 			mirrorArrows(arrows, action->text());
 		});

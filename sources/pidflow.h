@@ -218,8 +218,13 @@ namespace PidFlow
 			/// valves and its pumps
 		QList<Element *> reverse;
 			/// "Align the arrows of the line on this one": the arrows which
-			/// go against the one right-clicked
+			/// go against the one right-clicked, unless a check valve or a
+			/// pump of the line goes against it too
 		QList<Element *> align;
+			/// "Reverse this arrow": the one right-clicked, when, reversed,
+			/// it follows every other source of its line (trial of the
+			/// user, 23/11)
+		QList<Element *> flip;
 	};
 		/// What can be offered from @p item right-clicked at @p scene_pos: a
 		/// pipe or a flow arrow; under "Correct", a symbol marked too, by the

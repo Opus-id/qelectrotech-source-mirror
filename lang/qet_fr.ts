@@ -6190,6 +6190,12 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <comment>context menu action</comment>
         <translation>Aligner les flèches de la ligne sur celle-ci</translation>
     </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="3800"/>
+        <source>Reverse this arrow</source>
+        <comment>context menu action</comment>
+        <translation>Retourner cette flèche</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/diagramview.cpp" line="2530"/>
         <source>Change the type of %n element(s)</source>
