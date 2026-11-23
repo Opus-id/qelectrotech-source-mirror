@@ -258,6 +258,12 @@ class Element : public QetGraphicsItem
 		ReloadPictureResult reloadPicture(bool adopt_frame = false);
 		bool canChangeLocationTo(const ElementsLocation &location) const;
 		bool changeLocation(const ElementsLocation &location);
+			/// The texts the P&ID symbol at @p location shows from an
+			/// information of the element (its comment, its label) that no
+			/// text of this element shows yet: made from that symbol, not
+			/// added. Change type adds them (ChangeElementLocationCommand),
+			/// the texts the element has staying as they are (step 8b)
+		QList<DynamicElementTextItem *> textsOfNewType(const ElementsLocation &location);
 			/// The symbols which can replace each of @p elements as they
 			/// stand ("Change type"), sorted by name; none on a read-only
 			/// folio

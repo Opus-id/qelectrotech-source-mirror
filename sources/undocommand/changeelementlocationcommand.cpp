@@ -17,7 +17,9 @@
 */
 #include "changeelementlocationcommand.h"
 
+#include "../qetgraphicsitem/dynamicelementtextitem.h"
 #include "../qetgraphicsitem/element.h"
+#include "addelementtextcommand.h"
 #include "fillunsizedpipescommand.h"
 
 ChangeElementLocationCommand::ChangeElementLocationCommand(
@@ -35,6 +37,12 @@ ChangeElementLocationCommand::ChangeElementLocationCommand(
 		//A size the new symbol gives a nozzle of equipment goes to the
 		//pipes without a size of its line, in the same step (step 5l-1aa)
 	new FillUnsizedPipesCommand(element, this);
+		//The texts the new symbol shows from an information the element
+		//shows nowhere yet (the comment of an arrow of inlet, once a free
+		//end), added after the symbol and taken away before it (step 8b)
+	for (DynamicElementTextItem *text : element->textsOfNewType(new_location)) {
+		new AddElementTextCommand(element, text, this);
+	}
 }
 
 void ChangeElementLocationCommand::undo()

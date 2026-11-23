@@ -5286,6 +5286,61 @@ bool Element::changeLocation(const ElementsLocation &location)
 }
 
 /**
+	@brief Element::textsOfNewType
+	See the declaration. Only from an information of the element, so that
+	nothing typed is lost or doubled: a free end changed into an arrow of
+	inlet gets the text of its comment, a strainer that of its label. A
+	text kept level (keepVisualRotation()) is made level on a turned
+	element, as if the element had been turned after it was placed, unless
+	it turns with its symbol (DynamicElementTextItem::turnsWithSymbol()).
+*/
+QList<DynamicElementTextItem *> Element::textsOfNewType(const ElementsLocation &location)
+{
+	QList<DynamicElementTextItem *> made;
+	const QDomElement definition = location.xml();
+	if (definition.attribute(QStringLiteral("pid_family")).isEmpty()) {
+		return made;
+	}
+	QStringList shown;
+	QList<DynamicElementTextItem *> texts = dynamicTextItems();
+	for (const ElementTextItemGroup *group : textGroups()) {
+		texts << group->texts();
+	}
+	for (const DynamicElementTextItem *text : std::as_const(texts)) {
+		if (text->textFrom() == DynamicElementTextItem::ElementInfo) {
+			shown << text->infoName();
+		}
+	}
+	for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
+		 !description.isNull() ;
+		 description = description.nextSiblingElement(QStringLiteral("description")))
+	{
+		for (QDomElement part = description.firstChildElement(QStringLiteral("dynamic_text")) ;
+			 !part.isNull() ;
+			 part = part.nextSiblingElement(QStringLiteral("dynamic_text")))
+		{
+			const QString info = part.firstChildElement(QStringLiteral("info_name")).text().trimmed();
+			if (part.attribute(QStringLiteral("text_from")) != QLatin1String("ElementInfo")
+				|| info.isEmpty() || shown.contains(info)) {
+				continue;
+			}
+			shown << info;
+				//As parseDynamicText() makes it when the symbol is placed
+			auto *text = new DynamicElementTextItem(this);
+			QDomElement dom(part.cloneNode(true).toElement());
+			dom.setTagName(DynamicElementTextItem::xmlTagName());
+			text->fromXml(dom);
+			text->m_uuid = QUuid::createUuid();
+			if (text->keepVisualRotation() && !text->turnsWithSymbol() && !qFuzzyIsNull(rotation())) {
+				text->setRotation(QET::correctAngle(-rotation(), true));
+			}
+			made << text;
+		}
+	}
+	return made;
+}
+
+/**
 	@brief Element::followMovedOrigin
 	The definition of this symbol was moved as a whole, its insertion point
 	moved: every terminal is where the old one was, moved by one offset

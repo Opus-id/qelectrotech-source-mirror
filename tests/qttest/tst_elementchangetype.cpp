@@ -8,6 +8,8 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "qetgraphicsitem/dynamicelementtextitem.h"
+#include "ui/elementcommentwidget.h"
 #include "ui/elementoptionswidget.h"
 #include "ui/elementpropertieswidget.h"
 #include "undocommand/changeelementlocationcommand.h"
@@ -17,6 +19,8 @@
 #include <QDomDocument>
 #include <QTabWidget>
 #include <QWheelEvent>
+
+#include <cmath>
 
 // The symbol of a placed element can be swapped for another one of its family
 // (same size, same terminals): the element stays where it is with its wires,
@@ -640,6 +644,69 @@ class tst_elementchangetype : public QObject
 			QVERIFY(options && options->typeList());
 			QCOMPARE(options->typeList()->count(), 1);
 			QVERIFY(!options->typeList()->isEnabled());
+		}
+
+			// A free end, which shows no text, changed into an arrow of outlet,
+			// which shows its comment: the element gets the text of the
+			// comment, level although the element is turned, and so the
+			// section "Comment" of its P&ID tab; undone, it has none again
+			// (8b)
+		void theTextsOfTheNewTypeAreAdded()
+		{
+			const auto end = [](const QString &uuid, const QString &name, const QString &texts) {
+				QDomDocument doc;
+				doc.setContent(QStringLiteral(
+					"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pid_family=\"pipe\" "
+					"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+					"<uuid uuid=\"{%1}\"/><names><name lang=\"en\">%2</name></names><description>"
+					"<line x1=\"0\" y1=\"0\" x2=\"10\" y2=\"0\" end1=\"none\" end2=\"none\" length1=\"1.5\" "
+					"length2=\"1.5\" style=\"line-style:normal;line-weight:normal;filling:none;color:black\" "
+					"antialias=\"false\"/>%3"
+					"<terminal uuid=\"{f0000000-0000-0000-0000-000000000001}\" name=\"N1\" x=\"0\" y=\"0\" "
+					"orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
+					"</description></definition>").arg(uuid, name, texts));
+				return doc.documentElement();
+			};
+			const ElementsLocation free_end = add("free_end.elmt",
+				end(QStringLiteral("66666666-6666-6666-6666-666666666666"), QStringLiteral("Free end"), QString()));
+			const ElementsLocation outlet = add("outlet.elmt",
+				end(QStringLiteral("77777777-7777-7777-7777-777777777777"), QStringLiteral("Outlet"),
+					QStringLiteral(
+					"<dynamic_text x=\"7\" y=\"18\" z=\"100\" text_width=\"-1\" Halignment=\"AlignHCenter\" "
+					"Valignment=\"AlignTop\" frame=\"false\" rotation=\"0\" keep_visual_rotation=\"true\" "
+					"rotation_point_center=\"true\" text_from=\"ElementInfo\" "
+					"uuid=\"{f0000000-0000-0000-0000-000000000002}\" "
+					"font=\"Liberation Sans,9,-1,5,50,0,0,0,0,0,Regular\"><text></text>"
+					"<info_name>comment</info_name></dynamic_text>")));
+			QVERIFY(free_end.exist() && outlet.exist());
+
+			int state = 0;
+			Element *element = ElementFactory::Instance()->createElement(free_end, nullptr, &state);
+			QVERIFY(element);
+			m_folio->addItem(element);
+			element->setPos(QPointF(400, 300));
+			element->setRotation(180);
+			QVERIFY(element->dynamicTextItems().isEmpty());
+			QVERIFY(element->canChangeLocationTo(outlet));
+
+			m_folio->undoStack().push(new ChangeElementLocationCommand(element, outlet));
+			QCOMPARE(element->location(), outlet);
+			QCOMPARE(element->dynamicTextItems().size(), 1);
+			DynamicElementTextItem *comment = element->dynamicTextItems().first();
+			QCOMPARE(comment->infoName(), QStringLiteral("comment"));
+				// level on the folio
+			const qreal angle = std::fmod(element->rotation() + comment->rotation() + 360.0, 360.0);
+			QVERIFY2(qFuzzyIsNull(angle) || qFuzzyCompare(angle, 360.0), qPrintable(QString::number(angle)));
+			QVERIFY(ElementCommentWidget::isWanted(element));
+
+			m_folio->undoStack().undo();
+			QCOMPARE(element->location(), free_end);
+			QVERIFY(element->dynamicTextItems().isEmpty());
+			QVERIFY(!ElementCommentWidget::isWanted(element));
+
+			m_folio->undoStack().redo();
+			QCOMPARE(element->dynamicTextItems().size(), 1);
+			QCOMPARE(element->dynamicTextItems().first(), comment);
 		}
 };
 
