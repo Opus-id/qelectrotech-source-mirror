@@ -63,16 +63,27 @@ ElementsCollectionCache::ElementsCollectionCache(const QString &database_path, Q
 			// cache written before either is dropped once.
 		QSqlQuery(cache_db_).exec("CREATE TABLE IF NOT EXISTS meta"
 					   "(key VARCHAR(32) NOT NULL PRIMARY KEY, value VARCHAR(64));");
-		QSqlQuery meta(cache_db_);
-		meta.exec("SELECT value FROM meta WHERE key = 'pixmaps'");
-		const QLatin1String drawn("transparent, line ends");
-		if (!meta.next() || meta.value(0).toString() != drawn) {
-			QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS pixmaps");
-			QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS names");
-			QSqlQuery drop(cache_db_);
-			drop.prepare("REPLACE INTO meta (key, value) VALUES ('pixmaps', :value)");
-			drop.bindValue(":value", QString(drawn));
-			drop.exec();
+		QString written;
+		{
+			QSqlQuery meta(cache_db_);
+			meta.exec("SELECT value FROM meta WHERE key = 'pixmaps'");
+			if (meta.next())
+				written = meta.value(0).toString();
+				// SQLite drops no table while a statement still reads the
+				// file on the same connection: the drop below failed, with
+				// no word, when the cache had a value of another kind
+			meta.finish();
+		}
+		const QString drawn = QStringLiteral("transparent, line ends framed");
+		if (written != drawn
+			&& QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS pixmaps")
+			&& QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS names")) {
+				// Marked only once dropped: a cache busy elsewhere is
+				// dropped by the next QElectroTech that opens it
+			QSqlQuery mark(cache_db_);
+			mark.prepare("REPLACE INTO meta (key, value) VALUES ('pixmaps', :value)");
+			mark.bindValue(":value", drawn);
+			mark.exec();
 		}
 #if TODO_LIST
 #pragma message("@TODO the tables could already exist, handle that case.")

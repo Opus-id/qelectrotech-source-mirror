@@ -2,6 +2,8 @@
 #include <QtTest>
 
 #include <QElapsedTimer>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QUuid>
 
@@ -42,6 +44,38 @@ private slots:
 		QVERIFY(second.fetchNameFromCache(QStringLiteral("embed://a.elmt"), m_uuid));
 		QVERIFY(first.fetchNameFromCache(QStringLiteral("embed://b.elmt"), m_uuid));
 		QVERIFY(first.cacheName(QStringLiteral("embed://c.elmt"), m_uuid));
+	}
+
+		// A cache whose previews were drawn another way (its mark in the
+		// table meta another value) is dropped once when opened: the
+		// statement reading the mark used to hold the file, and the drop
+		// failed with no word while the new mark was written (8b)
+	void aCacheDrawnAnotherWayIsDropped()
+	{
+		QTemporaryDir dir;
+		QVERIFY(dir.isValid());
+		const QString path = dir.filePath(QStringLiteral("elements_cache.sqlite"));
+		{
+			ElementsCollectionCache cache(path);
+			QVERIFY(cache.cacheName(QStringLiteral("embed://old.elmt"), m_uuid));
+		}
+		{
+			QSqlDatabase raw = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"),
+														 QStringLiteral("tst_elementcachelock_raw"));
+			raw.setDatabaseName(path);
+			QVERIFY(raw.open());
+			QVERIFY(QSqlQuery(raw).exec(QStringLiteral(
+				"REPLACE INTO meta (key, value) VALUES ('pixmaps', 'transparent')")));
+			raw.close();
+		}
+		QSqlDatabase::removeDatabase(QStringLiteral("tst_elementcachelock_raw"));
+
+		ElementsCollectionCache reopened(path);
+		QVERIFY(!reopened.fetchNameFromCache(QStringLiteral("embed://old.elmt"), m_uuid));
+			// and kept, once dropped
+		QVERIFY(reopened.cacheName(QStringLiteral("embed://new.elmt"), m_uuid));
+		ElementsCollectionCache again(path);
+		QVERIFY(again.fetchNameFromCache(QStringLiteral("embed://new.elmt"), m_uuid));
 	}
 };
 
