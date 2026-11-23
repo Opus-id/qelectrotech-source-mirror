@@ -8081,6 +8081,16 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>Modifier le commentaire d&apos;un élément</translation>
     </message>
     <message>
+        <location filename="../sources/ui/elementcommentwidget.cpp" line="62"/>
+        <source>Tag on the other side</source>
+        <translation>Repère d&apos;en face</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementcommentwidget.cpp" line="65"/>
+        <source>Shown on the folio by the symbol: the equipment the line goes to or comes from. The notes of the Informations tab.</source>
+        <translation>Affiché sur le folio par le symbole : l&apos;équipement vers lequel la ligne va ou dont elle vient. Les notes de l&apos;onglet Informations.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/elementcommentwidget.cpp" line="137"/>
         <source>Comment</source>
         <translation>Commentaire</translation>

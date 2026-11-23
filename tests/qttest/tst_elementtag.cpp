@@ -1018,6 +1018,88 @@ class tst_elementtag : public QObject
 					 qPrintable(QStringLiteral("%1 > %2").arg(section->height())
 								.arg(section->commentField()->height())));
 		}
+
+			// A symbol with one composite text, %{comment} then
+			// "to %{notes}", as the off-page connectors and battery limits
+			// of a pipe (8c-1)
+		static QDomElement cartouche(QDomDocument &doc, const QString &uuid, const QString &link_type)
+		{
+			doc.setContent(QStringLiteral(
+				"<definition version=\"0.100.0\" type=\"element\" link_type=\"%1\" pid_family=\"pipe\" "
+				"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+				"<uuid uuid=\"{%2}\"/><names><name lang=\"en\">K</name></names><description>"
+				"<dynamic_text x=\"0\" y=\"0\" z=\"100\" text_width=\"-1\" Halignment=\"AlignLeft\" "
+				"Valignment=\"AlignTop\" frame=\"false\" rotation=\"0\" text_from=\"CompositeText\" "
+				"uuid=\"{%3}\" font=\"Liberation Sans,9,-1,5,50,0,0,0,0,0,Regular\"><text></text>"
+				"<composite_text>%{comment}\nto %{notes}</composite_text></dynamic_text>"
+				"<terminal uuid=\"{%4}\" name=\"N1\" x=\"-10\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
+				"</description></definition>")
+				.arg(link_type, uuid, QUuid::createUuid().toString(QUuid::WithoutBraces),
+					 QUuid::createUuid().toString(QUuid::WithoutBraces)));
+			return doc.documentElement();
+		}
+
+			// An off-page connector shows its service and the tag on the
+			// other side in one composite text: its P&ID tab has both, as
+			// a folio report has no Informations tab to type them; one
+			// change for both, undone at once
+		void aConnectorTypesItsServiceAndTheOtherSide()
+		{
+			QDomDocument dk;
+			const ElementsLocation connector = add(*m_project, "connector.elmt",
+				cartouche(dk, "aaaaaaaa-0000-0000-0000-00000000000a", QStringLiteral("next_report")));
+			Element *k = place(m_folio, connector);
+			QVERIFY(k);
+			QVERIFY(k->linkType() & Element::AllReport);
+			QVERIFY(ElementCommentWidget::isWanted(k));
+			QVERIFY(ElementCommentWidget::showsInformation(k, QETInformation::ELMT_NOTES));
+
+			ElementPropertiesWidget properties(k);
+			auto *section = properties.findChild<ElementCommentWidget *>();
+			QVERIFY(section);
+			QVERIFY(section->notesField());
+			section->setLiveEdit(true);
+			section->commentField()->setPlainText(QStringLiteral("Filtrate"));
+			section->notesField()->setText(QStringLiteral("B01"));
+			emit section->notesField()->editingFinished();
+			QCOMPARE(k->elementInformations().value(QETInformation::ELMT_COMMENT).toString(),
+					 QStringLiteral("Filtrate"));
+			QCOMPARE(k->elementInformations().value(QETInformation::ELMT_NOTES).toString(),
+					 QStringLiteral("B01"));
+			QCOMPARE(k->dynamicTextItems().first()->toPlainText(), QStringLiteral("Filtrate\nto B01"));
+
+			m_folio->undoStack().undo();
+			QVERIFY(!k->elementInformations().contains(QETInformation::ELMT_COMMENT));
+			QVERIFY(!k->elementInformations().contains(QETInformation::ELMT_NOTES));
+			QVERIFY(section->notesField()->text().isEmpty());
+		}
+
+			// The panel keeps its sections from one symbol to a like one,
+			// not when the comment section, or its line for the other side,
+			// comes or goes
+		void theCommentSectionFollowsTheSelectedSymbol()
+		{
+			QDomDocument dl, da, dp;
+			Element *limit = place(m_folio, add(*m_project, "limit.elmt",
+				cartouche(dl, "bbbbbbbb-0000-0000-0000-00000000000b", QStringLiteral("simple"))));
+			Element *arrow = place(m_folio, add(*m_project, "arrow.elmt",
+				definition(da, "cccccccc-0000-0000-0000-00000000000c", "A",
+						   QStringLiteral("pid_family=\"pipe\""), true, {QStringLiteral("comment")})));
+			Element *plain = place(m_folio, add(*m_project, "plain.elmt",
+				definition(dp, "dddddddd-0000-0000-0000-00000000000d", "Q",
+						   QStringLiteral("pid_family=\"pipe\""), true, {QStringLiteral("label")})));
+			QVERIFY(limit && arrow && plain);
+
+			ElementPropertiesWidget properties(limit);
+			auto *section = properties.findChild<ElementCommentWidget *>();
+			QVERIFY(section && section->notesField());
+			properties.setElement(arrow);
+			section = properties.findChild<ElementCommentWidget *>();
+			QVERIFY(section);
+			QVERIFY(!section->notesField());
+			properties.setElement(plain);
+			QVERIFY(!properties.findChild<ElementCommentWidget *>());
+		}
 };
 
 QET_APP_TEST_MAIN(tst_elementtag)

@@ -28,6 +28,7 @@
 #include <qetgraphicsitem/elementtextitemgroup.h>
 #include <qetgraphicsitem/masterelement.h>
 #include <qeticons.h>
+#include <qetinformation.h>
 #include "dynamicelementtextitemeditor.h"
 #include "elementarticleswidget.h"
 #include "elementinfowidget.h"
@@ -156,7 +157,12 @@ void ElementPropertiesWidget::setElement(Element *element)
 		   && ElementNozzlesWidget::hasNozzles(previous_element)
 				== ElementNozzlesWidget::hasNozzles(m_element)
 		   && ElementTagWidget::isWanted(previous_element)
-				== ElementTagWidget::isWanted(m_element))
+				== ElementTagWidget::isWanted(m_element)
+				//the comment section, and its line for the other side
+		   && ElementCommentWidget::isWanted(previous_element)
+				== ElementCommentWidget::isWanted(m_element)
+		   && ElementCommentWidget::showsInformation(previous_element, QETInformation::ELMT_NOTES)
+				== ElementCommentWidget::showsInformation(m_element, QETInformation::ELMT_NOTES))
 		{
 			bool chained_changed = false;
 			if (m_element->linkType() & Element::AllReport) {

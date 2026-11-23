@@ -27,6 +27,8 @@
 
 #include <QEvent>
 #include <QFontMetrics>
+#include <QLabel>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
@@ -53,6 +55,21 @@ ElementCommentWidget::ElementCommentWidget(Element *element, QWidget *parent) :
 	layout->addWidget(m_comment);
 		//Applied when it is left, as a line edit is when its editing ends
 	m_comment->installEventFilter(this);
+		//The tag on the other side, for a symbol that writes it (an off-page
+		//connector, a battery limit: "to B01")
+	if (showsInformation(element, QETInformation::ELMT_NOTES)) {
+		layout->addWidget(new QLabel(tr("Tag on the other side"), this));
+		m_notes = new QLineEdit(this);
+		m_notes->setObjectName(QStringLiteral("notes"));
+		m_notes->setToolTip(tr("Shown on the folio by the symbol: the equipment the line goes to "
+							   "or comes from. The notes of the Informations tab."));
+		layout->addWidget(m_notes);
+		connect(m_notes, &QLineEdit::editingFinished, this, [this]() {
+			if (m_live_edit) {
+				apply();
+			}
+		});
+	}
 	setElement(element);
 }
 
@@ -70,16 +87,28 @@ bool ElementCommentWidget::eventFilter(QObject *watched, QEvent *event)
 */
 bool ElementCommentWidget::isWanted(const Element *element)
 {
-	if (!element || element->pidFamily().isEmpty()) {
+	return element && !element->pidFamily().isEmpty()
+		&& showsInformation(element, QETInformation::ELMT_COMMENT);
+}
+
+/**
+	@brief ElementCommentWidget::showsInformation
+	See the declaration
+*/
+bool ElementCommentWidget::showsInformation(const Element *element, const QString &key)
+{
+	if (!element) {
 		return false;
 	}
 	QList<DynamicElementTextItem *> texts = element->dynamicTextItems();
 	for (const ElementTextItemGroup *group : element->textGroups()) {
 		texts << group->texts();
 	}
+	const QString variable = QStringLiteral("%{") + key + QLatin1Char('}');
 	for (const DynamicElementTextItem *text : std::as_const(texts)) {
-		if (text->textFrom() == DynamicElementTextItem::ElementInfo
-			&& text->infoName() == QETInformation::ELMT_COMMENT) {
+		if ((text->textFrom() == DynamicElementTextItem::ElementInfo && text->infoName() == key)
+			|| (text->textFrom() == DynamicElementTextItem::CompositeText
+				&& text->compositeText().contains(variable))) {
 			return true;
 		}
 	}
@@ -110,6 +139,13 @@ void ElementCommentWidget::updateUi()
 		const QSignalBlocker blocker(m_comment);
 		m_comment->setPlainText(comment);
 	}
+	if (m_notes) {
+		const QString notes = m_element->elementInformations().value(QETInformation::ELMT_NOTES).toString();
+		if (notes != m_notes->text()) {
+			const QSignalBlocker blocker(m_notes);
+			m_notes->setText(notes);
+		}
+	}
 }
 
 /**
@@ -124,11 +160,16 @@ QUndoCommand *ElementCommentWidget::associatedUndo() const
 	}
 	const DiagramContext old_information = m_element->elementInformations();
 	DiagramContext new_information = old_information;
-	const QString comment = m_comment->toPlainText().trimmed();
-	if (comment.isEmpty() && !old_information.contains(QETInformation::ELMT_COMMENT)) {
-		return nullptr;
+		//A field left empty adds no information the symbol did not have
+	const auto put = [&](const QString &key, const QString &value) {
+		if (!value.isEmpty() || old_information.contains(key)) {
+			new_information.addValue(key, value);
+		}
+	};
+	put(QETInformation::ELMT_COMMENT, m_comment->toPlainText().trimmed());
+	if (m_notes) {
+		put(QETInformation::ELMT_NOTES, m_notes->text().trimmed());
 	}
-	new_information.addValue(QETInformation::ELMT_COMMENT, comment);
 	if (new_information == old_information) {
 		return nullptr;
 	}

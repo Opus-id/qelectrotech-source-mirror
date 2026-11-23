@@ -20,6 +20,7 @@
 
 #include "abstractelementpropertieseditorwidget.h"
 
+class QLineEdit;
 class QPlainTextEdit;
 
 /**
@@ -31,6 +32,12 @@ class QPlainTextEdit;
 	comment of the Informations tab, typed here without looking for it among
 	the electrical ones. A field of a few lines: Enter goes to the next line,
 	Tab to the next field. Live, it is applied when it is left, with undo.
+
+	A symbol may show its comment inside a composite text too, as the off-page
+	connectors and battery limits do (step 8c-1, "%{comment}" then "to
+	%{notes}"); one which shows its notes there also gets a line for them:
+	the tag of the equipment on the other side. Both are applied as one change.
+	The Informations tab is not there to type them on a folio report.
 */
 class ElementCommentWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -40,6 +47,9 @@ class ElementCommentWidget : public AbstractElementPropertiesEditorWidget
 
 			/// Whether @p element is a P&ID symbol which shows its comment
 		static bool isWanted(const Element *element);
+			/// Whether a text of @p element shows its information @p key:
+			/// read alone, or as %{key} in a composite text
+		static bool showsInformation(const Element *element, const QString &key);
 
 		void setElement(Element *element) override;
 		void apply() override;
@@ -49,12 +59,15 @@ class ElementCommentWidget : public AbstractElementPropertiesEditorWidget
 		bool setLiveEdit(bool live_edit) override;
 
 		QPlainTextEdit *commentField() const { return m_comment; }
+			/// The tag on the other side; nullptr when the symbol does not show it
+		QLineEdit *notesField() const { return m_notes; }
 
 	protected:
 		bool eventFilter(QObject *watched, QEvent *event) override;
 
 	private:
 		QPlainTextEdit *m_comment = nullptr;
+		QLineEdit *m_notes = nullptr;
 };
 
 #endif // ELEMENTCOMMENTWIDGET_H
