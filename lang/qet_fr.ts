@@ -8069,6 +8069,24 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
     </message>
 </context>
 <context>
+    <name>ElementCommentWidget</name>
+    <message>
+        <location filename="../sources/ui/elementcommentwidget.cpp" line="38"/>
+        <source>Shown on the folio by the symbol: where the fluid comes from or goes to, for an arrow of inlet or outlet. The comment of the Informations tab.</source>
+        <translation>Affiché sur le folio par le symbole : d&apos;où vient le fluide ou où il va, pour une flèche d&apos;arrivée ou de départ. Le commentaire de l&apos;onglet Informations.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementcommentwidget.cpp" line="120"/>
+        <source>Change the comment of an element</source>
+        <translation>Modifier le commentaire d&apos;un élément</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/elementcommentwidget.cpp" line="137"/>
+        <source>Comment</source>
+        <translation>Commentaire</translation>
+    </message>
+</context>
+<context>
     <name>ElementTagWidget</name>
     <message>
         <location filename="../sources/ui/elementtagwidget.cpp" line="70"/>

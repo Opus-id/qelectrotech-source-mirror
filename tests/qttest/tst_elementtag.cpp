@@ -13,6 +13,7 @@
 #include "qetinformation.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "ui/elementcommentwidget.h"
 #include "ui/elementinfopartwidget.h"
 #include "ui/elementpropertieswidget.h"
 #include "ui/elementtagwidget.h"
@@ -955,6 +956,43 @@ class tst_elementtag : public QObject
 			QVERIFY(!saved.contains(QStringLiteral("name=\"pid_tag_")));
 				// a name in the lists of the information
 			QVERIFY(!QETInformation::translatedInfoKey(QETInformation::PID_TAG_REST).isEmpty());
+		}
+
+			// A P&ID symbol which shows its comment (an arrow of inlet or
+			// outlet, 8b) has a section of its P&ID tab to type it, applied
+			// when left, with undo; one which does not show it, or an
+			// electrical one, has none
+		void aSymbolShowingItsCommentHasItInItsPidTab()
+		{
+			QDomDocument dc, dp, dx;
+			const ElementsLocation shows = add(*m_project, "c.elmt",
+				definition(dc, "77777777-7777-7777-7777-777777777777", "C",
+						   QStringLiteral("pid_family=\"pipe\""), true, {QStringLiteral("comment")}));
+			const ElementsLocation plain = add(*m_project, "p.elmt",
+				definition(dp, "88888888-8888-8888-8888-888888888888", "P",
+						   QStringLiteral("pid_family=\"pipe\"")));
+			const ElementsLocation electrical = add(*m_project, "x.elmt",
+				definition(dx, "99999999-9999-9999-9999-999999999999", "X",
+						   QString(), true, {QStringLiteral("comment")}));
+			Element *arrow = place(m_folio, shows);
+			QVERIFY(arrow);
+			QVERIFY(ElementCommentWidget::isWanted(arrow));
+			QVERIFY(!ElementCommentWidget::isWanted(place(m_folio, plain)));
+			QVERIFY(!ElementCommentWidget::isWanted(place(m_folio, electrical)));
+
+			ElementPropertiesWidget properties(arrow);
+			auto *section = properties.findChild<ElementCommentWidget *>();
+			QVERIFY(section);
+			section->setLiveEdit(true);
+			section->commentField()->setText(QStringLiteral("Raw water from well F1"));
+			emit section->commentField()->editingFinished();
+			QCOMPARE(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString(),
+					 QStringLiteral("Raw water from well F1"));
+			QCOMPARE(shownLabel(arrow, QStringLiteral("comment")), QStringLiteral("Raw water from well F1"));
+
+			m_folio->undoStack().undo();
+			QVERIFY(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString().isEmpty());
+			QCOMPARE(section->commentField()->text(), QString());
 		}
 };
 

@@ -34,6 +34,7 @@
 #include "elementnozzleswidget.h"
 #include "elementoptionswidget.h"
 #include "elementtagwidget.h"
+#include "elementcommentwidget.h"
 #include "linksingleelementwidget.h"
 #include "masterpropertieswidget.h"
 #include "plclinkwidget.h"
@@ -429,6 +430,10 @@ void ElementPropertiesWidget::updateUi()
 		//...the tag, made of fields, whose identifier follows the type...
 	if (ElementTagWidget::isWanted(m_element))
 		pid_sections << new ElementTagWidget(m_element, this);
+		//...the comment it shows on the folio (where an arrow of inlet
+		//comes from)...
+	if (ElementCommentWidget::isWanted(m_element))
+		pid_sections << new ElementCommentWidget(m_element, this);
 		//...the connections and sizes of its nozzles
 	if (ElementNozzlesWidget::hasNozzles(m_element))
 		pid_sections << new ElementNozzlesWidget(m_element, this);
