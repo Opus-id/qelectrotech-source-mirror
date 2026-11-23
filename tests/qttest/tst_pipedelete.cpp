@@ -22,7 +22,8 @@
 // nozzle; both sides touching, a pipe picked with the symbol, a side with
 // nothing, a symbol with no run: nothing is joined. A pump (two nozzles
 // face to face) is joined as a valve; an equipment with more nozzles leaves
-// its pipes on free ends when the project has one. Symbols removed one
+// its pipes on free ends when the project has one, and so does the end of a
+// line (an arrow of inlet or outlet, a strainer). Symbols removed one
 // after the other leave one pipe. One step to undo. Wires are as before.
 class tst_pipedelete : public QObject
 {
@@ -477,6 +478,63 @@ class tst_pipedelete : public QObject
 			removeAsTheUser({e[1], in});
 			QVERIFY(a->conductors().isEmpty());
 			QVERIFY(freeEndAt(dock_out) && !freeEndAt(dock_in));
+			m_folio->undoStack().undo();
+
+			codification.tool_symbols.remove(PidCodification::freeEndRole());
+			m_project.setPidCodification(codification);
+		}
+
+			// The end of a line (a symbol of the pipe family with a single
+			// nozzle: an arrow of inlet or outlet, a strainer) removed alone
+			// leaves its pipe on a free end where its nozzle was, its data
+			// kept, one step to undo; without a free end set, or with its
+			// pipe picked, the pipe goes, as before (8b, 23/11)
+		void aLineEndLeavesItsPipeOnAFreeEnd()
+		{
+			const auto e = row({m_strainer, m_equipment});
+			Terminal *b = nozzle(e[1], "N1");
+			Conductor *pipe = draw(nozzle(e[0], "N1"), b, QStringLiteral("W01"), 100);
+			const QPointF dock = nozzle(e[0], "N1")->dockConductor();
+			auto freeEndAt = [this, dock]() -> Element * {
+				for (Element *element : m_folio->elements()) {
+					if (element->isFreeEnd()
+						&& QLineF(element->terminals().first()->dockConductor(), dock).length() < 0.5) {
+						return element;
+					}
+				}
+				return nullptr;
+			};
+
+				// No free end set: the pipe goes with it
+			removeAsTheUser({e[0]});
+			QVERIFY(!e[0]->scene() && !pipe->scene());
+			QVERIFY(b->conductors().isEmpty());
+			m_folio->undoStack().undo();
+			QCOMPARE(pipeOn(b), pipe);
+
+			PidCodification codification = m_project.pidCodification();
+			codification.tool_symbols.insert(PidCodification::freeEndRole(),
+											 QStringLiteral("embed://import/pdelete/freeend.elmt"));
+			m_project.setPidCodification(codification);
+			const int steps = m_folio->undoStack().index();
+
+			removeAsTheUser({e[0]});
+			QVERIFY(!e[0]->scene() && !pipe->scene());
+			Element *end = freeEndAt();
+			QVERIFY(end);
+			QVERIFY(joins(pipeOn(b), b, end->terminals().first()));
+			QCOMPARE(pipeOn(b)->properties().m_pipe.fluid, QStringLiteral("W01"));
+			QCOMPARE(m_folio->undoStack().index(), steps + 1);
+
+			m_folio->undoStack().undo();
+			QCOMPARE(pipeOn(b), pipe);
+			QVERIFY(e[0]->scene() == m_folio);
+			QVERIFY(!freeEndAt());
+
+				// Picked with it, the pipe goes as asked
+			removeAsTheUser({e[0], pipe});
+			QVERIFY(b->conductors().isEmpty());
+			QVERIFY(!freeEndAt());
 			m_folio->undoStack().undo();
 
 			codification.tool_symbols.remove(PidCodification::freeEndRole());

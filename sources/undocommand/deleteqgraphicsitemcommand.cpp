@@ -461,6 +461,24 @@ namespace {
 				&& joinedRun(element).isEmpty() && shownNozzles(element).size() > 2;
 	}
 
+		/// Whether @p element is the end of a line, other than a free end or
+		/// a closure: a symbol of the pipe family with a single nozzle (an
+		/// arrow of inlet or outlet, a strainer, a vent...). Removed, it
+		/// leaves its pipe on a free end, as a closure does (8b, 23/11)
+	bool isLineEnd(const Element *element)
+	{
+		return element->pidFamily() == QLatin1String("pipe") && !element->goesWithItsPipe()
+				&& !element->isClosure() && shownNozzles(element).size() == 1;
+	}
+
+		/// Whether @p element, removed alone, leaves its pipes open on free
+		/// ends (reopenPipesOfRemovedClosures()): a closure, an equipment
+		/// (isEquipment()) or the end of a line (isLineEnd())
+	bool leavesItsPipesOpen(const Element *element)
+	{
+		return element->isClosure() || isEquipment(element) || isLineEnd(element);
+	}
+
 	/**
 		@return the nozzle of the run of its symbol (joinedRun()) facing
 		@a nozzle, the way a line goes on through it: N2 for N1; none for
@@ -577,12 +595,12 @@ namespace {
 		would leave them a pipe. A strainer or a vent stays.
 	*/
 		/// Whether @p element, removed, leaves @p pipe open on a free end of
-		/// the project (reopenPipesOfRemovedClosures()): a closure or an
-		/// equipment (isEquipment()), the pipe not picked with it, a free end
-		/// set
+		/// the project (reopenPipesOfRemovedClosures()): a closure, an
+		/// equipment or the end of a line (leavesItsPipesOpen()), the pipe
+		/// not picked with it, a free end set
 	bool reopens(const Element *element, const Conductor *pipe, const QSet<const Conductor *> &picked)
 	{
-		return (element->isClosure() || isEquipment(element)) && !picked.contains(pipe)
+		return leavesItsPipesOpen(element) && !picked.contains(pipe)
 				&& PidFreeEnd::symbol(element->diagram()).isElement();
 	}
 
@@ -831,10 +849,11 @@ void DeleteQGraphicsItemCommand::spreadInsulationOverRemovedLimit(
 	goes on to a free end of the project, placed where the closure was, its
 	route and its data kept (PidFreeEnd::reopen()). Its process connection
 	goes with it. An equipment with more than two nozzles (a tank, a heat
-	exchanger) leaves each of its pipes the same way (5l-1h). A pipe the
-	user picked along with it goes as asked, and so does one whose other
-	end goes too. Without a free end set for the project, the pipe goes,
-	as before.
+	exchanger) leaves each of its pipes the same way (5l-1h), and so does
+	the end of a line, an arrow of inlet or outlet, a strainer, a vent
+	(8b). A pipe the user picked along with it goes as asked, and so does
+	one whose other end goes too. Without a free end set for the project,
+	the pipe goes, as before.
 */
 void DeleteQGraphicsItemCommand::reopenPipesOfRemovedClosures()
 {
@@ -846,7 +865,7 @@ void DeleteQGraphicsItemCommand::reopenPipesOfRemovedClosures()
 	const QSet<const Conductor *> picked = pickedConductors(m_removed_contents);
 	for (Element *element : removed)
 	{
-		if (!element->isClosure() && !isEquipment(element)) {
+		if (!leavesItsPipesOpen(element)) {
 			continue;
 		}
 		for (Terminal *nozzle : element->terminals())
