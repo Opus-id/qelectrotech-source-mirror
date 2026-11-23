@@ -1008,6 +1008,15 @@ class tst_elementtag : public QObject
 			QCOMPARE(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString(), lines);
 			QCOMPARE(shownLabel(arrow, QStringLiteral("comment")), lines);
 			QCOMPARE(section->commentField()->toPlainText(), lines);
+
+				// in a tall panel, the section is no taller than its field:
+				// the room left goes below the sections, not around the field
+			properties.resize(420, 1200);
+			properties.show();
+			QVERIFY(QTest::qWaitForWindowExposed(&properties));
+			QVERIFY2(section->height() <= section->commentField()->height() + 4,
+					 qPrintable(QStringLiteral("%1 > %2").arg(section->height())
+								.arg(section->commentField()->height())));
 		}
 };
 

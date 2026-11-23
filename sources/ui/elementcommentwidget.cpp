@@ -46,6 +46,10 @@ ElementCommentWidget::ElementCommentWidget(Element *element, QWidget *parent) :
 	const QFontMetrics metrics(m_comment->font());
 	m_comment->setFixedHeight(metrics.lineSpacing() * 3
 							  + 2 * (m_comment->frameWidth() + qRound(m_comment->document()->documentMargin())));
+		//A text box says it grows in height, fixed or not: the P&ID tab
+		//then shared its room left between this section and its end, and
+		//the field stood in the middle of a tall section
+	m_comment->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 	layout->addWidget(m_comment);
 		//Applied when it is left, as a line edit is when its editing ends
 	m_comment->installEventFilter(this);
