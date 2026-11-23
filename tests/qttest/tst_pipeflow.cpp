@@ -440,7 +440,125 @@ class tst_pipeflow : public QObject
 			QCOMPARE(PidFlow::direction(a), PidFlow::Direction::Conflict);
 			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Conflict);
 			QCOMPARE(PidFlow::direction(c), PidFlow::Direction::Conflict);
-			QCOMPARE(PidFlow::text(b), QStringLiteral("disagreement"));
+				// the symbols in cause named (8a-bis-2)
+			QCOMPARE(PidFlow::text(b), QStringLiteral("disagreement (Piece, Piece)"));
+
+				// each arrow marked, naming the other one; not the valve
+			QCOMPARE(PidFlow::disagreements(first),
+					 QStringList{QStringLiteral("Direction of flow opposite to that of Piece.")});
+			QCOMPARE(PidFlow::disagreements(second), PidFlow::disagreements(first));
+			QCOMPARE(first->flowDisagreements(), PidFlow::disagreements(first));
+			QVERIFY(PidFlow::disagreements(valve).isEmpty());
+			QVERIFY(PidFlow::disagreements(tank).isEmpty());
+
+				// the second arrow gone: no mark any more
+			scene.folio->removeItem(c);
+			delete c;
+			QVERIFY(PidFlow::disagreements(first).isEmpty());
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Forward);
+		}
+
+			// ---- the marks of a disagreement (8a-bis-2) ----
+		void theSourcesOpposedAreFound()
+		{
+				// two against one: each of the two names the one, the one both
+			PidFlow::Solver solver;
+			const int a = solver.addNode(), b = solver.addNode(), c = solver.addNode();
+			solver.link(a, b);
+			solver.link(b, c);
+			solver.fix(a, false, 1);
+			solver.fix(b, true, 2);
+			solver.fix(c, true, 3);
+			solver.solve();
+			QCOMPARE(solver.opposed(1), QList<int>{3});
+			QCOMPARE(solver.opposed(2), QList<int>{3});
+			QCOMPARE(solver.opposed(3), (QList<int>{1, 2}));
+			QVERIFY(solver.opposed(4).isEmpty());
+
+				// sources which agree oppose nothing
+			PidFlow::Solver agreed;
+			const int d = agreed.addNode(), e = agreed.addNode();
+			agreed.link(d, e);
+			agreed.fix(d, false, 1);
+			agreed.fix(e, true, 2);
+			agreed.solve();
+			QVERIFY(agreed.opposed(1).isEmpty());
+			QVERIFY(agreed.opposed(2).isEmpty());
+
+				// both ways against one way
+			PidFlow::Solver both;
+			const int f = both.addNode(), g = both.addNode();
+			both.link(f, g);
+			both.fixBoth(f, 1);
+			both.fix(g, true, 2);
+			both.solve();
+			QCOMPARE(both.opposed(1), QList<int>{2});
+			QCOMPARE(both.opposed(2), QList<int>{1});
+			QVERIFY(both.saysBoth(1));
+			QVERIFY(!both.saysBoth(2));
+
+				// a junction gives its nozzles
+			PidFlow::Solver tee;
+			const int h = tee.addNode(), i = tee.addNode(), j = tee.addNode();
+			tee.addJunction({h, i, j}, 9);
+			tee.solve();
+			QCOMPARE(tee.junctionNodes(0), (QList<int>{h, i, j}));
+			QVERIFY(tee.junctionNodes(1).isEmpty());
+		}
+
+		void aTeeIntoWhichEverythingComesIsMarked()
+		{
+			Scene scene;
+			Element *left = scene.add("pump.elmt");
+			Element *tee = scene.add("tee.elmt");
+			Element *right = scene.add("pump.elmt");
+			Element *below = place(scene.project, scene.folio, tee->pos() + QPointF(0, 200),
+								   QStringLiteral("check.elmt"));
+			QVERIFY(left && tee && right && below);
+			QVERIFY(scene.pipe(left, "N2", tee, "N1"));
+			QVERIFY(scene.pipe(right, "N2", tee, "N2"));
+			QVERIFY(PidFlow::disagreements(tee).isEmpty());
+				// the third one comes in too
+			QVERIFY(scene.pipe(below, "N2", tee, "N3"));
+			const QStringList notes = PidFlow::disagreements(tee);
+			QCOMPARE(notes.size(), 1);
+			QVERIFY(notes.first().startsWith(QLatin1String("Everything comes in here: directions given by ")));
+				// the pumps by their discharge, the check valve by its name,
+				// its two nozzles being on that branch
+			QCOMPARE(notes.first().count(QLatin1String("Piece (N2)")), 2);
+			QCOMPARE(notes.first().count(QLatin1String("Piece")), 3);
+				// only the tee: each source agrees with its own stretch
+			QVERIFY(PidFlow::disagreements(left).isEmpty());
+			QVERIFY(PidFlow::disagreements(below).isEmpty());
+		}
+
+		void bothWaysAgainstOneWayIsMarked()
+		{
+			Scene scene;
+			Element *both = scene.add("both.elmt");
+			Element *valve = scene.add("valve.elmt");
+			Element *check = scene.add("check.elmt");
+			QVERIFY(scene.pipe(both, "N2", valve, "N1"));
+			QVERIFY(scene.pipe(valve, "N2", check, "N1"));
+			QCOMPARE(PidFlow::disagreements(both),
+					 QStringList{QStringLiteral("Both ways here, one way only at Piece.")});
+			QCOMPARE(PidFlow::disagreements(check),
+					 QStringList{QStringLiteral("One way only here, both ways at Piece.")});
+		}
+
+		void aLineWithoutDisagreementIsNotMarked()
+		{
+			Scene scene;
+			Element *pump = scene.add("pump.elmt");
+			Element *check = scene.add("check.elmt");
+			Element *arrow = scene.add("arrow.elmt");
+			QVERIFY(scene.pipe(pump, "N2", check, "N1"));
+			QVERIFY(scene.pipe(check, "N2", arrow, "N1"));
+			for (const Element *element : {pump, check, arrow}) {
+				QVERIFY(PidFlow::disagreements(element).isEmpty());
+			}
+				// a symbol off any folio, none
+			QVERIFY(PidFlow::disagreements(nullptr).isEmpty());
 		}
 
 		void theLastBranchOfATeeIsFound()

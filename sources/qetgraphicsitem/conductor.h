@@ -336,6 +336,10 @@ class Conductor : public QGraphicsObject
 			/// What is said on hovering this line about traversedSymbols(),
 			/// one line by symbol; nothing when it runs over none
 		QString traversalNote() const;
+			/// Raised whenever a conductor changes its path, its
+			/// properties, or enters or leaves a folio: what was worked out
+			/// from the lines of a folio may then change
+		static quint64 geometryGeneration();
 		void drawTraversals(QPainter *painter, qreal line_width, qreal detail) const;
 		void drawPipeParts(QPainter *painter, const QColor &color, qreal detail) const;
 			/// The insulated part of the line of this pipe ends at its end

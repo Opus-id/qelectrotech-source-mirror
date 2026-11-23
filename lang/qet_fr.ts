@@ -5319,6 +5319,46 @@ Continuer ?</translation>
         <comment>direction of flow</comment>
         <translation>de %1 vers %2</translation>
     </message>
+    <message>
+        <source>disagreement (%1)</source>
+        <comment>direction of flow; %1: the symbols in cause</comment>
+        <translation>en désaccord (%1)</translation>
+    </message>
+    <message>
+        <source>Both ways here, one way only at %1.</source>
+        <comment>direction of flow in disagreement</comment>
+        <translation>Dans les deux sens ici, à sens unique à %1.</translation>
+    </message>
+    <message>
+        <source>Direction of flow opposite to that of %1.</source>
+        <comment>direction of flow in disagreement</comment>
+        <translation>Sens d&apos;écoulement contraire à celui de %1.</translation>
+    </message>
+    <message>
+        <source>One way only here, both ways at %1.</source>
+        <comment>direction of flow in disagreement</comment>
+        <translation>À sens unique ici, dans les deux sens à %1.</translation>
+    </message>
+    <message>
+        <source>Everything comes in here.</source>
+        <comment>direction of flow at a tee</comment>
+        <translation>Tout entre ici.</translation>
+    </message>
+    <message>
+        <source>Everything goes out here.</source>
+        <comment>direction of flow at a tee</comment>
+        <translation>Tout sort d&apos;ici.</translation>
+    </message>
+    <message>
+        <source>Everything comes in here: directions given by %1.</source>
+        <comment>direction of flow at a tee</comment>
+        <translation>Tout entre ici : sens donnés par %1.</translation>
+    </message>
+    <message>
+        <source>Everything goes out here: directions given by %1.</source>
+        <comment>direction of flow at a tee</comment>
+        <translation>Tout sort d&apos;ici : sens donnés par %1.</translation>
+    </message>
 </context>
 <context>
     <name>PidFreeEnd</name>

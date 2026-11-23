@@ -18,12 +18,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "pidflow.h"
 
+#include "diagram.h"
+#include "pidtraversal.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 
 #include <QCoreApplication>
-#include <QSet>
+#include <QPointer>
 
 #include <utility>
 
@@ -117,6 +119,7 @@ void Solver::solve()
 		if (!group.sources.contains(source)) {
 			group.sources << source;
 		}
+		group.claims << Claim{source, in != parity ? Way::In : Way::Out};
 	};
 	for (const Fix &fix : std::as_const(m_fixes)) {
 		if (fix.both) {
@@ -125,6 +128,7 @@ void Solver::solve()
 			if (!group.sources.contains(fix.source)) {
 				group.sources << fix.source;
 			}
+			group.claims << Claim{fix.source, Way::Both};
 		} else {
 			give(fix.node, fix.in, fix.source);
 		}
@@ -189,17 +193,55 @@ bool Solver::junctionInConflict(int index) const
 	return index >= 0 && index < m_junctions.size() && m_junctions.at(index).conflict;
 }
 
+QList<int> Solver::junctionNodes(int index) const
+{
+	return index >= 0 && index < m_junctions.size() ? m_junctions.at(index).nodes : QList<int>();
+}
+
+QList<int> Solver::opposed(int source) const
+{
+	QList<int> found;
+	for (const Group &group : m_groups)
+	{
+		for (const Claim &mine : group.claims)
+		{
+			if (mine.source != source) {
+				continue;
+			}
+			for (const Claim &other : group.claims) {
+				if (other.source != source && other.way != mine.way && !found.contains(other.source)) {
+					found << other.source;
+				}
+			}
+		}
+	}
+	return found;
+}
+
+bool Solver::saysBoth(int source) const
+{
+	for (const Fix &fix : m_fixes) {
+		if (fix.source == source && fix.both) {
+			return true;
+		}
+	}
+	return false;
+}
+
 namespace {
 	/**
-		The nozzles around @p pipe, as far as its direction may come from:
-		along the pipes, through the runs of the symbols, the reducers and
-		the nozzles placed against each other; each one a node of
-		@p solver, solved
+		The nozzles around @p seeds, as far as their direction may come
+		from: along the pipes, through the runs of the symbols, the reducers
+		and the nozzles placed against each other; each one a node of
+		@p solver, solved. In @p todo, the nozzles in the order of their
+		nodes; in @p junctions, the tees and the crosses in the order they
+		were given to @p solver.
 	*/
-	QHash<const Terminal *, int> build(const Conductor *pipe, Solver &solver)
+	QHash<const Terminal *, int> build(const QList<const Terminal *> &seeds, Solver &solver,
+									   QList<const Terminal *> &todo,
+									   QList<const Element *> &junctions)
 	{
 		QHash<const Terminal *, int> ids;
-		QList<const Terminal *> todo;
 		auto idOf = [&ids, &todo, &solver](const Terminal *terminal) {
 			const auto it = ids.constFind(terminal);
 			if (it != ids.constEnd()) {
@@ -210,10 +252,10 @@ namespace {
 			todo << terminal;
 			return id;
 		};
-		idOf(pipe->terminal1);
-		idOf(pipe->terminal2);
+		for (const Terminal *seed : seeds) {
+			idOf(seed);
+		}
 
-		QSet<const Element *> junctions;
 		for (int i = 0 ; i < todo.size() ; ++i)
 		{
 			const Terminal *terminal = todo.at(i);
@@ -244,7 +286,7 @@ namespace {
 			if (siblings.size() == 1) {
 				solver.link(id, idOf(siblings.first()));
 			} else if (siblings.size() >= 2 && !junctions.contains(terminal->parentElement())) {
-				junctions.insert(terminal->parentElement());
+				junctions << terminal->parentElement();
 				QList<int> nodes{id};
 				for (const Terminal *sibling : siblings) {
 					nodes << idOf(sibling);
@@ -278,7 +320,10 @@ Direction direction(const Conductor *pipe)
 		return Direction::Unknown;
 	}
 	Solver solver;
-	const QHash<const Terminal *, int> ids = build(pipe, solver);
+	QList<const Terminal *> nozzles;
+	QList<const Element *> junctions;
+	const QHash<const Terminal *, int> ids = build({pipe->terminal1, pipe->terminal2}, solver,
+												   nozzles, junctions);
 		//The fluid comes into the symbol of its last terminal: it goes from
 		//the first to the last
 	switch (solver.state(ids.value(pipe->terminal2))) {
@@ -291,19 +336,21 @@ Direction direction(const Conductor *pipe)
 	return Direction::Unknown;
 }
 
+QString symbolName(const Element *symbol)
+{
+	if (!symbol) {
+		return QString();
+	}
+	const QString label = symbol->actualLabel().trimmed();
+	return label.isEmpty() ? symbol->name() : label;
+}
+
 QString nozzleName(const Terminal *nozzle)
 {
 	if (!nozzle) {
 		return QString();
 	}
-	const Element *element = nozzle->parentElement();
-	QString symbol;
-	if (element) {
-		symbol = element->actualLabel().trimmed();
-		if (symbol.isEmpty()) {
-			symbol = element->name();
-		}
-	}
+	const QString symbol = symbolName(nozzle->parentElement());
 	const QString name = nozzle->baseName();
 	if (name.isEmpty()) {
 		return symbol;
@@ -322,8 +369,31 @@ QString text(const Conductor *pipe)
 	switch (direction(pipe)) {
 		case Direction::Unknown:
 			return QCoreApplication::translate("PidFlow", "unknown", "direction of flow");
-		case Direction::Conflict:
-			return QCoreApplication::translate("PidFlow", "disagreement", "direction of flow");
+		case Direction::Conflict: {
+				//The symbols in cause: those which gave its stretch a direction
+			Solver solver;
+			QList<const Terminal *> nozzles;
+			QList<const Element *> junctions;
+			const QHash<const Terminal *, int> ids = build({pipe->terminal1, pipe->terminal2}, solver,
+														   nozzles, junctions);
+			QList<const Element *> causes;
+			for (int source : solver.sources(ids.value(pipe->terminal2))) {
+				const Terminal *nozzle = nozzles.value(source);
+				if (nozzle && nozzle->parentElement() && !causes.contains(nozzle->parentElement())) {
+					causes << nozzle->parentElement();
+				}
+			}
+			QStringList names;
+			for (const Element *cause : std::as_const(causes)) {
+				names << symbolName(cause);
+			}
+			if (names.isEmpty()) {
+				return QCoreApplication::translate("PidFlow", "disagreement", "direction of flow");
+			}
+			return QCoreApplication::translate("PidFlow", "disagreement (%1)",
+											   "direction of flow; %1: the symbols in cause")
+					.arg(names.join(QStringLiteral(", ")));
+		}
 		case Direction::Both:
 			return QCoreApplication::translate("PidFlow", "both ways", "direction of flow");
 		case Direction::Backward:
@@ -334,6 +404,199 @@ QString text(const Conductor *pipe)
 	}
 	return QCoreApplication::translate("PidFlow", "from %1 to %2", "direction of flow")
 			.arg(nozzleName(from), nozzleName(to));
+}
+
+namespace {
+	/**
+		The symbols of @p folio in disagreement (step 8a-bis-2), each with
+		the lines of its tool tip: a source of a direction which another
+		source of the same stretch contradicts (one way against the other,
+		one way only against both ways), and a tee or a cross into which
+		everything comes, or out of which everything goes. A stretch closed
+		on itself the wrong way has no source to name: it marks nothing.
+	*/
+	QHash<const Element *, QStringList> compute(const Diagram *folio)
+	{
+		QHash<const Element *, QStringList> notes;
+		QList<const Terminal *> seeds;
+		for (const Element *element : folio->elements()) {
+			for (const Terminal *terminal : element->terminals()) {
+				if (terminal->medium() == TerminalData::Pipe) {
+					seeds << terminal;
+				}
+			}
+		}
+		if (seeds.isEmpty()) {
+			return notes;
+		}
+		Solver solver;
+		QList<const Terminal *> nozzles;
+		QList<const Element *> junctions;
+		build(seeds, solver, nozzles, junctions);
+
+			//The names of @p sources, symbol by symbol: by its nozzle when
+			//only one of its nozzles is there, else by the symbol alone (both
+			//nozzles of an arrow, a tee)
+		auto namesOf = [&nozzles](const QList<int> &sources) {
+			QList<const Element *> order;
+			QHash<const Element *, QList<const Terminal *>> by_symbol;
+			for (int source : sources) {
+				const Terminal *nozzle = nozzles.value(source);
+				if (!nozzle || !nozzle->parentElement()) {
+					continue;
+				}
+				if (!by_symbol.contains(nozzle->parentElement())) {
+					order << nozzle->parentElement();
+				}
+				QList<const Terminal *> &list = by_symbol[nozzle->parentElement()];
+				if (!list.contains(nozzle)) {
+					list << nozzle;
+				}
+			}
+			QStringList names;
+			for (const Element *symbol : std::as_const(order)) {
+				const QList<const Terminal *> &list = by_symbol[symbol];
+				names << (list.size() == 1 && list.first()->flowRole() != TerminalData::NoFlowRole
+							  ? nozzleName(list.first())
+							  : symbolName(symbol));
+			}
+			return names;
+		};
+		auto add = [&notes](const Element *element, const QString &note) {
+			QStringList &list = notes[element];
+			if (!list.contains(note)) {
+				list << note;
+			}
+		};
+		const QString comma = QStringLiteral(", ");
+
+		for (int id = 0 ; id < nozzles.size() ; ++id)
+		{
+			const Terminal *nozzle = nozzles.at(id);
+			if (nozzle->medium() != TerminalData::Pipe || nozzle->flowRole() == TerminalData::NoFlowRole
+				|| !nozzle->parentElement()) {
+				continue;
+			}
+			const QList<int> opposed = solver.opposed(id);
+			if (opposed.isEmpty()) {
+				continue;
+			}
+			QList<int> one_way, both_ways;
+			for (int other : opposed) {
+				(solver.saysBoth(other) ? both_ways : one_way) << other;
+			}
+			if (solver.saysBoth(id)) {
+				add(nozzle->parentElement(),
+					QCoreApplication::translate("PidFlow", "Both ways here, one way only at %1.",
+												"direction of flow in disagreement")
+						.arg(namesOf(one_way).join(comma)));
+				continue;
+			}
+			if (!one_way.isEmpty()) {
+				add(nozzle->parentElement(),
+					QCoreApplication::translate("PidFlow", "Direction of flow opposite to that of %1.",
+												"direction of flow in disagreement")
+						.arg(namesOf(one_way).join(comma)));
+			}
+			if (!both_ways.isEmpty()) {
+				add(nozzle->parentElement(),
+					QCoreApplication::translate("PidFlow", "One way only here, both ways at %1.",
+												"direction of flow in disagreement")
+						.arg(namesOf(both_ways).join(comma)));
+			}
+		}
+
+		for (int index = 0 ; index < junctions.size() ; ++index)
+		{
+			if (!solver.junctionInConflict(index)) {
+				continue;
+			}
+			const Element *junction = junctions.at(index);
+			const QList<int> nodes = solver.junctionNodes(index);
+			const bool in = !nodes.isEmpty() && solver.state(nodes.first()) == Solver::State::In;
+			QList<int> sources;
+			for (int node : nodes) {
+				for (int source : solver.sources(node)) {
+					const Terminal *nozzle = nozzles.value(source);
+					if (nozzle && nozzle->parentElement() != junction && !sources.contains(source)) {
+						sources << source;
+					}
+				}
+			}
+			const QStringList names = namesOf(sources);
+			QString note;
+			if (names.isEmpty()) {
+				note = in ? QCoreApplication::translate("PidFlow", "Everything comes in here.",
+														"direction of flow at a tee")
+						  : QCoreApplication::translate("PidFlow", "Everything goes out here.",
+														"direction of flow at a tee");
+			} else {
+				note = (in ? QCoreApplication::translate("PidFlow",
+														 "Everything comes in here: directions given by %1.",
+														 "direction of flow at a tee")
+						   : QCoreApplication::translate("PidFlow",
+														 "Everything goes out here: directions given by %1.",
+														 "direction of flow at a tee"))
+						.arg(names.join(comma));
+			}
+			add(junction, note);
+		}
+		return notes;
+	}
+
+		/// What compute() found on a folio, and when
+	struct FolioMarks {
+		quint64 conductors = 0;
+		quint64 symbols = 0;
+		QHash<const Element *, QStringList> notes;
+		QList<QPointer<Element>> marked;
+	};
+		/// By folio: a folio deleted leaves its entry, never read again
+	QHash<const Diagram *, FolioMarks> s_folios;
+
+	const FolioMarks &marksOf(const Diagram *folio)
+	{
+		FolioMarks &marks = s_folios[folio];
+		const quint64 conductors = Conductor::geometryGeneration();
+		const quint64 symbols = PidTraversal::symbolsGeneration();
+		if (marks.conductors == conductors && marks.symbols == symbols) {
+			return marks;
+		}
+		const QHash<const Element *, QStringList> before = marks.notes;
+		const QList<QPointer<Element>> previously = marks.marked;
+		marks.conductors = conductors;
+		marks.symbols = symbols;
+		marks.notes = compute(folio);
+		marks.marked.clear();
+		for (auto it = marks.notes.cbegin() ; it != marks.notes.cend() ; ++it) {
+			marks.marked << QPointer<Element>(const_cast<Element *>(it.key()));
+		}
+			//Drawn again, the symbols whose marks change; a deleted one is
+			//null
+		for (const QList<QPointer<Element>> &list : {previously, marks.marked}) {
+			for (const QPointer<Element> &element : list) {
+				if (element && before.value(element.data()) != marks.notes.value(element.data())) {
+					element->update();
+				}
+			}
+		}
+		return marks;
+	}
+}
+
+QStringList disagreements(const Element *symbol)
+{
+	if (!symbol || !symbol->diagram()) {
+		return QStringList();
+	}
+	return marksOf(symbol->diagram()).notes.value(symbol);
+}
+
+void refreshMarks(const Diagram *folio)
+{
+	if (folio) {
+		marksOf(folio);
+	}
 }
 
 } // namespace PidFlow

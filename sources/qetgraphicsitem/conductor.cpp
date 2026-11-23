@@ -66,6 +66,14 @@ namespace {
 		//0 is never current, so a fresh cache is always rebuilt.
 	quint64 s_conductor_geometry_generation = 1;
 	void conductorGeometryChanged() { ++s_conductor_geometry_generation; }
+}
+
+quint64 Conductor::geometryGeneration()
+{
+	return s_conductor_geometry_generation;
+}
+
+namespace {
 
 		//The conductors of the last folio whose hops were computed, as
 		//scene points and plain path bounds. Rebuilt only when the folio
@@ -1174,6 +1182,11 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		const bool plain = !m_preview && must_highlight_ == None && !isSelected();
 		drawInsulation(painter, final_conductor_color, plain, detail);
 		drawDiameterGaps(painter);
+			//The symbols whose direction of flow disagrees, drawn again when
+			//this pipe changes it (8a-bis-2)
+		if (diagram() && diagram()->drawTerminals()) {
+			PidFlow::refreshMarks(diagram());
+		}
 	}
 	drawSignalMarks(painter, final_conductor_color, detail);
 		//Over a symbol it is not docked to there: in orange, on top (7c-bis)

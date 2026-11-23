@@ -28,8 +28,11 @@
 #include <autoNum/numerotationcontextcommands.h>
 #include <diagram.h>
 #include <elementsmover.h>
+#include <pidflow.h>
 #include <pidnozzlemagnet.h>
+#include <pidtooltip.h>
 #include <pidtraversal.h>
+#include <qetpalette.h>
 #include <shownkinds.h>
 #include <diagramcommands.h>
 #include <diagramcontext.h>
@@ -1539,11 +1542,55 @@ void Element::paint(
 	if (followsPipes()) {
 		drawFreeNozzles(painter);
 	}
+	drawFlowDisagreement(painter);
 
 		//Draw the selection rectangle
 	if ( isSelected() || m_mouse_over ) {
 		QGIUtility::drawBoundingRectSelection(this, painter);
 	}
+}
+
+/**
+	@brief Element::flowDisagreements
+	@return what the tool tip of this symbol says of the directions of flow
+	it is in disagreement with (PidFlow::disagreements(), step 8a-bis-2);
+	nothing for a symbol without a nozzle
+*/
+QStringList Element::flowDisagreements() const
+{
+	for (const Terminal *terminal : m_terminals) {
+		if (terminal->medium() == TerminalData::Pipe) {
+			return PidFlow::disagreements(this);
+		}
+	}
+	return QStringList();
+}
+
+/**
+	@brief Element::drawFlowDisagreement
+	A symbol whose direction of flow disagrees with another source of its
+	line (flowDisagreements()): an orange disc of 4 mm, see-through and
+	ringed in orange, in the middle of its drawing, where the lines of a
+	tee or a cross meet; on the screen only, as the other orange marks.
+	@param painter
+*/
+void Element::drawFlowDisagreement(QPainter *painter) const
+{
+	const Diagram *folio = diagram();
+	if (!folio || !folio->drawTerminals() || flowDisagreements().isEmpty()) {
+		return;
+	}
+	const QPointF centre = isJunction() ? QPointF() : drawingRect().center();
+	QColor disc = QET::Palette::signalColor();
+	QPen pen(disc);
+	pen.setCosmetic(true);
+	disc.setAlpha(110);
+	painter->save();
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	painter->setPen(pen);
+	painter->setBrush(disc);
+	painter->drawEllipse(centre, flowDisagreementRadius, flowDisagreementRadius);
+	painter->restore();
 }
 
 /**
@@ -4220,7 +4267,15 @@ void Element::hoverEnterEvent(QGraphicsSceneHoverEvent *e)
 	}
 
 	m_mouse_over = true;
-	setToolTip( name() );
+		//What its orange disc says (drawFlowDisagreement())
+	const QStringList disagreements = flowDisagreements();
+	if (disagreements.isEmpty()) {
+		setToolTip(name());
+	} else {
+		QStringList lines{name()};
+		lines << disagreements;
+		setToolTip(PidToolTip::wrapped(lines.join(QLatin1Char('\n'))));
+	}
 	update();
 }
 

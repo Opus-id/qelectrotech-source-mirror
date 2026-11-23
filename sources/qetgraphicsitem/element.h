@@ -404,6 +404,11 @@ class Element : public QetGraphicsItem
 			/// True for a fitting (a tee, the end of a pipe), drawn after
 			/// the pipe it is connected to
 		bool followsPipes() const;
+			/// What its tool tip says of the directions of flow this symbol
+			/// is in disagreement with (step 8a-bis-2); nothing when none
+		QStringList flowDisagreements() const;
+			/// The radius of the orange disc of drawFlowDisagreement(): 2 mm
+		static constexpr qreal flowDisagreementRadius = 8.0;
 			/// Move this symbol back by the offset of its insertion point
 			/// when its definition moved as a whole (upstream #1896)
 		bool followMovedOrigin();
@@ -665,6 +670,7 @@ class Element : public QetGraphicsItem
 	QColor statusInk() const;
 	void drawJunction(QPainter *painter, qreal detail) const;
 	void drawFreeNozzles(QPainter *painter) const;
+	void drawFlowDisagreement(QPainter *painter) const;
 	void takePictures();
 
 	QPicture m_picture;

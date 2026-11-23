@@ -22,8 +22,11 @@
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <QStringList>
 
 class Conductor;
+class Diagram;
+class Element;
 class Terminal;
 
 /**
@@ -98,6 +101,14 @@ namespace PidFlow
 				/// The junction added @p index-th (from 0) has everything
 				/// coming in, or everything going out
 			bool junctionInConflict(int index) const;
+				/// The nozzles of the junction added @p index-th
+			QList<int> junctionNodes(int index) const;
+				/// The sources which give the stretch of a node @p source
+				/// gave a direction another one: one way against the
+				/// other, or one way only against both ways (step 8a-bis-2)
+			QList<int> opposed(int source) const;
+				/// @p source says both ways
+			bool saysBoth(int source) const;
 
 		private:
 				/// The node which stands for the stretch of line of @p node;
@@ -128,14 +139,23 @@ namespace PidFlow
 			};
 			QList<Junction> m_junctions;
 
+				/// What a source says of a stretch, from the node which
+				/// stands for it
+			enum class Way { In, Out, Both };
+			struct Claim {
+				int source;
+				Way way;
+			};
 				/// What is known of a stretch, by the node which stands for
 				/// it: the fluid comes in there, goes out, or both (a
-				/// disagreement), and from which sources
+				/// disagreement), and from which sources, each with what it
+				/// says
 			struct Group {
 				bool in = false;
 				bool out = false;
 				bool both = false;
 				QList<int> sources;
+				QList<Claim> claims;
 			};
 			QHash<int, Group> m_groups;
 	};
@@ -153,13 +173,24 @@ namespace PidFlow
 		/// or a wire
 	Direction direction(const Conductor *pipe);
 		/// The direction of @p pipe as the user reads it: "from PC-01 (N2)
-		/// to VC-03 (N1)", "both ways", "unknown" or "disagreement"; nothing
-		/// for a signal
-		/// line or a wire
+		/// to VC-03 (N1)", "both ways", "unknown" or "disagreement (FL-01,
+		/// CV-02)", the symbols in cause; nothing for a signal line or a wire
 	QString text(const Conductor *pipe);
 		/// The way a nozzle is named in text(): the label of its symbol,
 		/// else the name of the symbol, then the name of the nozzle
 	QString nozzleName(const Terminal *nozzle);
+		/// The way a symbol is named: its label, else its name
+	QString symbolName(const Element *symbol);
+		/// What the tool tip of @p symbol says of the directions of flow it
+		/// is in disagreement with, one line each; nothing when it is in
+		/// none (step 8a-bis-2). Its folio is worked out once, again only
+		/// when a line or a symbol changed; then the symbols whose marks
+		/// change are drawn again.
+	QStringList disagreements(const Element *symbol);
+		/// Work out the marks of @p folio again if a line or a symbol
+		/// changed since: a pipe drawn calls it, so that the symbols of its
+		/// line are drawn again when it joins them or leaves them
+	void refreshMarks(const Diagram *folio);
 }
 
 #endif // PIDFLOW_H
