@@ -99,7 +99,8 @@ namespace PidFlow
 				/// gave it to its stretch of line, tees included
 			QList<int> sources(int node) const;
 				/// The junction added @p index-th (from 0) has everything
-				/// coming in, or everything going out
+				/// coming in, or everything going out; or so as soon as its
+				/// only nozzle used both ways comes in, or goes out
 			bool junctionInConflict(int index) const;
 				/// The nozzles of the junction added @p index-th
 			QList<int> junctionNodes(int index) const;

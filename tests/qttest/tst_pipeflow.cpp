@@ -338,6 +338,37 @@ class tst_pipeflow : public QObject
 			QVERIFY(!tee.junctionInConflict(0));
 		}
 
+			// Trial of the user (8a-bis-2): two come in, the third is used
+			// both ways; when it comes in too, everything comes in
+		void aTeeWithOneLineOfBothWaysMayDisagree()
+		{
+			auto conflict = [](QList<int> ways) {
+					// 1 in, 0 out, 2 both
+				PidFlow::Solver solver;
+				QList<int> nodes;
+				for (int i = 0 ; i < ways.size() ; ++i) {
+					nodes << solver.addNode();
+				}
+				solver.addJunction(nodes, 9);
+				for (int i = 0 ; i < ways.size() ; ++i) {
+					if (ways.at(i) == 2) {
+						solver.fixBoth(nodes.at(i), i + 1);
+					} else {
+						solver.fix(nodes.at(i), ways.at(i) == 1, i + 1);
+					}
+				}
+				solver.solve();
+				return solver.junctionInConflict(0);
+			};
+			QVERIFY(conflict({1, 1, 2}));
+			QVERIFY(conflict({0, 2, 0}));
+				// one in, one out: the line of both ways may go either way
+			QVERIFY(!conflict({1, 0, 2}));
+				// two lines of both ways may take turns
+			QVERIFY(!conflict({1, 2, 2}));
+			QVERIFY(!conflict({2, 2, 2}));
+		}
+
 			// ---- the role of a nozzle ----
 		void theSymbolGivesTheRoleOfItsNozzles()
 		{
@@ -530,6 +561,30 @@ class tst_pipeflow : public QObject
 				// only the tee: each source agrees with its own stretch
 			QVERIFY(PidFlow::disagreements(left).isEmpty());
 			QVERIFY(PidFlow::disagreements(below).isEmpty());
+		}
+
+		void theTeeOfTheTrialIsMarked()
+		{
+				// two arrows come into a tee, an arrow of both ways on the third
+			Scene scene;
+			Element *left = scene.add("arrow.elmt");
+			Element *tee = scene.add("tee.elmt");
+			Element *both = scene.add("both.elmt");
+			Element *below = place(scene.project, scene.folio, tee->pos() + QPointF(0, 200),
+								   QStringLiteral("arrow.elmt"));
+			QVERIFY(left && tee && both && below);
+			QVERIFY(scene.pipe(left, "N2", tee, "N1"));
+			QVERIFY(scene.pipe(tee, "N2", both, "N1"));
+			QVERIFY(PidFlow::disagreements(tee).isEmpty());
+			QVERIFY(scene.pipe(below, "N2", tee, "N3"));
+			const QStringList notes = PidFlow::disagreements(tee);
+			QCOMPARE(notes.size(), 1);
+			QVERIFY(notes.first().startsWith(
+						QLatin1String("Everything comes in here when the line of both ways comes in: "
+									  "directions given by ")));
+				// the tee only
+			QVERIFY(PidFlow::disagreements(both).isEmpty());
+			QVERIFY(PidFlow::disagreements(left).isEmpty());
 		}
 
 		void bothWaysAgainstOneWayIsMarked()

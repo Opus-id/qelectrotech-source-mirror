@@ -5359,6 +5359,16 @@ Continuer ?</translation>
         <comment>direction of flow at a tee</comment>
         <translation>Tout sort d&apos;ici : sens donnés par %1.</translation>
     </message>
+    <message>
+        <source>Everything comes in here when the line of both ways comes in: directions given by %1.</source>
+        <comment>direction of flow at a tee</comment>
+        <translation>Tout entre ici quand la ligne à double sens entre : sens donnés par %1.</translation>
+    </message>
+    <message>
+        <source>Everything goes out here when the line of both ways goes out: directions given by %1.</source>
+        <comment>direction of flow at a tee</comment>
+        <translation>Tout sort d&apos;ici quand la ligne à double sens sort : sens donnés par %1.</translation>
+    </message>
 </context>
 <context>
     <name>PidFreeEnd</name>

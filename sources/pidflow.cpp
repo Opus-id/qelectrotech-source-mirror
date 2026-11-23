@@ -164,17 +164,23 @@ void Solver::solve()
 		}
 	}
 
+		//Everything comes in, or everything goes out; or so as soon as the
+		//only nozzle used both ways comes in, or goes out (trial of the
+		//user, 8a-bis-2): two of them may take turns, and say nothing
 	for (Junction &junction : m_junctions)
 	{
-		int ins = 0, outs = 0;
+		int ins = 0, outs = 0, boths = 0;
 		bool all_known = true;
 		for (int node : std::as_const(junction.nodes)) {
 			const State state = stateOf(node);
 			ins += state == State::In ? 1 : 0;
 			outs += state == State::Out ? 1 : 0;
-			all_known = all_known && (state == State::In || state == State::Out);
+			boths += state == State::Both ? 1 : 0;
+			all_known = all_known && (state == State::In || state == State::Out || state == State::Both);
 		}
-		junction.conflict = all_known && (ins == 0 || outs == 0);
+		junction.conflict = all_known
+				&& ((boths == 0 && (ins == 0 || outs == 0))
+					|| (boths == 1 && (ins == 0) != (outs == 0)));
 	}
 }
 
@@ -513,7 +519,11 @@ namespace {
 			}
 			const Element *junction = junctions.at(index);
 			const QList<int> nodes = solver.junctionNodes(index);
-			const bool in = !nodes.isEmpty() && solver.state(nodes.first()) == Solver::State::In;
+			bool in = false, both = false;
+			for (int node : nodes) {
+				in = in || solver.state(node) == Solver::State::In;
+				both = both || solver.state(node) == Solver::State::Both;
+			}
 			QList<int> sources;
 			for (int node : nodes) {
 				for (int source : solver.sources(node)) {
@@ -525,7 +535,18 @@ namespace {
 			}
 			const QStringList names = namesOf(sources);
 			QString note;
-			if (names.isEmpty()) {
+			if (both) {
+					//A line of both ways always has a source: the arrow
+				note = (in ? QCoreApplication::translate("PidFlow",
+														 "Everything comes in here when the line of both ways "
+														 "comes in: directions given by %1.",
+														 "direction of flow at a tee")
+						   : QCoreApplication::translate("PidFlow",
+														 "Everything goes out here when the line of both ways "
+														 "goes out: directions given by %1.",
+														 "direction of flow at a tee"))
+						.arg(names.join(comma));
+			} else if (names.isEmpty()) {
 				note = in ? QCoreApplication::translate("PidFlow", "Everything comes in here.",
 														"direction of flow at a tee")
 						  : QCoreApplication::translate("PidFlow", "Everything goes out here.",
