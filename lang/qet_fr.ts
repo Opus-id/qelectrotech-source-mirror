@@ -6172,6 +6172,24 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <comment>context menu action</comment>
         <translation>Statut de travaux</translation>
     </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="241"/>
+        <source>Reverse the direction of the line</source>
+        <comment>context menu action</comment>
+        <translation>Inverser le sens de la ligne</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="245"/>
+        <source>Correct</source>
+        <comment>context menu: proposals for what is reported</comment>
+        <translation>Corriger</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="3790"/>
+        <source>Align the arrows of the line on this one</source>
+        <comment>context menu action</comment>
+        <translation>Aligner les flèches de la ligne sur celle-ci</translation>
+    </message>
     <message numerus="yes">
         <location filename="../sources/diagramview.cpp" line="2530"/>
         <source>Change the type of %n element(s)</source>
@@ -27293,6 +27311,11 @@ Pour l&apos;activer : Configurer QElectroTech &gt; Général &gt; Projets, ou d�
         <location filename="../sources/undocommand/mirrorselectioncommand.cpp" line="59"/>
         <source>Vertical mirror</source>
         <translation>Miroir vertical</translation>
+    </message>
+    <message>
+        <location filename="../sources/undocommand/mirrorselectioncommand.cpp" line="85"/>
+        <source>Mirror</source>
+        <translation>Miroir</translation>
     </message>
     <message>
         <location filename="../sources/TerminalStrip/UndoCommand/groupterminalscommand.cpp" line="37"/>

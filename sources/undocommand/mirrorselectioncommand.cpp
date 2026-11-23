@@ -64,10 +64,43 @@ MirrorSelectionCommand::MirrorSelectionCommand(const QList<Element *> &elements,
 			: QObject::tr("Vertical mirror"));
 
 	for (Element *element : elements)
-	{
-		if (!element)
-			continue;
+		mirror(element, orientation);
+	reattach(elements);
+}
 
+/**
+	@brief MirrorSelectionCommand::MirrorSelectionCommand
+	Each element of @p mirrors mirrored on the folio the way it gives, in
+	one undo step, as the other constructor does it; the pipes of P&ID
+	symbols then go over to the nozzles facing them, all together.
+	@param mirrors : the elements, each with its orientation on the folio
+	@param parent : parent undo command
+*/
+MirrorSelectionCommand::MirrorSelectionCommand(const QList<QPair<Element *, Qt::Orientation>> &mirrors,
+											   QUndoCommand *parent) :
+	QUndoCommand(parent)
+{
+	setText(QObject::tr("Mirror"));
+	QList<Element *> elements;
+	for (const auto &pair : mirrors)
+	{
+		mirror(pair.first, pair.second);
+		if (pair.first)
+			elements << pair.first;
+	}
+	reattach(elements);
+}
+
+/**
+	@brief MirrorSelectionCommand::mirror
+	Add the children which mirror @p element, @p orientation on the folio
+*/
+void MirrorSelectionCommand::mirror(Element *element, Qt::Orientation orientation)
+{
+	if (!element)
+		return;
+
+	{
 		const bool turned = element->orientation() % 2;
 		const bool horizontal = (orientation == Qt::Horizontal) != turned;
 
@@ -90,7 +123,7 @@ MirrorSelectionCommand::MirrorSelectionCommand(const QList<Element *> &elements,
 			//mirrored about it, as it is rotated, and stays on the line
 			//(step 7g)
 		if (aboutHotspot(element))
-			continue;
+			return;
 
 			//The mirror is about the element's hotspot, which is often a
 			//corner of the symbol: move it so that it stays where it was,
@@ -108,9 +141,16 @@ MirrorSelectionCommand::MirrorSelectionCommand(const QList<Element *> &elements,
 		if (new_pos != old_pos)
 			new QPropertyUndoCommand(element, "pos", old_pos, new_pos, this);
 	}
+}
 
-		//The pipes the mirror leaves running back through their symbol go
-		//over to the nozzle facing them (P&ID, 5l-1h), after the mirror
+/**
+	@brief MirrorSelectionCommand::reattach
+	The pipes the mirror leaves running back through their symbol go over
+	to the nozzle facing them (P&ID, 5l-1h), after the mirror: the last
+	child, built once all the mirrors are given
+*/
+void MirrorSelectionCommand::reattach(const QList<Element *> &elements)
+{
 	if (childCount() && PidRunReattachCommand::concerns(elements))
 		m_reattach = new PidRunReattachCommand(elements, this);
 }

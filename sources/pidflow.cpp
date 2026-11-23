@@ -23,10 +23,13 @@
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
+#include "undocommand/mirrorselectioncommand.h"
 
 #include <QCoreApplication>
+#include <QLineF>
 #include <QPointer>
 
+#include <algorithm>
 #include <utility>
 
 namespace PidFlow
@@ -232,6 +235,11 @@ bool Solver::saysBoth(int source) const
 		}
 	}
 	return false;
+}
+
+int Solver::stretchOf(int node, bool *opposite) const
+{
+	return find(node, opposite);
 }
 
 namespace {
@@ -618,6 +626,144 @@ void refreshMarks(const Diagram *folio)
 	if (folio) {
 		marksOf(folio);
 	}
+}
+
+Corrections corrections(const QGraphicsItem *item, const QPointF &scene_pos)
+{
+	Corrections found;
+	const Terminal *seed = nullptr;
+	const Element *clicked = nullptr;
+	if (const auto *pipe = qgraphicsitem_cast<const Conductor *>(item)) {
+		if (pipe->medium() != TerminalData::Pipe || !pipe->terminal1 || !pipe->terminal2) {
+			return found;
+		}
+		seed = pipe->terminal1;
+	} else if (const auto *element = qgraphicsitem_cast<const Element *>(item)) {
+		clicked = element;
+			//The line of its nozzle nearest to the click
+		qreal best = -1;
+		for (const Terminal *terminal : element->terminals()) {
+			if (terminal->medium() != TerminalData::Pipe) {
+				continue;
+			}
+			const qreal distance = QLineF(terminal->dockConductor(), scene_pos).length();
+			if (best < 0 || distance < best) {
+				best = distance;
+				seed = terminal;
+			}
+		}
+	}
+	if (!seed) {
+		return found;
+	}
+	const bool on_arrow = clicked && clicked->isFlowArrow();
+	const bool marked = clicked && !disagreements(clicked).isEmpty();
+	if (clicked && !on_arrow && !marked) {
+		return found;
+	}
+
+	Solver solver;
+	QList<const Terminal *> nozzles;
+	QList<const Element *> junctions;
+	const QHash<const Terminal *, int> ids = build({seed}, solver, nozzles, junctions);
+	const int stretch = solver.stretchOf(ids.value(seed));
+	found.disagreement = marked || solver.state(ids.value(seed)) == Solver::State::Conflict;
+
+		//What each source of the stretch says of it, from the node which
+		//stands for it: the fluid comes in there (true), or goes out
+	QList<QPair<Element *, bool>> arrows;
+	bool others_in = false, others_out = false, both_ways = false;
+	for (int id = 0 ; id < nozzles.size() ; ++id)
+	{
+		const Terminal *nozzle = nozzles.at(id);
+		bool opposite = false;
+		if (nozzle->medium() != TerminalData::Pipe || solver.stretchOf(id, &opposite) != stretch) {
+			continue;
+		}
+		const TerminalData::FlowRole role = nozzle->flowRole();
+		if (role == TerminalData::NoFlowRole) {
+			continue;
+		}
+			//The arrow of both ways is never reversed, and a line of both
+			//ways against one way only is not put right by reversing
+		if (role == TerminalData::FlowBoth) {
+			both_ways = true;
+			continue;
+		}
+		const bool in = (role == TerminalData::FlowIn) != opposite;
+		Element *symbol = nozzle->parentElement();
+		if (symbol && symbol->isFlowArrow()) {
+				//Its two nozzles say the same
+			const bool known = std::any_of(arrows.cbegin(), arrows.cend(),
+										   [symbol](const QPair<Element *, bool> &arrow) {
+				return arrow.first == symbol;
+			});
+			if (!known) {
+				arrows << qMakePair(symbol, in);
+			}
+		} else {
+			(in ? others_in : others_out) = true;
+		}
+	}
+	if (arrows.isEmpty()) {
+		return found;
+	}
+
+	bool arrows_in = false, arrows_out = false;
+	for (const auto &arrow : std::as_const(arrows)) {
+		(arrow.second ? arrows_in : arrows_out) = true;
+	}
+		//Reversed, the arrows say the other way: offered when no check valve
+		//nor pump says theirs
+	if (arrows_in != arrows_out && !both_ways && !(arrows_in ? others_in : others_out)) {
+		for (const auto &arrow : std::as_const(arrows)) {
+			found.reverse << arrow.first;
+		}
+	}
+		//On the arrow right-clicked, of one way (that of both ways is not
+		//among them), when the arrows do not agree
+	const auto mine = std::find_if(arrows.cbegin(), arrows.cend(),
+								   [clicked](const QPair<Element *, bool> &arrow) {
+		return arrow.first == clicked;
+	});
+	if (mine != arrows.cend() && arrows_in && arrows_out) {
+		for (const auto &arrow : std::as_const(arrows)) {
+			if (arrow.second != mine->second) {
+				found.align << arrow.first;
+			}
+		}
+	}
+	return found;
+}
+
+QUndoCommand *mirrorArrows(const QList<Element *> &arrows, const QString &text)
+{
+	QList<QPair<Element *, Qt::Orientation>> mirrors;
+	for (Element *arrow : arrows)
+	{
+		if (!arrow) {
+			continue;
+		}
+		QList<const Terminal *> ends;
+		for (const Terminal *terminal : arrow->terminals()) {
+			if (terminal->medium() == TerminalData::Pipe) {
+				ends << terminal;
+			}
+		}
+		if (ends.size() < 2) {
+			continue;
+		}
+			//About the axis of its pipes: along them, its two nozzles swap
+		const QPointF along = ends.at(1)->dockConductor() - ends.at(0)->dockConductor();
+		mirrors << qMakePair(arrow, qAbs(along.x()) >= qAbs(along.y()) ? Qt::Horizontal
+																	  : Qt::Vertical);
+	}
+	if (mirrors.isEmpty()) {
+		return nullptr;
+	}
+	auto *command = new MirrorSelectionCommand(mirrors);
+	command->setText(text);
+	return command;
 }
 
 } // namespace PidFlow

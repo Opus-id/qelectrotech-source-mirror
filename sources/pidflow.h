@@ -21,12 +21,15 @@
 
 #include <QHash>
 #include <QList>
+#include <QPointF>
 #include <QString>
 #include <QStringList>
 
 class Conductor;
 class Diagram;
 class Element;
+class QGraphicsItem;
+class QUndoCommand;
 class Terminal;
 
 /**
@@ -110,6 +113,10 @@ namespace PidFlow
 			QList<int> opposed(int source) const;
 				/// @p source says both ways
 			bool saysBoth(int source) const;
+				/// The node which stands for the stretch of line of @p node
+				/// (two nodes of one stretch: the same one); in @p opposite,
+				/// whether the two go opposite ways
+			int stretchOf(int node, bool *opposite = nullptr) const;
 
 		private:
 				/// The node which stands for the stretch of line of @p node;
@@ -192,6 +199,35 @@ namespace PidFlow
 		/// changed since: a pipe drawn calls it, so that the symbols of its
 		/// line are drawn again when it joins them or leaves them
 	void refreshMarks(const Diagram *folio);
+
+		/**
+			@brief The Corrections struct
+			What the right click on a pipe or a symbol offers on the direction
+			of its line (step 8a-bis-3): flow arrows to mirror, never a check
+			valve nor a pump, never the arrow of both ways; nothing done
+			unasked. The line is the stretch of the direction: through
+			valves, instruments, reducers, a chamber of two nozzles, up to
+			tees, crosses and equipment.
+		*/
+	struct Corrections {
+			/// The line, or the symbol, is in disagreement: what follows is
+			/// offered under "Correct"
+		bool disagreement = false;
+			/// "Reverse the direction of the line": its arrows of one way,
+			/// when they agree with one another and, reversed, with its check
+			/// valves and its pumps
+		QList<Element *> reverse;
+			/// "Align the arrows of the line on this one": the arrows which
+			/// go against the one right-clicked
+		QList<Element *> align;
+	};
+		/// What can be offered from @p item right-clicked at @p scene_pos: a
+		/// pipe or a flow arrow; under "Correct", a symbol marked too, by the
+		/// line of its nozzle nearest to the click
+	Corrections corrections(const QGraphicsItem *item, const QPointF &scene_pos);
+		/// The command which mirrors @p arrows in one undo step, each about
+		/// the axis of its pipes, named @p text; null if there is none
+	QUndoCommand *mirrorArrows(const QList<Element *> &arrows, const QString &text);
 }
 
 #endif // PIDFLOW_H

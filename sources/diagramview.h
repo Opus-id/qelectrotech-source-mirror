@@ -76,6 +76,12 @@ class DiagramView : public PaletteGraphicsView
 			/// The options the selected symbols all offer, one submenu each
 		QMenu            *m_options_menu = nullptr;
 		QMenu            *m_status_menu = nullptr;
+			/// P&ID, 8a-bis-3: "Reverse the direction of the line" of the
+			/// pipe or the flow arrow right-clicked, when its line is in no
+			/// disagreement; "Correct" holds the proposals for one
+		QAction          *m_reverse_line = nullptr;
+		QMenu            *m_correct_menu = nullptr;
+		QList<QPointer<Element>> m_reverse_arrows;
 		QPoint            m_paste_here_pos;
 		QPoint            m_press_pos;
 		DiagramContextToolbar *m_context_toolbar = nullptr;
@@ -270,6 +276,8 @@ class DiagramView : public PaletteGraphicsView
 		void updateChangeTypeMenu();
 		void updateOptionsMenu();
 		void updateStatusMenu();
+		void updateFlowCorrections();
+		void mirrorArrows(const QList<QPointer<Element>> &arrows, const QString &text);
 		void changeSelectedElementsType(const ElementsLocation &location);
 			/**
 				The menu of one single core: the right button coming down

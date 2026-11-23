@@ -32,6 +32,7 @@
 
 #include <QDomDocument>
 #include <QLabel>
+#include <QUndoStack>
 
 /**
 	The direction of flow of the pipes (step 8a-bis), found from the
@@ -752,6 +753,167 @@ class tst_pipeflow : public QObject
 			Conductor *c = scene.pipe(more, "N2", end, "N1");
 			page.setPipes({c});
 			QCOMPARE(label->text(), QStringLiteral("unknown"));
+		}
+
+			// ---- reversed by the right click (8a-bis-3) ----
+		static PidFlow::Corrections on(const QGraphicsItem *item)
+		{
+			return PidFlow::corrections(item, item->sceneBoundingRect().center());
+		}
+
+		static void apply(Diagram *folio, const QList<Element *> &arrows)
+		{
+			QUndoCommand *command = PidFlow::mirrorArrows(arrows, QStringLiteral("Reverse"));
+			QVERIFY(command);
+			folio->undoStack().push(command);
+		}
+
+		void aLineIsReversedByItsArrows()
+		{
+			Scene scene;
+			Element *tank = scene.add("tank.elmt");
+			Element *first = scene.add("arrow.elmt");
+			Element *valve = scene.add("valve.elmt");
+			Element *second = scene.add("arrow.elmt");
+			Element *both = scene.add("both.elmt");
+			Element *end = scene.add("tank.elmt");
+			Conductor *a = scene.pipe(tank, "N2", first, "N1");
+			Conductor *b = scene.pipe(first, "N2", valve, "N1");
+			Conductor *c = scene.pipe(valve, "N2", second, "N1");
+			Conductor *d = scene.pipe(second, "N2", both, "N1");
+			Conductor *e = scene.pipe(both, "N2", end, "N1");
+			QVERIFY(a && b && c && d && e);
+				// the arrow of both ways is in another stretch: the sources
+				// of one way and of both ways meet at it
+			scene.folio->removeItem(d);
+			delete d;
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Forward);
+
+				// from a pipe, from an arrow: its two arrows, no disagreement
+			const PidFlow::Corrections from_pipe = on(b);
+			QVERIFY(!from_pipe.disagreement);
+			QCOMPARE(from_pipe.reverse.size(), 2);
+			QVERIFY(from_pipe.reverse.contains(first) && from_pipe.reverse.contains(second));
+			QVERIFY(from_pipe.align.isEmpty());
+			QCOMPARE(on(second).reverse.size(), 2);
+				// a valve in no disagreement offers nothing, nor the arrow of
+				// both ways, alone on its stretch
+			QVERIFY(on(valve).reverse.isEmpty());
+			QVERIFY(on(both).reverse.isEmpty());
+			QVERIFY(on(e).reverse.isEmpty());
+
+			const int steps = scene.folio->undoStack().count();
+			apply(scene.folio, from_pipe.reverse);
+			QCOMPARE(scene.folio->undoStack().count(), steps + 1);
+			QCOMPARE(PidFlow::direction(a), PidFlow::Direction::Backward);
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Backward);
+			QCOMPARE(PidFlow::direction(c), PidFlow::Direction::Backward);
+			QVERIFY(PidFlow::disagreements(first).isEmpty());
+				// the pipes went over to the other nozzles
+			QCOMPARE(a->terminal2, nozzle(first, "N2"));
+			QCOMPARE(PidFlow::direction(e), PidFlow::Direction::Both);
+
+			scene.folio->undoStack().undo();
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Forward);
+			QCOMPARE(a->terminal2, nozzle(first, "N1"));
+			scene.folio->undoStack().redo();
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Backward);
+		}
+
+		void aCheckValveIsNeverReversed()
+		{
+				// the arrow agrees with the check valve: nothing offered
+			Scene scene;
+			Element *tank = scene.add("tank.elmt");
+			Element *check = scene.add("check.elmt");
+			Element *arrow = scene.add("arrow.elmt");
+			Element *end = scene.add("tank.elmt");
+			Conductor *a = scene.pipe(tank, "N2", check, "N1");
+			Conductor *b = scene.pipe(check, "N2", arrow, "N1");
+			Conductor *c = scene.pipe(arrow, "N2", end, "N1");
+			QVERIFY(a && b && c);
+			QVERIFY(on(b).reverse.isEmpty());
+			QVERIFY(on(arrow).reverse.isEmpty());
+
+				// against it, drawn pointing back: under Correct, from the
+				// pipe, the arrow and the check valve marked; the arrow alone
+				// mirrored
+			scene.folio->removeItem(c);
+			delete c;
+			scene.folio->removeItem(b);
+			delete b;
+			arrow->setRotation(180);
+			b = scene.pipe(check, "N2", arrow, "N2");
+			c = scene.pipe(arrow, "N1", end, "N1");
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Conflict);
+			for (const QGraphicsItem *item : {static_cast<const QGraphicsItem *>(b),
+											  static_cast<const QGraphicsItem *>(arrow),
+											  static_cast<const QGraphicsItem *>(check)}) {
+				const PidFlow::Corrections found = on(item);
+				QVERIFY(found.disagreement);
+				QCOMPARE(found.reverse, QList<Element *>{arrow});
+			}
+				// the tank, not marked: nothing
+			QVERIFY(!on(tank).disagreement && on(tank).reverse.isEmpty());
+			apply(scene.folio, on(b).reverse);
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Forward);
+			QCOMPARE(PidFlow::direction(c), PidFlow::Direction::Forward);
+			QVERIFY(PidFlow::disagreements(check).isEmpty());
+			QVERIFY(arrow->hasHorizontalMirror());
+			QVERIFY(!check->hasHorizontalMirror() && !check->hasVerticalMirror());
+		}
+
+		void twoArrowsAreAlignedOnOne()
+		{
+			Scene scene;
+			Element *tank = scene.add("tank.elmt");
+			Element *first = scene.add("arrow.elmt");
+			Element *valve = scene.add("valve.elmt");
+			Element *second = scene.add("arrow.elmt");
+			Element *end = scene.add("tank.elmt");
+			QVERIFY(scene.pipe(tank, "N2", first, "N1"));
+			Conductor *b = scene.pipe(first, "N2", valve, "N1");
+				// the second arrow points back
+			second->setRotation(180);
+			QVERIFY(scene.pipe(valve, "N2", second, "N2"));
+			QVERIFY(scene.pipe(second, "N1", end, "N1"));
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Conflict);
+
+				// reversing both would put nothing right
+			const PidFlow::Corrections from_pipe = on(b);
+			QVERIFY(from_pipe.disagreement);
+			QVERIFY(from_pipe.reverse.isEmpty());
+			QVERIFY(from_pipe.align.isEmpty());
+			QCOMPARE(on(first).align, QList<Element *>{second});
+			QCOMPARE(on(second).align, QList<Element *>{first});
+
+			apply(scene.folio, on(second).align);
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Backward);
+			QVERIFY(PidFlow::disagreements(first).isEmpty());
+			QVERIFY(PidFlow::disagreements(second).isEmpty());
+		}
+
+		void aTurnedArrowIsMirroredAlongItsPipes()
+		{
+			Scene scene;
+			Element *tank = scene.add("tank.elmt");
+			Element *arrow = place(scene.project, scene.folio, tank->pos() + QPointF(0, 200),
+								   QStringLiteral("arrow.elmt"));
+			Element *valve = place(scene.project, scene.folio, tank->pos() + QPointF(0, 400),
+								   QStringLiteral("valve.elmt"));
+			QVERIFY(arrow && valve);
+			arrow->setRotation(90);
+			valve->setRotation(90);
+			Conductor *a = scene.pipe(tank, "N3", arrow, "N1");
+			Conductor *b = scene.pipe(arrow, "N2", valve, "N1");
+			QVERIFY(a && b);
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Forward);
+			apply(scene.folio, on(a).reverse);
+			QCOMPARE(PidFlow::direction(a), PidFlow::Direction::Backward);
+			QCOMPARE(PidFlow::direction(b), PidFlow::Direction::Backward);
+				// mirrored along the pipes, its own horizontal axis
+			QVERIFY(arrow->hasHorizontalMirror() && !arrow->hasVerticalMirror());
+			QCOMPARE(arrow->rotation(), 90.0);
 		}
 };
 

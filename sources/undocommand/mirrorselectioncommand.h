@@ -19,6 +19,7 @@
 #define MIRRORSELECTIONCOMMAND_H
 
 #include <QList>
+#include <QPair>
 #include <QUndoCommand>
 
 class Diagram;
@@ -39,6 +40,11 @@ class MirrorSelectionCommand : public QUndoCommand
 		MirrorSelectionCommand(const QList<Element *> &elements,
 							   Qt::Orientation orientation,
 							   QUndoCommand *parent = nullptr);
+			/// Each element mirrored its own way on the folio, in one undo
+			/// step (P&ID, 8a-bis-3: the flow arrows of a line, each about
+			/// the axis of its pipe)
+		MirrorSelectionCommand(const QList<QPair<Element *, Qt::Orientation>> &mirrors,
+							   QUndoCommand *parent = nullptr);
 
 		void undo() override;
 		bool isValid() const;
@@ -48,6 +54,8 @@ class MirrorSelectionCommand : public QUndoCommand
 
 	private:
 		static QList<Element *> selectedElements(const Diagram *diagram);
+		void mirror(Element *element, Qt::Orientation orientation);
+		void reattach(const QList<Element *> &elements);
 
 			/// The child moving the pipes of P&ID symbols (5l-1h), if any
 		PidRunReattachCommand *m_reattach = nullptr;

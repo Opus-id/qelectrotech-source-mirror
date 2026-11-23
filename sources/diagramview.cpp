@@ -18,6 +18,7 @@
 #include "diagramview.h"
 
 #include "pidstatus.h"
+#include "pidflow.h"
 #include "itemdescription.h"
 #include "shownkinds.h"
 #include "autoNum/ui/pastenumberingimport.h"
@@ -235,6 +236,13 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 	m_options_menu = new QMenu(tr("Options", "context menu action"), this);
 		//Filled each time the context menu opens, see updateStatusMenu()
 	m_status_menu = new QMenu(tr("Status of works", "context menu action"), this);
+		//P&ID, 8a-bis-3: set each time the context menu opens, see
+		//updateFlowCorrections()
+	m_reverse_line = new QAction(tr("Reverse the direction of the line", "context menu action"), this);
+	connect(m_reverse_line, &QAction::triggered, this, [this]() {
+		mirrorArrows(m_reverse_arrows, m_reverse_line->text());
+	});
+	m_correct_menu = new QMenu(tr("Correct", "context menu: proposals for what is reported"), this);
 
 		//setup three separators, to be use in context menu
 	for(int i=0 ; i<3 ; ++i)
@@ -3411,6 +3419,8 @@ QList<QAction *> DiagramView::contextMenuActions() const
 			list << m_change_type_menu->menuAction();
 			list << m_options_menu->menuAction();
 			list << m_status_menu->menuAction();
+			list << m_reverse_line;
+			list << m_correct_menu->menuAction();
 			list << qde->m_conductor_reset;
 				//Only when a text of the selection was moved or turned by
 				//hand, which a selection unchanged does not tell
@@ -3607,6 +3617,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 		updateChangeTypeMenu();
 		updateOptionsMenu();
 		updateStatusMenu();
+		updateFlowCorrections();
 			//The selection may just have changed under the mouse
 		if (QETDiagramEditor *qde = diagramEditor()) {
 			qde->m_create_similar->setEnabled(similarSource() != nullptr);
@@ -3718,6 +3729,81 @@ void DiagramView::updateStatusMenu()
 				m_diagram->undoStack().push(undo);
 			}
 		});
+	}
+}
+
+/**
+	@brief DiagramView::updateFlowCorrections
+	P&ID, 8a-bis-3: what the right click on one pipe or one symbol offers on
+	the direction of its line (PidFlow::corrections()). Its line in no
+	disagreement, "Reverse the direction of the line" stands in the menu
+	itself; in disagreement, it goes into the "Correct" submenu, with
+	"Align the arrows of the line on this one" on a flow arrow. The first
+	entry of "Correct", which is to hold the proposals for each thing
+	reported (phase 8r): never anything done unasked, one undo step each.
+	Left disabled, and so hidden, otherwise, or when the diagram is read-only.
+*/
+void DiagramView::updateFlowCorrections()
+{
+	m_reverse_line->setEnabled(false);
+	m_reverse_arrows.clear();
+	m_correct_menu->clear();
+	const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+	if (m_diagram->isReadOnly() || selected.size() != 1) {
+		return;
+	}
+	const PidFlow::Corrections found = PidFlow::corrections(selected.first(), m_menu_scene_pos);
+	auto pointers = [](const QList<Element *> &elements) {
+		QList<QPointer<Element>> list;
+		for (Element *element : elements) {
+			list << QPointer<Element>(element);
+		}
+		return list;
+	};
+
+	if (!found.disagreement)
+	{
+		if (!found.reverse.isEmpty()) {
+			m_reverse_arrows = pointers(found.reverse);
+			m_reverse_line->setEnabled(true);
+		}
+		return;
+	}
+	if (!found.reverse.isEmpty())
+	{
+		const QList<QPointer<Element>> arrows = pointers(found.reverse);
+		QAction *action = m_correct_menu->addAction(
+					tr("Reverse the direction of the line", "context menu action"));
+		connect(action, &QAction::triggered, this, [this, arrows, action]() {
+			mirrorArrows(arrows, action->text());
+		});
+	}
+	if (!found.align.isEmpty())
+	{
+		const QList<QPointer<Element>> arrows = pointers(found.align);
+		QAction *action = m_correct_menu->addAction(
+					tr("Align the arrows of the line on this one", "context menu action"));
+		connect(action, &QAction::triggered, this, [this, arrows, action]() {
+			mirrorArrows(arrows, action->text());
+		});
+	}
+}
+
+/**
+	@brief DiagramView::mirrorArrows
+	Mirror the flow arrows @p arrows still there, in one undo step named
+	@p text (P&ID, 8a-bis-3)
+*/
+void DiagramView::mirrorArrows(const QList<QPointer<Element>> &arrows, const QString &text)
+{
+	QList<Element *> elements;
+	for (const QPointer<Element> &arrow : arrows) {
+		if (arrow && arrow->diagram() == m_diagram) {
+			elements << arrow.data();
+		}
+	}
+	if (QUndoCommand *undo = PidFlow::mirrorArrows(elements, text)) {
+		m_diagram->undoStack().push(undo);
 	}
 }
 
