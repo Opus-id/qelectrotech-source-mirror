@@ -25,75 +25,39 @@
 #include <qetinformation.h>
 #include <undocommand/changeelementinformationcommand.h>
 
-#include <qeticons.h>
-
-#include <QDialog>
-#include <QDialogButtonBox>
-#include <QHBoxLayout>
-#include <QLineEdit>
+#include <QEvent>
+#include <QFontMetrics>
 #include <QPlainTextEdit>
 #include <QSignalBlocker>
-#include <QToolButton>
 #include <QVBoxLayout>
 
 ElementCommentWidget::ElementCommentWidget(Element *element, QWidget *parent) :
 	AbstractElementPropertiesEditorWidget(parent)
 {
-	auto *layout = new QHBoxLayout(this);
-	m_comment = new QLineEdit(this);
+	auto *layout = new QVBoxLayout(this);
+	m_comment = new QPlainTextEdit(this);
 	m_comment->setObjectName(QStringLiteral("comment"));
-	const QString tip = tr("Shown on the folio by the symbol: where the fluid comes from or goes "
-						   "to, for an arrow of inlet or outlet. The comment of the Informations tab.");
-	m_comment->setToolTip(tip);
-	layout->addWidget(m_comment, 1);
-	m_several_lines = new QToolButton(this);
-	m_several_lines->setObjectName(QStringLiteral("several_lines"));
-	m_several_lines->setIcon(QET::Icons::EditText);
-	m_several_lines->setToolTip(tr("Write it on several lines"));
-	layout->addWidget(m_several_lines);
-	connect(m_comment, &QLineEdit::editingFinished, this, [this]() {
-		if (m_live_edit) {
-			apply();
-		}
-	});
-	connect(m_several_lines, &QToolButton::clicked, this, &ElementCommentWidget::editOnSeveralLines);
-		//The line edit shows a line break as a space: the tooltip shows
-		//the text as it is drawn
-	connect(m_comment, &QLineEdit::textChanged, this, [this, tip](const QString &text) {
-		m_comment->setToolTip(text.contains(QLatin1Char('\n')) ? text : tip);
-	});
+	m_comment->setToolTip(tr("Shown on the folio by the symbol: where the fluid comes from or goes "
+							 "to, for an arrow of inlet or outlet. The comment of the Informations tab."));
+		//Enter goes to the next line, Tab to the next field
+	m_comment->setTabChangesFocus(true);
+	m_comment->setLineWrapMode(QPlainTextEdit::NoWrap);
+		//Three lines seen, as the text of an arrow seldom takes more
+	const QFontMetrics metrics(m_comment->font());
+	m_comment->setFixedHeight(metrics.lineSpacing() * 3
+							  + 2 * (m_comment->frameWidth() + qRound(m_comment->document()->documentMargin())));
+	layout->addWidget(m_comment);
+		//Applied when it is left, as a line edit is when its editing ends
+	m_comment->installEventFilter(this);
 	setElement(element);
 }
 
-void ElementCommentWidget::setCommentText(const QString &text)
+bool ElementCommentWidget::eventFilter(QObject *watched, QEvent *event)
 {
-	m_comment->setText(text);
-	if (m_live_edit) {
+	if (watched == m_comment && event->type() == QEvent::FocusOut && m_live_edit) {
 		apply();
 	}
-}
-
-/**
-	@brief ElementCommentWidget::editOnSeveralLines
-	The comment in a box that takes line breaks, as the Informations tab
-	offers it (ElementInfoPartWidget::editOnSeveralLines())
-*/
-void ElementCommentWidget::editOnSeveralLines()
-{
-	QDialog dialog(this);
-	dialog.setWindowTitle(title());
-	auto *edit = new QPlainTextEdit(&dialog);
-	edit->setPlainText(m_comment->text());
-	auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-	auto *layout = new QVBoxLayout(&dialog);
-	layout->addWidget(edit);
-	layout->addWidget(buttons);
-	edit->setFocus();
-	if (dialog.exec() == QDialog::Accepted && edit->toPlainText() != m_comment->text()) {
-		setCommentText(edit->toPlainText());
-	}
+	return AbstractElementPropertiesEditorWidget::eventFilter(watched, event);
 }
 
 /**
@@ -136,8 +100,12 @@ void ElementCommentWidget::updateUi()
 	if (!m_element) {
 		return;
 	}
-	const QSignalBlocker blocker(m_comment);
-	m_comment->setText(m_element->elementInformations().value(QETInformation::ELMT_COMMENT).toString());
+	const QString comment = m_element->elementInformations().value(QETInformation::ELMT_COMMENT).toString();
+		//Set again only when it differs, the cursor staying where it is
+	if (comment != m_comment->toPlainText()) {
+		const QSignalBlocker blocker(m_comment);
+		m_comment->setPlainText(comment);
+	}
 }
 
 /**
@@ -152,7 +120,7 @@ QUndoCommand *ElementCommentWidget::associatedUndo() const
 	}
 	const DiagramContext old_information = m_element->elementInformations();
 	DiagramContext new_information = old_information;
-	const QString comment = m_comment->text().trimmed();
+	const QString comment = m_comment->toPlainText().trimmed();
 	if (comment.isEmpty() && !old_information.contains(QETInformation::ELMT_COMMENT)) {
 		return nullptr;
 	}

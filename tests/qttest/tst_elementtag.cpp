@@ -24,7 +24,9 @@
 #include <QCompleter>
 #include <QDomDocument>
 #include <QLabel>
+#include <QFocusEvent>
 #include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTemporaryDir>
 
@@ -984,27 +986,28 @@ class tst_elementtag : public QObject
 			auto *section = properties.findChild<ElementCommentWidget *>();
 			QVERIFY(section);
 			section->setLiveEdit(true);
-			section->commentField()->setText(QStringLiteral("Raw water from well F1"));
-			emit section->commentField()->editingFinished();
+				// typed, then left
+			const auto typeAndLeave = [section](const QString &text) {
+				section->commentField()->setPlainText(text);
+				QFocusEvent left(QEvent::FocusOut);
+				QCoreApplication::sendEvent(section->commentField(), &left);
+			};
+			typeAndLeave(QStringLiteral("Raw water from well F1"));
 			QCOMPARE(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString(),
 					 QStringLiteral("Raw water from well F1"));
 			QCOMPARE(shownLabel(arrow, QStringLiteral("comment")), QStringLiteral("Raw water from well F1"));
 
 			m_folio->undoStack().undo();
 			QVERIFY(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString().isEmpty());
-			QCOMPARE(section->commentField()->text(), QString());
+			QCOMPARE(section->commentField()->toPlainText(), QString());
 
-				// on several lines, by its button: the line break is kept,
-				// in the information and on the folio, and left as it is
-				// when the field is left
-			QVERIFY(section->severalLinesButton());
+				// on several lines, typed in the field itself: the line
+				// break is kept, in the information and on the folio
 			const QString lines = QStringLiteral("Raw water\nfrom well F1");
-			section->setCommentText(lines);
+			typeAndLeave(lines);
 			QCOMPARE(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString(), lines);
 			QCOMPARE(shownLabel(arrow, QStringLiteral("comment")), lines);
-			emit section->commentField()->editingFinished();
-			QCOMPARE(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString(), lines);
-			QCOMPARE(section->commentField()->toolTip(), lines);
+			QCOMPARE(section->commentField()->toPlainText(), lines);
 		}
 };
 

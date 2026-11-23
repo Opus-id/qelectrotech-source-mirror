@@ -8081,11 +8081,6 @@ Le nom affiché de l&apos;élément se modifie séparément dans les propriété
         <translation>Modifier le commentaire d&apos;un élément</translation>
     </message>
     <message>
-        <location filename="../sources/ui/elementcommentwidget.cpp" line="53"/>
-        <source>Write it on several lines</source>
-        <translation>L&apos;écrire sur plusieurs lignes</translation>
-    </message>
-    <message>
         <location filename="../sources/ui/elementcommentwidget.cpp" line="137"/>
         <source>Comment</source>
         <translation>Commentaire</translation>
