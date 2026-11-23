@@ -18,6 +18,7 @@
 #include "elementscollectioncache.h"
 
 #include "factory/elementfactory.h"
+#include "factory/elementpicturefactory.h"
 #include "qet.h"
 #include "qetgraphicsitem/element.h"
 
@@ -75,7 +76,11 @@ ElementsCollectionCache::ElementsCollectionCache(const QString &database_path, Q
 				// no word, when the cache had a value of another kind
 			meta.finish();
 		}
-		const QString drawn = QStringLiteral("transparent, P&ID squares");
+			// The size of the P&ID previews in the mark: changing it draws
+			// them again
+		const QString drawn = QStringLiteral("transparent, P&ID squares %1 %2")
+				.arg(ElementPictureFactory::pidThumbnailSide())
+				.arg(ElementPictureFactory::pidThumbnailFill());
 		if (written != drawn
 			&& QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS pixmaps")
 			&& QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS names")) {

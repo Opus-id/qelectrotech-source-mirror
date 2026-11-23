@@ -255,12 +255,13 @@ class tst_pipejunction : public QObject
 
 		// The pixel of the square thumbnail of a P&ID symbol showing its
 		// point @p point, when what it draws spans @p drawn: drawn in the
-		// middle, a margin of 4 around, twice its size at most
+		// middle, a margin around, twice its size at most
 		// (ElementPictureFactory::pixmap())
 	static QPoint pixelOf(const QRectF &drawn, const QPointF &point)
 	{
 		const qreal side = ElementPictureFactory::pidThumbnailSide();
-		const qreal zoom = qMin((side - 8.0) / qMax(drawn.width(), drawn.height()), 2.0);
+		const qreal room = side * ElementPictureFactory::pidThumbnailFill();
+		const qreal zoom = qMin(room / qMax(drawn.width(), drawn.height()), 2.0);
 		const QPointF at = QPointF(side / 2.0, side / 2.0) + (point - drawn.center()) * zoom;
 		return QPoint(qFloor(at.x()), qFloor(at.y()));
 	}

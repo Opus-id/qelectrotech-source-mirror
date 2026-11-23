@@ -342,10 +342,11 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 		painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
 		if (square)
 		{
-				//What it draws in the middle, a margin of 4 px around, shrunk
-				//to fit; a small symbol (a free end) grows twice at most, so
-				//that its lines do not turn into bars
-			const qreal room = pidThumbnailSide() - 8.0;
+				//What it draws in the middle, a margin around
+				//(pidThumbnailFill()), shrunk to fit; a small symbol (a free
+				//end) grows twice at most, so that its lines do not turn into
+				//bars
+			const qreal room = pidThumbnailSide() * pidThumbnailFill();
 			const qreal fit = room / qMax(1.0, qMax(drawn.width(), drawn.height()));
 			const qreal zoom = qMin(fit, 2.0);
 			painter.translate(pidThumbnailSide() / 2.0, pidThumbnailSide() / 2.0);

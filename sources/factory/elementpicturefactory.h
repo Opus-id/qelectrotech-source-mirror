@@ -106,6 +106,10 @@ class ElementPictureFactory
 			/// on what it draws (pixmap()): one size for all, so that the
 			/// names of a collection stand in line
 		static int pidThumbnailSide() { return 64; }
+			/// The part of that side what a P&ID symbol draws spans at most:
+			/// the rest is a margin around it, as the electrical previews
+			/// have (0.87 made the symbols too large among them, 23/11)
+		static qreal pidThumbnailFill() { return 0.7; }
 		ElementPictureFactory::primitives getPrimitives(const ElementsLocation &location,
 														const Choices &choices = Choices());
 		void dropCache(const ElementsLocation &location);
