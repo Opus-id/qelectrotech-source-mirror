@@ -112,6 +112,15 @@ class tst_pipejunction : public QObject
 			"orientation=\"n\" type=\"Generic\" medium=\"pipe\"/>"));
 	}
 
+		// A filled square of 40, centred on the origin
+	static QString filledSquare()
+	{
+		return QStringLiteral(
+			"<polygon x1=\"-20\" y1=\"-20\" x2=\"20\" y2=\"-20\" x3=\"20\" y3=\"20\" x4=\"-20\" y4=\"20\" "
+			"closed=\"true\" antialias=\"false\" "
+			"style=\"line-style:normal;line-weight:none;filling:black;color:black\"/>");
+	}
+
 		// The end of a line, 40 x 40: a single nozzle N1 at its origin,
 		// facing @p facing; a free end when @p role is "free_end"; the
 		// drawing @p shapes
@@ -145,6 +154,13 @@ class tst_pipejunction : public QObject
 				{QStringLiteral("freeend.elmt"),
 				 lineEnd(QStringLiteral("7e111116-1111-1111-1111-111111111111"), QStringLiteral("w"),
 						 QStringLiteral("free_end"))},
+					// the same filled square, a fitting and an equipment
+				{QStringLiteral("square_pipe.elmt"),
+				 symbol(QStringLiteral("7e111119-1111-1111-1111-111111111111"),
+						QStringLiteral("pid_family=\"pipe\""), filledSquare())},
+				{QStringLiteral("square_equipment.elmt"),
+				 symbol(QStringLiteral("7e11111a-1111-1111-1111-111111111111"),
+						QStringLiteral("pid_family=\"equipment\""), filledSquare())},
 				{QStringLiteral("inlet.elmt"),
 				 lineEnd(QStringLiteral("7e111117-1111-1111-1111-111111111111"), QStringLiteral("e"))},
 					// drawn 40 east of its nozzle, beyond its frame
@@ -253,14 +269,14 @@ class tst_pipejunction : public QObject
 		return width;
 	}
 
-		// The pixel of the square thumbnail of a P&ID symbol showing its
-		// point @p point, when what it draws spans @p drawn: drawn in the
-		// middle, a margin around, twice its size at most
-		// (ElementPictureFactory::pixmap())
+		// The pixel of the square thumbnail of a P&ID symbol of the family
+		// pipe (its fittings, its ends) showing its point @p point, when what
+		// it draws spans @p drawn: drawn in the middle, a margin around,
+		// twice its size at most (ElementPictureFactory::pixmap())
 	static QPoint pixelOf(const QRectF &drawn, const QPointF &point)
 	{
 		const qreal side = ElementPictureFactory::pidThumbnailSide();
-		const qreal room = side * ElementPictureFactory::pidThumbnailFill();
+		const qreal room = side * ElementPictureFactory::pidThumbnailFill(QStringLiteral("pipe"));
 		const qreal zoom = qMin(room / qMax(drawn.width(), drawn.height()), 2.0);
 		const QPointF at = QPointF(side / 2.0, side / 2.0) + (point - drawn.center()) * zoom;
 		return QPoint(qFloor(at.x()), qFloor(at.y()));
@@ -589,6 +605,30 @@ class tst_pipejunction : public QObject
 			}
 			QVERIFY2(ink > 64, qPrintable(QString::number(ink)));
 			QVERIFY(alphaAt(whole, pixelOf(line_and_stub, QPointF(-6, 0))) > 128);
+		}
+
+			// The drawing of an equipment fills more of its thumbnail than
+			// that of a fitting (a pump and its motor stay large enough, a
+			// valve does not crowd the list): 87 % and 70 % of its side
+		void anEquipmentFillsMoreOfItsThumbnail()
+		{
+			const auto inkedWidth = [](const QString &file) {
+				Scene scene(file);
+				if (!scene.fitting) return -1;
+				const QImage image = ElementPictureFactory::instance()
+									 ->pixmap(scene.fitting->location()).toImage();
+				const int row = image.height() / 2;
+				int width = 0;
+				for (int x = 0 ; x < image.width() ; ++x) {
+					if (qAlpha(image.pixel(x, row)) > 128) ++width;
+				}
+				return width;
+			};
+			const int side = ElementPictureFactory::pidThumbnailSide();
+			const int fitting = inkedWidth(QStringLiteral("square_pipe.elmt"));
+			const int equipment = inkedWidth(QStringLiteral("square_equipment.elmt"));
+			QVERIFY2(qAbs(fitting - qRound(side * 0.7)) <= 2, qPrintable(QString::number(fitting)));
+			QVERIFY2(qAbs(equipment - qRound(side * 0.87)) <= 2, qPrintable(QString::number(equipment)));
 		}
 };
 

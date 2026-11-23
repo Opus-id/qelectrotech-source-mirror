@@ -78,9 +78,10 @@ ElementsCollectionCache::ElementsCollectionCache(const QString &database_path, Q
 		}
 			// The size of the P&ID previews in the mark: changing it draws
 			// them again
-		const QString drawn = QStringLiteral("transparent, P&ID squares %1 %2")
+		const QString drawn = QStringLiteral("transparent, P&ID squares %1 %2 %3")
 				.arg(ElementPictureFactory::pidThumbnailSide())
-				.arg(ElementPictureFactory::pidThumbnailFill());
+				.arg(ElementPictureFactory::pidThumbnailFill(QStringLiteral("equipment")))
+				.arg(ElementPictureFactory::pidThumbnailFill(QString()));
 		if (written != drawn
 			&& QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS pixmaps")
 			&& QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS names")) {
