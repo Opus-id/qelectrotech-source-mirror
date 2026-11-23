@@ -78,6 +78,26 @@ private slots:
 				 QStringLiteral("%{address_z}"));
 	}
 
+		//Every field the composite text dialog offers is replaced, the
+		//ones added after the others too (notes, model...)
+	void compositeTextReplacesEveryOfferedField()
+	{
+		DiagramContext dc;
+		for (const QString &key : QETInformation::elementInfoKeys())
+			dc.addValue(key, QStringLiteral("v_") + key);
+		QStringList kept;
+		for (const QString &key : QETInformation::elementInfoKeys())
+			if (autonum::AssignVariables::replaceVariable(
+					QStringLiteral("%{") + key + QLatin1Char('}'), dc)
+				!= QStringLiteral("v_") + key)
+				kept << key;
+			//Only those which are not a text of the symbol: the label
+			//formula, the terminal number, the cross reference QET works
+			//out, the flag that keeps it out of the bill of materials
+		QCOMPARE(kept.join(QLatin1Char(' ')),
+				 QStringLiteral("formula terminal_number xref exclude_from_bom"));
+	}
+
 	void textsOnTheSymbolFollowTheValue()
 	{
 		QETProject project(QFINDTESTDATA("fixtures/every_feature.qet"));

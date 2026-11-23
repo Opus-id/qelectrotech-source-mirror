@@ -398,6 +398,20 @@ namespace autonum
 		str.replace("%{supplier}", dc.value("supplier").toString());
 		str.replace("%{quantity}", dc.value("quantity").toString());
 		str.replace("%{unity}", dc.value("unity").toString());
+			//The fields the information tab and the composite text
+			//dialog offer since they were added; without these lines a
+			//composite text showed them as typed, %{notes}
+		str.replace("%{model}", dc.value("model").toString());
+		str.replace("%{device_type}", dc.value("device_type").toString());
+		str.replace("%{category}", dc.value("category").toString());
+		str.replace("%{voltage_rating}", dc.value("voltage_rating").toString());
+		str.replace("%{current_rating}", dc.value("current_rating").toString());
+		str.replace("%{notes}", dc.value("notes").toString());
+		str.replace("%{width}", dc.value("width").toString());
+		str.replace("%{height}", dc.value("height").toString());
+		str.replace("%{depth}", dc.value("depth").toString());
+		str.replace("%{unit_price}", dc.value("unit_price").toString());
+		str.replace("%{labour_time}", dc.value("labour_time").toString());
 
 		str.replace("%{auxiliary1}", dc.value("auxiliary1").toString());
 		str.replace("%{description_auxiliary1}", dc.value("description_auxiliary1").toString());
