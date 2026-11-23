@@ -36,6 +36,7 @@
 #include <QDomDocument>
 #include <QImage>
 #include <QPainter>
+#include <QtMath>
 
 /**
 	A junction of pipes (step 6b-1c, pid_role="junction"): a tee, a cross, an
@@ -250,6 +251,23 @@ class tst_pipejunction : public QObject
 			if (inked(image, x, y)) ++width;
 		}
 		return width;
+	}
+
+		// The pixel of the square thumbnail of a P&ID symbol showing its
+		// point @p point, when what it draws spans @p drawn: drawn in the
+		// middle, a margin of 4 around, twice its size at most
+		// (ElementPictureFactory::pixmap())
+	static QPoint pixelOf(const QRectF &drawn, const QPointF &point)
+	{
+		const qreal side = ElementPictureFactory::pidThumbnailSide();
+		const qreal zoom = qMin((side - 8.0) / qMax(drawn.width(), drawn.height()), 2.0);
+		const QPointF at = QPointF(side / 2.0, side / 2.0) + (point - drawn.center()) * zoom;
+		return QPoint(qFloor(at.x()), qFloor(at.y()));
+	}
+
+	static int alphaAt(const QImage &image, const QPoint &pixel)
+	{
+		return qAlpha(image.pixel(pixel));
 	}
 
 	private slots:
@@ -496,14 +514,16 @@ class tst_pipejunction : public QObject
 			QVERIFY(scene.fitting);
 			const QImage thumbnail = ElementPictureFactory::instance()
 									 ->pixmap(scene.fitting->location()).toImage();
-			QCOMPARE(thumbnail.size(), QSize(40, 40));
-				// its origin at (20, 20): the run, the branch, nothing above
-			QVERIFY(qAlpha(thumbnail.pixel(5, 20)) > 128);
-			QVERIFY(qAlpha(thumbnail.pixel(35, 20)) > 128);
-			QVERIFY(qAlpha(thumbnail.pixel(20, 35)) > 128);
-			QVERIFY(qAlpha(thumbnail.pixel(20, 5)) < 128);
-				// main lines, 4 wide
-			QVERIFY(qAlpha(thumbnail.pixel(18, 35)) > 128);
+				// square, framed on its three lines, main lines 4 wide
+			const int side = ElementPictureFactory::pidThumbnailSide();
+			QCOMPARE(thumbnail.size(), QSize(side, side));
+			const QRectF lines(-22, -2, 44, 24);
+				// the run, the branch, nothing above
+			QVERIFY(alphaAt(thumbnail, pixelOf(lines, QPointF(-15, 0))) > 128);
+			QVERIFY(alphaAt(thumbnail, pixelOf(lines, QPointF(15, 0))) > 128);
+			QVERIFY(alphaAt(thumbnail, pixelOf(lines, QPointF(0, 15))) > 128);
+			QVERIFY(alphaAt(thumbnail, pixelOf(lines, QPointF(0, -10))) < 128);
+			QVERIFY(alphaAt(thumbnail, pixelOf(lines, QPointF(1.5, 15))) > 128);
 
 				// an injection point: its reagent, out of the run, a secondary
 				// line, 2 wide, beside which its arrow shows
@@ -511,10 +531,10 @@ class tst_pipejunction : public QObject
 			QVERIFY(injection.fitting);
 			const QImage reagent = ElementPictureFactory::instance()
 								   ->pixmap(injection.fitting->location()).toImage();
-			QVERIFY(qAlpha(reagent.pixel(5, 20)) > 128);
-			QVERIFY(qAlpha(reagent.pixel(20, 35)) > 128);
-			QVERIFY(qAlpha(reagent.pixel(17, 35)) < 128);
-			QVERIFY(qAlpha(reagent.pixel(22, 31)) > 128);
+			QVERIFY(alphaAt(reagent, pixelOf(lines, QPointF(-15, 0))) > 128);
+			QVERIFY(alphaAt(reagent, pixelOf(lines, QPointF(0, 15))) > 128);
+			QVERIFY(alphaAt(reagent, pixelOf(lines, QPointF(-1.6, 15))) < 128);
+			QVERIFY(alphaAt(reagent, pixelOf(lines, QPointF(2, 11))) > 128);
 
 			Scene other(QStringLiteral("plain.elmt"));
 			QVERIFY(other.fitting);
@@ -525,41 +545,49 @@ class tst_pipejunction : public QObject
 
 			// The end of a line shows a stub of main line, 3 mm (12) out of
 			// its nozzle the way its pipe leaves it: west for a free end,
-			// which draws nothing else, east for an end facing east (8b)
+			// which draws nothing else, east for an end facing east (8b).
+			// Square as every P&ID thumbnail, framed on what it draws
 		void theThumbnailOfALineEndShowsItsPipe()
 		{
+			const int side = ElementPictureFactory::pidThumbnailSide();
 			Scene free_end(QStringLiteral("freeend.elmt"));
 			QVERIFY(free_end.fitting);
 			const QImage west = ElementPictureFactory::instance()
 								->pixmap(free_end.fitting->location()).toImage();
-			QCOMPARE(west.size(), QSize(40, 40));
-				// its origin at (20, 20): 8 to 20 inked, 4 wide, nothing east
-			QVERIFY(qAlpha(west.pixel(12, 20)) > 128);
-			QVERIFY(qAlpha(west.pixel(12, 18)) > 128);
-			QVERIFY(qAlpha(west.pixel(4, 20)) < 128);
-			QVERIFY(qAlpha(west.pixel(28, 20)) < 128);
+			QCOMPARE(west.size(), QSize(side, side));
+				// the stub alone, 4 wide, twice its size at most: nothing
+				// beyond it on either side
+			const QRectF stub_west(-12, -2, 12, 4);
+			QVERIFY(alphaAt(west, pixelOf(stub_west, QPointF(-6, 0))) > 128);
+			QVERIFY(alphaAt(west, pixelOf(stub_west, QPointF(-6, 1.5))) > 128);
+			QVERIFY(alphaAt(west, pixelOf(stub_west, QPointF(-16, 0))) < 128);
+			QVERIFY(alphaAt(west, pixelOf(stub_west, QPointF(4, 0))) < 128);
 
 			Scene inlet(QStringLiteral("inlet.elmt"));
 			QVERIFY(inlet.fitting);
 			const QImage east = ElementPictureFactory::instance()
 								->pixmap(inlet.fitting->location()).toImage();
-			QVERIFY(qAlpha(east.pixel(28, 20)) > 128);
-			QVERIFY(qAlpha(east.pixel(12, 20)) < 128);
+			QCOMPARE(east.size(), QSize(side, side));
+			const QRectF stub_east(0, -2, 12, 4);
+			QVERIFY(alphaAt(east, pixelOf(stub_east, QPointF(6, 0))) > 128);
+			QVERIFY(alphaAt(east, pixelOf(stub_east, QPointF(-4, 0))) < 128);
 
 				// Drawn beyond its frame: the thumbnail takes it all in, its
-				// nozzle still 20 from the left
+				// line and its stub
 			Scene long_end(QStringLiteral("long.elmt"));
 			QVERIFY(long_end.fitting);
 			const QImage whole = ElementPictureFactory::instance()
 								 ->pixmap(long_end.fitting->location()).toImage();
-			QVERIFY2(whole.width() >= 60, qPrintable(QString::number(whole.width())));
+			QCOMPARE(whole.size(), QSize(side, side));
+			const QRectF line_and_stub(-12, -2, 52, 4);
 				// its thin line, half on each row around its axis
+			const QPoint far = pixelOf(line_and_stub, QPointF(30, 0));
 			int ink = 0;
-			for (int y = whole.height() / 2 - 2 ; y <= whole.height() / 2 + 2 ; ++y) {
-				ink = qMax(ink, qAlpha(whole.pixel(58, y)));
+			for (int y = far.y() - 2 ; y <= far.y() + 2 ; ++y) {
+				ink = qMax(ink, qAlpha(whole.pixel(far.x(), y)));
 			}
 			QVERIFY2(ink > 64, qPrintable(QString::number(ink)));
-			QVERIFY(qAlpha(whole.pixel(12, whole.height() / 2)) > 128);
+			QVERIFY(alphaAt(whole, pixelOf(line_and_stub, QPointF(-6, 0))) > 128);
 		}
 };
 

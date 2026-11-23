@@ -267,29 +267,48 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 		int hsx = qMin(doc.document_element().attribute("hotspot_x").as_int(), w);
 		int hsy = qMin(doc.document_element().attribute("hotspot_y").as_int(), h);
 
-			//The end of a line: its frame is that of all ends, centred on
-			//its nozzle (Change type goes from one to another), its drawing
-			//on one side. Its thumbnail takes in the frame, the drawing and
-			//the stub of pipe (lineEndStub()): nothing cut, nothing shifted
-			//out of it
 		const pugi::xml_node root = doc.document_element();
 		QLineF stub;
 		const bool line_end = lineEndStub(root, &stub);
-		if (line_end)
+		const bool junction = QString::fromUtf8(root.attribute("pid_role").as_string()).trimmed()
+				== QLatin1String("junction");
+
+			//A P&ID symbol: its frame leaves room for what it may carry (the
+			//actuator of a valve, 20 mm above its line) and is shared with
+			//the symbols it may change into, its drawing standing on one
+			//side of it: its thumbnail, made of its frame, was small and
+			//shifted, and the tree, which writes the name after the
+			//thumbnail shrunk to fit, wrote the names out of line. Its
+			//thumbnail is a square instead, of the same size for all,
+			//framed on what it draws: its drawing, the stub of pipe of the
+			//end of a line (lineEndStub()), the lines of a junction (8b)
+		QRectF drawn;
+		const bool pid = !QString::fromUtf8(root.attribute("pid_family").as_string()).trimmed().isEmpty();
+		if (pid)
 		{
-			QRect area(-hsx, -hsy, w, h);
-			area |= m_pictures_H.value(uuid).boundingRect();
-				//The stub, as wide as a main line
 			ConductorProperties main_line;
 			main_line.m_medium = TerminalData::Pipe;
 			const qreal half = main_line.lineWidth() / 2.0;
-			area |= QRectF(stub.p1(), stub.p2()).normalized()
-					.adjusted(-half, -half, half, half).toAlignedRect();
-			w = area.width();
-			h = area.height();
-			hsx = -area.left();
-			hsy = -area.top();
+			const auto take = [&drawn](const QRectF &rect) {
+				drawn = drawn.isNull() ? rect : drawn.united(rect);
+			};
+			const auto line = [&take, half](const QPointF &from, const QPointF &to) {
+				take(QRectF(from, to).normalized().adjusted(-half, -half, half, half));
+			};
+			take(QRectF(m_pictures_H.value(uuid).boundingRect()));
+			if (line_end) {
+				line(stub.p1(), stub.p2());
+			}
+			if (junction) {
+				for (const pugi::xml_node &nozzle : root.child("description").children("terminal")) {
+					if (QLatin1String(nozzle.attribute("medium").as_string()) == QLatin1String("pipe")) {
+						line(QPointF(0, 0), QPointF(nozzle.attribute("x").as_double(),
+													nozzle.attribute("y").as_double()));
+					}
+				}
+			}
 		}
+		const bool square = pid && !drawn.isNull();
 
 			//The size comes straight from the file. A symbol whose parts
 			//span hundreds of thousands of pixels would ask for a pixmap of
@@ -302,6 +321,9 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 			scale = qreal(max_side) / qMax(w, h);
 			w = qMax(1, qRound(w * scale));
 			h = qMax(1, qRound(h * scale));
+		}
+		if (square) {
+			w = h = pidThumbnailSide();
 		}
 
 		QPixmap pix(w, h);
@@ -318,8 +340,23 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 		QPainter painter(&pix);
 		painter.setRenderHint(QPainter::Antialiasing, true);
 		painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
-		painter.scale(scale, scale);
-		painter.translate(hsx, hsy);
+		if (square)
+		{
+				//What it draws in the middle, a margin of 4 px around, shrunk
+				//to fit; a small symbol (a free end) grows twice at most, so
+				//that its lines do not turn into bars
+			const qreal room = pidThumbnailSide() - 8.0;
+			const qreal fit = room / qMax(1.0, qMax(drawn.width(), drawn.height()));
+			const qreal zoom = qMin(fit, 2.0);
+			painter.translate(pidThumbnailSide() / 2.0, pidThumbnailSide() / 2.0);
+			painter.scale(zoom, zoom);
+			painter.translate(-drawn.center());
+		}
+		else
+		{
+			painter.scale(scale, scale);
+			painter.translate(hsx, hsy);
+		}
 		painter.drawPicture(0, 0, m_pictures_H.value(uuid));
 
 			//A junction of pipes (pid_role="junction": a tee, a cross) draws
@@ -328,8 +365,7 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 			//would be empty otherwise. Main lines; a nozzle left out of the
 			//run (the reagent of an injection point) a secondary one, so
 			//that what the symbol draws there, its arrow, is seen.
-		if (QString::fromUtf8(root.attribute("pid_role").as_string()).trimmed()
-			== QLatin1String("junction"))
+		if (junction)
 		{
 			ConductorProperties main_line;
 			main_line.m_medium = TerminalData::Pipe;

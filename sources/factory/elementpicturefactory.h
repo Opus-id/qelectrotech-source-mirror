@@ -102,6 +102,10 @@ class ElementPictureFactory
 								 QPicture &picture, QPicture &low_picture,
 								 const Choices &choices = Choices());
 		QPixmap pixmap(const ElementsLocation &location, const Choices &choices = Choices());
+			/// The side of the square thumbnail of every P&ID symbol, framed
+			/// on what it draws (pixmap()): one size for all, so that the
+			/// names of a collection stand in line
+		static int pidThumbnailSide() { return 64; }
 		ElementPictureFactory::primitives getPrimitives(const ElementsLocation &location,
 														const Choices &choices = Choices());
 		void dropCache(const ElementsLocation &location);

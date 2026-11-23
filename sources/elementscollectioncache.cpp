@@ -58,9 +58,10 @@ ElementsCollectionCache::ElementsCollectionCache(const QString &database_path, Q
 
 			// Previews used to be stored on an opaque white sheet; they are
 			// transparent now, so the collection tree can adapt them to a
-			// dark palette. The end of a P&ID line shows a stub of its pipe
-			// since, framed on its drawing (ElementPictureFactory, 8b). A
-			// cache written before either is dropped once.
+			// dark palette. A P&ID symbol has a square preview since, framed
+			// on what it draws, the end of a line with a stub of its pipe
+			// (ElementPictureFactory, 8b). A cache written before either is
+			// dropped once.
 		QSqlQuery(cache_db_).exec("CREATE TABLE IF NOT EXISTS meta"
 					   "(key VARCHAR(32) NOT NULL PRIMARY KEY, value VARCHAR(64));");
 		QString written;
@@ -74,7 +75,7 @@ ElementsCollectionCache::ElementsCollectionCache(const QString &database_path, Q
 				// no word, when the cache had a value of another kind
 			meta.finish();
 		}
-		const QString drawn = QStringLiteral("transparent, line ends framed");
+		const QString drawn = QStringLiteral("transparent, P&ID squares");
 		if (written != drawn
 			&& QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS pixmaps")
 			&& QSqlQuery(cache_db_).exec("DROP TABLE IF EXISTS names")) {
