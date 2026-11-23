@@ -993,6 +993,18 @@ class tst_elementtag : public QObject
 			m_folio->undoStack().undo();
 			QVERIFY(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString().isEmpty());
 			QCOMPARE(section->commentField()->text(), QString());
+
+				// on several lines, by its button: the line break is kept,
+				// in the information and on the folio, and left as it is
+				// when the field is left
+			QVERIFY(section->severalLinesButton());
+			const QString lines = QStringLiteral("Raw water\nfrom well F1");
+			section->setCommentText(lines);
+			QCOMPARE(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString(), lines);
+			QCOMPARE(shownLabel(arrow, QStringLiteral("comment")), lines);
+			emit section->commentField()->editingFinished();
+			QCOMPARE(arrow->elementInformations().value(QETInformation::ELMT_COMMENT).toString(), lines);
+			QCOMPARE(section->commentField()->toolTip(), lines);
 		}
 };
 

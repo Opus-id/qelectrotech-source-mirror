@@ -21,6 +21,7 @@
 #include "abstractelementpropertieseditorwidget.h"
 
 class QLineEdit;
+class QToolButton;
 
 /**
 	@brief The ElementCommentWidget class
@@ -29,7 +30,9 @@ class QLineEdit;
 	"comment"): the arrows of inlet and outlet of the fluids write there
 	where the fluid comes from or goes to (step 8b). The same field as the
 	comment of the Informations tab, typed here without looking for it among
-	the electrical ones. Live, it is applied when it is left, with undo.
+	the electrical ones. Live, it is applied when it is left, with undo. A
+	button beside it writes it on several lines, as that of the
+	Informations tab does (the line edit shows a line break as a space).
 */
 class ElementCommentWidget : public AbstractElementPropertiesEditorWidget
 {
@@ -48,9 +51,16 @@ class ElementCommentWidget : public AbstractElementPropertiesEditorWidget
 		bool setLiveEdit(bool live_edit) override;
 
 		QLineEdit *commentField() const { return m_comment; }
+		QToolButton *severalLinesButton() const { return m_several_lines; }
+			/// Put @p text in the field, line breaks kept, and apply it when
+			/// live: what the box of several lines does once accepted
+		void setCommentText(const QString &text);
 
 	private:
+		void editOnSeveralLines();
+
 		QLineEdit *m_comment = nullptr;
+		QToolButton *m_several_lines = nullptr;
 };
 
 #endif // ELEMENTCOMMENTWIDGET_H

@@ -25,25 +25,75 @@
 #include <qetinformation.h>
 #include <undocommand/changeelementinformationcommand.h>
 
+#include <qeticons.h>
+
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QHBoxLayout>
 #include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QSignalBlocker>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 ElementCommentWidget::ElementCommentWidget(Element *element, QWidget *parent) :
 	AbstractElementPropertiesEditorWidget(parent)
 {
-	auto *layout = new QVBoxLayout(this);
+	auto *layout = new QHBoxLayout(this);
 	m_comment = new QLineEdit(this);
 	m_comment->setObjectName(QStringLiteral("comment"));
-	m_comment->setToolTip(tr("Shown on the folio by the symbol: where the fluid comes from or goes "
-							 "to, for an arrow of inlet or outlet. The comment of the Informations tab."));
-	layout->addWidget(m_comment);
+	const QString tip = tr("Shown on the folio by the symbol: where the fluid comes from or goes "
+						   "to, for an arrow of inlet or outlet. The comment of the Informations tab.");
+	m_comment->setToolTip(tip);
+	layout->addWidget(m_comment, 1);
+	m_several_lines = new QToolButton(this);
+	m_several_lines->setObjectName(QStringLiteral("several_lines"));
+	m_several_lines->setIcon(QET::Icons::EditText);
+	m_several_lines->setToolTip(tr("Write it on several lines"));
+	layout->addWidget(m_several_lines);
 	connect(m_comment, &QLineEdit::editingFinished, this, [this]() {
 		if (m_live_edit) {
 			apply();
 		}
 	});
+	connect(m_several_lines, &QToolButton::clicked, this, &ElementCommentWidget::editOnSeveralLines);
+		//The line edit shows a line break as a space: the tooltip shows
+		//the text as it is drawn
+	connect(m_comment, &QLineEdit::textChanged, this, [this, tip](const QString &text) {
+		m_comment->setToolTip(text.contains(QLatin1Char('\n')) ? text : tip);
+	});
 	setElement(element);
+}
+
+void ElementCommentWidget::setCommentText(const QString &text)
+{
+	m_comment->setText(text);
+	if (m_live_edit) {
+		apply();
+	}
+}
+
+/**
+	@brief ElementCommentWidget::editOnSeveralLines
+	The comment in a box that takes line breaks, as the Informations tab
+	offers it (ElementInfoPartWidget::editOnSeveralLines())
+*/
+void ElementCommentWidget::editOnSeveralLines()
+{
+	QDialog dialog(this);
+	dialog.setWindowTitle(title());
+	auto *edit = new QPlainTextEdit(&dialog);
+	edit->setPlainText(m_comment->text());
+	auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+	auto *layout = new QVBoxLayout(&dialog);
+	layout->addWidget(edit);
+	layout->addWidget(buttons);
+	edit->setFocus();
+	if (dialog.exec() == QDialog::Accepted && edit->toPlainText() != m_comment->text()) {
+		setCommentText(edit->toPlainText());
+	}
 }
 
 /**
