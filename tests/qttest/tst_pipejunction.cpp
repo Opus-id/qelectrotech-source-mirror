@@ -111,6 +111,22 @@ class tst_pipejunction : public QObject
 			"orientation=\"n\" type=\"Generic\" medium=\"pipe\"/>"));
 	}
 
+		// The end of a line, 40 x 40: a single nozzle N1 at its origin,
+		// facing @p facing; a free end when @p role is "free_end"
+	static QString lineEnd(const QString &uuid, const QString &facing, const QString &role = QString())
+	{
+		return QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" pid_family=\"pipe\"%3 "
+			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+			"<uuid uuid=\"{%1}\"/>"
+			"<names><name lang=\"en\">End</name></names><description>"
+			"<terminal uuid=\"{7e000000-0000-0000-0000-000000000005}\" name=\"N1\" x=\"0\" y=\"0\" "
+			"orientation=\"%2\" type=\"Generic\" medium=\"pipe\"/>"
+			"</description></definition>")
+				.arg(uuid, facing,
+					 role.isEmpty() ? QString() : QStringLiteral(" pid_role=\"%1\"").arg(role));
+	}
+
 	static Element *place(QETProject &project, Diagram *folio, const QPointF &pos, const QString &file)
 	{
 		const QString dir = QStringLiteral("import/junctions");
@@ -122,7 +138,12 @@ class tst_pipejunction : public QObject
 				{QStringLiteral("injection.elmt"), injection()},
 				{QStringLiteral("cross.elmt"), cross()},
 				{QStringLiteral("plain.elmt"), plain()},
-				{QStringLiteral("tank.elmt"), tank()}};
+				{QStringLiteral("tank.elmt"), tank()},
+				{QStringLiteral("freeend.elmt"),
+				 lineEnd(QStringLiteral("7e111116-1111-1111-1111-111111111111"), QStringLiteral("w"),
+						 QStringLiteral("free_end"))},
+				{QStringLiteral("inlet.elmt"),
+				 lineEnd(QStringLiteral("7e111117-1111-1111-1111-111111111111"), QStringLiteral("e"))}};
 			for (const auto &entry : files) {
 				QDomDocument doc;
 				doc.setContent(entry.second);
@@ -491,6 +512,30 @@ class tst_pipejunction : public QObject
 			const QImage empty = ElementPictureFactory::instance()
 								 ->pixmap(other.fitting->location()).toImage();
 			QVERIFY(qAlpha(empty.pixel(5, 20)) < 128);
+		}
+
+			// The end of a line shows a stub of main line, 3 mm (12) out of
+			// its nozzle the way its pipe leaves it: west for a free end,
+			// which draws nothing else, east for an end facing east (8b)
+		void theThumbnailOfALineEndShowsItsPipe()
+		{
+			Scene free_end(QStringLiteral("freeend.elmt"));
+			QVERIFY(free_end.fitting);
+			const QImage west = ElementPictureFactory::instance()
+								->pixmap(free_end.fitting->location()).toImage();
+			QCOMPARE(west.size(), QSize(40, 40));
+				// its origin at (20, 20): 8 to 20 inked, 4 wide, nothing east
+			QVERIFY(qAlpha(west.pixel(12, 20)) > 128);
+			QVERIFY(qAlpha(west.pixel(12, 18)) > 128);
+			QVERIFY(qAlpha(west.pixel(4, 20)) < 128);
+			QVERIFY(qAlpha(west.pixel(28, 20)) < 128);
+
+			Scene inlet(QStringLiteral("inlet.elmt"));
+			QVERIFY(inlet.fitting);
+			const QImage east = ElementPictureFactory::instance()
+								->pixmap(inlet.fitting->location()).toImage();
+			QVERIFY(qAlpha(east.pixel(28, 20)) > 128);
+			QVERIFY(qAlpha(east.pixel(12, 20)) < 128);
 		}
 };
 

@@ -25,6 +25,7 @@
 #include <qetversion.h>
 #include <utils/qetutils.h>
 #include <properties/elementoptions.h>
+#include <qet.h>
 
 #include <QAbstractTextDocumentLayout>
 #include <QDomElement>
@@ -287,6 +288,45 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location, const Ch
 				painter.setPen(pen);
 				painter.drawLine(QPointF(0, 0), QPointF(nozzle.attribute("x").as_double(),
 														nozzle.attribute("y").as_double()));
+			}
+		}
+			//The end of a line (a symbol of the pipe family with a single
+			//nozzle: a free end, an arrow of inlet or outlet, a strainer, a
+			//closure) shows a short stub of main line out of its nozzle, the
+			//way its pipe leaves it: the arrows of inlet and outlet, drawn
+			//alike, are told apart, and the free end, which draws nothing, is
+			//seen (8b). The thumbnail only: on the folio, its pipe is there
+		else if (QString::fromUtf8(root.attribute("pid_family").as_string()).trimmed()
+				 == QLatin1String("pipe"))
+		{
+			pugi::xml_node end;
+			int nozzles = 0;
+			for (const pugi::xml_node &nozzle : root.child("description").children("terminal"))
+			{
+				if (QLatin1String(nozzle.attribute("medium").as_string()) == QLatin1String("pipe")) {
+					end = nozzle;
+					++nozzles;
+				}
+			}
+			if (nozzles == 1)
+			{
+				ConductorProperties main_line;
+				main_line.m_medium = TerminalData::Pipe;
+				const QColor ink(choices.value(inkChoice()));
+				painter.setPen(QPen(ink.isValid() ? ink : QColor(Qt::black), main_line.lineWidth(),
+									Qt::SolidLine, Qt::FlatCap));
+					//3 mm, at 4 units per mm
+				const qreal stub = 12.0;
+				QPointF way;
+				switch (Qet::orientationFromString(QString::fromUtf8(end.attribute("orientation").as_string())))
+				{
+					case Qet::North: way = QPointF(0, -stub); break;
+					case Qet::East:  way = QPointF(stub, 0);  break;
+					case Qet::South: way = QPointF(0, stub);  break;
+					case Qet::West:  way = QPointF(-stub, 0); break;
+				}
+				const QPointF from(end.attribute("x").as_double(), end.attribute("y").as_double());
+				painter.drawLine(from, from + way);
 			}
 		}
 
