@@ -193,6 +193,17 @@ namespace QET {
 		extern QIcon SelectionAdd;
 		extern QIcon SelectionRemove;
 		extern QIcon SelectionReplace;
+			// The entries the folio's context menu gained with the P&ID
+			// work (step ICO)
+		extern QIcon ChangeType;
+		extern QIcon Correct;
+		extern QIcon CreateSimilar;
+		extern QIcon FlowAlign;
+		extern QIcon FlowReverse;
+		extern QIcon MakeDefaults;
+		extern QIcon ResetTexts;
+		extern QIcon StatusOfWorks;
+		extern QIcon SymbolOptions;
 		extern QIcon SendBackward;
 		extern QIcon Settings;
 		extern QIcon SinglePage;

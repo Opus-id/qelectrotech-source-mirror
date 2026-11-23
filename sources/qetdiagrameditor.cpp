@@ -905,7 +905,7 @@ void QETDiagramEditor::setUpActions()
 		//Create similar: a new symbol of the same type as the one selected,
 		//set like it (options, status, rotation, P&ID tag), placed with the
 		//mouse. Beside Duplicate in the Edit menu and the context menu.
-	m_create_similar = new QAction(tr("Create similar", "context menu action"), this);
+	m_create_similar = new QAction(QET::Icons::CreateSimilar, tr("Create similar", "context menu action"), this);
 	m_create_similar->setObjectName(QStringLiteral("createSimilar"));
 	ShortcutManager::instance().registerAction(m_create_similar, "diagrameditor.create_similar", tr("Diagram editors"), QKeySequence(Qt::Key_C, Qt::Key_S));
 	m_create_similar->setStatusTip(tr("Place another copy of the selected symbol, with the same options and status, and the next P&ID tag"));
@@ -927,7 +927,7 @@ void QETDiagramEditor::setUpActions()
 		//The texts of conductors moved or turned by hand back in their place,
 		//the path left as it is; in the context menu only, the Edit menu
 		//being kept short
-	m_conductor_text_reset = new QAction(tr("Put the texts back in their place"), this);
+	m_conductor_text_reset = new QAction(QET::Icons::ResetTexts, tr("Put the texts back in their place"), this);
 	m_conductor_text_reset->setObjectName(QStringLiteral("conductor_text_reset"));
 	m_conductor_text_reset->setStatusTip(tr("Puts the texts of the selected lines, moved or turned by hand, "
 											"back where their line places them", "status bar tip"));

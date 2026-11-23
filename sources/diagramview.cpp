@@ -231,18 +231,23 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 
 		//Filled each time the context menu opens, see updateChangeTypeMenu()
 	m_change_type_menu = new QMenu(tr("Change type", "context menu action"), this);
+	m_change_type_menu->setIcon(QET::Icons::ChangeType);
 	m_change_type_menu->setStyle(largeMenuIconsStyle());
 		//Filled each time the context menu opens, see updateOptionsMenu()
 	m_options_menu = new QMenu(tr("Options", "context menu action"), this);
+	m_options_menu->setIcon(QET::Icons::SymbolOptions);
 		//Filled each time the context menu opens, see updateStatusMenu()
 	m_status_menu = new QMenu(tr("Status of works", "context menu action"), this);
+	m_status_menu->setIcon(QET::Icons::StatusOfWorks);
 		//P&ID, 8a-bis-3: set each time the context menu opens, see
 		//updateFlowCorrections()
-	m_reverse_line = new QAction(tr("Reverse the direction of the line", "context menu action"), this);
+	m_reverse_line = new QAction(QET::Icons::FlowReverse,
+								 tr("Reverse the direction of the line", "context menu action"), this);
 	connect(m_reverse_line, &QAction::triggered, this, [this]() {
 		mirrorArrows(m_reverse_arrows, m_reverse_line->text());
 	});
 	m_correct_menu = new QMenu(tr("Correct", "context menu: proposals for what is reported"), this);
+	m_correct_menu->setIcon(QET::Icons::Correct);
 
 		//setup three separators, to be use in context menu
 	for(int i=0 ; i<3 ; ++i)
@@ -3774,7 +3779,7 @@ void DiagramView::updateFlowCorrections()
 	{
 		const QList<QPointer<Element>> arrows = pointers(found.reverse);
 		QAction *action = m_correct_menu->addAction(
-					tr("Reverse the direction of the line", "context menu action"));
+					QET::Icons::FlowReverse, tr("Reverse the direction of the line", "context menu action"));
 		connect(action, &QAction::triggered, this, [this, arrows, action]() {
 			mirrorArrows(arrows, action->text());
 		});
@@ -3783,7 +3788,7 @@ void DiagramView::updateFlowCorrections()
 	{
 		const QList<QPointer<Element>> arrows = pointers(found.align);
 		QAction *action = m_correct_menu->addAction(
-					tr("Align the arrows of the line on this one", "context menu action"));
+					QET::Icons::FlowAlign, tr("Align the arrows of the line on this one", "context menu action"));
 		connect(action, &QAction::triggered, this, [this, arrows, action]() {
 			mirrorArrows(arrows, action->text());
 		});
@@ -3792,7 +3797,7 @@ void DiagramView::updateFlowCorrections()
 	{
 		const QList<QPointer<Element>> arrows = pointers(found.flip);
 		QAction *action = m_correct_menu->addAction(
-					tr("Reverse this arrow", "context menu action"));
+					QET::Icons::ImageFlipHorizontal, tr("Reverse this arrow", "context menu action"));
 		connect(action, &QAction::triggered, this, [this, arrows, action]() {
 			mirrorArrows(arrows, action->text());
 		});
@@ -3940,7 +3945,8 @@ void DiagramView::updateOptionsMenu()
 	if (elements.size() == 1 && !first->pidFamily().isEmpty() && !m_options_menu->isEmpty())
 	{
 		m_options_menu->addSeparator();
-		QAction *defaults = m_options_menu->addAction(tr("Make these choices the defaults of the project"));
+		QAction *defaults = m_options_menu->addAction(QET::Icons::MakeDefaults,
+													  tr("Make these choices the defaults of the project"));
 		defaults->setObjectName(QStringLiteral("make_option_defaults"));
 		defaults->setStatusTip(tr("The symbols of this family placed from now on take these options; "
 								  "those placed before keep theirs"));
