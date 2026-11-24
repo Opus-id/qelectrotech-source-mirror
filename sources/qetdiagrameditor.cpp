@@ -3203,6 +3203,10 @@ bool QETDiagramEditor::openAndAddProject(
 	}
 
 	//Create the project
+		//A project opened while another is read (its progress dialog lets
+		//events through) shares that one's dialog and leaves it up:
+		//closing it crashed the other reading (#1978)
+	const bool own_waiting = !DialogWaiting::hasInstance();
 	DialogWaiting::instance(this);
 
 		//Per-project window for the font counters reported below; the folios
@@ -3240,7 +3244,7 @@ bool QETDiagramEditor::openAndAddProject(
 				&& offerToRecover(filepath, project->openError()))
 		{
 			delete project;
-			DialogWaiting::dropInstance();
+			if (own_waiting) DialogWaiting::dropInstance();
 			return(true);
 		}
 		if (interactive && project -> state() != QETProject::FileOpenDiscard
@@ -3259,7 +3263,7 @@ bool QETDiagramEditor::openAndAddProject(
 			);
 		}
 		delete project;
-		DialogWaiting::dropInstance();
+		if (own_waiting) DialogWaiting::dropInstance();
 		return(false);
 	}
 
@@ -3276,7 +3280,7 @@ bool QETDiagramEditor::openAndAddProject(
 
 	QETApp::projectsRecentFiles() -> fileWasOpened(filepath);
 	addProject(project);
-	DialogWaiting::dropInstance();
+	if (own_waiting) DialogWaiting::dropInstance();
 	tellRepair(interactive ? project : nullptr);
 	if (!interactive) {
 		const QetDbFile::Repair repaired = project->qetdbRepair();
@@ -4988,6 +4992,7 @@ void QETDiagramEditor::openBackupFiles(QList<KAutoSaveFile *> backup_files)
 	for (KAutoSaveFile *file : backup_files)
 	{
 			//Create the project
+		const bool own_waiting = !DialogWaiting::hasInstance();
 		DialogWaiting::instance(this);
 
 			//QETProject takes ownership of file and deletes it, whether or not it opens
@@ -5005,11 +5010,11 @@ void QETDiagramEditor::openBackupFiles(QList<KAutoSaveFile *> backup_files)
 						"message box content")).arg(file_name));
 			}
 			delete project;
-			DialogWaiting::dropInstance();
+			if (own_waiting) DialogWaiting::dropInstance();
 			continue;
 		}
 		addProject(project);
-		DialogWaiting::dropInstance();
+		if (own_waiting) DialogWaiting::dropInstance();
 	}
 }
 /**
@@ -5024,6 +5029,7 @@ void QETDiagramEditor::openWorkingCopies(const QList<WorkingCopyRecovery::LeftWo
 {
 	for (const auto &copy : copies)
 	{
+		const bool own_waiting = !DialogWaiting::hasInstance();
 		DialogWaiting::instance(this);
 		QETProject *project = nullptr;
 		QTemporaryDir dir;
@@ -5041,7 +5047,7 @@ void QETDiagramEditor::openWorkingCopies(const QList<WorkingCopyRecovery::LeftWo
 			qWarning() << "Working copy" << copy.path << "not recovered:" << error;
 		}
 		WorkingCopyRecovery::remove(copy.path);
-		DialogWaiting::dropInstance();
+		if (own_waiting) DialogWaiting::dropInstance();
 		if (!project)
 		{
 			QET::QetMessageBox::warning(
