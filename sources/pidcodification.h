@@ -394,6 +394,66 @@ class PidCodification
 		static bool isInsulationStub(qreal mm) { return mm >= 2.0 && mm <= 50.0; }
 		static QString insulationColorKey() { return QStringLiteral("insulation"); }
 		static QString tracingColorKey() { return QStringLiteral("tracing"); }
+			/// The patterns of dashes a kind of line may be drawn with (step
+			/// 8r-6): a fixed list, in widths of the line, as the dashes of
+			/// QElectroTech
+		enum class LinePattern { Solid, Dashes, ShortDashes, DashDot };
+			/// A kind of line of the project (PipeProperties::line_kind): how
+			/// its pipes are drawn
+		struct LineKindEntry
+		{
+				/// The word the pipes keep (pid_line_kind): "main",
+				/// "secondary", "auxiliary" for those of ISO 10628-1, which
+				/// every project has, or a code the project adds
+			QString code;
+				/// The name of a kind added; one of ISO 10628-1 has none here,
+				/// its name being translated (lineKindName())
+			QString name;
+				/// The width of its line in mm
+			qreal width = 1.0;
+			LinePattern pattern = LinePattern::Solid;
+
+			bool operator==(const LineKindEntry &other) const {
+				return code == other.code && name == other.name
+						&& qFuzzyCompare(width, other.width) && pattern == other.pattern;
+			}
+			bool operator!=(const LineKindEntry &other) const { return !(*this == other); }
+		};
+			/// The kinds of line of the project, those of ISO 10628-1 first,
+			/// always there, then those it adds, in order: the widths and
+			/// dashes of ISO 10628-1 by default (1 mm; 0.5 mm; 0.5 mm in
+			/// dashes). Written only where it is not the default.
+		QList<LineKindEntry> line_kinds = isoLineKinds();
+		static const QList<LineKindEntry> &isoLineKinds();
+		static bool isIsoLineKind(const QString &code);
+			/// The kind of line of code @p code: that of line_kinds; a code
+			/// the project does not know (a kind added by another project)
+			/// is drawn as a main line, its code kept
+		LineKindEntry lineKind(const QString &code) const;
+			/// The name of the kind of line of code @p code: translated for
+			/// those of ISO 10628-1; else its name, else its code
+		QString lineKindName(const QString &code) const;
+			/// Add the kind of line @p entry, or change the one of its code.
+			/// One of ISO 10628-1 keeps its code and no name. False, nothing
+			/// changed, for a code which cannot be one (letters, digits, "_"
+			/// and "-"), or a width out of isLineWidth().
+		bool setLineKind(const LineKindEntry &entry);
+			/// Take out the kind of line of code @p code; false for one of
+			/// ISO 10628-1, or a code the project has not. The pipes keep the
+			/// code, drawn as main lines.
+		bool removeLineKind(const QString &code);
+			/// A width a kind of line may have, in mm
+		static bool isLineWidth(qreal mm) { return mm >= 0.1 && mm <= 5.0; }
+			/// The dashes of @p pattern, in widths of the line, as
+			/// QPen::setDashPattern() takes them; none for a solid line
+		static QList<qreal> dashPattern(LinePattern pattern);
+		static QList<LinePattern> linePatterns();
+		static QString linePatternToString(LinePattern pattern);
+			/// False, nothing changed, for another word
+		static bool linePatternFromString(const QString &word, LinePattern &pattern);
+			/// What the user reads of @p pattern
+		static QString linePatternName(LinePattern pattern);
+
 			/// The valves, and the instruments placed on a pipe, are drawn in
 			/// the colour of their pipes when all those joined to them agree
 			/// (Element::agreedPipeColor(), step 8r-2), as the fittings are;
@@ -534,7 +594,7 @@ class PidCodification
 					|| insulation_stub != defaultInsulationStub()
 					|| parallel_numbering
 					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty()
-				|| !option_defaults.isEmpty();
+				|| !option_defaults.isEmpty() || line_kinds != isoLineKinds();
 		}
 		bool isEmpty() const {
 			return !hasCodes() && !hasColors() && !hasTextSettings() && signal_marks.isEmpty();
@@ -606,6 +666,9 @@ class PidCodification
 			/// a role of toolSymbolRoles() and the place of its symbol), of lines
 			/// "option_default;instrument;shape;oval" ("option_défaut": a family
 			/// of symbols, an option and its value, option_defaults), and of lines
+			/// "line_kind;L4;Buried;0.7;dash_dot" ("genre_ligne": a kind of line,
+			/// its name, empty for one of ISO 10628-1, its width in mm and its
+			/// pattern, step 8r-6), of lines
 			/// "signal_mark;pneumatic;bar2" ("marque_signal": a type of signal
 			/// and the mark of its lines, by their words of the files; a file
 			/// which has some says them all, a type it leaves out taking the

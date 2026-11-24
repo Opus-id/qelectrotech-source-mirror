@@ -22,30 +22,26 @@
 /**
 	@brief PipeProperties::lineKindToString
 	@param kind
-	@return the word the files use for @p kind
+	@return the word the files use for @p kind: itself, the main line for
+	none
 */
-QString PipeProperties::lineKindToString(LineKind kind)
+QString PipeProperties::lineKindToString(const LineKind &kind)
 {
-	switch (kind) {
-		case Main:      return QStringLiteral("main");
-		case Secondary: return QStringLiteral("secondary");
-		case Auxiliary: return QStringLiteral("auxiliary");
-	}
-	return QStringLiteral("main");
+	return kind.isEmpty() ? Main : kind;
 }
 
 /**
 	@brief PipeProperties::lineKindFromString
 	@param string
-	@return the kind @p string names. A kind this version does not know is
-	read as the main line, the way a DN it cannot read is left unset: the
-	pipe is still loaded, and drawn like any other.
+	@return the kind @p string names, the main line for none. A word the
+	project does not know (a kind added by another project, or by a later
+	version) is kept: the pipe is drawn as a main line meanwhile
+	(PidCodification::lineKind()), and saved with its word.
 */
 PipeProperties::LineKind PipeProperties::lineKindFromString(const QString &string)
 {
-	if (string == QLatin1String("secondary")) return Secondary;
-	if (string == QLatin1String("auxiliary")) return Auxiliary;
-	return Main;
+	const QString word = string.trimmed();
+	return word.isEmpty() ? Main : word;
 }
 
 /**
@@ -123,7 +119,7 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 	add("pid_line_number", line_number);
 	add("pid_piping_class", piping_class);
 	add("pid_nominal_pressure", nominal_pressure);
-	if (line_kind != Main)
+	if (lineKindToString(line_kind) != Main)
 		add("pid_line_kind", lineKindToString(line_kind));
 	add("pid_spool", spool);
 	add("pid_external_finish", external_finish);

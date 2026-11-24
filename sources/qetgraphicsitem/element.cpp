@@ -28,6 +28,7 @@
 #include <autoNum/numerotationcontextcommands.h>
 #include <diagram.h>
 #include <elementsmover.h>
+#include <leaderline.h>
 #include <pidflow.h>
 #include <pidnozzlemagnet.h>
 #include <pidoffpage.h>
@@ -1700,10 +1701,17 @@ void Element::drawJunction(QPainter *painter, qreal detail) const
 		if (pipe) {
 			pen = pipe->plainPen(detail);
 		} else {
-			ConductorProperties plain;
-			plain.m_medium = TerminalData::Pipe;
-			pen = Conductor::zoomedPen(QPen(symbolInk(), plain.lineWidth(), Qt::SolidLine,
-											Qt::SquareCap, Qt::MiterJoin), detail, true);
+				//A main line as the project draws it (step 8r-6)
+			const QETProject *project = diagram() ? diagram()->project() : nullptr;
+			const PidCodification::LineKindEntry main = project
+					? project->pidCodification().lineKind(PipeProperties::Main)
+					: PidCodification::isoLineKinds().constFirst();
+			pen = Conductor::zoomedPen(QPen(symbolInk(), main.width * LeaderLine::unitsByMillimetre,
+											Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin), detail, true);
+			const QList<qreal> dashes = PidCodification::dashPattern(main.pattern);
+			if (!dashes.isEmpty()) {
+				pen.setDashPattern(dashes);
+			}
 		}
 		if (status.isValid()) {
 			pen.setColor(status);

@@ -95,13 +95,20 @@ QString shown(const QString &value)
 	return value.isEmpty() ? QCoreApplication::translate("PidOffPage", "nothing") : value;
 }
 
-QString lineKindName(PipeProperties::LineKind kind)
+	/// The name of a kind of line of ISO 10628-1; the code of a kind added
+	/// by the project (step 8r-6)
+QString lineKindName(const PipeProperties::LineKind &kind)
 {
-	switch (kind) {
-		case PipeProperties::Secondary: return QCoreApplication::translate("PidOffPage", "secondary flow line");
-		case PipeProperties::Auxiliary: return QCoreApplication::translate("PidOffPage", "auxiliary system line");
-		default: return QCoreApplication::translate("PidOffPage", "main flow line");
+	if (kind == PipeProperties::Secondary) {
+		return QCoreApplication::translate("PidOffPage", "secondary flow line");
 	}
+	if (kind == PipeProperties::Auxiliary) {
+		return QCoreApplication::translate("PidOffPage", "auxiliary system line");
+	}
+	if (PipeProperties::lineKindToString(kind) == PipeProperties::Main) {
+		return QCoreApplication::translate("PidOffPage", "main flow line");
+	}
+	return kind;
 }
 
 QString insulationKindName(PipeProperties::InsulationKind kind)

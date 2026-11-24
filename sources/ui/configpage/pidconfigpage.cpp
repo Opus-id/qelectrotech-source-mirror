@@ -764,6 +764,25 @@ void PidConfigPage::initWidgets()
 	m_remove_option_default = new QPushButton(tr("Remove"), this);
 	m_remove_option_default->setObjectName(QStringLiteral("remove_option_default"));
 	connect(m_remove_option_default, &QPushButton::clicked, this, &PidConfigPage::removeSelectedOptionDefaults);
+
+		//The kinds of line: those of ISO 10628-1, then those the project adds
+	m_line_kind_table = new QTableWidget(0, 4, this);
+	m_line_kind_table->setObjectName(QStringLiteral("line_kind_table"));
+	m_line_kind_table->setHorizontalHeaderLabels({tr("Code"), tr("Name"), tr("Width (mm)"), tr("Pattern")});
+	m_line_kind_table->verticalHeader()->hide();
+	m_line_kind_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+	m_line_kind_table->setSelectionBehavior(QAbstractItemView::SelectRows);
+	m_line_kind_table->setIconSize(QSize(48, 12));
+	connect(m_line_kind_table, &QTableWidget::itemChanged, this, &PidConfigPage::readLineKindTable);
+	m_add_line_kind = new QPushButton(tr("Add"), this);
+	m_add_line_kind->setObjectName(QStringLiteral("add_line_kind"));
+	connect(m_add_line_kind, &QPushButton::clicked, this, &PidConfigPage::addLineKind);
+	m_remove_line_kind = new QPushButton(tr("Remove"), this);
+	m_remove_line_kind->setObjectName(QStringLiteral("remove_line_kind"));
+	connect(m_remove_line_kind, &QPushButton::clicked, this, &PidConfigPage::removeSelectedLineKinds);
+	m_reset_line_kinds = new QPushButton(tr("Back to the values of ISO 10628-1"), this);
+	m_reset_line_kinds->setObjectName(QStringLiteral("line_kinds_reset"));
+	connect(m_reset_line_kinds, &QPushButton::clicked, this, &PidConfigPage::resetLineKinds);
 }
 
 void PidConfigPage::initLayout()
@@ -1014,6 +1033,23 @@ void PidConfigPage::initLayout()
 	signal_layout->addStretch();
 	tabs->addTab(signal_tab, tr("Signal lines"));
 
+	auto *lines_tab = new QWidget(this);
+	auto *lines_layout = new QVBoxLayout(lines_tab);
+	auto *lines_help = new QLabel(tr("How the pipes of each kind of line are drawn: its width in mm and its "
+									 "pattern. The three kinds of ISO 10628-1 are always there; a kind added "
+									 "is offered on the page of a pipe. A pipe keeps the code of its kind: one "
+									 "removed is drawn as a main line."), lines_tab);
+	lines_help->setWordWrap(true);
+	lines_layout->addWidget(lines_help);
+	lines_layout->addWidget(m_line_kind_table);
+	auto *line_buttons = new QHBoxLayout();
+	line_buttons->addWidget(m_add_line_kind);
+	line_buttons->addWidget(m_remove_line_kind);
+	line_buttons->addStretch();
+	line_buttons->addWidget(m_reset_line_kinds);
+	lines_layout->addLayout(line_buttons);
+	tabs->addTab(lines_tab, tr("Lines"));
+
 	auto *symbols_tab = new QWidget(this);
 	auto *symbols_layout = new QVBoxLayout(symbols_tab);
 		//Short: README-PID tells the rest
@@ -1128,6 +1164,7 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 	showToolSymbols();
 	showSignalMarks();
 	showOptionDefaults();
+	showLineKinds();
 }
 
 /**
@@ -1228,6 +1265,173 @@ void PidConfigPage::removeSelectedOptionDefaults()
 		}
 	}
 	readOptionDefaultTable();
+}
+
+namespace {
+		/// A picture of a line of @p width mm drawn with @p pattern, at four
+		/// pixels by mm as the folio at 100 %
+	QIcon linePicture(qreal width, PidCodification::LinePattern pattern)
+	{
+		QPixmap picture(48, 12);
+		picture.fill(Qt::transparent);
+		QPainter painter(&picture);
+		QPen pen(Qt::black, qMax(1.0, width * 4.0), Qt::SolidLine, Qt::FlatCap);
+		const QList<qreal> dashes = PidCodification::dashPattern(pattern);
+		if (!dashes.isEmpty()) {
+			pen.setDashPattern(dashes);
+		}
+		painter.setPen(pen);
+		painter.drawLine(QPointF(0, 6), QPointF(48, 6));
+		painter.end();
+		return QIcon(picture);
+	}
+}
+
+/**
+	@brief PidConfigPage::showLineKinds
+	See the declaration. The code and the name of a kind of ISO 10628-1
+	cannot be changed: its name is translated.
+*/
+void PidConfigPage::showLineKinds()
+{
+	const QSignalBlocker blocker(m_line_kind_table);
+	m_line_kind_table->setRowCount(0);
+	const QList<PidCodification::LineKindEntry> kinds = m_codification.line_kinds;
+	for (const PidCodification::LineKindEntry &kind : kinds)
+	{
+		const int row = m_line_kind_table->rowCount();
+		m_line_kind_table->insertRow(row);
+		const bool iso = PidCodification::isIsoLineKind(kind.code);
+		auto *code = new QTableWidgetItem(linePicture(kind.width, kind.pattern), kind.code);
+		auto *name = new QTableWidgetItem(iso ? m_codification.lineKindName(kind.code) : kind.name);
+		if (iso) {
+			code->setFlags(code->flags() & ~Qt::ItemIsEditable);
+			name->setFlags(name->flags() & ~Qt::ItemIsEditable);
+		}
+		m_line_kind_table->setItem(row, 0, code);
+		m_line_kind_table->setItem(row, 1, name);
+		m_line_kind_table->setItem(row, 2, new QTableWidgetItem(m_codification.locale().toString(kind.width)));
+		auto *pattern = new QComboBox(m_line_kind_table);
+		pattern->setObjectName(QStringLiteral("line_pattern_") + QString::number(row));
+		for (PidCodification::LinePattern known : PidCodification::linePatterns()) {
+			pattern->addItem(linePicture(0.5, known), PidCodification::linePatternName(known), int(known));
+		}
+		pattern->setCurrentIndex(pattern->findData(int(kind.pattern)));
+		pattern->setEnabled(!m_project->isReadOnly());
+		connect(pattern, &QComboBox::activated, this, &PidConfigPage::readLineKindTable);
+		m_line_kind_table->setCellWidget(row, 3, pattern);
+	}
+}
+
+/**
+	@brief PidConfigPage::readLineKindTable
+	See the declaration. A line being typed, not whole yet, is kept in the
+	table and left out of the project; so is a second line of a code.
+*/
+void PidConfigPage::readLineKindTable()
+{
+	const QSignalBlocker blocker(m_line_kind_table);
+	m_codification.line_kinds = PidCodification::isoLineKinds();
+	QStringList read;
+	for (int row = 0 ; row < m_line_kind_table->rowCount() ; ++row)
+	{
+		for (int column = 0 ; column < 3 ; ++column) {
+			if (!m_line_kind_table->item(row, column)) {
+				m_line_kind_table->setItem(row, column, new QTableWidgetItem());
+			}
+		}
+		PidCodification::LineKindEntry kind;
+		kind.code = m_line_kind_table->item(row, 0)->text().trimmed();
+		kind.name = m_line_kind_table->item(row, 1)->text().trimmed();
+		bool ok = false;
+		kind.width = m_line_kind_table->item(row, 2)->text().replace(QLatin1Char(','), QLatin1Char('.'))
+					 .trimmed().toDouble(&ok);
+		if (auto *pattern = qobject_cast<QComboBox *>(m_line_kind_table->cellWidget(row, 3))) {
+			kind.pattern = PidCodification::LinePattern(pattern->currentData().toInt());
+		}
+		const bool twice = read.contains(kind.code);
+		const bool taken = ok && !twice && m_codification.setLineKind(kind);
+		if (taken) {
+			read << kind.code;
+		}
+		const bool empty = kind.code.isEmpty() && kind.name.isEmpty();
+		for (int column = 0 ; column < 3 ; ++column)
+		{
+			QTableWidgetItem *item = m_line_kind_table->item(row, column);
+			item->setBackground(taken || empty ? QBrush() : QBrush(QColor(255, 200, 120)));
+			item->setToolTip(taken || empty ? QString()
+											: twice ? wrapped(tr("This code is already given to a kind "
+																 "of line above: this line is left out."))
+													: wrapped(tr("A code in letters, digits, \"_\" and "
+																 "\"-\", and a width from 0.1 to 5 mm are "
+																 "needed: this line is left out.")));
+		}
+		if (taken) {
+			m_line_kind_table->item(row, 0)->setIcon(linePicture(kind.width, kind.pattern));
+		}
+	}
+}
+
+/**
+	@brief PidConfigPage::addLineKind
+	See the declaration
+*/
+void PidConfigPage::addLineKind()
+{
+	const int row = m_line_kind_table->rowCount();
+	{
+		const QSignalBlocker blocker(m_line_kind_table);
+		m_line_kind_table->insertRow(row);
+		m_line_kind_table->setItem(row, 0, new QTableWidgetItem());
+		m_line_kind_table->setItem(row, 1, new QTableWidgetItem());
+		m_line_kind_table->setItem(row, 2, new QTableWidgetItem(m_codification.locale().toString(0.5)));
+		auto *pattern = new QComboBox(m_line_kind_table);
+		pattern->setObjectName(QStringLiteral("line_pattern_") + QString::number(row));
+		for (PidCodification::LinePattern known : PidCodification::linePatterns()) {
+			pattern->addItem(linePicture(0.5, known), PidCodification::linePatternName(known), int(known));
+		}
+		connect(pattern, &QComboBox::activated, this, &PidConfigPage::readLineKindTable);
+		m_line_kind_table->setCellWidget(row, 3, pattern);
+	}
+	readLineKindTable();
+	m_line_kind_table->setCurrentCell(row, 0);
+	m_line_kind_table->editItem(m_line_kind_table->item(row, 0));
+}
+
+/**
+	@brief PidConfigPage::removeSelectedLineKinds
+	See the declaration
+*/
+void PidConfigPage::removeSelectedLineKinds()
+{
+	QList<int> rows;
+	for (const QModelIndex &index : m_line_kind_table->selectionModel()->selectedRows()) {
+			//The code of a kind of ISO 10628-1 is not editable
+		const QTableWidgetItem *code = m_line_kind_table->item(index.row(), 0);
+		if (!code || (code->flags() & Qt::ItemIsEditable)) {
+			rows << index.row();
+		}
+	}
+	std::sort(rows.begin(), rows.end(), std::greater<int>());
+	{
+		const QSignalBlocker blocker(m_line_kind_table);
+		for (int row : std::as_const(rows)) {
+			m_line_kind_table->removeRow(row);
+		}
+	}
+	readLineKindTable();
+}
+
+/**
+	@brief PidConfigPage::resetLineKinds
+	See the declaration
+*/
+void PidConfigPage::resetLineKinds()
+{
+	for (const PidCodification::LineKindEntry &kind : PidCodification::isoLineKinds()) {
+		m_codification.setLineKind(kind);
+	}
+	showLineKinds();
 }
 
 /**
@@ -1382,6 +1586,15 @@ void PidConfigPage::adjustReadOnly()
 	m_option_default_table->setEditTriggers(m_code_tables.value(PidCodification::List::Fluids)->editTriggers());
 	m_add_option_default->setEnabled(!read_only);
 	m_remove_option_default->setEnabled(!read_only);
+	m_line_kind_table->setEditTriggers(m_code_tables.value(PidCodification::List::Fluids)->editTriggers());
+	m_add_line_kind->setEnabled(!read_only);
+	m_remove_line_kind->setEnabled(!read_only);
+	m_reset_line_kinds->setEnabled(!read_only);
+	for (int row = 0 ; row < m_line_kind_table->rowCount() ; ++row) {
+		if (QWidget *pattern = m_line_kind_table->cellWidget(row, 3)) {
+			pattern->setEnabled(!read_only);
+		}
+	}
 }
 
 /**

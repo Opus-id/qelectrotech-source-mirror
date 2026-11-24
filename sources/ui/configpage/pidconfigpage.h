@@ -144,6 +144,14 @@ class PidConfigPage : public ProjectConfigPage
 							  const QString &value = QString());
 			/// Remove the lines selected of the defaults of the options
 		void removeSelectedOptionDefaults();
+			/// Add a kind of line (PidCodification::line_kinds, step 8r-6):
+			/// an empty line whose code is edited
+		void addLineKind();
+			/// Remove the kinds of line selected; never one of ISO 10628-1
+		void removeSelectedLineKinds();
+			/// The kinds of ISO 10628-1 take their width and dashes again;
+			/// those added stay
+		void resetLineKinds();
 
 	protected:
 		void initWidgets() override;
@@ -170,6 +178,11 @@ class PidConfigPage : public ProjectConfigPage
 			/// Take the defaults of the options from their table: the lines
 			/// whose three words can be names, the others in orange
 		void readOptionDefaultTable();
+			/// Fill the table of the kinds of line from the page
+		void showLineKinds();
+			/// Take the kinds of line from their table: the lines whose code
+			/// and width can be, the others in orange
+		void readLineKindTable();
 		void chooseToolSymbol(const QString &role);
 		void undoLastChange();
 		void redoLastChange();
@@ -274,6 +287,12 @@ class PidConfigPage : public ProjectConfigPage
 		QTableWidget *m_option_default_table = nullptr;
 		QPushButton *m_add_option_default = nullptr;
 		QPushButton *m_remove_option_default = nullptr;
+			/// The kinds of line of the project: code, name, width in mm,
+			/// pattern (a list in the cell), a picture of the line (step 8r-6)
+		QTableWidget *m_line_kind_table = nullptr;
+		QPushButton *m_add_line_kind = nullptr;
+		QPushButton *m_remove_line_kind = nullptr;
+		QPushButton *m_reset_line_kinds = nullptr;
 			/// What the page shows, applied to the project when validated
 		PidCodification m_codification;
 		std::function<QColor(const QColor &)> m_ask_color;

@@ -283,6 +283,15 @@ class Conductor : public QGraphicsObject
 					 const PotentialType *type) const;
 			/// The pen of the line at rest: plainColor(), drawnWidth()
 		QPen plainPen(qreal detail) const;
+			/// The width of the line of this pipe as its project draws its
+			/// kind of line (PidCodification::lineKind(), step 8r-6); that of
+			/// ISO 10628-1 without a project. For another conductor, its own
+			/// (ConductorProperties::lineWidth()).
+		qreal lineWidth() const;
+			/// The dashes of this pipe, in widths of its line, as its
+			/// project draws its kind of line; none for a solid line, or for
+			/// another conductor
+		QList<qreal> pipeDashes() const;
 			/// @p pen as a line is drawn below a certain zoom (@p detail):
 			/// a cosmetic line; that of a pipe (@p pipe), several units wide,
 			/// follows the zoom down to one pixel

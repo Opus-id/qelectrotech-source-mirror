@@ -20,6 +20,7 @@
 #include "pipeproperties.h"
 #include "qetapp.h"
 
+#include <QCoreApplication>
 #include <QFile>
 #include <QSet>
 #include <QStringList>
@@ -83,6 +84,23 @@ namespace
 	const QString tool_symbol_tag = QStringLiteral("tool_symbol");
 	const QString option_default_tag = QStringLiteral("option_default");
 	const QString signal_mark_tag = QStringLiteral("signal_mark");
+	const QString line_kind_tag = QStringLiteral("line_kind");
+		/// A kind of line read from a file, in @p entry: its code, its name,
+		/// its width in mm with a point or a comma, the word of its pattern
+		/// (solid when empty); false when it cannot be read
+	bool lineKindFromFields(const QString &code, const QString &name, const QString &width,
+							const QString &pattern, PidCodification::LineKindEntry &entry)
+	{
+		bool ok = false;
+		entry.code = code.trimmed();
+		entry.name = name.trimmed();
+		entry.width = QString(width).replace(QLatin1Char(','), QLatin1Char('.')).trimmed().toDouble(&ok);
+		entry.pattern = PidCodification::LinePattern::Solid;
+		if (!ok || !PidCodification::isLineWidth(entry.width) || !ElementOptions::isValidName(entry.code)) {
+			return false;
+		}
+		return pattern.trimmed().isEmpty() || PidCodification::linePatternFromString(pattern, entry.pattern);
+	}
 	const QString letters_tag = QStringLiteral("instrument_letters");
 	const QString numbering_word = QStringLiteral("instrument_numbering");
 	const QString tag_option_kind = QStringLiteral("tag_option");
@@ -1359,6 +1377,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.drawn_families = other.drawn_families;
 		result.tool_symbols = other.tool_symbols;
 		result.option_defaults = other.option_defaults;
+		result.line_kinds = other.line_kinds;
 	}
 		//A file which has marks of signal lines says them all
 	if (signal_marks.isEmpty()) {
@@ -1476,6 +1495,22 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 		e.setAttribute(QStringLiteral("mark"), it.value());
 		block.appendChild(e);
 	}
+		//The kinds of line: those of ISO 10628-1 when they are changed,
+		//those added always
+	for (const LineKindEntry &entry : line_kinds)
+	{
+		if (isoLineKinds().contains(entry)) {
+			continue;
+		}
+		QDomElement e = document.createElement(line_kind_tag);
+		e.setAttribute(QStringLiteral("code"), entry.code);
+		if (!entry.name.isEmpty()) {
+			e.setAttribute(QStringLiteral("name"), entry.name);
+		}
+		e.setAttribute(QStringLiteral("width"), QString::number(entry.width));
+		e.setAttribute(QStringLiteral("pattern"), linePatternToString(entry.pattern));
+		block.appendChild(e);
+	}
 		//Default marks alone: nothing to write
 	if (!block.hasChildNodes() && !block.hasAttributes()) {
 		return QDomElement();
@@ -1583,6 +1618,17 @@ void PidCodification::fromXml(const QDomElement &parent)
 			signal_marks.insert(type, mark);
 		}
 	}
+	line_kinds = isoLineKinds();
+	for (QDomElement e = block.firstChildElement(line_kind_tag) ; !e.isNull() ;
+		 e = e.nextSiblingElement(line_kind_tag))
+	{
+		LineKindEntry entry;
+		if (lineKindFromFields(e.attribute(QStringLiteral("code")), e.attribute(QStringLiteral("name")),
+							   e.attribute(QStringLiteral("width")), e.attribute(QStringLiteral("pattern")),
+							   entry)) {
+			setLineKind(entry);
+		}
+	}
 }
 
 /**
@@ -1667,6 +1713,13 @@ QString PidCodification::presentationToCsv() const
 		if (!isDefaultSignalMark(it.key(), it.value())) {
 			text += signal_mark_tag + QLatin1Char(';') + it.key() + QLatin1Char(';')
 					+ it.value() + QLatin1Char('\n');
+		}
+	}
+	for (const LineKindEntry &entry : line_kinds) {
+		if (!isoLineKinds().contains(entry)) {
+			text += line_kind_tag + QLatin1Char(';') + entry.code + QLatin1Char(';') + csvField(entry.name)
+					+ QLatin1Char(';') + QString::number(entry.width) + QLatin1Char(';')
+					+ linePatternToString(entry.pattern) + QLatin1Char('\n');
 		}
 	}
 	return text;
@@ -1969,6 +2022,16 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 			}
 			continue;
 		}
+		if (kind == line_kind_tag || kind == QLatin1String("genre_ligne"))
+		{
+				//A code that cannot be one, a width or a pattern not read
+			LineKindEntry entry;
+			if (!lineKindFromFields(fields.value(1), fields.value(2), fields.value(3), fields.value(4), entry)
+				|| !codification.setLineKind(entry)) {
+				++left_out;
+			}
+			continue;
+		}
 		if (kind == signal_mark_tag || kind == QLatin1String("marque_signal"))
 		{
 				//Kept even when it is the default one: the file says it
@@ -2092,7 +2155,165 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& drawn_families == other.drawn_families
 			&& tool_symbols == other.tool_symbols
 			&& option_defaults == other.option_defaults
+			&& line_kinds == other.line_kinds
 			&& signal_marks == other.signal_marks;
+}
+
+/**
+	@brief PidCodification::isoLineKinds
+	See the declaration
+*/
+const QList<PidCodification::LineKindEntry> &PidCodification::isoLineKinds()
+{
+	static const QList<LineKindEntry> kinds{
+		{PipeProperties::Main, QString(), 1.0, LinePattern::Solid},
+		{PipeProperties::Secondary, QString(), 0.5, LinePattern::Solid},
+		{PipeProperties::Auxiliary, QString(), 0.5, LinePattern::Dashes}};
+	return kinds;
+}
+
+bool PidCodification::isIsoLineKind(const QString &code)
+{
+	return code == PipeProperties::Main || code == PipeProperties::Secondary
+			|| code == PipeProperties::Auxiliary;
+}
+
+/**
+	@brief PidCodification::lineKind
+	See the declaration
+*/
+PidCodification::LineKindEntry PidCodification::lineKind(const QString &code) const
+{
+	const QString word = PipeProperties::lineKindToString(code);
+	for (const LineKindEntry &entry : line_kinds) {
+		if (entry.code == word) {
+			return entry;
+		}
+	}
+	LineKindEntry main = isoLineKinds().constFirst();
+	for (const LineKindEntry &entry : line_kinds) {
+		if (entry.code == PipeProperties::Main) {
+			main = entry;
+		}
+	}
+	main.code = word;
+	return main;
+}
+
+/**
+	@brief PidCodification::lineKindName
+	See the declaration
+*/
+QString PidCodification::lineKindName(const QString &code) const
+{
+	const QString word = PipeProperties::lineKindToString(code);
+	if (word == PipeProperties::Main) {
+		return QCoreApplication::translate("PidCodification", "Main flow line");
+	}
+	if (word == PipeProperties::Secondary) {
+		return QCoreApplication::translate("PidCodification", "Secondary flow line");
+	}
+	if (word == PipeProperties::Auxiliary) {
+		return QCoreApplication::translate("PidCodification", "Auxiliary system line");
+	}
+	for (const LineKindEntry &entry : line_kinds) {
+		if (entry.code == word && !entry.name.trimmed().isEmpty()) {
+			return entry.name.trimmed();
+		}
+	}
+	return word;
+}
+
+/**
+	@brief PidCodification::setLineKind
+	See the declaration
+*/
+bool PidCodification::setLineKind(const LineKindEntry &entry)
+{
+	const QString code = entry.code.trimmed();
+	if (!ElementOptions::isValidName(code) || !isLineWidth(entry.width)) {
+		return false;
+	}
+	LineKindEntry kept = entry;
+	kept.code = code;
+	kept.name = isIsoLineKind(code) ? QString() : entry.name.trimmed();
+	for (LineKindEntry &known : line_kinds) {
+		if (known.code == code) {
+			known = kept;
+			return true;
+		}
+	}
+	line_kinds << kept;
+	return true;
+}
+
+/**
+	@brief PidCodification::removeLineKind
+	See the declaration
+*/
+bool PidCodification::removeLineKind(const QString &code)
+{
+	if (isIsoLineKind(code)) {
+		return false;
+	}
+	for (int i = 0 ; i < line_kinds.size() ; ++i) {
+		if (line_kinds.at(i).code == code) {
+			line_kinds.removeAt(i);
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+	@brief PidCodification::dashPattern
+	See the declaration. The dashes are those QElectroTech drew before for
+	a dashed or a dash-dotted line, whose gaps can be told at a normal zoom.
+*/
+QList<qreal> PidCodification::dashPattern(LinePattern pattern)
+{
+	switch (pattern) {
+		case LinePattern::Dashes:      return {5, 4};
+		case LinePattern::ShortDashes: return {2, 2};
+		case LinePattern::DashDot:     return {6, 4, 1, 4};
+		default:                       return {};
+	}
+}
+
+QList<PidCodification::LinePattern> PidCodification::linePatterns()
+{
+	return {LinePattern::Solid, LinePattern::Dashes, LinePattern::ShortDashes, LinePattern::DashDot};
+}
+
+QString PidCodification::linePatternToString(LinePattern pattern)
+{
+	switch (pattern) {
+		case LinePattern::Dashes:      return QStringLiteral("dashes");
+		case LinePattern::ShortDashes: return QStringLiteral("short_dashes");
+		case LinePattern::DashDot:     return QStringLiteral("dash_dot");
+		default:                       return QStringLiteral("solid");
+	}
+}
+
+bool PidCodification::linePatternFromString(const QString &word, LinePattern &pattern)
+{
+	for (LinePattern known : linePatterns()) {
+		if (word.trimmed().toLower() == linePatternToString(known)) {
+			pattern = known;
+			return true;
+		}
+	}
+	return false;
+}
+
+QString PidCodification::linePatternName(LinePattern pattern)
+{
+	switch (pattern) {
+		case LinePattern::Dashes:      return QCoreApplication::translate("PidCodification", "Dashes");
+		case LinePattern::ShortDashes: return QCoreApplication::translate("PidCodification", "Short dashes");
+		case LinePattern::DashDot:     return QCoreApplication::translate("PidCodification", "Dash and dot");
+		default:                       return QCoreApplication::translate("PidCodification", "Solid");
+	}
 }
 
 /**

@@ -174,7 +174,7 @@ Conductor *PidTee::conductorAt(const Diagram *diagram, const QPointF &scene_pos)
 		Conductor *conductor = qgraphicsitem_cast<Conductor *>(item);
 		if (!conductor || !conductor->terminal1 || !conductor->terminal2) continue;
 		const QList<QPointF> points = linePoints(conductor);
-		const qreal margin = conductor->properties().lineWidth() / 2.0 + 3.0;
+		const qreal margin = conductor->lineWidth() / 2.0 + 3.0;
 		for (int i = 0 ; i + 1 < points.size() ; ++i)
 		{
 			const qreal distance = distanceToSegment(scene_pos, points.at(i), points.at(i + 1));

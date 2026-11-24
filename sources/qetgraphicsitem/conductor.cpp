@@ -1236,7 +1236,16 @@ QPen Conductor::linePen(const QColor &color, qreal width, qreal detail,
 		SignalMark::applyDashes(final_conductor_pen);
 		custom_pattern = true;
 	}
-	if (!custom_pattern)
+		//A pipe: the dashes its project gives its kind of line (step 8r-6)
+	if (!custom_pattern && !type && m_properties.m_medium == TerminalData::Pipe)
+	{
+		const QList<qreal> dashes = pipeDashes();
+		if (dashes.isEmpty())
+			final_conductor_pen.setStyle(Qt::SolidLine);
+		else
+			final_conductor_pen.setDashPattern(dashes);
+	}
+	else if (!custom_pattern)
 	{
 		if (line_style == Qt::DashLine)
 			final_conductor_pen.setDashPattern({5, 4});
@@ -2895,7 +2904,41 @@ QPainterPath Conductor::shape() const
 */
 qreal Conductor::drawnWidth(const PotentialType *type) const
 {
-	return type ? type->width : m_properties.lineWidth();
+	return type ? type->width : lineWidth();
+}
+
+/**
+	@brief Conductor::lineWidth
+	See the declaration
+*/
+qreal Conductor::lineWidth() const
+{
+	if (m_properties.m_medium != TerminalData::Pipe) {
+		return m_properties.lineWidth();
+	}
+	const Diagram *parent_diagram = diagram();
+	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+	const PidCodification::LineKindEntry kind = project
+			? project->pidCodification().lineKind(m_properties.m_pipe.line_kind)
+			: PidCodification().lineKind(m_properties.m_pipe.line_kind);
+	return kind.width * LeaderLine::unitsByMillimetre;
+}
+
+/**
+	@brief Conductor::pipeDashes
+	See the declaration
+*/
+QList<qreal> Conductor::pipeDashes() const
+{
+	if (m_properties.m_medium != TerminalData::Pipe) {
+		return {};
+	}
+	const Diagram *parent_diagram = diagram();
+	const QETProject *project = parent_diagram ? parent_diagram->project() : nullptr;
+	const PidCodification::LineKindEntry kind = project
+			? project->pidCodification().lineKind(m_properties.m_pipe.line_kind)
+			: PidCodification().lineKind(m_properties.m_pipe.line_kind);
+	return PidCodification::dashPattern(kind.pattern);
 }
 
 /**
@@ -3501,7 +3544,7 @@ void Conductor::updateLeader()
 		Qt::Orientations orientation;
 		const QPointF anchor = posForText(orientation);
 			//A plain end stops 0.5 mm short of the edge of the line
-		const qreal clearance = m_properties.lineWidth() / 2 + LeaderLine::unitsByMillimetre / 2;
+		const qreal clearance = lineWidth() / 2 + LeaderLine::unitsByMillimetre / 2;
 		leader = LeaderLine::path(text, segmentsToPoints(), anchor,
 								  project->textLeaderDistance() * LeaderLine::unitsByMillimetre,
 								  project->textLeaderEnd(), LeaderLine::unitsByMillimetre, clearance);

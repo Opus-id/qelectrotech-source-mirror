@@ -1066,6 +1066,23 @@ class tst_conductormedium : public QObject
 			e.setAttribute(QStringLiteral("pid_line_kind"), QStringLiteral("steam"));
 			in.fromXml(e);
 			QVERIFY(!in.hasSize());
+				// a kind of line the project may add (8r-6): kept, written
+				// back, drawn as a main line without a project
+			QCOMPARE(in.line_kind, QStringLiteral("steam"));
+			bool written = false;
+			for (const auto &pair : in.attributes()) {
+				if (pair.first == QLatin1String("pid_line_kind")) {
+					written = pair.second == QLatin1String("steam");
+				}
+			}
+			QVERIFY(written);
+			ConductorProperties steam;
+			steam.m_medium = TerminalData::Pipe;
+			steam.m_pipe = in;
+			QCOMPARE(steam.lineWidth(), 4.0);
+				// none: the main line
+			e.setAttribute(QStringLiteral("pid_line_kind"), QString());
+			in.fromXml(e);
 			QCOMPARE(in.line_kind, PipeProperties::Main);
 
 				// the DN is the size of the line, pid_dn; a plastic pipe has

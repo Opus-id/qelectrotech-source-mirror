@@ -15986,6 +15986,37 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
 </context>
 <context>
+    <name>PidCodification</name>
+    <message>
+        <source>Main flow line</source>
+        <translation>Ligne principale</translation>
+    </message>
+    <message>
+        <source>Secondary flow line</source>
+        <translation>Ligne secondaire</translation>
+    </message>
+    <message>
+        <source>Auxiliary system line</source>
+        <translation>Ligne auxiliaire</translation>
+    </message>
+    <message>
+        <source>Solid</source>
+        <translation>Trait plein</translation>
+    </message>
+    <message>
+        <source>Dashes</source>
+        <translation>Tirets</translation>
+    </message>
+    <message>
+        <source>Short dashes</source>
+        <translation>Tirets courts</translation>
+    </message>
+    <message>
+        <source>Dash and dot</source>
+        <translation>Trait-point</translation>
+    </message>
+</context>
+<context>
     <name>PidConfigPage</name>
     <message>
         <source> mm</source>
@@ -15994,6 +16025,34 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message>
         <source>The hatched (insulation) or dashed (heat tracing) stub drawn where the insulated part of a line begins and ends, and the mark in the middle of a pipe which asks for one.</source>
         <translation>L&apos;amorce hachurée (calorifuge) ou en tirets (traçage) dessinée là où la partie calorifugée d&apos;une ligne commence et finit, et la marque au milieu d&apos;une tuyauterie qui en demande une.</translation>
+    </message>
+    <message>
+        <source>Width (mm)</source>
+        <translation>Épaisseur (mm)</translation>
+    </message>
+    <message>
+        <source>Pattern</source>
+        <translation>Motif</translation>
+    </message>
+    <message>
+        <source>Back to the values of ISO 10628-1</source>
+        <translation>Revenir aux valeurs de l&apos;ISO 10628-1</translation>
+    </message>
+    <message>
+        <source>How the pipes of each kind of line are drawn: its width in mm and its pattern. The three kinds of ISO 10628-1 are always there; a kind added is offered on the page of a pipe. A pipe keeps the code of its kind: one removed is drawn as a main line.</source>
+        <translation>Comment se dessinent les tuyauteries de chaque genre de ligne : son épaisseur en mm et son motif. Les trois genres de l&apos;ISO 10628-1 sont toujours là ; un genre ajouté est proposé sur la page d&apos;une tuyauterie. Une tuyauterie garde le code de son genre : un genre retiré se dessine en ligne principale.</translation>
+    </message>
+    <message>
+        <source>Lines</source>
+        <translation>Lignes</translation>
+    </message>
+    <message>
+        <source>This code is already given to a kind of line above: this line is left out.</source>
+        <translation>Ce code est déjà donné à un genre de ligne plus haut : cette ligne est laissée de côté.</translation>
+    </message>
+    <message>
+        <source>A code in letters, digits, &quot;_&quot; and &quot;-&quot;, and a width from 0.1 to 5 mm are needed: this line is left out.</source>
+        <translation>Il faut un code en lettres, chiffres, « _ » et « - », et une épaisseur de 0,1 à 5 mm : cette ligne est laissée de côté.</translation>
     </message>
     <message>
         <source>Valves and instruments on a line take the color of their line</source>
@@ -17113,6 +17172,11 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message>
         <source>Direction of flow:</source>
         <translation>Sens d&apos;écoulement :</translation>
+    </message>
+    <message>
+        <source>%1 (not in the project)</source>
+        <comment>a kind of line</comment>
+        <translation>%1 (absent du projet)</translation>
     </message>
     <message>
         <source>Found from the symbols of the line: flow arrows, check valves, pumps, and through valves, reducers, tees and the sides of heat exchangers. Turn or mirror a symbol to change it.</source>

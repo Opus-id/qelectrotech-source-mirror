@@ -42,11 +42,16 @@
 class PipeProperties
 {
 	public:
-			/// The kind of line, which sets how it is drawn (ISO 10628-1,
-			/// 5.3.1): the main flow lines, the subsidiary flow lines, and the
-			/// energy carrier and auxiliary system lines. DEXPI knows a
-			/// primary and a secondary segment only.
-		enum LineKind { Main, Secondary, Auxiliary };
+			/// The kind of line, which sets how it is drawn: a word, that of
+			/// the files. Those of ISO 10628-1 (5.3.1), which every project
+			/// has: the main flow lines, the subsidiary flow lines, and the
+			/// energy carrier and auxiliary system lines; or the code of a
+			/// kind the project adds (PidCodification::line_kinds, step
+			/// 8r-6). DEXPI knows a primary and a secondary segment only.
+		using LineKind = QString;
+		static inline const QString Main = QStringLiteral("main");
+		static inline const QString Secondary = QStringLiteral("secondary");
+		static inline const QString Auxiliary = QStringLiteral("auxiliary");
 			/// What the pipe is wrapped in, which sets the stubs drawn where
 			/// it begins and ends (Conductor::insulationStubs()): hatches for
 			/// an insulation, dashes for a heat tracing, both for both
@@ -128,7 +133,7 @@ class PipeProperties
 		QList<QPair<QString, QString>> attributes() const;
 		void fromXml(const QDomElement &);
 
-		static QString lineKindToString(LineKind kind);
+		static QString lineKindToString(const LineKind &kind);
 		static LineKind lineKindFromString(const QString &string);
 		static QString insulationKindToString(InsulationKind kind);
 		static InsulationKind insulationKindFromString(const QString &string);

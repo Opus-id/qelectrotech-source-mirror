@@ -32,9 +32,11 @@
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 #include "ui/configpage/pidconfigpage.h"
+#include "ui/pipepropertieswidget.h"
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QTableWidget>
 #include <QDomDocument>
 #include <QImage>
 #include <QPainter>
@@ -784,6 +786,183 @@ class tst_pipejunction : public QObject
 			QVERIFY(!project.pidCodification().symbols_follow_pipes);
 			project.undoStack()->undo();
 			QVERIFY(project.pidCodification().symbols_follow_pipes);
+		}
+
+			// ---- the kinds of line of the project (step 8r-6) ----
+		void theProjectKeepsItsKindsOfLine()
+		{
+			PidCodification codification;
+				// those of ISO 10628-1, nothing written
+			QCOMPARE(codification.line_kinds, PidCodification::isoLineKinds());
+			QVERIFY(codification.isEmpty());
+			QCOMPARE(codification.lineKind(PipeProperties::Main).width, 1.0);
+			QCOMPARE(codification.lineKind(PipeProperties::Secondary).width, 0.5);
+			QCOMPARE(codification.lineKind(PipeProperties::Auxiliary).pattern,
+					 PidCodification::LinePattern::Dashes);
+			QCOMPARE(codification.lineKind(QString()).code, PipeProperties::Main);
+				// a code it does not know: a main line, its code kept
+			QCOMPARE(codification.lineKind(QStringLiteral("steam")).code, QStringLiteral("steam"));
+			QCOMPARE(codification.lineKind(QStringLiteral("steam")).width, 1.0);
+			QCOMPARE(codification.lineKindName(QStringLiteral("steam")), QStringLiteral("steam"));
+			QCOMPARE(codification.lineKindName(PipeProperties::Main), QStringLiteral("Main flow line"));
+
+				// what cannot be
+			QVERIFY(!codification.setLineKind({QStringLiteral("a b"), QString(), 1.0,
+											   PidCodification::LinePattern::Solid}));
+			QVERIFY(!codification.setLineKind({QStringLiteral("L4"), QString(), 9.0,
+											   PidCodification::LinePattern::Solid}));
+			QVERIFY(!codification.removeLineKind(PipeProperties::Main));
+				// a kind added, one of ISO changed: written
+			QVERIFY(codification.setLineKind({QStringLiteral("L4"), QStringLiteral("Buried"), 0.7,
+											  PidCodification::LinePattern::DashDot}));
+			QVERIFY(codification.setLineKind({PipeProperties::Secondary, QStringLiteral("no name"), 0.7,
+											  PidCodification::LinePattern::Solid}));
+			QCOMPARE(codification.line_kinds.size(), 4);
+			QVERIFY(codification.lineKind(PipeProperties::Secondary).name.isEmpty());
+			QCOMPARE(codification.lineKindName(QStringLiteral("L4")), QStringLiteral("Buried"));
+			QVERIFY(codification.hasTextSettings());
+
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			holder.appendChild(codification.toXml(doc));
+			int written = 0;
+			for (QDomElement e = holder.firstChildElement().firstChildElement(QStringLiteral("line_kind"));
+				 !e.isNull() ; e = e.nextSiblingElement(QStringLiteral("line_kind"))) {
+				++written;
+			}
+			QCOMPARE(written, 2);
+			PidCodification read;
+			read.fromXml(holder);
+			QCOMPARE(read.line_kinds, codification.line_kinds);
+			QVERIFY(read == codification);
+
+			const QString csv = codification.presentationToCsv();
+			QVERIFY2(csv.contains(QStringLiteral("line_kind;L4;Buried;0.7;dash_dot")), qPrintable(csv));
+			QVERIFY2(csv.contains(QStringLiteral("line_kind;secondary;;0.7;solid")), qPrintable(csv));
+			QCOMPARE(PidCodification::fromCsv(csv).line_kinds, codification.line_kinds);
+				// the French word, a comma, no pattern: solid
+			int skipped = 0;
+			const PidCodification french = PidCodification::fromCsv(
+						QStringLiteral("genre_ligne;L5;Enterrée;0,7\ngenre_ligne;L6;;abc;solid\n"), &skipped);
+			QCOMPARE(french.lineKind(QStringLiteral("L5")).width, 0.7);
+			QCOMPARE(french.lineKind(QStringLiteral("L5")).pattern, PidCodification::LinePattern::Solid);
+			QCOMPARE(french.lineKindName(QStringLiteral("L5")), QStringLiteral("Enterrée"));
+			QCOMPARE(skipped, 1);
+
+			QVERIFY(codification.removeLineKind(QStringLiteral("L4")));
+			QCOMPARE(codification.line_kinds.size(), 3);
+		}
+
+		void aPipeIsDrawnAsItsProjectDrawsItsKind()
+		{
+			Scene scene(QStringLiteral("tee.elmt"));
+			Conductor *pipe = scene.pipe("N1", PipeProperties::Secondary);
+			QVERIFY(pipe);
+				// ISO 10628-1 by default
+			QCOMPARE(pipe->lineWidth(), 2.0);
+			QVERIFY(pipe->pipeDashes().isEmpty());
+			PidCodification codification = scene.project.pidCodification();
+			QVERIFY(codification.setLineKind({PipeProperties::Secondary, QString(), 0.75,
+											  PidCodification::LinePattern::ShortDashes}));
+			QVERIFY(codification.setLineKind({QStringLiteral("L4"), QStringLiteral("Buried"), 1.5,
+											  PidCodification::LinePattern::DashDot}));
+			scene.project.setPidCodification(codification);
+			QCOMPARE(pipe->lineWidth(), 3.0);
+			QCOMPARE(pipe->pipeDashes(), (QList<qreal>{2, 2}));
+			QCOMPARE(pipe->plainPen(1.0).widthF(), 3.0);
+			QCOMPARE(pipe->plainPen(1.0).dashPattern(), (QList<qreal>{2, 2}));
+				// a kind added
+			ConductorProperties data = pipe->properties();
+			data.m_pipe.line_kind = QStringLiteral("L4");
+			pipe->setProperties(data);
+			QCOMPARE(pipe->lineWidth(), 6.0);
+			QCOMPARE(pipe->plainPen(1.0).dashPattern(), (QList<qreal>{6, 4, 1, 4}));
+				// one the project does not know: a main line
+			data.m_pipe.line_kind = QStringLiteral("steam");
+			pipe->setProperties(data);
+			QCOMPARE(pipe->lineWidth(), 4.0);
+			QVERIFY(pipe->pipeDashes().isEmpty());
+
+				// the panel offers the kinds of the project, and the unknown one
+			PipePropertiesWidget page({pipe});
+			auto *list = page.findChild<QComboBox *>(QStringLiteral("line_kind"));
+			QVERIFY(list);
+			QCOMPARE(list->count(), 5);
+			QCOMPARE(list->itemData(3).toString(), QStringLiteral("L4"));
+			QCOMPARE(list->itemText(3), QStringLiteral("Buried"));
+			QCOMPARE(list->currentData().toString(), QStringLiteral("steam"));
+			list->setCurrentIndex(3);
+			emit list->activated(3);
+			QCOMPARE(pipe->properties().m_pipe.line_kind, QStringLiteral("L4"));
+			QCOMPARE(list->count(), 4);
+		}
+
+		void theFreeNozzleOfAJunctionIsAMainLineOfTheProject()
+		{
+			Scene scene(QStringLiteral("tee.elmt"));
+			QVERIFY(scene.fitting);
+				// no pipe: its lines are main lines, 4 wide by default
+			QCOMPARE(widthAcrossColumn(scene.render(), 32), 4);
+			PidCodification codification = scene.project.pidCodification();
+			QVERIFY(codification.setLineKind({PipeProperties::Main, QString(), 2.0,
+											  PidCodification::LinePattern::Solid}));
+			scene.project.setPidCodification(codification);
+				// 2 mm: 8 wide, to N1 as to N3
+			const QImage image = scene.render();
+			QCOMPARE(widthAcrossColumn(image, 32), 8);
+			QCOMPARE(widthAcrossRow(image, 50), 8);
+		}
+
+		void thePageSetsTheKindsOfLine()
+		{
+			QETProject project;
+			PidConfigPage page(&project);
+			auto *table = page.findChild<QTableWidget *>(QStringLiteral("line_kind_table"));
+			QVERIFY(table);
+			QCOMPARE(table->rowCount(), 3);
+				// the code and name of a kind of ISO cannot be edited
+			QVERIFY(!(table->item(0, 0)->flags() & Qt::ItemIsEditable));
+				// its width can
+			table->item(1, 2)->setText(QStringLiteral("0,7"));
+			QCOMPARE(page.findChild<QComboBox *>(QStringLiteral("line_pattern_2"))->currentData().toInt(),
+					 int(PidCodification::LinePattern::Dashes));
+				// a kind added
+			page.addLineKind();
+			QCOMPARE(table->rowCount(), 4);
+			table->item(3, 0)->setText(QStringLiteral("L4"));
+			table->item(3, 1)->setText(QStringLiteral("Buried"));
+			auto *pattern = qobject_cast<QComboBox *>(table->cellWidget(3, 3));
+			QVERIFY(pattern);
+			pattern->setCurrentIndex(pattern->findData(int(PidCodification::LinePattern::DashDot)));
+			emit pattern->activated(pattern->currentIndex());
+				// a code given twice: in orange, left out
+			page.addLineKind();
+			table->item(4, 0)->setText(QStringLiteral("L4"));
+			QVERIFY(!table->item(4, 0)->toolTip().isEmpty());
+			page.applyProjectConf();
+			const PidCodification &applied = project.pidCodification();
+			QCOMPARE(applied.line_kinds.size(), 4);
+			QCOMPARE(applied.lineKind(PipeProperties::Secondary).width, 0.7);
+			QCOMPARE(applied.lineKind(QStringLiteral("L4")).pattern, PidCodification::LinePattern::DashDot);
+			QCOMPARE(applied.lineKindName(QStringLiteral("L4")), QStringLiteral("Buried"));
+				// the page shown again from the project: the line left out gone
+			QCOMPARE(table->rowCount(), 4);
+				// a kind of ISO is never removed; one added is
+			table->clearSelection();
+			table->selectRow(0);
+			page.removeSelectedLineKinds();
+			QCOMPARE(table->rowCount(), 4);
+			table->clearSelection();
+			table->selectRow(3);
+			page.removeSelectedLineKinds();
+			QCOMPARE(table->rowCount(), 3);
+				// back to ISO
+			page.resetLineKinds();
+			page.applyProjectConf();
+			QCOMPARE(project.pidCodification().line_kinds, PidCodification::isoLineKinds());
+			project.undoStack()->undo();
+			QCOMPARE(project.pidCodification().lineKind(PipeProperties::Secondary).width, 0.7);
+			QCOMPARE(project.pidCodification().lineKindName(QStringLiteral("L4")), QStringLiteral("Buried"));
 		}
 };
 

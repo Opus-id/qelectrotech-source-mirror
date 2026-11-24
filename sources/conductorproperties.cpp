@@ -1178,8 +1178,10 @@ qreal ConductorProperties::lineWidth() const
 {
 	switch (m_medium) {
 		case TerminalData::Pipe:
-			return m_pipe.line_kind == PipeProperties::Main ? main_line_width
-															: medium_line_width;
+				//A kind added by a project: a main line, without the project
+			return m_pipe.line_kind == PipeProperties::Secondary
+					|| m_pipe.line_kind == PipeProperties::Auxiliary ? medium_line_width
+																	 : main_line_width;
 		case TerminalData::Signal:
 			return signal_line_width;
 		default:

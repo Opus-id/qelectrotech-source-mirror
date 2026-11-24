@@ -236,14 +236,13 @@ void PipePropertiesWidget::buildUi()
 	layout->addRow(PidSection::title(tr("Drawing", "section of the page of a pipe"), this));
 	m_kind = new QComboBox(this);
 	m_kind->setObjectName(QStringLiteral("line_kind"));
-	m_kind->addItem(tr("Main flow line"), int(PipeProperties::Main));
-	m_kind->addItem(tr("Secondary flow line"), int(PipeProperties::Secondary));
-	m_kind->addItem(tr("Auxiliary system line"), int(PipeProperties::Auxiliary));
+		//The kinds of line of the project, filled with the pipes shown
+		//(showKinds()): those of ISO 10628-1, then those it adds (step 8r-6)
 	layout->addRow(tr("Kind of line:"), m_kind);
 		//The same kind on the whole line, as its number: straight on through
 		//a tee, never into its branch (step 6b-1c)
 	connect(m_kind, &QComboBox::activated, this, [this](int index) {
-		const auto kind = PipeProperties::LineKind(m_kind->itemData(index).toInt());
+		const PipeProperties::LineKind kind = m_kind->itemData(index).toString();
 		const QString note = lineNote(
 					[](const PipeProperties &p) { return PipeProperties::lineKindToString(p.line_kind); },
 					PipeProperties::lineKindToString(kind), Reach::LineKind);
@@ -1447,14 +1446,28 @@ void PipePropertiesWidget::updateUi()
 	m_diameter_message->setVisible(!message.isEmpty());
 
 	const QSignalBlocker blocker(m_kind);
-	const PipeProperties::LineKind kind = list.first()->properties().m_pipe.line_kind;
+	const PipeProperties::LineKind kind = PipeProperties::lineKindToString(
+				list.first()->properties().m_pipe.line_kind);
 	bool same_kind = true;
 	for (Conductor *pipe : list) {
-		if (pipe->properties().m_pipe.line_kind != kind) {
+		if (PipeProperties::lineKindToString(pipe->properties().m_pipe.line_kind) != kind) {
 			same_kind = false;
 		}
 	}
-	m_kind->setCurrentIndex(same_kind ? m_kind->findData(int(kind)) : -1);
+		//The kinds of the project, and the one of a pipe it does not know
+	m_kind->clear();
+	const QETProject *project = list.first()->diagram() ? list.first()->diagram()->project() : nullptr;
+	const PidCodification codification = project ? project->pidCodification() : PidCodification();
+	for (const PidCodification::LineKindEntry &entry : codification.line_kinds) {
+		m_kind->addItem(codification.lineKindName(entry.code), entry.code);
+	}
+	for (Conductor *pipe : list) {
+		const QString word = PipeProperties::lineKindToString(pipe->properties().m_pipe.line_kind);
+		if (m_kind->findData(word) < 0) {
+			m_kind->addItem(tr("%1 (not in the project)", "a kind of line").arg(word), word);
+		}
+	}
+	m_kind->setCurrentIndex(same_kind ? m_kind->findData(kind) : -1);
 
 	const QSignalBlocker status_blocker(m_status);
 	const QString status = list.first()->properties().m_pipe.status;

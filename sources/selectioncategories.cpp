@@ -335,14 +335,11 @@ SelectionCategories::SelectionCategories(const QList<QGraphicsItem *> &items,
 void SelectionCategories::addPipes(const QList<QGraphicsItem *> &pipes,
 								   const PidCodification &codes)
 {
-	const QString main = PipeProperties::lineKindToString(PipeProperties::Main);
-	const QList<QPair<PipeProperties::LineKind, QString>> kinds {
-		{PipeProperties::Main,      tr("Main flow line")},
-		{PipeProperties::Secondary, tr("Secondary flow line")},
-		{PipeProperties::Auxiliary, tr("Auxiliary system line")}};
+	const QString main = PipeProperties::Main;
+		//The kinds of line of the project, in its order (step 8r-6)
 	QStringList kind_order;
-	for (const auto &kind : kinds) {
-		kind_order << PipeProperties::lineKindToString(kind.first);
+	for (const PidCodification::LineKindEntry &kind : codes.line_kinds) {
+		kind_order << kind.code;
 	}
 	const QList<QPair<PipeProperties::InsulationKind, QString>> insulation_kinds
 			= PipeProperties::insulationKinds();
@@ -386,14 +383,9 @@ void SelectionCategories::addPipes(const QList<QGraphicsItem *> &pipes,
 		 [](QGraphicsItem *item) { return typed(pipeOf(item).nominal_pressure, tr("No nominal pressure")); },
 		 QString(), {}},
 		{QStringLiteral("line_kind"), tr("By kind of line"), nullptr,
-		 [kinds](QGraphicsItem *item) {
-			const PipeProperties::LineKind kind = pipeOf(item).line_kind;
-			for (const auto &known : kinds) {
-				if (known.first == kind) {
-					return Value{PipeProperties::lineKindToString(kind), known.second};
-				}
-			}
-			return Value{PipeProperties::lineKindToString(kind), PipeProperties::lineKindToString(kind)};
+		 [&codes](QGraphicsItem *item) {
+			const QString kind = PipeProperties::lineKindToString(pipeOf(item).line_kind);
+			return Value{kind, codes.lineKindName(kind)};
 		 }, main, kind_order},
 		{QStringLiteral("status"), tr("By status of works"), nullptr,
 		 [](QGraphicsItem *item) { return statusValue(pipeOf(item).status); },
