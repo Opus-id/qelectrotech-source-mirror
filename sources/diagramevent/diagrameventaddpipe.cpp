@@ -148,6 +148,14 @@ DiagramEventAddPipe::~DiagramEventAddPipe()
 	m_start_end.clear();
 	concealFreeEnds(nullptr);
 	clearMarks();
+	showTeeMark(PidTee::Spot());
+	if (m_tee_mark) {
+		if (m_diagram && m_tee_mark->scene() == m_diagram) {
+			m_diagram->removeItem(m_tee_mark);
+		}
+		delete m_tee_mark;
+		m_tee_mark = nullptr;
+	}
 	clearSignalPreview();
 	delete m_tee_model;
 	m_tee_model = nullptr;
@@ -629,16 +637,55 @@ qreal DiagramEventAddPipe::sShapeRoom()
 	@brief DiagramEventAddPipe::facingOfFreeEnds
 	See the declaration
 */
-void DiagramEventAddPipe::facingOfFreeEnds(PipeEnd &start, PipeEnd &end, bool s_shape)
+void DiagramEventAddPipe::facingOfFreeEnds(PipeEnd &start, PipeEnd &end, bool s_shape,
+										   bool other_axis)
 {
 	if (!start.free && end.free) {
 		end.facing = freeEndFacing(start.point, start.facing, end.point, s_shape);
 	} else if (start.free && !end.free) {
 		start.facing = freeEndFacing(end.point, end.facing, start.point, s_shape);
 	} else if (start.free && end.free) {
-		start.facing = dominantFacing(start.point, end.point);
+		start.facing = other_axis ? crossFacing(start.point, end.point)
+								  : dominantFacing(start.point, end.point);
 		end.facing = freeEndFacing(start.point, start.facing, end.point, s_shape);
 	}
+}
+
+/**
+	@brief DiagramEventAddPipe::crossFacing
+	See the declaration
+*/
+Qet::Orientation DiagramEventAddPipe::crossFacing(const QPointF &from, const QPointF &to)
+{
+	const QPointF d = to - from;
+	constexpr qreal tolerance = 0.5;
+	if (Qet::isHorizontal(dominantFacing(from, to))) {
+		if (qAbs(d.y()) < tolerance) {
+			return dominantFacing(from, to);
+		}
+		return d.y() > 0 ? Qet::South : Qet::North;
+	}
+	if (qAbs(d.x()) < tolerance) {
+		return dominantFacing(from, to);
+	}
+	return d.x() > 0 ? Qet::East : Qet::West;
+}
+
+/**
+	@brief DiagramEventAddPipe::nextRoute
+	See the declaration
+*/
+void DiagramEventAddPipe::nextRoute()
+{
+	if (!m_both_free) {
+		m_s_shape = !m_s_shape;
+		return;
+	}
+		//L, L the other way, S, S the other way
+	const int route = (m_s_shape ? 2 : 0) + (m_other_axis ? 1 : 0);
+	const int next = (route + 1) % 4;
+	m_s_shape = next >= 2;
+	m_other_axis = next % 2 == 1;
 }
 
 /**
@@ -964,7 +1011,7 @@ void DiagramEventAddPipe::drawPipe(Terminal *start, const QPointF &start_point,
 					  from ? PidFreeEnd::wayOut(from) : Qet::East, !from};
 	PipeEnd end_end{to ? to->dockConductor() : end_point,
 					to ? PidFreeEnd::wayOut(to) : Qet::West, !to};
-	facingOfFreeEnds(start_end, end_end, m_s_shape);
+	facingOfFreeEnds(start_end, end_end, m_s_shape, m_other_axis);
 	const Qet::Orientation start_facing = start_end.facing;
 	const Qet::Orientation end_facing = end_end.facing;
 
@@ -1091,7 +1138,11 @@ void DiagramEventAddPipe::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 	const qreal radius = Terminal::magnetSceneRadius(event);
 
 	if (!hasStart()) {
-		hover(startNear(event->scenePos(), radius), Terminal::allowedColor);
+		Terminal *start = startNear(event->scenePos(), radius);
+		hover(start, Terminal::allowedColor);
+			//Over a pipe, the ring where a click would place a tee
+		showTeeMark(!start && PidTee::isSet(m_diagram) ? PidTee::spotAt(m_diagram, event->scenePos())
+														: PidTee::Spot());
 		return;
 	}
 	updatePreview(event->scenePos(), snaps(event), radius);
@@ -1108,6 +1159,7 @@ void DiagramEventAddPipe::updatePreview(const QPointF &scene_pos, bool snap, qre
 	m_mouse_snap = snap;
 	m_mouse_radius = radius;
 
+	showTeeMark(PidTee::Spot());
 	if (drawsSignalLine())
 	{
 			//To the signal terminal which would catch it, else to the mouse
@@ -1159,6 +1211,7 @@ void DiagramEventAddPipe::updatePreview(const QPointF &scene_pos, bool snap, qre
 		}
 	}
 	m_diagram->setConductorStop(stop);
+	showTeeMark(spot);
 		//The real route, bends included, when the end is known
 	m_diagram->setConductorRoute(previewRoute(start_point, target, spot, end_point, free_end));
 	hover(target, Terminal::allowedColor);
@@ -1305,6 +1358,7 @@ QList<QPointF> DiagramEventAddPipe::previewRoute(const QPointF &start_point, Ter
 												 const PidTee::Spot &end_spot,
 												 const QPointF &end_point, bool free_end)
 {
+	m_both_free = false;
 	const bool end_tee = !target && end_spot.isValid();
 	if (!target && !end_tee && !free_end) return {};
 	if (m_start_tee && !m_start_spot.pipe) return {};
@@ -1335,7 +1389,8 @@ QList<QPointF> DiagramEventAddPipe::previewRoute(const QPointF &start_point, Ter
 	}
 	if (QLineF(start.point, end.point).length() < 0.5) return {};
 
-	facingOfFreeEnds(start, end, m_s_shape);
+	m_both_free = start.free && end.free;
+	facingOfFreeEnds(start, end, m_s_shape, m_other_axis);
 	QList<QPointF> route = Conductor::defaultRoute(start.point, start.facing, end.point, end.facing,
 												   PipeConnection::pipeExit);
 		//The tee is not drawn: the line goes on, straight, to the pipe it cuts
@@ -1401,7 +1456,7 @@ void DiagramEventAddPipe::keyPressEvent(QKeyEvent *event)
 	{
 			//A signal line has no free end to turn the route of
 		if (hasStart() && !drawsSignalLine()) {
-			m_s_shape = !m_s_shape;
+			nextRoute();
 			updatePreview(m_mouse_pos, m_mouse_snap, m_mouse_radius);
 			showHint();
 		}
@@ -1474,6 +1529,7 @@ void DiagramEventAddPipe::reset()
 	m_tee_arm = -1;
 	delete m_tee_model;
 	m_tee_model = nullptr;
+	showTeeMark(PidTee::Spot());
 	showHint();
 }
 
@@ -1505,6 +1561,47 @@ void DiagramEventAddPipe::clearMarks()
 		delete mark;
 	}
 	m_marks.clear();
+}
+
+/**
+	@brief DiagramEventAddPipe::showTeeMark
+	See the declaration
+*/
+void DiagramEventAddPipe::showTeeMark(const PidTee::Spot &spot)
+{
+	if (!m_diagram) return;
+	if (!spot.isValid()) {
+		if (m_tee_mark) {
+			m_tee_mark->hide();
+		}
+		return;
+	}
+	if (!m_tee_mark)
+	{
+		m_tee_mark = new QGraphicsEllipseItem(-mark_radius, -mark_radius, 2 * mark_radius, 2 * mark_radius);
+		QPen pen(Terminal::stemColor(TerminalData::Pipe));
+		pen.setCosmetic(true);
+		pen.setWidthF(1.5);
+		m_tee_mark->setPen(pen);
+		m_tee_mark->setBrush(Qt::NoBrush);
+		m_tee_mark->setFlag(QGraphicsItem::ItemIgnoresTransformations);
+		m_tee_mark->setAcceptedMouseButtons(Qt::NoButton);
+		m_tee_mark->setZValue(1000.0);
+	}
+	if (m_tee_mark->scene() != m_diagram) {
+		m_diagram->addItem(m_tee_mark);
+	}
+	m_tee_mark->setPos(spot.point);
+	m_tee_mark->show();
+}
+
+/**
+	@brief DiagramEventAddPipe::teeMarkAt
+	See the declaration
+*/
+QPointF DiagramEventAddPipe::teeMarkAt() const
+{
+	return m_tee_mark && m_tee_mark->isVisible() && m_tee_mark->scene() ? m_tee_mark->pos() : QPointF();
 }
 
 /**
@@ -1614,7 +1711,13 @@ void DiagramEventAddPipe::showHint(const QString &message) const
 			"right click or Esc: quit the tool", "pipe drawing tool"));
 	}
 		//A free end may end the pipe: Space turns its route the other way
-	if (message.isEmpty() && hasStart() && !drawsSignalLine() && free_end) {
+	if (message.isEmpty() && hasStart() && !drawsSignalLine() && free_end && m_both_free) {
+			//Between two empty places, four routes in turn (step 8r-5)
+		const QStringList routes{tr("in L", "route of a pipe"), tr("in L, the other way", "route of a pipe"),
+								 tr("in S", "route of a pipe"), tr("in S, the other way", "route of a pipe")};
+		text += QStringLiteral("; ") + tr("Space: next route (now %1)", "pipe drawing tool")
+				.arg(routes.at((m_s_shape ? 2 : 0) + (m_other_axis ? 1 : 0)));
+	} else if (message.isEmpty() && hasStart() && !drawsSignalLine() && free_end) {
 		text += QStringLiteral("; ") + (m_s_shape ? tr("Space: route in L", "pipe drawing tool")
 												  : tr("Space: route in S", "pipe drawing tool"));
 	}

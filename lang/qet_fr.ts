@@ -5238,6 +5238,31 @@ Continuer ?</translation>
         <translation>Espace : tracé en S</translation>
     </message>
     <message>
+        <source>Space: next route (now %1)</source>
+        <comment>pipe drawing tool</comment>
+        <translation>Espace : tracé suivant (ici %1)</translation>
+    </message>
+    <message>
+        <source>in L</source>
+        <comment>route of a pipe</comment>
+        <translation>en L</translation>
+    </message>
+    <message>
+        <source>in L, the other way</source>
+        <comment>route of a pipe</comment>
+        <translation>en L, dans l&apos;autre sens</translation>
+    </message>
+    <message>
+        <source>in S</source>
+        <comment>route of a pipe</comment>
+        <translation>en S</translation>
+    </message>
+    <message>
+        <source>in S, the other way</source>
+        <comment>route of a pipe</comment>
+        <translation>en S, dans l&apos;autre sens</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramevent/diagrameventaddpipe.cpp" line="495"/>
         <source>A signal line ends at a signal terminal: not on a pipe, a wire nor another line.</source>
         <comment>pipe drawing tool</comment>

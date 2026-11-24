@@ -613,6 +613,71 @@ class tst_pipetool : public QObject
 			QVERIFY(!m_tool->sShape());
 		}
 
+			// Step 8r-5 (a): between two empty places, Space turns among four
+			// routes: L along the longer way, L along the other, S, S the other
+			// way; from a nozzle, whose way is fixed, L and S only
+		void spaceTurnsAmongFourRoutesBetweenEmptyPlaces()
+		{
+			const QPointF o(0, 0);
+			QCOMPARE(DiagramEventAddPipe::crossFacing(o, QPointF(100, 50)), Qet::South);
+			QCOMPARE(DiagramEventAddPipe::crossFacing(o, QPointF(100, -50)), Qet::North);
+			QCOMPARE(DiagramEventAddPipe::crossFacing(o, QPointF(30, 50)), Qet::East);
+			QCOMPARE(DiagramEventAddPipe::crossFacing(o, QPointF(-30, 50)), Qet::West);
+				// on a line: the longer way
+			QCOMPARE(DiagramEventAddPipe::crossFacing(o, QPointF(100, 0)), Qet::East);
+			using End = DiagramEventAddPipe::PipeEnd;
+			End a{o, Qet::East, true}, b{QPointF(200, 100), Qet::West, true};
+			DiagramEventAddPipe::facingOfFreeEnds(a, b, false, true);
+			QCOMPARE(a.facing, Qet::South);
+			QCOMPARE(b.facing, Qet::West);
+			DiagramEventAddPipe::facingOfFreeEnds(a, b, false, false);
+			QCOMPARE(a.facing, Qet::East);
+
+			setFreeEnd(freeEndPath());
+			m_next_y += 200;
+			const QPointF from = Diagram::snapToGrid(QPointF(400, m_next_y));
+			const QPointF to = Diagram::snapToGrid(QPointF(600, m_next_y + 100));
+			click(from);
+			move(to);
+			QList<QPainterPath> routes{m_folio->conductorRoute()};
+			const QList<QPair<bool, bool>> states{{false, true}, {true, false}, {true, true}, {false, false}};
+			for (const auto &state : states) {
+				key(Qt::Key_Space);
+				QCOMPARE(m_tool->sShape(), state.first);
+				QCOMPARE(m_tool->otherAxis(), state.second);
+				routes << m_folio->conductorRoute();
+			}
+				// four routes, then the first again
+			for (int i = 0 ; i < 4 ; ++i) {
+				for (int j = i + 1 ; j < 4 ; ++j) {
+					QVERIFY2(routes.at(i) != routes.at(j), qPrintable(QStringLiteral("%1 %2").arg(i).arg(j)));
+				}
+			}
+			QCOMPARE(routes.at(4), routes.at(0));
+				// the route chosen is the one placed: L the other way
+			key(Qt::Key_Space);
+			const QPainterPath chosen = m_folio->conductorRoute();
+			click(to);
+			Element *start = freeEndAt(from);
+			QVERIFY(start);
+			QVERIFY(sameRoute(pointsOf(chosen), start->terminals().first()->conductors().first()));
+			QCOMPARE(start->terminals().first()->orientation(), Qet::South);
+
+				// from a nozzle: L and S, never the other way
+			m_tool->setSShape(false);
+			m_tool->setOtherAxis(false);
+			const auto ends = row(m_pipe, m_pipe);
+			click(nearBelow(ends.first->terminals().at(1)));
+			move(QPointF(150, m_next_y + 100));
+			key(Qt::Key_Space);
+			QVERIFY(m_tool->sShape());
+			QVERIFY(!m_tool->otherAxis());
+			key(Qt::Key_Space);
+			QVERIFY(!m_tool->sShape());
+			QVERIFY(!m_tool->otherAxis());
+			key(Qt::Key_Escape);
+		}
+
 			// Step 5l-1p-ter: while the tool runs, the view keeps Space for it:
 			// never the shortcut which rotates the selection
 		void theViewKeepsSpaceForTheTool()

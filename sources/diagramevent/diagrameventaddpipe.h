@@ -199,14 +199,28 @@ class DiagramEventAddPipe : public DiagramEventInterface
 			/// nozzles face, for a pipe from @p start to @p end: what the tool
 			/// places and what it shows before (one rule for both). A nozzle
 			/// or a tee keeps its way. @p s_shape: a route in S where a free
-			/// end decides it, else in L
-		static void facingOfFreeEnds(PipeEnd &start, PipeEnd &end, bool s_shape);
+			/// end decides it, else in L. Both ends free: the pipe leaves its
+			/// start along the longer way (dominantFacing()), or with
+			/// @p other_axis along the other one (step 8r-5)
+		static void facingOfFreeEnds(PipeEnd &start, PipeEnd &end, bool s_shape,
+									 bool other_axis = false);
+			/// The way from @p from to @p to across the longer one
+			/// (dominantFacing()); the longer one when they are on a line
+		static Qet::Orientation crossFacing(const QPointF &from, const QPointF &to);
 
 			/// Whether the next pipes take a route in S (two bends) rather than
 			/// in L (one bend) where a free end decides it; kept while the tool
 			/// runs, in L again the next time
 		bool sShape() const { return m_s_shape; }
 		void setSShape(bool s_shape) { m_s_shape = s_shape; }
+			/// Whether a pipe between two empty places leaves its start along
+			/// the shorter way (facingOfFreeEnds()); kept as sShape()
+		bool otherAxis() const { return m_other_axis; }
+		void setOtherAxis(bool other_axis) { m_other_axis = other_axis; }
+			/// Space: the next route. Between two empty places the four of
+			/// them in turn: L along the longer way first, L along the other,
+			/// S along the longer, S along the other; else L and S
+		void nextRoute();
 
 			/// Within this angle of an axis of its start, in degrees, the end
 			/// of the pipe being drawn snaps onto it (5l-1p-bis)
@@ -229,6 +243,9 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		void reset();
 		void refreshMarks();
 		void clearMarks();
+			/// A ring where the tee would go, as the rings of the free
+			/// nozzles, when @p spot is one (step 8r-5); none else
+		void showTeeMark(const PidTee::Spot &spot);
 		void hover(Terminal *terminal, const QColor &color);
 		void finishAt(Terminal *target, bool snap = true);
 		void startAtPoint(const QPointF &scene_pos);
@@ -303,6 +320,11 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		qreal m_tee_arm = -1;
 			/// A route in S rather than in L (sShape())
 		bool m_s_shape = false;
+			/// The pipe between two empty places leaves along the shorter way
+		bool m_other_axis = false;
+			/// The last preview went from an empty place to another: Space
+			/// then turns among four routes (nextRoute())
+		bool m_both_free = false;
 			/// The symbol of tee of the project, never placed: where its
 			/// nozzles would go, for the preview (teeWayOut()); built once
 			/// per pipe
@@ -314,6 +336,13 @@ class DiagramEventAddPipe : public DiagramEventInterface
 		qreal m_mouse_radius = 0;
 		QPointer<Terminal> m_hovered;
 		QList<QGraphicsEllipseItem *> m_marks;
+			/// The ring of showTeeMark(), shown or not
+		QGraphicsEllipseItem *m_tee_mark = nullptr;
+	public:
+			/// Where the ring of the tee is shown, a null point when hidden
+			/// (for the tests)
+		QPointF teeMarkAt() const;
+	private:
 			/// How many of the marks are around signal terminals
 		int m_signal_marks = 0;
 			/// The type of the next signal lines (signalType())

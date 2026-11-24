@@ -728,6 +728,47 @@ class tst_pipetee : public QObject
 			QVERIFY(sameRoute(route2, pipeOn(free_end->terminals().first())));
 		}
 
+			// Step 8r-5 (b): over a pipe, a ring where the tee would go, before
+			// the first click and while a pipe is drawn; none elsewhere
+		void aRingShowsWhereTheTeeGoes()
+		{
+			const Line l = line();
+			startTool();
+			const QPointF on_pipe(100, l.y + 2);
+			mouse(QEvent::GraphicsSceneMouseMove, on_pipe, Qt::NoButton, Qt::NoButton);
+			const QPointF ring = m_tool->teeMarkAt();
+			QVERIFY(!ring.isNull());
+			QVERIFY2(qAbs(ring.y() - nozzle(l.a, "N2")->dockConductor().y()) < 0.5,
+					 qPrintable(QString::number(ring.y())));
+			mouse(QEvent::GraphicsSceneMouseMove, QPointF(100, l.y + 150), Qt::NoButton, Qt::NoButton);
+			QVERIFY(m_tool->teeMarkAt().isNull());
+
+				// while a pipe is drawn: the ring where its tee goes
+			Element *c = place(m_pipe, QPointF(250, l.y - 200));
+			Terminal *from = nozzle(c, "N2");
+			click(from->dockConductor() + QPointF(0, -5));
+			QVERIFY(m_tool->teeMarkAt().isNull());
+			mouse(QEvent::GraphicsSceneMouseMove, on_pipe, Qt::NoButton, Qt::NoButton);
+			const QPointF ring2 = m_tool->teeMarkAt();
+			QVERIFY(!ring2.isNull());
+			const QSet<Element *> before = elements();
+			click(on_pipe);
+			Element *tee = nullptr, *free_end = nullptr;
+			addedTeeAndFreeEnd(before, &tee, &free_end);
+			QVERIFY(tee);
+			QVERIFY2(QLineF(ring2, PidTee::middleOf(tee)).length() < 0.5,
+					 qPrintable(QStringLiteral("%1 %2").arg(ring2.x()).arg(PidTee::middleOf(tee).x())));
+				// the pipe placed: gone
+			QVERIFY(m_tool->teeMarkAt().isNull());
+
+				// no tee in the project: no ring
+			setToolSymbol(PidCodification::teeRole(), QString());
+			stopTool();
+			startTool();
+			mouse(QEvent::GraphicsSceneMouseMove, on_pipe, Qt::NoButton, Qt::NoButton);
+			QVERIFY(m_tool->teeMarkAt().isNull());
+		}
+
 			// Step 5l-1p-ter (e): a drag from a nozzle, outside the tool,
 			// shows the route of the pipe it draws, to a tee or to a nozzle;
 			// the straight line where it draws none, and for a wire
