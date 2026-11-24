@@ -137,7 +137,8 @@ line.*
   injection point). The line number and the kind of line (main,
   secondary, auxiliary) go as the fluid, but through a tee or a cross only
   straight on, never into or out of the branch. The flow stops at every
-  junction: a tee, a cross, an injection point. A new pipe takes what the
+  junction: a tee, a cross, an injection point. The insulation goes as the
+  fluid, but stops at an insulation limit too. A new pipe takes what the
   line it joins has; the branch of a tee starts as a main line.
 - **A codification per project**: *Project > Import a P&ID codification*
   reads the codes of the fluids and materials from a CSV file the company
@@ -194,7 +195,9 @@ line.*
   leaves each of its pipes on the free end of the project, where its
   nozzle was, route and data kept (without a free end set, its pipes go
   with it). A pipe picked along with the symbol goes as asked. A free end
-  left alone by a deletion is removed too. One undo step.
+  left alone by a deletion is removed too. An end of a line (an arrow, a
+  vent, an off-page connector, a battery limit) deleted alone leaves its
+  pipe on the free end of the project. One undo step.
 - A pipe is picked over its drawn width, a little more when hovered.
 - **Crossings**: the hops of the project (off by default) may let the
   thinner of two crossing lines give way (`hop="thinner"`; the vertical
@@ -218,13 +221,18 @@ line.*
 - **Insulation and heat tracing** (the *Insulation* row of the page of a
   pipe): none, insulation, heat tracing, or both, with a free text
   (`Q 80`) the designation writes by `{insulation}`, and a box *Hatched
-  mark in the middle*. Each pipe has its own, never passed on. A short
+  mark in the middle*. Chosen on a pipe, they go to the whole line, in
+  one undo step: through valves, reducers, tees (branch included), spec
+  breaks and flow arrows, up to an insulation limit or equipment; a
+  message tells how many other pipes changed. A new pipe (a branch drawn
+  from a tee) takes the insulation of its line, as its fluid. A short
   stub is drawn where the insulated part of the line begins and ends: at
-  equipment, a free end, an insulation limit, or a valve or tee beyond
-  which the pipe is not insulated the same way; nothing at a valve or a
-  tee between two pipes alike. Insulation: two lines either side of the
-  pipe, hatched; heat tracing: a dashed line beside it; both: the dashed
-  line in the hatched band. The length of the stubs (8 mm) and their
+  equipment, a free end, an insulation limit (from its line across the
+  pipe), or a valve or tee beyond which the pipe is not insulated the same
+  way; nothing at a valve or a tee between two pipes alike. Insulation:
+  two lines either side of the pipe, hatched; heat tracing: a dashed line
+  beside it, always on the same side of the sheet, below a horizontal pipe
+  and right of a vertical one; both: the dashed line in the hatched band. The length of the stubs (8 mm) and their
   colours (none: that of the pipe) are settings of the project (*P&ID*
   page, *Colors* tab; CSV lines `text_option;insulation_stub;8`,
   `object_color;insulation;#rrggbb`, `object_color;tracing;#rrggbb`).
@@ -232,9 +240,74 @@ line.*
   designation as it reads, its text on the other side of the pipe. An
   insulation limit (a symbol of `pid_role` = `insulation_limit`, a short
   line across the pipe) cuts a line where its insulation stops; the data
-  of the line go through it, each side keeps its own insulation. On the
+  of the line go through it, each side keeps its own insulation. Deleted,
+  it no longer stops it: the insulated side gives its insulation to the
+  whole line joined again (that of its N1 side when both are insulated,
+  and a message says so). On the
   screen, on paper and in a PDF. *Select by criteria* finds the pipes by
   insulation and by its text.
+- **Flow arrow** (a symbol of `pid_role` = `flow_arrow`, an open chevron):
+  placed on a pipe as a valve, it is a mark on the line; the pipe is drawn
+  through it and nothing stops there.
+- **Direction of flow, found from the symbols**, never typed nor saved: the
+  nozzles of flow arrows, check valves, pumps (and compressors) and the
+  arrows of arrival and departure say where the fluid comes in and goes
+  out (`pid_flow_role`). The direction goes through valves, reducers and
+  symbols that touch, and through a chamber of two nozzles of an equipment
+  (a side of a heat exchanger, `pid_chamber`), never through a vessel; it
+  stops at other equipment. At a tee or a cross: when all the other
+  nozzles come in, the last one goes out, and the reverse. An arrow of both
+  ways (`both`) is for a line used both ways in turn (a closed sand filter
+  washed backwards). The page of the pipe and its tool tip tell it: *from
+  PC-01 (N2) to VC-03 (N1)*, *both ways*, *unknown*, or *disagreement
+  (FL-01, CV-02)*. Pipes only.
+- **Disagreement**: when two sources of a line do not go the same way (an
+  arrow against a check valve, a tee where everything comes in), each
+  symbol in cause gets an orange disc of 4 mm at its centre, on the screen
+  only, and its tool tip names the sources against it.
+- **Reverse the direction of the line** (context menu of a pipe or of a
+  flow arrow): the flow arrows of the line are mirrored at once, each on
+  the axis of its pipes, in one undo step; check valves, pumps and the
+  arrow of both ways are never turned, and the command is offered only
+  when the arrows then agree with them. On a line in disagreement it goes
+  into a **Correct** submenu, with *Align the arrows of the line on this
+  one* and *Reverse this arrow* on a flow arrow. *Correct* holds the
+  proposals for what is signalled: nothing is ever done unasked, one undo
+  step each.
+- **Arrival and departure arrows** mark the limits of the drawing for the
+  main fluids (raw water coming in, treated water going out): an arrow
+  with a tail, pointing the way of the flow, the pipe leaving its point
+  for an arrival, ending at its tail for a departure. They give the
+  direction of their line, as a pump, and are never turned by *Reverse*
+  or *Correct*. A text of origin or destination is written under the arrow
+  (the *Comment* section, below). They are not folio references.
+- **Off-page connectors of a pipe**: a line going on another folio ends on
+  a folio report of QElectroTech (`next_report` / `previous_report`) whose
+  terminal is a nozzle, drawn as a cartouche pointing the way of the flow,
+  its text inside: the service (`%{comment}`), *to* or *from* and the tag
+  on the other side (`%{notes}`, typed), and the place of its twin, written
+  by the formula of folio references of the project (`(folio %f)` for a
+  P&ID). They are linked, and jump to each other, as any folio report. A
+  line coming from or going to another supply (the client, another lot)
+  ends on a **battery limit** instead: the same cartouche, a plain symbol
+  with no twin. Linking two of them asks nothing of the potential: a
+  pipe has none.
+- **Each side of an off-page connector keeps the data of its own pipe**;
+  nothing goes through it. They are compared: when they differ (size,
+  material, piping class, nominal pressure, fluid, line number, kind of
+  line, insulation, flow, status of works; filled on one side and empty on
+  the other counts), or when the connector has no twin, an orange veil
+  covers its cartouche, on the screen only, and its tool tip says why. The
+  pipe of the twin is read from the project database when its folio is not
+  built: nothing is built to compare. A battery limit is never marked.
+- **Copy from the other side** (context menu of an off-page connector in
+  disagreement, *Correct*): the pipe of the connector, on this folio, takes
+  the data of the other side which are filled there and differ here, each
+  as far as when typed on the page of the pipe (the material up to a spec
+  break, the size up to a reducer, the status on this pipe only), in one
+  undo step; what is filled here is never emptied, and a size which is not
+  one of the material of the pipe is not copied. The status bar tells what
+  was copied. The folio of the twin is not built.
 - **Select by criteria…** (*Edit* menu, context menu of the folio): a
   window that stays open beside the folio, with a tree of boxes: symbols
   by family, symbol, functional unit or status; pipes by size, fluid,
@@ -536,6 +609,19 @@ line.*
   A Ctrl+click on the text of a line adds it to the selection, or takes
   it out, as on the other texts (a Ctrl+drag still places it off the
   grid).
+- **A *Comment* section** in the *P&ID* tab of a symbol which shows its
+  comment (an arrow of arrival or departure, an off-page connector): a
+  field of several lines (Enter starts a new line, Tab goes on), applied
+  when it is left, the same as *Comment* in the *Information* tab; an
+  off-page connector adds *Tag on the other side*. One undo step. QElectroTech
+  now replaces `%{notes}` and the other fields added lately to the
+  information of an element in a composed text. *Change type* adds to
+  the symbol the texts of the new one it lacks.
+- **Thumbnails**: in the collection, the thumbnail of a P&ID symbol is
+  square and framed on its drawing; the ends of a line show a short pipe
+  at their nozzle, which tells an arrival from a departure.
+- The entries the fork adds to the context menu have icons, following the
+  rules of QElectroTech (`ico/README.md`).
 - **Create similar**: right-click a placed symbol, *Create similar* starts
   the usual placement mode with the same symbol, options, status of works
   and rotation. Device information is not copied; a P&ID tag takes the
@@ -612,7 +698,10 @@ QElectroTech are saved byte for byte as by master.
 
 ## What is missing
 
-- Flow direction; the kind of a heat tracing (electrical, steam...).
+- The direction of flow as data (a property of the line, checked against
+  the symbols); the kind of a heat tracing (electrical, steam...).
+- Off-page connectors of signal lines; the tag on the other side found by
+  itself; *Copy to the other side*.
 - A signal line ending in an empty place, or taken from a pipe where it
   has no symbol (an instrument tap, a junction, is placed on the pipe for
   now); equipment data tables.
