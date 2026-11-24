@@ -259,6 +259,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidtraversal.cpp
   ${QET_DIR}/sources/pidflow.h
   ${QET_DIR}/sources/pidflow.cpp
+  ${QET_DIR}/sources/pidoffpage.h
+  ${QET_DIR}/sources/pidoffpage.cpp
   ${QET_DIR}/sources/pidsection.h
   ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/pipeproperties.h

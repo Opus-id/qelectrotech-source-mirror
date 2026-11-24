@@ -5428,6 +5428,81 @@ Continuer ?</translation>
     </message>
 </context>
 <context>
+    <name>PidOffPage</name>
+    <message>
+        <source>nothing</source>
+        <translation>rien</translation>
+    </message>
+    <message>
+        <source>secondary flow line</source>
+        <translation>ligne secondaire</translation>
+    </message>
+    <message>
+        <source>auxiliary system line</source>
+        <translation>ligne auxiliaire</translation>
+    </message>
+    <message>
+        <source>main flow line</source>
+        <translation>ligne principale</translation>
+    </message>
+    <message>
+        <source>%1: %2 here, %3 on the other side</source>
+        <translation>%1 : %2 ici, %3 en face</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Taille</translation>
+    </message>
+    <message>
+        <source>Material</source>
+        <translation>Matériau</translation>
+    </message>
+    <message>
+        <source>Piping class</source>
+        <translation>Classe de tuyauterie</translation>
+    </message>
+    <message>
+        <source>Nominal pressure</source>
+        <translation>Pression nominale</translation>
+    </message>
+    <message>
+        <source>Fluid</source>
+        <translation>Fluide</translation>
+    </message>
+    <message>
+        <source>Line number</source>
+        <translation>Numéro de ligne</translation>
+    </message>
+    <message>
+        <source>Kind of line</source>
+        <translation>Type de ligne</translation>
+    </message>
+    <message>
+        <source>Insulation</source>
+        <translation>Calorifuge</translation>
+    </message>
+    <message>
+        <source>Insulation text</source>
+        <translation>Texte du calorifuge</translation>
+    </message>
+    <message>
+        <source>Flow</source>
+        <translation>Débit</translation>
+    </message>
+    <message>
+        <source>Status of works</source>
+        <translation>Statut de travaux</translation>
+    </message>
+    <message>
+        <source>Off-page connector without a twin: no off-page connector of another folio is linked to it. A battery limit has a symbol of its own.</source>
+        <translation>Renvoi sans jumeau : aucun renvoi d&apos;un autre folio ne lui est lié. Une limite de fourniture a son propre symbole.</translation>
+    </message>
+    <message>
+        <source>Its pipe differs from that of the off-page connector it is linked to:</source>
+        <translation>Sa tuyauterie diffère de celle du renvoi d&apos;en face :</translation>
+    </message>
+</context>
+<context>
     <name>PidProcessConnection</name>
     <message>
         <location filename="../sources/pidprocessconnection.cpp" line="40"/>

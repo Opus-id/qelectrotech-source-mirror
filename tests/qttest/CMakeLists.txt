@@ -717,6 +717,10 @@ qet_add_app_test(tst_flowarrow tst_flowarrow.cpp)
 # the nozzles (pid_flow), through valves, reducers and tees, never written;
 # a disagreement said; the page of a pipe.
 qet_add_app_test(tst_pipeflow tst_pipeflow.cpp)
+# The off-page connectors of a pipe (step 8c-3): an orange veil and its tool
+# tip when the pipes of a pair differ, or when a connector has no twin; the
+# twin's pipe read from the project database while its folio is not built.
+qet_add_app_test(tst_pidoffpage tst_pidoffpage.cpp)
 # Which mark the signal lines of each type of signal take: a setting of the
 # project, nothing written by default; its file, the CSV files, the P&ID page.
 qet_add_app_test(tst_signalmarksettings tst_signalmarksettings.cpp)

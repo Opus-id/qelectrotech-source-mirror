@@ -28,7 +28,13 @@ ReportElement::ReportElement(const ElementsLocation &location, const QString& li
 	Element(location, qgi, state,
 			link_type == "next_report"? Element::NextReport : Element::PreviousReport),
 	m_inverse_report(link_type == "next_report"? Element::PreviousReport : Element::NextReport)
-{}
+{
+		//A pipe off-page connector draws its veil by its twin (PidOffPage)
+	connect(this, &Element::linkedElementChanged, this, [this]() {
+		m_pid_twin = PidTwin();
+		update();
+	});
+}
 
 /**
 	@brief ReportElement::~ReportElement
@@ -36,6 +42,7 @@ ReportElement::ReportElement(const ElementsLocation &location, const QString& li
 */
 ReportElement::~ReportElement()
 {
+	disconnect(this, &Element::linkedElementChanged, this, nullptr);
 	unlinkAllElements();
 	if (terminals().size())
 		disconnect(terminals().first(), nullptr, nullptr, nullptr);

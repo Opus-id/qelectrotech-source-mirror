@@ -39,9 +39,22 @@ class ReportElement : public Element
 		void linkToElement(Element *) override;
 		void unlinkAllElements() override;
 		void unlinkElement(Element *elmt) override;
-		
+
+			/// What PidOffPage (step 8c-3) keeps of the twin of a pipe
+			/// off-page connector not linked yet, between two paintings:
+			/// the twin the project database names, and the wires at a
+			/// twin on a folio not built. Forgotten when its link changes.
+		struct PidTwin {
+			bool known = false;
+			QUuid uuid;
+			QUuid wires_of;
+			QList<QUuid> wires;
+		};
+		PidTwin &pidTwin() const { return m_pid_twin; }
+
 	private:
 		int m_inverse_report;
+		mutable PidTwin m_pid_twin;
 };
 
 #endif // REPORTELEMENT_H

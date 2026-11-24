@@ -8726,6 +8726,26 @@ QList<std::pair<QUuid, int>> projectDataBase::linkRowsOf(const QUuid &element) c
 }
 
 /**
+	@brief projectDataBase::conductorsAt
+	@return the wires with an end on the symbol @p element, from the
+	conductor table, in their order: the wires of the folios not built
+	(lazy folios) too, whose properties the database keeps
+	(conductorProperties())
+*/
+QList<QUuid> projectDataBase::conductorsAt(const QUuid &element) const
+{
+	QList<QUuid> wires;
+	QSqlQuery query(m_data_base);
+	query.prepare(QStringLiteral("SELECT uuid FROM conductor WHERE terminal1_element_uuid = :uuid "
+								 "OR terminal2_element_uuid = :uuid ORDER BY rowid"));
+	query.bindValue(QStringLiteral(":uuid"), element.toString());
+	if (query.exec())
+		while (query.next())
+			wires << QUuid(query.value(0).toString());
+	return wires;
+}
+
+/**
 	@brief projectDataBase::partnersToLink
 	@return the partners a symbol built links to (Element::initLink()): its
 	link rows, in their order, then the symbols whose rows name it (no

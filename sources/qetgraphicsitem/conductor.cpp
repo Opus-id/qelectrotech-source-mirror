@@ -45,6 +45,7 @@
 #include <pidflow.h>
 #include <pidlinedesignation.h>
 #include <pidinsulation.h>
+#include <pidoffpage.h>
 #include <shownkinds.h>
 #include <factory/elementpicturefactory.h>
 #include <leaderline.h>
@@ -4758,6 +4759,8 @@ void Conductor::updateFittings() const
 				pipe->update();
 			}
 		}
+			//An off-page connector and its twin compare their pipes (8c-3)
+		PidOffPage::refresh(element);
 	}
 }
 

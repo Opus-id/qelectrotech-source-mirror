@@ -30,6 +30,7 @@
 #include <elementsmover.h>
 #include <pidflow.h>
 #include <pidnozzlemagnet.h>
+#include <pidoffpage.h>
 #include <pidtooltip.h>
 #include <pidtraversal.h>
 #include <qetpalette.h>
@@ -1543,6 +1544,7 @@ void Element::paint(
 		drawFreeNozzles(painter);
 	}
 	drawFlowDisagreement(painter);
+	PidOffPage::drawVeil(this, painter);
 
 		//Draw the selection rectangle
 	if ( isSelected() || m_mouse_over ) {
@@ -4267,8 +4269,9 @@ void Element::hoverEnterEvent(QGraphicsSceneHoverEvent *e)
 	}
 
 	m_mouse_over = true;
-		//What its orange disc says (drawFlowDisagreement())
-	const QStringList disagreements = flowDisagreements();
+		//What its orange disc says (drawFlowDisagreement()), and the veil
+		//of a pipe off-page connector (PidOffPage::drawVeil())
+	const QStringList disagreements = flowDisagreements() + PidOffPage::warnings(this);
 	if (disagreements.isEmpty()) {
 		setToolTip(name());
 	} else {

@@ -426,6 +426,9 @@ class projectDataBase : public QObject
 		void forgetLinks() {m_holds_links = false;}
 		QList<std::pair<QUuid, int>> partnersToLink(const QUuid &element);
 		QList<std::pair<QUuid, int>> linkRowsOf(const QUuid &element) const;
+			//The wires with an end on a symbol, from the conductor table:
+			//those of the folios not built too (PidOffPage, step 8c-3)
+		QList<QUuid> conductorsAt(const QUuid &element) const;
 		QSet<QUuid> waitingPartners(const QUuid &element, const QSet<QUuid> &waiting);
 		QSet<QUuid> waitingSymbols() const;
 		QSet<QUuid> unbuiltSymbols() const;
