@@ -1088,6 +1088,53 @@ bool Element::followsPipes() const
 }
 
 /**
+	@brief Element::takesPipeInk
+	See the declaration
+*/
+bool Element::takesPipeInk() const
+{
+	if (followsPipes()) {
+		return true;
+	}
+	if (m_data.m_pid_family.isEmpty()) {
+		return false;
+	}
+	const Diagram *folio = diagram();
+	const QETProject *project = folio ? folio->project() : m_location.project();
+	return project && project->pidCodification().followsPipes(m_data.m_pid_family);
+}
+
+/**
+	@brief Element::agreedPipeColor
+	See the declaration. A pipe without a colour (drawn in black) agrees
+	with none: the symbol keeps that of its family.
+*/
+QColor Element::agreedPipeColor() const
+{
+	QColor agreed;
+	bool any = false;
+	for (const Terminal *terminal : m_terminals)
+	{
+		if (terminal->medium() != TerminalData::Pipe) {
+			continue;
+		}
+		for (const Conductor *conductor : terminal->conductors())
+		{
+			if (conductor->medium() != TerminalData::Pipe) {
+				continue;
+			}
+			const QColor color = conductor->pipeColor();
+			if (!color.isValid() || (any && color != agreed)) {
+				return QColor();
+			}
+			agreed = color;
+			any = true;
+		}
+	}
+	return agreed;
+}
+
+/**
 	@brief Element::leadingPipe
 	@return the pipe on the first nozzle of this element that has one, by
 	name: N1, else N2, else N3. Through a tee this is the run, the branch on
@@ -1171,8 +1218,9 @@ QColor Element::statusInk() const
 	@param family : its family of objects, see ElementData::m_pid_family
 	@return what to draw the symbol with: the options chosen, and the colour
 	the project sets for the status of works of this element, else that of
-	the pipe of a fitting (inkingPipe()), else that of @p family, unless the
-	folio is drawn in black
+	the pipe of a fitting (inkingPipe()), or of the pipes of a valve or of an
+	instrument which agree (agreedPipeColor(), when the project says so),
+	else that of @p family, unless the folio is drawn in black
 */
 ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 											   const QString &family) const
@@ -1195,6 +1243,10 @@ ElementOptions::Choices Element::inkedChoices(const ElementOptions &options,
 		if (const Conductor *pipe = inkingPipe()) {
 			ink = pipe->pipeColor();
 		}
+	}
+		//A valve, an instrument on a line: the colour its pipes agree on
+	if (!ink.isValid() && codification.followsPipes(family)) {
+		ink = agreedPipeColor();
 	}
 	if (!ink.isValid()) {
 		ink = codification.object_colors.value(family);

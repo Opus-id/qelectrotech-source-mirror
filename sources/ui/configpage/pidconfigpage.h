@@ -210,6 +210,9 @@ class PidConfigPage : public ProjectConfigPage
 		QComboBox *m_vertical_texts = nullptr;
 			/// The length of the insulation stubs, in mm (step 7d)
 		QDoubleSpinBox *m_insulation_stub = nullptr;
+			/// The valves and the instruments on a line take the colour of
+			/// their pipes (PidCodification::symbols_follow_pipes, step 8r-2)
+		QCheckBox *m_symbols_follow_pipes = nullptr;
 
 		QTabWidget *m_code_tabs = nullptr;
 		QMap<PidCodification::List, QTableWidget *> m_code_tables;

@@ -671,6 +671,12 @@ void PidConfigPage::initWidgets()
 											 "the insulated part of a line begins and ends, and the mark in the "
 											 "middle of a pipe which asks for one.")));
 	connect(m_insulation_stub, &QDoubleSpinBox::valueChanged, this, &PidConfigPage::readTextWidgets);
+	m_symbols_follow_pipes = new QCheckBox(tr("Valves and instruments on a line take the color of their line"), this);
+	m_symbols_follow_pipes->setObjectName(QStringLiteral("symbols_follow_pipes"));
+	m_symbols_follow_pipes->setToolTip(wrapped(tr("When all the lines joined to the symbol have the same color, one "
+												  "being enough; else it keeps the color of its family. Fittings and "
+												  "ends of lines always follow their line, equipment never.")));
+	connect(m_symbols_follow_pipes, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
 
 	for (PipeConnection::Type type : PipeConnection::all())
 	{
@@ -777,6 +783,7 @@ void PidConfigPage::initLayout()
 	layout->addWidget(help);
 	layout->addWidget(m_table);
 	layout->addLayout(buttons);
+	layout->addWidget(m_symbols_follow_pipes);
 	auto *stub_row = new QHBoxLayout();
 	stub_row->addWidget(m_insulation_stub);
 	stub_row->addStretch(1);
@@ -1103,6 +1110,8 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 	m_vertical_texts->setCurrentIndex(m_vertical_texts->findData(int(codification.vertical_texts)));
 	const QSignalBlocker stub_blocker(m_insulation_stub);
 	m_insulation_stub->setValue(codification.insulation_stub);
+	const QSignalBlocker follow_blocker(m_symbols_follow_pipes);
+	m_symbols_follow_pipes->setChecked(codification.symbols_follow_pipes);
 	for (auto it = m_drawn_connections.cbegin() ; it != m_drawn_connections.cend() ; ++it) {
 		const QSignalBlocker blocker(it.value());
 		it.value()->setChecked(codification.drawsConnection(it.key()));
@@ -1331,6 +1340,7 @@ void PidConfigPage::adjustReadOnly()
 	m_decimal->setEnabled(!read_only);
 	m_vertical_texts->setEnabled(!read_only);
 	m_insulation_stub->setEnabled(!read_only);
+	m_symbols_follow_pipes->setEnabled(!read_only);
 	m_import->setEnabled(!read_only);
 	m_table->setEnabled(!read_only);
 	m_choose->setEnabled(!read_only);
@@ -1417,6 +1427,7 @@ void PidConfigPage::readTextWidgets()
 	m_codification.nozzle_dn_prefix = m_nozzle_dn_prefix->isChecked();
 	m_codification.vertical_texts = PidCodification::VerticalTexts(m_vertical_texts->currentData().toInt());
 	m_codification.insulation_stub = m_insulation_stub->value();
+	m_codification.symbols_follow_pipes = m_symbols_follow_pipes->isChecked();
 		//Set only when it is chosen: else it waits to be fixed with codes
 	const auto decimal = PidCodification::Decimal(m_decimal->currentData().toInt());
 	if (decimal != m_codification.effectiveDecimal()) {

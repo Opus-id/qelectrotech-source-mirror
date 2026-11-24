@@ -410,6 +410,15 @@ class Element : public QetGraphicsItem
 			/// True for a fitting (a tee, the end of a pipe), drawn after
 			/// the pipe it is connected to
 		bool followsPipes() const;
+			/// True when the colour of this symbol depends on its pipes: a
+			/// fitting (followsPipes()), or a valve or an instrument whose
+			/// project says so (PidCodification::symbols_follow_pipes, step
+			/// 8r-2); its drawing is taken again when one of them changes
+		bool takesPipeInk() const;
+			/// The colour of the pipes joined to this symbol when they all
+			/// have the same, one being enough; an invalid one when they
+			/// differ, when one has none, or without a pipe
+		QColor agreedPipeColor() const;
 			/// What its tool tip says of the directions of flow this symbol
 			/// is in disagreement with (step 8a-bis-2); nothing when none
 		QStringList flowDisagreements() const;

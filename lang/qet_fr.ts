@@ -15996,6 +15996,14 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>L&apos;amorce hachurée (calorifuge) ou en tirets (traçage) dessinée là où la partie calorifugée d&apos;une ligne commence et finit, et la marque au milieu d&apos;une tuyauterie qui en demande une.</translation>
     </message>
     <message>
+        <source>Valves and instruments on a line take the color of their line</source>
+        <translation>La robinetterie et les instruments en ligne prennent la couleur de leur ligne</translation>
+    </message>
+    <message>
+        <source>When all the lines joined to the symbol have the same color, one being enough; else it keeps the color of its family. Fittings and ends of lines always follow their line, equipment never.</source>
+        <translation>Quand toutes les lignes reliées au symbole ont la même couleur (une seule suffit) ; sinon, il garde la couleur de sa famille. Les raccords et les extrémités de ligne suivent toujours leur ligne, les équipements jamais.</translation>
+    </message>
+    <message>
         <source>Length of the insulation stubs:</source>
         <translation>Longueur des amorces de calorifuge :</translation>
     </message>

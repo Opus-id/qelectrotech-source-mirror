@@ -394,6 +394,19 @@ class PidCodification
 		static bool isInsulationStub(qreal mm) { return mm >= 2.0 && mm <= 50.0; }
 		static QString insulationColorKey() { return QStringLiteral("insulation"); }
 		static QString tracingColorKey() { return QStringLiteral("tracing"); }
+			/// The valves, and the instruments placed on a pipe, are drawn in
+			/// the colour of their pipes when all those joined to them agree
+			/// (Element::agreedPipeColor(), step 8r-2), as the fittings are;
+			/// else in that of their family. A status of works comes first.
+			/// On by default, written only when off.
+		bool symbols_follow_pipes = true;
+			/// A symbol of the family @p pid_family follows its pipes by
+			/// symbols_follow_pipes; the fittings always do, by another rule
+			/// (Element::inkingPipe())
+		bool followsPipes(const QString &pid_family) const {
+			return symbols_follow_pipes
+					&& (pid_family == QLatin1String("valve") || pid_family == QLatin1String("instrument"));
+		}
 			/// The connections whose mark is drawn at the end of the nozzles
 			/// (Terminal::drawsConnectionMark()), in the order of
 			/// PipeConnection::all(); none by default, so that a project
@@ -511,7 +524,7 @@ class PidCodification
 		}
 		bool hasColors() const {
 			return !fluid_family_colors.isEmpty() || !object_colors.isEmpty()
-					|| !status_colors.isEmpty();
+					|| !status_colors.isEmpty() || !symbols_follow_pipes;
 		}
 		bool hasTextSettings() const {
 			return !text_sizes.isEmpty() || colored_labels || label_color.isValid()
@@ -580,7 +593,7 @@ class PidCodification
 			/// "text_size;category;points" ("taille_texte") and of lines
 			/// "text_option;name;true" ("option_texte"), name being
 			/// "nozzle_texts_on_paper", "show_nozzle_sizes" or
-			/// "nozzle_dn_prefix" ("colored_labels", of former files,
+			/// "nozzle_dn_prefix", "symbols_follow_pipes" ("colored_labels", of former files,
 			/// colouring the labels and the designations), of the lines
 			/// "text_option;label_ink;object" and
 			/// "text_option;designation_ink;#0000ff" (the colour of their

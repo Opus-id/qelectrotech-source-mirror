@@ -31,7 +31,9 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "ui/configpage/pidconfigpage.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDomDocument>
 #include <QImage>
@@ -161,6 +163,13 @@ class tst_pipejunction : public QObject
 				{QStringLiteral("square_equipment.elmt"),
 				 symbol(QStringLiteral("7e11111a-1111-1111-1111-111111111111"),
 						QStringLiteral("pid_family=\"equipment\""), filledSquare())},
+					// and a valve, an instrument (step 8r-2)
+				{QStringLiteral("square_valve.elmt"),
+				 symbol(QStringLiteral("7e11111b-1111-1111-1111-111111111111"),
+						QStringLiteral("pid_family=\"valve\""), filledSquare())},
+				{QStringLiteral("square_instrument.elmt"),
+				 symbol(QStringLiteral("7e11111c-1111-1111-1111-111111111111"),
+						QStringLiteral("pid_family=\"instrument\""), filledSquare())},
 				{QStringLiteral("inlet.elmt"),
 				 lineEnd(QStringLiteral("7e111117-1111-1111-1111-111111111111"), QStringLiteral("e"))},
 					// drawn 40 east of its nozzle, beyond its frame
@@ -629,6 +638,152 @@ class tst_pipejunction : public QObject
 			const int equipment = inkedWidth(QStringLiteral("square_equipment.elmt"));
 			QVERIFY2(qAbs(fitting - qRound(side * 0.7)) <= 2, qPrintable(QString::number(fitting)));
 			QVERIFY2(qAbs(equipment - qRound(side * 0.87)) <= 2, qPrintable(QString::number(equipment)));
+		}
+
+			// ---- a valve, an instrument on a line (step 8r-2) ----
+		void aValveTakesTheColourItsPipesAgreeOn()
+		{
+			Scene scene(QStringLiteral("square_valve.elmt"));
+			QVERIFY(scene.fitting);
+			PidCodification codification = scene.project.pidCodification();
+			QVERIFY(codification.symbols_follow_pipes);
+			codification.object_colors.insert(QStringLiteral("valve"), QColor(Qt::green));
+			codification.status_colors.insert(QStringLiteral("demolished"), QColor(Qt::magenta));
+			scene.project.setPidCodification(codification);
+			Element *valve = scene.fitting;
+				// no pipe: its family
+			QVERIFY(valve->takesPipeInk());
+			QCOMPARE(valve->symbolInk(), QColor(Qt::green));
+				// one pipe is enough, two which agree too; drawn so
+			QVERIFY(scene.pipe("N1", PipeProperties::Main, Qt::blue));
+			QCOMPARE(valve->symbolInk(), QColor(Qt::blue));
+			Conductor *east = scene.pipe("N2", PipeProperties::Main, Qt::blue);
+			QVERIFY(east);
+			QCOMPARE(valve->symbolInk(), QColor(Qt::blue));
+			QCOMPARE(QColor(scene.render().pixel(30, 30)), QColor(Qt::blue));
+				// a third one of another colour: its family again
+			Conductor *south = scene.pipe("N3", PipeProperties::Main, Qt::red);
+			QVERIFY(south);
+			QCOMPARE(valve->symbolInk(), QColor(Qt::green));
+			QCOMPARE(QColor(scene.render().pixel(30, 30)), QColor(Qt::green));
+				// it changes with the pipe
+			ConductorProperties data = south->properties();
+			data.m_pipe.color = QColor(Qt::blue);
+			south->setProperties(data);
+			QCOMPARE(QColor(scene.render().pixel(30, 30)), QColor(Qt::blue));
+				// and when one goes
+			data.m_pipe.color = QColor(Qt::red);
+			south->setProperties(data);
+			QCOMPARE(valve->symbolInk(), QColor(Qt::green));
+			scene.folio->removeItem(south);
+			delete south;
+			QCOMPARE(QColor(scene.render().pixel(30, 30)), QColor(Qt::blue));
+				// a status of works comes first
+			valve->setOptionChoices({{PidStatus::option(), QStringLiteral("demolished")}});
+			QCOMPARE(valve->symbolInk(), QColor(Qt::magenta));
+			valve->setOptionChoices({});
+			QCOMPARE(valve->symbolInk(), QColor(Qt::blue));
+				// a folio drawn in black
+			scene.folio->setDrawColoredConductors(false);
+			QCOMPARE(valve->symbolInk(), QColor(Qt::black));
+			scene.folio->setDrawColoredConductors(true);
+				// the project says no: its family, at once
+			codification.symbols_follow_pipes = false;
+			scene.project.setPidCodification(codification);
+			QVERIFY(!valve->takesPipeInk());
+			QCOMPARE(valve->symbolInk(), QColor(Qt::green));
+			QCOMPARE(QColor(scene.render().pixel(30, 30)), QColor(Qt::green));
+				// a pipe changed then does not reach it
+			data = east->properties();
+			data.m_pipe.color = QColor(Qt::red);
+			east->setProperties(data);
+			QCOMPARE(valve->symbolInk(), QColor(Qt::green));
+		}
+
+		void aPipeWithoutColourAgreesWithNone()
+		{
+			Scene scene(QStringLiteral("square_valve.elmt"));
+			QVERIFY(scene.fitting);
+			PidCodification codification = scene.project.pidCodification();
+			codification.object_colors.insert(QStringLiteral("valve"), QColor(Qt::green));
+			scene.project.setPidCodification(codification);
+			QVERIFY(scene.pipe("N1", PipeProperties::Main, Qt::blue));
+			QVERIFY(scene.pipe("N2"));
+			QVERIFY(!scene.fitting->agreedPipeColor().isValid());
+			QCOMPARE(scene.fitting->symbolInk(), QColor(Qt::green));
+		}
+
+		void anInstrumentOnALineFollowsItAnEquipmentNever()
+		{
+			Scene instrument(QStringLiteral("square_instrument.elmt"));
+			QVERIFY(instrument.fitting);
+			QVERIFY(instrument.fitting->takesPipeInk());
+			QVERIFY(instrument.pipe("N1", PipeProperties::Main, Qt::blue));
+			QCOMPARE(instrument.fitting->symbolInk(), QColor(Qt::blue));
+			QCOMPARE(QColor(instrument.render().pixel(30, 30)), QColor(Qt::blue));
+
+			Scene equipment(QStringLiteral("square_equipment.elmt"));
+			QVERIFY(equipment.fitting);
+			QVERIFY(!equipment.fitting->takesPipeInk());
+			QVERIFY(equipment.pipe("N1", PipeProperties::Main, Qt::blue));
+			QCOMPARE(equipment.fitting->symbolInk(), QColor(Qt::black));
+				// the west tank, of no family, neither
+			QVERIFY(!instrument.west->takesPipeInk());
+		}
+
+		void theProjectSaysWhetherSymbolsFollowTheirPipes()
+		{
+				// on by default, nothing written
+			PidCodification codification;
+			QVERIFY(codification.symbols_follow_pipes);
+			QVERIFY(codification.isEmpty());
+			QVERIFY(codification.followsPipes(QStringLiteral("valve")));
+			QVERIFY(codification.followsPipes(QStringLiteral("instrument")));
+			QVERIFY(!codification.followsPipes(QStringLiteral("equipment")));
+			QVERIFY(!codification.followsPipes(QStringLiteral("pipe")));
+			QVERIFY(!codification.followsPipes(QString()));
+			QVERIFY(!codification.presentationToCsv().contains(QStringLiteral("symbols_follow_pipes")));
+
+				// off: written in the file and in the presentation
+			codification.symbols_follow_pipes = false;
+			QVERIFY(codification.hasColors());
+			QVERIFY(!codification.followsPipes(QStringLiteral("valve")));
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			holder.appendChild(codification.toXml(doc));
+			QCOMPARE(holder.firstChildElement().attribute(QStringLiteral("symbols_follow_pipes")),
+					 QStringLiteral("false"));
+			PidCodification read;
+			read.fromXml(holder);
+			QVERIFY(!read.symbols_follow_pipes);
+			QVERIFY(read == codification);
+			QVERIFY(codification.presentationToCsv().contains(
+						QStringLiteral("text_option;symbols_follow_pipes;false")));
+			QVERIFY(!PidCodification::fromCsv(codification.presentationToCsv()).symbols_follow_pipes);
+			QVERIFY(!PidCodification::fromCsv(QStringLiteral("option_texte;symbols_follow_pipes;false"))
+					 .symbols_follow_pipes);
+				// a file of codes does not take it from the project
+			PidCodification codes;
+			PidCodification::Entry water;
+			water.code = QStringLiteral("W01");
+			water.name = QStringLiteral("Water");
+			codes.fluids.append(water);
+			QVERIFY(!codes.completedWith(codification).symbols_follow_pipes);
+		}
+
+		void thePageSetsWhetherSymbolsFollowTheirPipes()
+		{
+			QETProject project;
+			PidConfigPage page(&project);
+			auto *box = page.findChild<QCheckBox *>(QStringLiteral("symbols_follow_pipes"));
+			QVERIFY(box);
+			QVERIFY(box->isChecked());
+			QVERIFY(box->isEnabled());
+			box->setChecked(false);
+			page.applyProjectConf();
+			QVERIFY(!project.pidCodification().symbols_follow_pipes);
+			project.undoStack()->undo();
+			QVERIFY(project.pidCodification().symbols_follow_pipes);
 		}
 };
 

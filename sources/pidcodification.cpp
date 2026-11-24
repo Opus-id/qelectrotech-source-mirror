@@ -61,6 +61,7 @@ namespace
 	const QString nozzle_texts_word = QStringLiteral("nozzle_texts_on_paper");
 	const QString nozzle_sizes_word = QStringLiteral("show_nozzle_sizes");
 	const QString dn_prefix_word = QStringLiteral("nozzle_dn_prefix");
+	const QString follow_pipes_word = QStringLiteral("symbols_follow_pipes");
 	const QString decimal_word = QStringLiteral("decimal_separator");
 	const QString insulation_stub_word = QStringLiteral("insulation_stub");
 		/// A length of the insulation stubs read from @p text, in mm with a
@@ -1338,6 +1339,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.fluid_family_colors = other.fluid_family_colors;
 		result.object_colors = other.object_colors;
 		result.status_colors = other.status_colors;
+		result.symbols_follow_pipes = other.symbols_follow_pipes;
 	}
 	if (!hasTextSettings()) {
 		result.text_sizes = other.text_sizes;
@@ -1402,6 +1404,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	writeColors(document, block, QStringLiteral("fluid_family"), fluid_family_colors);
 	writeColors(document, block, QStringLiteral("object"), object_colors);
 	writeColors(document, block, QStringLiteral("status"), status_colors);
+	if (!symbols_follow_pipes) {
+		block.setAttribute(follow_pipes_word, QStringLiteral("false"));
+	}
 	for (auto it = text_sizes.cbegin() ; it != text_sizes.cend() ; ++it)
 	{
 		QDomElement e = document.createElement(QStringLiteral("text_size"));
@@ -1536,7 +1541,8 @@ void PidCodification::fromXml(const QDomElement &parent)
 	nozzle_texts_on_paper = block.attribute(nozzle_texts_word) != QLatin1String("false");
 	show_nozzle_sizes = block.attribute(nozzle_sizes_word) != QLatin1String("false");
 	nozzle_dn_prefix = block.attribute(dn_prefix_word) != QLatin1String("false");
-	decimal = decimalFromString(block.attribute(decimal_word));
+	symbols_follow_pipes = block.attribute(follow_pipes_word) != QLatin1String("false");
+	decimal =decimalFromString(block.attribute(decimal_word));
 	insulation_stub = defaultInsulationStub();
 	insulationStubFromText(block.attribute(insulation_stub_word), insulation_stub);
 	drawn_connections = connectionsFromText(block.attribute(drawn_connections_word));
@@ -1595,6 +1601,9 @@ QString PidCodification::presentationToCsv() const
 	write(QStringLiteral("fluid_color"), fluid_family_colors);
 	write(QStringLiteral("object_color"), object_colors);
 	write(QStringLiteral("status_color"), status_colors);
+	if (!symbols_follow_pipes) {
+		text += QStringLiteral("text_option;") + follow_pipes_word + QStringLiteral(";false\n");
+	}
 	for (auto it = text_sizes.cbegin() ; it != text_sizes.cend() ; ++it) {
 		text += QStringLiteral("text_size;") + it.key() + QLatin1Char(';')
 				+ QString::number(it.value()) + QLatin1Char('\n');
@@ -1866,6 +1875,8 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 				codification.show_nozzle_sizes = yes;
 			} else if (fields.value(1) == dn_prefix_word) {
 				codification.nozzle_dn_prefix = yes;
+			} else if (fields.value(1) == follow_pipes_word) {
+				codification.symbols_follow_pipes = yes;
 			} else {
 				++left_out;
 			}
@@ -2065,6 +2076,7 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& fluid_family_colors == other.fluid_family_colors
 			&& object_colors == other.object_colors
 			&& status_colors == other.status_colors
+			&& symbols_follow_pipes == other.symbols_follow_pipes
 			&& text_sizes == other.text_sizes
 			&& colored_labels == other.colored_labels
 			&& label_color == other.label_color

@@ -4733,7 +4733,7 @@ void Conductor::updateFittings() const
 	for (Terminal *terminal : {terminal1, terminal2})
 	{
 		Element *element = terminal ? terminal->parentElement() : nullptr;
-		if (element && element->followsPipes()) {
+		if (element && element->takesPipeInk()) {
 			element->updateInk();
 		}
 			//A nozzle follows the DN of its pipe, or marks a difference;
