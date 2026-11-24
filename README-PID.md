@@ -182,7 +182,7 @@ line.*
   follow the button); a tee takes the pipe through its run and keeps its
   branch free.
 - **Magnet of the nozzles**: a symbol placed or dragged with the mouse is
-  caught (20 pixels of the screen; Shift: no magnet) by a free nozzle
+  caught (20 pixels of the screen; Ctrl: no magnet) by a free nozzle
   facing one of its own, by the free end of a pipe, which it takes, or by
   a connected nozzle when its own nozzle lies on that pipe. Two nozzles
   that touch get no pipe between them.
@@ -752,7 +752,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
 | `.qet`, `<conductor>` | `pid_fluid`, `pid_material`, `pid_flow`, `pid_line_number`, `pid_piping_class`, `pid_nominal_pressure`, `pid_spool`, `pid_external_finish` | text (a code of the codification, or free) | empty | set |
-| `.qet`, `<conductor>` | `pid_line_kind` | `secondary`, `auxiliary` | `main` | not main |
+| `.qet`, `<conductor>` | `pid_line_kind` | `secondary`, `auxiliary`, or the code of a kind the project adds (`<line_kind>`); a code it does not know is kept, drawn as a main line | `main` | not main |
 | `.qet`, `<conductor>` | `pid_insulation_kind` | `insulation`, `tracing`, `insulation_tracing` | none | the pipe is insulated, heat traced or both |
 | `.qet`, `<conductor>` | `pid_insulation` | text (`Q 80`) | empty | set |
 | `.qet`, `<conductor>` | `pid_insulation_mark` | `true` | `false` | a hatched mark is drawn in the middle of the pipe |
@@ -763,6 +763,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, instrument letters (`<instrument_letters code name/>`), equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
 | `.qet`, `<project>` | `<wire_crossings hop shape/>` | `hop` = `thinner` (QElectroTech: `horizontal`, `vertical`); `shape` = `gap` | no hop; an arc | the thinner line gives way; a gap instead of an arc |
 | `.qet`, `<pid_codification>` | `insulation_stub` | length of the insulation stubs in mm | `8` | another length |
+| `.qet`, `<pid_codification>` | `<line_kind code name width pattern/>` | `code` = `main`, `secondary`, `auxiliary` or a code the project adds; `name` (an added kind only); `width` in mm; `pattern` = `solid`, `dashes`, `short_dashes`, `dash_dot` | the three kinds of ISO 10628-1: 1 mm; 0.5 mm; 0.5 mm in dashes | a kind of ISO changed, or a kind added (page *P&ID*, *Lines*) |
 | `.qet`, `<pid_codification>` | `symbols_follow_pipes` | `false` | `true`: valves and instruments on a line take the color their pipes agree on | they keep the color of their family |
 | `.qet`, `<pid_codification>` | `instrument_numbering` | `parallel` | in series | the loops of the instruments are numbered in parallel |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee` or `blind_flange`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end | a symbol is chosen for the role |
