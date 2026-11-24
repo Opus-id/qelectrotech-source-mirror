@@ -58,6 +58,9 @@ class DiagramEventAddElement : public DiagramEventInterface
 		void mouseReleaseEvent     (QGraphicsSceneMouseEvent *event) override;
 		void mouseDoubleClickEvent (QGraphicsSceneMouseEvent *event) override;
 		void keyPressEvent (QKeyEvent *event) override;
+			/// The keys of the mirrors (M, F) mirror the P&ID symbol being
+			/// placed, never the selection (step 8r-4)
+		bool handlesShortcutOverride(QKeyEvent *event) const override;
 		void init() override;
 			/// The symbol that follows the mouse, until it is dropped
 		Element *pendingElement() const { return m_element; }
@@ -75,6 +78,12 @@ class DiagramEventAddElement : public DiagramEventInterface
 		void endDrag();
 		void addElements(const QList<QPointF> &positions);
 		void tagLike(const QList<Element *> &elements) const;
+			/// The mirror on the folio a key gives the symbol being placed:
+			/// 0 none, 1 horizontal (M), 2 vertical (F); none for a symbol
+			/// which is not of a P&ID
+		int mirrorKey(const QKeyEvent *event) const;
+			/// The keys of the placing in the status bar, with where it is
+		void showPlacingHint() const;
 
 	private:
 		ElementsLocation m_location;

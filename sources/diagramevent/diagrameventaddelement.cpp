@@ -37,6 +37,7 @@
 #include <autoconnect.h>
 #include <pidtag.h>
 #include <pidnozzlemagnet.h>
+#include <shortcutmanager.h>
 #include <QPointer>
 #include <QTimer>
 #include <QGraphicsLineItem>
@@ -130,8 +131,9 @@ void DiagramEventAddElement::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 	{
 		m_element->setPos(Diagram::snapToGrid(event->scenePos()));
 			//Near a free nozzle of another symbol, a nozzle of this one
-			//comes against it (P&ID, 5l-1c); Shift held places without
-		const PidNozzleMagnet::Snap snap = (event->modifiers() & Qt::ShiftModifier)
+			//comes against it (P&ID, 5l-1c); Ctrl held places without, as it
+			//frees from the axis in the pipe tool (step 8r-4)
+		const PidNozzleMagnet::Snap snap = (event->modifiers() & Qt::ControlModifier)
 				? PidNozzleMagnet::Snap()
 				: PidNozzleMagnet::find({m_element}, Terminal::magnetSceneRadius(event));
 		if (snap.isNull()) {
@@ -140,13 +142,81 @@ void DiagramEventAddElement::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 			m_element->QGraphicsItem::setPos(m_element->pos() + snap.step);
 			PidNozzleMagnet::mark(snap.target);
 		}
-		const QPointF pos_ = m_element->pos();
-
-		if (m_status_bar) {
-			m_status_bar->showMessage(QString("x %1 : y %2").arg(QString::number(pos_.x()), QString::number(pos_.y())));
-		}
+		showPlacingHint();
 	}
 	event->setAccepted(true);
+}
+
+/**
+	@brief DiagramEventAddElement::showPlacingHint
+	See the declaration. Where the symbol is, as before; for a P&ID symbol
+	the keys it takes while placed (step 8r-4).
+*/
+void DiagramEventAddElement::showPlacingHint() const
+{
+	if (!m_status_bar || !m_element) {
+		return;
+	}
+	const QPointF pos_ = m_element->pos();
+	QString text = QString("x %1 : y %2").arg(QString::number(pos_.x()), QString::number(pos_.y()));
+	bool pid = false;
+	for (const Terminal *terminal : m_element->terminals()) {
+		pid = pid || terminal->medium() != TerminalData::Electrical;
+	}
+	if (pid) {
+		text += QStringLiteral(" ; ") + tr("Space: turn; M, F: mirror; Ctrl: no magnet", "placing a symbol");
+	}
+	m_status_bar->showMessage(text);
+}
+
+/**
+	@brief DiagramEventAddElement::mirrorKey
+	See the declaration
+*/
+int DiagramEventAddElement::mirrorKey(const QKeyEvent *event) const
+{
+	if (!m_element || !event) {
+		return 0;
+	}
+	bool pid = false;
+	for (const Terminal *terminal : m_element->terminals()) {
+		pid = pid || terminal->medium() != TerminalData::Electrical;
+	}
+	if (!pid) {
+		return 0;
+	}
+	const int key = event->key();
+	if (key == Qt::Key_Control || key == Qt::Key_Shift || key == Qt::Key_Alt || key == Qt::Key_Meta) {
+		return 0;
+	}
+	const Qt::KeyboardModifiers mods = event->modifiers()
+			& (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
+	const QKeySequence pressed(mods != Qt::NoModifier ? (int(mods) | key) : key);
+		//The keys of the mirrors of the selection, as the user set them; M
+		//and F, their defaults, when no editor registered them
+	const auto matches = [&pressed](const char *action, Qt::Key default_key) {
+		QKeySequence sequence = ShortcutManager::instance().currentSequence(QString::fromLatin1(action));
+		if (sequence.isEmpty()) {
+			sequence = QKeySequence(default_key);
+		}
+		return sequence.matches(pressed) == QKeySequence::ExactMatch;
+	};
+	if (matches("diagrameditor.mirror_horizontal", Qt::Key_M)) {
+		return 1;
+	}
+	if (matches("diagrameditor.mirror_vertical", Qt::Key_F)) {
+		return 2;
+	}
+	return 0;
+}
+
+/**
+	@brief DiagramEventAddElement::handlesShortcutOverride
+	See the declaration
+*/
+bool DiagramEventAddElement::handlesShortcutOverride(QKeyEvent *event) const
+{
+	return mirrorKey(event) != 0;
 }
 
 /**
@@ -236,6 +306,22 @@ void DiagramEventAddElement::keyPressEvent(QKeyEvent *event)
 	if (m_element && event->key() == Qt::Key_Space)
 	{
 		m_element->setRotation(m_element->rotation() + 90);
+		if (m_dragging && m_drag_line)
+			updateDrag(m_drag_line->line().p2());
+		event->setAccepted(true);
+	}
+	else if (const int mirror = mirrorKey(event))
+	{
+			//A mirror on the folio, as MirrorSelectionCommand gives it: the
+			//axes of a symbol turned a quarter are swapped. A P&ID symbol is
+			//mirrored about its hotspot, on the axis of its line, which is
+			//where the mouse holds it (step 8r-4)
+		const bool turned = m_element->orientation() % 2;
+		if ((mirror == 1) != turned) {
+			m_element->setHorizontalMirror(!m_element->hasHorizontalMirror());
+		} else {
+			m_element->setVerticalMirror(!m_element->hasVerticalMirror());
+		}
 		if (m_dragging && m_drag_line)
 			updateDrag(m_drag_line->line().p2());
 		event->setAccepted(true);
@@ -472,6 +558,11 @@ Element *DiagramEventAddElement::createElement() const
 		element->setUnlinkedNozzles(m_like_unlinked);
 	}
 	element->takeLabelSize(m_diagram->project()->pidCodification());
+		//The mirrors given while it was placed (step 8r-4)
+	if (m_element) {
+		element->setHorizontalMirror(m_element->hasHorizontalMirror());
+		element->setVerticalMirror(m_element->hasVerticalMirror());
+	}
 	return element;
 }
 

@@ -4261,9 +4261,10 @@ void Element::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
 	QetGraphicsItem::mouseMoveEvent(event);
 		//Near a free nozzle of a symbol left in place, a free nozzle of the
-		//moved ones comes against it (P&ID, 5l-1c); Shift held moves without
+		//moved ones comes against it (P&ID, 5l-1c); Ctrl held moves without,
+		//as it moves off the grid (step 8r-4)
 	if (Diagram *folio = diagram(); folio && (event->buttons() & Qt::LeftButton)) {
-		folio->elementsMover().magnetize((event->modifiers() & Qt::ShiftModifier)
+		folio->elementsMover().magnetize((event->modifiers() & Qt::ControlModifier)
 										 ? 0 : Terminal::magnetSceneRadius(event));
 	}
 	foreach (Terminal *t, terminals())

@@ -14,6 +14,7 @@
 
 #include <QDomDocument>
 #include <QGraphicsSceneMouseEvent>
+#include <QKeyEvent>
 #include <QUndoStack>
 
 // The magnet of the nozzles (P&ID, 5l-1c). A symbol placed or dragged with
@@ -147,7 +148,8 @@ class tst_nozzlemagnet : public QObject
 		press.setButtonDownScenePos(Qt::LeftButton, start);
 		press.setButton(Qt::LeftButton);
 		press.setButtons(Qt::LeftButton);
-		press.setModifiers(modifiers);
+			//Pressed without Ctrl, which would take the symbol out of the
+			//selection: Ctrl held from the move on, as by hand
 		QCoreApplication::sendEvent(m_folio, &press);
 
 		QGraphicsSceneMouseEvent move(QEvent::GraphicsSceneMouseMove);
@@ -225,7 +227,7 @@ class tst_nozzlemagnet : public QObject
 			QCOMPARE(snap.own, west(b));
 			QCOMPARE(snap.target, east(a));
 			QCOMPARE(snap.step, QPointF(-5, -4));
-				// too far, or no radius (Shift held)
+				// too far, or no radius (Ctrl held)
 			QVERIFY(PidNozzleMagnet::find({b}, 5).isNull());
 			QVERIFY(PidNozzleMagnet::find({b}, 0).isNull());
 				// both moved together: nothing to come against
@@ -308,13 +310,20 @@ class tst_nozzlemagnet : public QObject
 			for (const Conductor *pipe : west(b)->conductors()) {
 				QVERIFY(pipe->endsTouch());
 			}
-				// Shift held: where the mouse is, on the grid
+				// Ctrl held: where the mouse is, on the grid
 			const qreal y2 = nextRow();
 			Element *c = place(m_pipe, QPointF(3, y2));
-			Element *d = placeWithMouse(m_pipe, QPointF(31, y2 + 2), Qt::ShiftModifier);
+			Element *d = placeWithMouse(m_pipe, QPointF(31, y2 + 2), Qt::ControlModifier);
 			QVERIFY(c && d);
 			QCOMPARE(d->pos(), QPointF(30, y2));
 			QVERIFY(!west(d)->touchesNozzle());
+				// Shift, which did it before step 8r-4, does nothing: caught
+			const qreal y3 = nextRow();
+			Element *e = place(m_pipe, QPointF(3, y3));
+			Element *f = placeWithMouse(m_pipe, QPointF(31, y3 + 2), Qt::ShiftModifier);
+			QVERIFY(e && f);
+			QCOMPARE(f->pos(), QPointF(23, y3));
+			QVERIFY(west(f)->touchesNozzle());
 		}
 
 			// The automatic connection, both kinds, as before the magnet: two
@@ -342,11 +351,11 @@ class tst_nozzlemagnet : public QObject
 				QCOMPARE(east(a)->conductors().size(), 1);
 				QCOMPARE(east(b)->conductors().size(), 1);
 				QCOMPARE(west(far)->conductors().size(), 1);
-					// dragged away, Shift held: the pipe of the classic automatic
+					// dragged away, Ctrl held: the pipe of the classic automatic
 					// connection stays and the line stays whole (the live one
 					// takes away a wire whose ends no longer face each other)
 				if (!live_mode) {
-					drag(b, QPointF(0, 60), Qt::ShiftModifier);
+					drag(b, QPointF(0, 60), Qt::ControlModifier);
 					QCOMPARE(west(b)->conductors().size(), 1);
 					QVERIFY(!west(b)->conductors().first()->endsTouch());
 				}
@@ -382,8 +391,8 @@ class tst_nozzlemagnet : public QObject
 			m_folio->undoStack().undo();
 			QCOMPARE(b->pos(), QPointF(100, y));
 			QVERIFY(!west(b)->touchesNozzle());
-				// Shift held: on the grid, not against it
-			drag(b, QPointF(-69, 2), Qt::ShiftModifier);
+				// Ctrl held: on the grid, not against it
+			drag(b, QPointF(-69, 2), Qt::ControlModifier);
 			QCOMPARE(b->pos(), QPointF(30, y));
 			QVERIFY(!west(b)->touchesNozzle());
 		}
@@ -438,7 +447,7 @@ class tst_nozzlemagnet : public QObject
 		}
 
 			// (a) the other way: the symbol on the end of the line, its N2 on
-			// the free end, or, Shift held, across it: the free end goes, never
+			// the free end, or, Ctrl held, across it: the free end goes, never
 			// a pipe back from it to the symbol
 		void aSymbolDroppedAcrossAFreeEndTakesIt()
 		{
@@ -459,7 +468,7 @@ class tst_nozzlemagnet : public QObject
 			Element *free_end2 = lineIntoTheVoid(y2, 200, &c);
 			QVERIFY(free_end2);
 				// on the grid at 200: N1 at 190 on the line, the end inside
-			Element *w = placeWithMouse(m_pipe, QPointF(201, y2 + 2), Qt::ShiftModifier);
+			Element *w = placeWithMouse(m_pipe, QPointF(201, y2 + 2), Qt::ControlModifier);
 			QVERIFY(w);
 			QCOMPARE(w->pos(), QPointF(200, y2));
 			QVERIFY(!onFolio(free_end2));
@@ -501,13 +510,13 @@ class tst_nozzlemagnet : public QObject
 			QVERIFY(w);
 			QCOMPARE(w->pos(), QPointF(30, y2 + 10));
 
-				// Shift held: where the mouse is, the pipe broken as before
+				// Ctrl held: where the mouse is, the pipe broken as before
 			const qreal y3 = nextRow();
 			Element *e = place(m_pipe, QPointF(0, y3));
 			Element *f = place(m_pipe, QPointF(300, y3));
 			QVERIFY(e && f);
 			pipe(east(e), west(f));
-			Element *x = placeWithMouse(m_pipe, QPointF(31, y3 + 2), Qt::ShiftModifier);
+			Element *x = placeWithMouse(m_pipe, QPointF(31, y3 + 2), Qt::ControlModifier);
 			QVERIFY(x);
 			QCOMPARE(x->pos(), QPointF(30, y3));
 			QVERIFY(east(e)->isLinkedTo(west(x)));
@@ -579,6 +588,56 @@ class tst_nozzlemagnet : public QObject
 			QCOMPARE(v->pos(), QPointF(30, y));
 			QVERIFY(east(a)->isLinkedTo(west(v)));
 			QVERIFY(!west(b)->isLinkedTo(east(v)));
+		}
+
+			// Step 8r-4 (d): M and F, while a P&ID symbol is placed, mirror it
+			// on the folio (its axes swapped when turned a quarter), never the
+			// selection; the symbol placed keeps its mirror
+		void mAndFMirrorTheSymbolBeingPlaced()
+		{
+			const qreal y = nextRow();
+			DiagramEventAddElement event(m_pipe, m_folio, QPointF(100, y));
+			Element *pending = event.pendingElement();
+			QVERIFY(pending);
+			QKeyEvent m(QEvent::KeyPress, Qt::Key_M, Qt::NoModifier);
+			QKeyEvent f(QEvent::KeyPress, Qt::Key_F, Qt::NoModifier);
+			QKeyEvent space(QEvent::KeyPress, Qt::Key_Space, Qt::NoModifier);
+			QVERIFY(event.handlesShortcutOverride(&m));
+			QVERIFY(event.handlesShortcutOverride(&f));
+			QKeyEvent ctrl_m(QEvent::KeyPress, Qt::Key_M, Qt::ControlModifier);
+			QVERIFY(!event.handlesShortcutOverride(&ctrl_m));
+			event.keyPressEvent(&m);
+			QVERIFY(pending->hasHorizontalMirror());
+			QVERIFY(!pending->hasVerticalMirror());
+				// turned a quarter: M is the mirror of the other axis of the
+				// symbol, F the one of the first
+			event.keyPressEvent(&space);
+			QCOMPARE(pending->rotation(), 90.0);
+			event.keyPressEvent(&m);
+			QVERIFY(pending->hasVerticalMirror());
+			event.keyPressEvent(&f);
+			QVERIFY(!pending->hasHorizontalMirror());
+				// placed: its mirror and its turn kept
+			QGraphicsSceneMouseEvent release(QEvent::GraphicsSceneMouseRelease);
+			release.setScenePos(QPointF(100, y));
+			release.setButton(Qt::LeftButton);
+			const QList<Element *> before = elements();
+			event.mouseReleaseEvent(&release);
+			Element *placed = nullptr;
+			for (Element *e : elements()) {
+				if (!before.contains(e) && e != event.pendingElement()) placed = e;
+			}
+			QVERIFY(placed);
+			QVERIFY(placed->hasVerticalMirror());
+			QVERIFY(!placed->hasHorizontalMirror());
+			QCOMPARE(placed->rotation(), 90.0);
+
+				// an electrical symbol: the keys are left to the editor
+			DiagramEventAddElement wire(m_electrical, m_folio, QPointF(300, y));
+			QVERIFY(wire.pendingElement());
+			QVERIFY(!wire.handlesShortcutOverride(&m));
+			wire.keyPressEvent(&m);
+			QVERIFY(!wire.pendingElement()->isMirrored());
 		}
 };
 

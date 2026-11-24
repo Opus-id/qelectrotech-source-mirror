@@ -5723,6 +5723,11 @@ Continuer ?</translation>
 <context>
     <name>DiagramEventAddElement</name>
     <message>
+        <source>Space: turn; M, F: mirror; Ctrl: no magnet</source>
+        <comment>placing a symbol</comment>
+        <translation>Espace : pivoter ; M, F : miroir ; Ctrl : sans aimant</translation>
+    </message>
+    <message>
         <location filename="../sources/diagramevent/diagrameventaddelement.cpp" line="378"/>
         <source>insert %1</source>
         <translation>Ajouter %1</translation>

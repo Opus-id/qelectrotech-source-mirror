@@ -43,7 +43,8 @@ class Terminal;
 	  on that pipe: dropped, the pipe goes on from the other nozzle of the
 	  symbol; not when it would go back to it (pipe shorter than the symbol).
 	The nozzle caught is shown while the mouse moves.
-	Shift held, or the keyboard (Ctrl + arrows), places without it.
+	Ctrl held (step 8r-4; Shift before), or the keyboard (Ctrl + arrows),
+	places without it.
 */
 class PidNozzleMagnet
 {
