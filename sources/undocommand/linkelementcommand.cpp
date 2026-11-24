@@ -409,6 +409,13 @@ bool LinkElementCommand::reportLinkNeedsPotentialChoice(Element *element_a, Elem
 {
 	if (!element_a || !element_b) return false;
 	if (element_a->conductors().isEmpty() || element_b->conductors().isEmpty()) return false;
+		//P&ID (step 8c-4): a pipe or a signal line has no potential; each
+		//side of a pair of pipe off-page connectors keeps its own data
+		//(PidOffPage), never chosen for both here
+	if (element_a->conductors().first()->medium() != TerminalData::Electrical
+		|| element_b->conductors().first()->medium() != TerminalData::Electrical) {
+		return false;
+	}
 
 	QSet<Conductor *> c_list;
 	for (Element *e : {element_a, element_b})

@@ -537,6 +537,48 @@ class tst_pidoffpage : public QObject
 			QVERIFY(!second->isLoaded());
 		}
 
+			// Linking two pipe off-page connectors whose pipes differ asks
+			// nothing: a pipe has no potential to choose (the electrical
+			// dialog of folio reports); two folio reports of wires still ask
+		void linkingPipeConnectorsAsksNoPotential()
+		{
+			QETProject project;
+			Diagram *first = project.addNewDiagram();
+			Diagram *second = project.addNewDiagram();
+			Element *out = symbol(first, QStringLiteral("next_report"), QStringLiteral("pipe"));
+			Element *in = symbol(second, QStringLiteral("previous_report"), QStringLiteral("pipe"));
+			QVERIFY(out && in);
+			Conductor *a = pipeTo(first, out, line());
+			PipeProperties other = line();
+			other.fluid = QStringLiteral("ER");
+			Conductor *b = pipeTo(second, in, other);
+			QVERIFY(a && b);
+			ConductorProperties text = a->properties();
+			text.text = QStringLiteral("EB DN 100");
+			a->setProperties(text);
+			text = b->properties();
+			text.text = QStringLiteral("ER DN 100");
+			b->setProperties(text);
+			QVERIFY(!LinkElementCommand::reportLinkNeedsPotentialChoice(out, in));
+
+			Element *wire_out = symbol(first, QStringLiteral("next_report"), QString());
+			Element *wire_in = symbol(second, QStringLiteral("previous_report"), QString());
+			Element *device = symbol(first, QStringLiteral("simple"), QString());
+			Element *other_device = symbol(second, QStringLiteral("simple"), QString());
+			QVERIFY(wire_out && wire_in && device && other_device);
+			auto *c = new Conductor(device->terminals().first(), wire_out->terminals().first());
+			auto *d = new Conductor(other_device->terminals().first(), wire_in->terminals().first());
+			first->addItem(c);
+			second->addItem(d);
+			ConductorProperties number = c->properties();
+			number.text = QStringLiteral("1");
+			c->setProperties(number);
+			number = d->properties();
+			number.text = QStringLiteral("2");
+			d->setProperties(number);
+			QVERIFY(LinkElementCommand::reportLinkNeedsPotentialChoice(wire_out, wire_in));
+		}
+
 			// The veil: the body and the point of the cartouche, on its right
 		void theVeilFollowsTheCartouche()
 		{
