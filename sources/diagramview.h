@@ -277,6 +277,7 @@ class DiagramView : public PaletteGraphicsView
 		void updateOptionsMenu();
 		void updateStatusMenu();
 		void updateFlowCorrections();
+		void updateOffPageCorrection();
 		void mirrorArrows(const QList<QPointer<Element>> &arrows, const QString &text);
 		void changeSelectedElementsType(const ElementsLocation &location);
 			/**

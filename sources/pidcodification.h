@@ -32,6 +32,8 @@
 #include <QString>
 #include <QStringList>
 
+class PipeProperties;
+
 /**
 	@brief The PidCodification class
 	The codes a project of P&ID uses for the fluids and the materials of its
@@ -268,6 +270,40 @@ class PidCodification
 			/// none when the user has to choose, or when there is none
 		PipeDiameter outsideOf(const PipeDiameter &nominal,
 							   const QString &material_code) const;
+			/// The key of what is asked once: the outside diameter of the DN
+			/// @p dn in the material of code @p code
+		static QString choiceKey(const QString &code, const PipeDiameter &dn);
+			/// The DN of the pipe @p p: its own; without one, the DN the sizes
+			/// of its material give its outside diameter (those of the other
+			/// materials when it has none), the one of @p chosen (by outside
+			/// diameter, in tenths) among several; else none
+		PipeDiameter pipeNominal(const PipeProperties &p,
+								 const QMap<int, PipeDiameter> &chosen = {}) const;
+			/// Give the pipe @p p the material of code @p code. Its DN, the
+			/// size of the line, stays (pipeNominal(), as this material has
+			/// it: nominalIn()); its outside diameter is the one of the new
+			/// material: none for a material named by its DN or which the
+			/// project has not; else the one it had when the new material has
+			/// it for this DN, the only one it has for this DN, the default
+			/// one among several (outsideOf()), or without one the one of
+			/// @p outside_of (by choiceKey()), none when it is not there. A pipe
+			/// which has no DN and gets none keeps its sizes. Never a question:
+			/// the pipe properties panel asks first (step 8c-4: also used by
+			/// "Copy from the other side", which asks nothing).
+		void giveMaterial(PipeProperties &p, const QString &code,
+						  const QMap<int, PipeDiameter> &nominal_of = {},
+						  const QMap<QString, PipeDiameter> &outside_of = {}) const;
+			/// Give the pipe @p p the size of line @p dn, a DN, which its
+			/// material keeps: the DN as the material has it (nominalIn(), DN
+			/// 65 becomes DN 60 in a material which has that one only), and
+			/// the outside diameter of this material: the one it has when the
+			/// material has it for this DN, else the only one or the default
+			/// one (outsideOf()), else the one of @p outside_of (by
+			/// choiceKey()); none for a material named by its DN. Without
+			/// material, or with one the project has not, an outside diameter
+			/// stays while the materials still give it this DN.
+		void giveLineSize(PipeProperties &p, const PipeDiameter &dn,
+						  const QMap<QString, PipeDiameter> &outside_of = {}) const;
 			/// The size of @p sizes nearest to @p typed, of its kind; the
 			/// greater of two as near; none when there is none of its kind
 		static PipeDiameter nearest(const PipeDiameter &typed, const QList<PipeDiameter> &sizes);

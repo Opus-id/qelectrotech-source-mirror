@@ -1048,6 +1048,78 @@ PipeDiameter PidCodification::outsideOf(const PipeDiameter &nominal,
 }
 
 /**
+	@brief PidCodification::choiceKey
+	See the declaration
+*/
+QString PidCodification::choiceKey(const QString &code, const PipeDiameter &dn)
+{
+	return code + QLatin1Char('|') + QString::number(dn.tenths());
+}
+
+/**
+	@brief PidCodification::pipeNominal
+	See the declaration
+*/
+PipeDiameter PidCodification::pipeNominal(const PipeProperties &p, const QMap<int, PipeDiameter> &chosen) const
+{
+	if (p.nominal.isSet() || !p.outside.isSet()) {
+		return p.nominal;
+	}
+	const QList<PipeDiameter> joined = nominalsOf(p.outside, p.material);
+	return joined.size() == 1 ? joined.first() : chosen.value(p.outside.tenths());
+}
+
+/**
+	@brief PidCodification::giveMaterial
+	See the declaration
+*/
+void PidCodification::giveMaterial(PipeProperties &p, const QString &code,
+								   const QMap<int, PipeDiameter> &nominal_of,
+								   const QMap<QString, PipeDiameter> &outside_of) const
+{
+		//Its DN first: without one, it comes from the material it leaves
+	const PipeDiameter dn = nominalIn(pipeNominal(p, nominal_of), code);
+	p.material = code;
+	if (!dn.isSet()) {
+		return;
+	}
+	p.nominal = dn;
+	if (!outsideDiameterFor(code)) {
+		p.outside = PipeDiameter();
+		return;
+	}
+	if (!outsidesOf(dn, code).contains(p.outside)) {
+		const PipeDiameter taken = outsideOf(dn, code);
+		p.outside = taken.isSet() ? taken : outside_of.value(choiceKey(code, dn));
+	}
+}
+
+/**
+	@brief PidCodification::giveLineSize
+	See the declaration
+*/
+void PidCodification::giveLineSize(PipeProperties &p, const PipeDiameter &dn,
+								   const QMap<QString, PipeDiameter> &outside_of) const
+{
+	p.nominal = nominalIn(dn, p.material);
+	const Entry *entry = material(p.material);
+	if (!entry) {
+		if (!nominalsOf(p.outside, p.material).contains(p.nominal)) {
+			p.outside = PipeDiameter();
+		}
+		return;
+	}
+	if (!entry->outside_diameter) {
+		p.outside = PipeDiameter();
+		return;
+	}
+	if (!outsidesOf(p.nominal, p.material).contains(p.outside)) {
+		const PipeDiameter taken = outsideOf(p.nominal, p.material);
+		p.outside = taken.isSet() ? taken : outside_of.value(choiceKey(p.material, p.nominal));
+	}
+}
+
+/**
 	@brief PidCodification::languageDecimal
 	See the declaration: the separator the language chosen in QElectroTech
 	writes, not that of the computer

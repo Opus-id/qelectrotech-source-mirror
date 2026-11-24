@@ -17,8 +17,11 @@
 */
 #include "pidoffpage.h"
 
+#include "QPropertyUndoCommand/qpropertyundocommand.h"
+#include "conductorproperties.h"
 #include "dataBase/projectdatabase.h"
 #include "diagram.h"
+#include "pidcodification.h"
 #include "pidstatus.h"
 #include "pipeproperties.h"
 #include "qetpalette.h"
@@ -28,7 +31,12 @@
 #include "qetgraphicsitem/terminal.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QPainter>
+#include <QUndoCommand>
+#include <QVariant>
+
+#include <functional>
 
 namespace {
 
@@ -114,6 +122,30 @@ QString statusName(const QString &status)
 		}
 	}
 	return status;
+}
+
+	/// The pipe at the nozzle of @p element, built; null if none
+Conductor *builtPipeWire(const Element *element)
+{
+	for (Conductor *wire : wiresOf(element)) {
+		if (wire->medium() == TerminalData::Pipe) {
+			return wire;
+		}
+	}
+	return nullptr;
+}
+
+	/// @p start and the pipes a change of @p start reaches with @p reach, as
+	/// in the pipe properties panel (Conductor::inlineRun())
+QList<Conductor *> runFrom(Conductor *start, Conductor::LineReach reach)
+{
+	QList<Conductor *> run{start};
+	for (Conductor *next : start->inlineRun(reach)) {
+		if (!run.contains(next)) {
+			run << next;
+		}
+	}
+	return run;
 }
 
 } // namespace
@@ -240,6 +272,148 @@ QStringList PidOffPage::warnings(const Element *element)
 		return lines;
 	}
 	return QStringList{QCoreApplication::translate("PidOffPage", "Its pipe differs from that of the off-page connector it is linked to:")} + lines;
+}
+
+QUndoCommand *PidOffPage::copyFromTwin(Element *report, QString *said)
+{
+	if (said) {
+		said->clear();
+	}
+	const Diagram *folio = report ? report->diagram() : nullptr;
+	Conductor *start = folio && folio->isLoaded() && isPipeReport(report)
+			? builtPipeWire(report) : nullptr;
+	PipeProperties there;
+	if (!start || !twinPipe(report, &there)) {
+		return nullptr;
+	}
+	const QETProject *project = folio->project();
+	const PidCodification codes = project ? project->pidCodification() : PidCodification();
+
+		//The data of the pipes reached, as they become
+	QList<Conductor *> order;
+	QHash<Conductor *, PipeProperties> after;
+	const auto data = [&order, &after](Conductor *pipe) -> PipeProperties & {
+		if (!after.contains(pipe)) {
+			order << pipe;
+			after.insert(pipe, pipe->properties().m_pipe);
+		}
+		return after[pipe];
+	};
+	const auto give = [&](Conductor::LineReach reach, const std::function<void(PipeProperties &)> &change) {
+		for (Conductor *pipe : runFrom(start, reach)) {
+			change(data(pipe));
+		}
+	};
+		//A value is copied when it is filled on the other side and differs
+		//here: what is filled here is never emptied
+	const auto filled = [](const QString &here, const QString &value) {
+		return !value.isEmpty() && here != value;
+	};
+	QStringList copied;
+	QStringList notes;
+
+		//The spec, the material first: it chooses how the size is written
+	if (filled(data(start).material, there.material)) {
+		give(Conductor::LineReach::Spec, [&](PipeProperties &p) { codes.giveMaterial(p, there.material); });
+		copied << QCoreApplication::translate("PidOffPage", "Material");
+	}
+	if (filled(data(start).piping_class, there.piping_class)) {
+		give(Conductor::LineReach::Spec, [&](PipeProperties &p) { p.piping_class = there.piping_class; });
+		copied << QCoreApplication::translate("PidOffPage", "Piping class");
+	}
+	if (filled(data(start).nominal_pressure, there.nominal_pressure)) {
+		give(Conductor::LineReach::Spec, [&](PipeProperties &p) { p.nominal_pressure = there.nominal_pressure; });
+		copied << QCoreApplication::translate("PidOffPage", "Nominal pressure");
+	}
+		//The size, as the panel gives it to a line: the pipes of the
+		//material of the other side take it as it is, the others the DN as
+		//their material has it. Never a size which is not one of the
+		//material of this pipe.
+	const PipeProperties sized = data(start);
+	if ((there.nominal.isSet() || there.outside.isSet())
+			&& (sized.nominal != there.nominal || sized.outside != there.outside)) {
+		const QString material = sized.material;
+		if (there.nominal.isSet() && codes.material(material)
+				&& !codes.lineSizes(material).contains(codes.nominalIn(there.nominal, material))) {
+			notes << QCoreApplication::translate("PidOffPage", "Size not copied: %1 is not a size of the material %2.")
+					 .arg(codes.text(there.nominal, there.material), material);
+		} else {
+			give(Conductor::LineReach::Size, [&](PipeProperties &p) {
+				if (p.material == there.material) {
+					p.nominal = there.nominal;
+					p.outside = there.outside;
+				} else if (there.nominal.isSet()) {
+					codes.giveLineSize(p, there.nominal);
+				}
+			});
+			copied << QCoreApplication::translate("PidOffPage", "Size");
+		}
+	}
+	if (filled(data(start).fluid, there.fluid)) {
+		give(Conductor::LineReach::Fluid, [&](PipeProperties &p) { p.fluid = there.fluid; });
+		copied << QCoreApplication::translate("PidOffPage", "Fluid");
+	}
+	if (filled(data(start).line_number, there.line_number)) {
+		give(Conductor::LineReach::LineNumber, [&](PipeProperties &p) { p.line_number = there.line_number; });
+		copied << QCoreApplication::translate("PidOffPage", "Line number");
+	}
+		//The kind of a line goes as far as its number; it is never empty
+	if (data(start).line_kind != there.line_kind) {
+		give(Conductor::LineReach::LineNumber, [&](PipeProperties &p) { p.line_kind = there.line_kind; });
+		copied << QCoreApplication::translate("PidOffPage", "Kind of line");
+	}
+	if (there.insulation_kind != PipeProperties::NoInsulation
+			&& data(start).insulation_kind != there.insulation_kind) {
+		give(Conductor::LineReach::Insulation, [&](PipeProperties &p) { p.insulation_kind = there.insulation_kind; });
+		copied << QCoreApplication::translate("PidOffPage", "Insulation");
+	}
+	if (filled(data(start).insulation, there.insulation)) {
+		give(Conductor::LineReach::Insulation, [&](PipeProperties &p) { p.insulation = there.insulation; });
+		copied << QCoreApplication::translate("PidOffPage", "Insulation text");
+	}
+	if (filled(data(start).flow, there.flow)) {
+		give(Conductor::LineReach::Flow, [&](PipeProperties &p) { p.flow = there.flow; });
+		copied << QCoreApplication::translate("PidOffPage", "Flow");
+	}
+		//The status of works, of this pipe only, as in the panel; "to be
+		//built" is a status, not nothing
+	if (data(start).status != there.status) {
+		data(start).status = there.status;
+		copied << QCoreApplication::translate("PidOffPage", "Status of works");
+	}
+
+	auto *undo = new QUndoCommand(QCoreApplication::translate("PidOffPage", "Copy from the other side"));
+	int changed = 0;
+	for (Conductor *pipe : std::as_const(order)) {
+		ConductorProperties properties = pipe->properties();
+		properties.m_pipe = after.value(pipe);
+		if (properties == pipe->properties()) {
+			continue;
+		}
+		QVariant old_value, new_value;
+		old_value.setValue(pipe->properties());
+		new_value.setValue(properties);
+		new QPropertyUndoCommand(pipe, "properties", old_value, new_value, undo);
+		++changed;
+	}
+	if (!changed) {
+		delete undo;
+		return nullptr;
+	}
+	if (said) {
+		QStringList lines{QCoreApplication::translate("PidOffPage", "Copied from the other side (%1): %n pipe(s) changed.",
+													  "", changed).arg(copied.join(QStringLiteral(", ")))};
+		*said = (lines + notes).join(QLatin1Char(' '));
+	}
+	return undo;
+}
+
+bool PidOffPage::canCopyFromTwin(Element *report)
+{
+	QUndoCommand *undo = copyFromTwin(report);
+	const bool can = undo != nullptr;
+	delete undo;
+	return can;
 }
 
 QPainterPath PidOffPage::veil(const QRectF &drawing)

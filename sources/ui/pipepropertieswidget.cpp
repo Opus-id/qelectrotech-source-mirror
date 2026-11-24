@@ -59,95 +59,21 @@ PipeDiameter writtenSize(const PipeProperties &p, const PidCodification &codes)
 	return p.writtenSize(codes.outsideDiameterFor(p.material));
 }
 
-	/// The DN of the pipe @p p: its own; without one, the DN the sizes of
-	/// its material give its outside diameter (those of the other materials
-	/// when it has none), the one of @p chosen (by outside diameter, in
-	/// tenths) among several; else none
-PipeDiameter nominalFor(const PipeProperties &p, const PidCodification &codes,
-						const QMap<int, PipeDiameter> &chosen)
-{
-	if (p.nominal.isSet() || !p.outside.isSet()) {
-		return p.nominal;
-	}
-	const QList<PipeDiameter> joined = codes.nominalsOf(p.outside, p.material);
-	return joined.size() == 1 ? joined.first() : chosen.value(p.outside.tenths());
-}
-
-	/// The key of what is asked once: the outside diameter of the DN @p dn
-	/// in the material of code @p code
-QString sizeKey(const QString &code, const PipeDiameter &dn)
-{
-	return code + QLatin1Char('|') + QString::number(dn.tenths());
-}
-
 	/// The DN the pipe @p p has once given the material of code @p code: its
-	/// DN (nominalFor()), the size of the line, as this material has it
-	/// (PidCodification::nominalIn(): DN 65 becomes DN 60 in a material
-	/// which has that one only, when the project says them equal)
+	/// DN (PidCodification::pipeNominal()), the size of the line, as this
+	/// material has it (PidCodification::nominalIn(): DN 65 becomes DN 60 in
+	/// a material which has that one only, when the project says them equal)
 PipeDiameter nominalInMaterial(const PipeProperties &p, const QString &code,
 							   const PidCodification &codes,
 							   const QMap<int, PipeDiameter> &chosen)
 {
-	return codes.nominalIn(nominalFor(p, codes, chosen), code);
+	return codes.nominalIn(codes.pipeNominal(p, chosen), code);
 }
 
-	/// Give the pipe @p p the material of code @p code. Its DN, the size of
-	/// the line, stays (nominalInMaterial()); its outside diameter is the
-	/// one of the new material: none for a material named by its DN or
-	/// which the project has not; else the one it had when the new material
-	/// has it for this DN, the only one it has for this DN, the default
-	/// one among several (PidCodification::outsideOf()), or without one the
-	/// one of @p outside_of (by sizeKey()). A pipe which has no DN and gets
-	/// none keeps its sizes.
-void giveMaterial(PipeProperties &p, const QString &code, const PidCodification &codes,
-				  const QMap<int, PipeDiameter> &nominal_of,
-				  const QMap<QString, PipeDiameter> &outside_of)
+	/// See PidCodification::choiceKey()
+QString sizeKey(const QString &code, const PipeDiameter &dn)
 {
-		//Its DN first: without one, it comes from the material it leaves
-	const PipeDiameter dn = nominalInMaterial(p, code, codes, nominal_of);
-	p.material = code;
-	if (!dn.isSet()) {
-		return;
-	}
-	p.nominal = dn;
-	if (!codes.outsideDiameterFor(code)) {
-		p.outside = PipeDiameter();
-		return;
-	}
-	if (!codes.outsidesOf(dn, code).contains(p.outside)) {
-		const PipeDiameter taken = codes.outsideOf(dn, code);
-		p.outside = taken.isSet() ? taken : outside_of.value(sizeKey(code, dn));
-	}
-}
-
-	/// Give the pipe @p p the size of line @p dn, a DN, which its material
-	/// keeps: the DN as the material has it (PidCodification::nominalIn(),
-	/// DN 65 becomes DN 60 in a material which has that one only), and the
-	/// outside diameter of this material: the one it has when the material
-	/// has it for this DN, else the only one or the default one
-	/// (PidCodification::outsideOf()), else the one of @p outside_of (by
-	/// sizeKey()); none for a material named by its DN. Without material,
-	/// or with one the project has not, an outside diameter stays while the
-	/// materials still give it this DN.
-void giveLineSize(PipeProperties &p, const PipeDiameter &dn, const PidCodification &codes,
-				  const QMap<QString, PipeDiameter> &outside_of)
-{
-	p.nominal = codes.nominalIn(dn, p.material);
-	const PidCodification::Entry *material = codes.material(p.material);
-	if (!material) {
-		if (!codes.nominalsOf(p.outside, p.material).contains(p.nominal)) {
-			p.outside = PipeDiameter();
-		}
-		return;
-	}
-	if (!material->outside_diameter) {
-		p.outside = PipeDiameter();
-		return;
-	}
-	if (!codes.outsidesOf(p.nominal, p.material).contains(p.outside)) {
-		const PipeDiameter taken = codes.outsideOf(p.nominal, p.material);
-		p.outside = taken.isSet() ? taken : outside_of.value(sizeKey(p.material, p.nominal));
-	}
+	return PidCodification::choiceKey(code, dn);
 }
 
 }
@@ -885,7 +811,7 @@ void PipePropertiesWidget::resizeLine(const PipeDiameter &nominal, const PipeDia
 			p.nominal = nominal;
 			p.outside = outside;
 		} else if (nominal.isSet()) {
-			giveLineSize(p, nominal, codes, outside_of);
+			codes.giveLineSize(p, nominal, outside_of);
 		} else if (!outside.isSet()) {
 				//Emptied: the line has no size any more
 			p.nominal = PipeDiameter();
@@ -979,7 +905,7 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 	{
 		const PipeProperties before = pipe->properties().m_pipe;
 		PipeProperties after = before;
-		giveMaterial(after, code, codes, nominal_of, outside_of);
+		codes.giveMaterial(after, code, nominal_of, outside_of);
 		QString note;
 		if (!before.nominal.isSet() && after.nominal.isSet()) {
 			note = tr("%1 → %2: its DN in the sizes of the materials.")
@@ -1001,7 +927,7 @@ void PipePropertiesWidget::materialEdited(const QString &code)
 		}
 	}
 	applyChange([code, codes, nominal_of, outside_of](PipeProperties &p) {
-		giveMaterial(p, code, codes, nominal_of, outside_of);
+		codes.giveMaterial(p, code, nominal_of, outside_of);
 	}, Reach::Spec);
 	if (!line_note.isEmpty()) {
 		notes << line_note;

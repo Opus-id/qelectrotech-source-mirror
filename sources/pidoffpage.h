@@ -26,12 +26,13 @@
 class Element;
 class PipeProperties;
 class QPainter;
+class QUndoCommand;
 
 /**
 	The off-page connectors of a pipe (step 8c-3): a folio report (QET's
 	next_report / previous_report) whose terminal is a nozzle. Each side of
 	a pair keeps the data of its own pipe; they are compared, never passed
-	on. A connector whose pipe differs from that of its twin, or which has
+	on unasked (copyFromTwin(), on demand, step 8c-4). A connector whose pipe differs from that of its twin, or which has
 	no twin, is veiled in orange, on the screen only, and its tool tip says
 	why. The twin's pipe is read from the project database while its folio
 	is not built (lazy folios): nothing is built to compare. A battery limit
@@ -61,6 +62,26 @@ QStringList differences(const PipeProperties &here, const PipeProperties &there)
 	/// data which differ from its twin's; nothing otherwise and for any
 	/// symbol but a pipe off-page connector
 QStringList warnings(const Element *element);
+	/// "Copy from the other side" (step 8c-4), the step which gives the pipe
+	/// of the off-page connector @p report, on its folio, the data of the
+	/// pipe of its twin, read as warnings() reads it: nothing on the folio
+	/// of the twin is built or changed. A value is copied when it is filled
+	/// on the other side and differs here: what is filled here is never
+	/// emptied (the kind of line and the status of works are never empty).
+	/// Each goes as far as in the pipe properties panel: the material
+	/// first, then the piping class and the nominal pressure, up to a spec
+	/// break or equipment; the size up to a reducer, refused when it is not
+	/// a size of the material of this pipe; the fluid, the line number and
+	/// the kind of line, the insulation, the flow, by their own rules
+	/// (Conductor::inlineRun()); the status of works on this pipe only.
+	/// Nothing is placed (a valve whose size no longer follows shows its
+	/// diamond). Null, nothing to do, for a folio not built, no twin, no
+	/// pipe on either side, or nothing to copy. @p said gets what to tell
+	/// the user: what was copied, how many pipes changed, a size refused.
+QUndoCommand *copyFromTwin(Element *report, QString *said = nullptr);
+	/// copyFromTwin() has something to do: the "Correct" submenu of
+	/// @p report then offers it
+bool canCopyFromTwin(Element *report);
 	/// The veil over a cartouche drawn in @p drawing: its body and its
 	/// point, which is on its right as the fork's symbols are drawn
 QPainterPath veil(const QRectF &drawing);

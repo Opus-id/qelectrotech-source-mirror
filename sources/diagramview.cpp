@@ -19,6 +19,7 @@
 
 #include "pidstatus.h"
 #include "pidflow.h"
+#include "pidoffpage.h"
 #include "itemdescription.h"
 #include "shownkinds.h"
 #include "autoNum/ui/pastenumberingimport.h"
@@ -91,6 +92,7 @@
 #include <QPointer>
 #include <QDir>
 #include <QSet>
+#include <QStatusBar>
 #include <QStyleFactory>
 #include <QToolTip>
 #include <QUuid>
@@ -3623,6 +3625,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 		updateOptionsMenu();
 		updateStatusMenu();
 		updateFlowCorrections();
+		updateOffPageCorrection();
 			//The selection may just have changed under the mouse
 		if (QETDiagramEditor *qde = diagramEditor()) {
 			qde->m_create_similar->setEnabled(similarSource() != nullptr);
@@ -3802,6 +3805,42 @@ void DiagramView::updateFlowCorrections()
 			mirrorArrows(arrows, action->text());
 		});
 	}
+}
+
+/**
+	@brief DiagramView::updateOffPageCorrection
+	P&ID, 8c-4: the right click on one pipe off-page connector whose pipe
+	differs from that of its twin adds "Copy from the other side" to the
+	"Correct" submenu (after updateFlowCorrections(), which clears it), when
+	there is something to copy (PidOffPage::canCopyFromTwin()). One undo
+	step; what was copied is said in the status bar. Nothing on the folio
+	of the twin is built. Not on a read-only diagram.
+*/
+void DiagramView::updateOffPageCorrection()
+{
+	const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+	if (m_diagram->isReadOnly() || selected.size() != 1) {
+		return;
+	}
+	auto *report = qgraphicsitem_cast<Element *>(selected.first());
+	if (!report || !PidOffPage::canCopyFromTwin(report)) {
+		return;
+	}
+	const QPointer<Element> kept(report);
+	QAction *action = m_correct_menu->addAction(
+				QET::Icons::EditCopy, tr("Copy from the other side", "context menu action"));
+	connect(action, &QAction::triggered, this, [this, kept]() {
+		if (!kept || kept->diagram() != m_diagram) {
+			return;
+		}
+		QString said;
+		if (QUndoCommand *undo = PidOffPage::copyFromTwin(kept.data(), &said)) {
+			m_diagram->undoStack().push(undo);
+			if (QETDiagramEditor *qde = diagramEditor()) {
+				qde->statusBar()->showMessage(said, 8000);
+			}
+		}
+	});
 }
 
 /**

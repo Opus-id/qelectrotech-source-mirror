@@ -5434,6 +5434,21 @@ Continuer ?</translation>
         <translation>rien</translation>
     </message>
     <message>
+        <source>Size not copied: %1 is not a size of the material %2.</source>
+        <translation>Taille non recopiée : %1 n&apos;est pas une taille du matériau %2.</translation>
+    </message>
+    <message>
+        <source>Copy from the other side</source>
+        <translation>Recopier depuis l&apos;autre côté</translation>
+    </message>
+    <message numerus="yes">
+        <source>Copied from the other side (%1): %n pipe(s) changed.</source>
+        <translation>
+            <numerusform>Recopié depuis l&apos;autre côté (%1) : %n tuyauterie changée.</numerusform>
+            <numerusform>Recopié depuis l&apos;autre côté (%1) : %n tuyauteries changées.</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>secondary flow line</source>
         <translation>ligne secondaire</translation>
     </message>
@@ -6258,6 +6273,12 @@ Maintenir Maj et faire glisser pour déplacer ce texte seul</translation>
         <source>Correct</source>
         <comment>context menu: proposals for what is reported</comment>
         <translation>Corriger</translation>
+    </message>
+    <message>
+        <location filename="../sources/diagramview.cpp" line="3831"/>
+        <source>Copy from the other side</source>
+        <comment>context menu action</comment>
+        <translation>Recopier depuis l&apos;autre côté</translation>
     </message>
     <message>
         <location filename="../sources/diagramview.cpp" line="3790"/>

@@ -5,6 +5,7 @@
 #include "conductorproperties.h"
 #include "diagram.h"
 #include "factory/elementfactory.h"
+#include "pidcodification.h"
 #include "pidoffpage.h"
 #include "pipeproperties.h"
 #include "qetgraphicsitem/conductor.h"
@@ -16,6 +17,8 @@
 #include <QDomDocument>
 #include <QFile>
 #include <QTemporaryDir>
+#include <QUndoCommand>
+#include <QUndoStack>
 #include <QtTest>
 
 // Step 8c-3: the off-page connectors of a pipe. Each side of a pair keeps
@@ -23,7 +26,7 @@
 // or which has no twin, is veiled in orange and says why in its tool tip.
 // The twin's pipe is read from the project database while its folio is
 // not built: nothing is built to compare. Battery limits and electrical
-// folio reports are never marked.
+// folio reports are never marked. Step 8c-4: "Copy from the other side".
 class tst_pidoffpage : public QObject
 {
 	Q_OBJECT
@@ -116,6 +119,42 @@ class tst_pidoffpage : public QObject
 			if (element->uuid() == uuid) return element;
 		return nullptr;
 	}
+
+		// A symbol on the line, nozzles N1 (west) and N2 (east); @p extra on
+		// <definition> (pid_inline, its role)
+	static Element *inlineSymbol(Diagram *folio, const QString &extra, const QPointF &pos)
+	{
+		QDomDocument doc;
+		const QString name = QUuid::createUuid().toString(QUuid::Id128);
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" %1 "
+			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+			"<names><name lang=\"en\">V</name></names><description>"
+			"<terminal name=\"N1\" x=\"-10\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"pipe\"/>"
+			"<terminal name=\"N2\" x=\"10\" y=\"0\" orientation=\"e\" type=\"Generic\" medium=\"pipe\"/>"
+			"</description></definition>").arg(extra));
+		if (!folio->project()->embeddedElementCollection()->addElementDefinition(
+				QStringLiteral("import"), name, doc.documentElement()))
+			return nullptr;
+		int state = 0;
+		auto *element = ElementFactory::Instance()->createElement(
+				ElementsLocation("embed://import/" + name + ".elmt", folio->project()),
+				nullptr, &state);
+		if (state || !element) return nullptr;
+		folio->addItem(element);
+		element->setPos(pos);
+		return element;
+	}
+
+	static Conductor *draw(Diagram *folio, Terminal *from, Terminal *to, const PipeProperties &pipe)
+	{
+		auto *wire = new Conductor(from, to);
+		folio->addItem(wire);
+		setPipe(wire, pipe);
+		return wire;
+	}
+
+	static PipeProperties pipeOf(const Conductor *wire) { return wire->properties().m_pipe; }
 
 	private slots:
 		void initTestCase() { QETProject::setBackupEnabled(false); }
@@ -297,6 +336,205 @@ class tst_pidoffpage : public QObject
 						 QStringLiteral("Fluid: ER here, EB on the other side"));
 				QVERIFY(!second->isLoaded());
 			}
+		}
+
+			// Step 8c-4. "Copy from the other side": the data filled on the
+			// other side and different here, each as far as in the panel
+			// (spec to the spec break, size through it, status on the pipe
+			// of the connector only); what is filled here is kept; one undo
+			// step; the other side unchanged
+		void copyFromTwinGivesTheDataOfTheOtherSide()
+		{
+			QETProject project;
+			Diagram *first = project.addNewDiagram();
+			Diagram *second = project.addNewDiagram();
+				// report -A- valve -B- spec break -C- equipment
+			Element *out = symbol(first, QStringLiteral("next_report"), QStringLiteral("pipe"));
+			Element *valve = inlineSymbol(first, QStringLiteral("pid_inline=\"true\" pid_family=\"valve\""),
+										  QPointF(-200, 0));
+			Element *spec_break = inlineSymbol(first, QStringLiteral("pid_inline=\"true\" pid_family=\"pipe\" "
+																   "pid_role=\"spec_break\""), QPointF(-400, 0));
+			Element *equipment = symbol(first, QStringLiteral("simple"), QStringLiteral("pipe"));
+			Element *in = symbol(second, QStringLiteral("previous_report"), QStringLiteral("pipe"));
+			QVERIFY(out && valve && spec_break && equipment && in);
+			equipment->setPos(-700, 0);
+			PipeProperties here = line();
+			here.nominal_pressure = QStringLiteral("PN10");
+			Conductor *a = draw(first, valve->terminals().at(1), out->terminals().first(), here);
+			Conductor *b = draw(first, spec_break->terminals().at(1), valve->terminals().at(0), line());
+			Conductor *c = draw(first, equipment->terminals().first(), spec_break->terminals().at(0), line());
+			PipeProperties there = line();
+			there.material = QStringLiteral("PE");
+			there.nominal = PipeDiameter::nominal(150);
+			there.piping_class = QStringLiteral("C1");
+			there.fluid = QStringLiteral("ER");
+			there.flow = QStringLiteral("50 m3/h");
+			there.status = QStringLiteral("existing");
+			Conductor *twin_pipe = pipeTo(second, in, there);
+			QVERIFY(a && b && c && twin_pipe);
+			out->linkToElement(in);
+			QVERIFY(PidOffPage::canCopyFromTwin(out));
+
+			QString said;
+			QUndoCommand *undo = PidOffPage::copyFromTwin(out, &said);
+			QVERIFY(undo);
+			QCOMPARE(said, QStringLiteral("Copied from the other side (Material, Piping class, Size, Fluid, "
+										  "Flow, Status of works): 3 pipe(s) changed."));
+			project.undoStack()->push(undo);
+
+				// The pipe of the connector: all, its nominal pressure kept
+			QCOMPARE(pipeOf(a).material, QStringLiteral("PE"));
+			QCOMPARE(pipeOf(a).nominal, PipeDiameter::nominal(150));
+			QCOMPARE(pipeOf(a).piping_class, QStringLiteral("C1"));
+			QCOMPARE(pipeOf(a).fluid, QStringLiteral("ER"));
+			QCOMPARE(pipeOf(a).flow, QStringLiteral("50 m3/h"));
+			QCOMPARE(pipeOf(a).status, QStringLiteral("existing"));
+			QCOMPARE(pipeOf(a).nominal_pressure, QStringLiteral("PN10"));
+				// Through the valve: the spec, the size, the fluid, the
+				// flow; not the status
+			QCOMPARE(pipeOf(b).material, QStringLiteral("PE"));
+			QCOMPARE(pipeOf(b).piping_class, QStringLiteral("C1"));
+			QCOMPARE(pipeOf(b).nominal, PipeDiameter::nominal(150));
+			QCOMPARE(pipeOf(b).fluid, QStringLiteral("ER"));
+			QCOMPARE(pipeOf(b).flow, QStringLiteral("50 m3/h"));
+			QVERIFY(pipeOf(b).status.isEmpty());
+				// Beyond the spec break: the size and the fluid only
+			QCOMPARE(pipeOf(c).material, QStringLiteral("AC"));
+			QVERIFY(pipeOf(c).piping_class.isEmpty());
+			QCOMPARE(pipeOf(c).nominal, PipeDiameter::nominal(150));
+			QCOMPARE(pipeOf(c).fluid, QStringLiteral("ER"));
+				// The other side unchanged; only what is empty there differs
+			QCOMPARE(pipeOf(twin_pipe).material, QStringLiteral("PE"));
+			QVERIFY(pipeOf(twin_pipe).nominal_pressure.isEmpty());
+			const QStringList warnings = PidOffPage::warnings(out);
+			QCOMPARE(warnings.size(), 2);
+			QCOMPARE(warnings.at(1), QStringLiteral("Nominal pressure: PN10 here, nothing on the other side"));
+			QVERIFY(!PidOffPage::canCopyFromTwin(out));
+
+				// One step undone: all as before
+			project.undoStack()->undo();
+			QCOMPARE(pipeOf(a), here);
+			QCOMPARE(pipeOf(b), line());
+			QCOMPARE(pipeOf(c), line());
+			QVERIFY(PidOffPage::canCopyFromTwin(out));
+		}
+
+			// Nothing to copy, no entry: no twin, the same data, or only
+			// data empty on the other side; a folio report of wires never
+		void nothingToCopyOffersNothing()
+		{
+			QETProject project;
+			Diagram *first = project.addNewDiagram();
+			Diagram *second = project.addNewDiagram();
+			Element *out = symbol(first, QStringLiteral("next_report"), QStringLiteral("pipe"));
+			Element *in = symbol(second, QStringLiteral("previous_report"), QStringLiteral("pipe"));
+			Element *wire = symbol(first, QStringLiteral("next_report"), QString());
+			QVERIFY(out && in && wire);
+			pipeTo(first, out, line());
+			Conductor *twin_pipe = pipeTo(second, in, line());
+			QVERIFY(twin_pipe);
+			QVERIFY(!PidOffPage::canCopyFromTwin(out));
+			QVERIFY(!PidOffPage::copyFromTwin(out));
+			QVERIFY(!PidOffPage::canCopyFromTwin(wire));
+			QVERIFY(!PidOffPage::canCopyFromTwin(nullptr));
+
+			out->linkToElement(in);
+			QVERIFY(!PidOffPage::canCopyFromTwin(out));
+			PipeProperties emptier = line();
+			emptier.fluid.clear();
+			emptier.line_number.clear();
+			setPipe(twin_pipe, emptier);
+			QCOMPARE(PidOffPage::warnings(out).size(), 3);
+			QVERIFY(!PidOffPage::canCopyFromTwin(out));
+				// The other way round, all to copy
+			QVERIFY(PidOffPage::canCopyFromTwin(in));
+		}
+
+			// A size which is not one of the material of this pipe is not
+			// copied, and said; the rest is
+		void aSizeOutOfTheSeriesIsNotCopied()
+		{
+			QETProject project;
+			PidCodification codes;
+			PidCodification::Entry steel;
+			steel.code = QStringLiteral("AC");
+			steel.name = QStringLiteral("Steel");
+			QVERIFY(steel.addSize(0, 100));
+			codes.materials << steel;
+			project.setPidCodification(codes);
+			Diagram *first = project.addNewDiagram();
+			Diagram *second = project.addNewDiagram();
+			Element *out = symbol(first, QStringLiteral("next_report"), QStringLiteral("pipe"));
+			Element *in = symbol(second, QStringLiteral("previous_report"), QStringLiteral("pipe"));
+			QVERIFY(out && in);
+			Conductor *pipe = pipeTo(first, out, line());
+			PipeProperties there = line();
+			there.nominal = PipeDiameter::nominal(150);
+			there.fluid = QStringLiteral("ER");
+			QVERIFY(pipe && pipeTo(second, in, there));
+			out->linkToElement(in);
+
+			QString said;
+			QUndoCommand *undo = PidOffPage::copyFromTwin(out, &said);
+			QVERIFY(undo);
+			project.undoStack()->push(undo);
+			QCOMPARE(said, QStringLiteral("Copied from the other side (Fluid): 1 pipe(s) changed. "
+										  "Size not copied: DN 150 is not a size of the material AC."));
+			QCOMPARE(pipeOf(pipe).nominal, PipeDiameter::nominal(100));
+			QCOMPARE(pipeOf(pipe).fluid, QStringLiteral("ER"));
+				// Only the size is left: nothing more to offer
+			QVERIFY(!PidOffPage::canCopyFromTwin(out));
+		}
+
+			// The twin on a folio not built: copied from the project
+			// database, the folio of the twin stays not built
+		void copyingFromAFolioNotBuiltBuildsNothing_data()
+		{
+			QTest::addColumn<bool>("shown");
+			QTest::newRow("built") << false;
+			QTest::newRow("shown, twin built alone") << true;
+		}
+
+		void copyingFromAFolioNotBuiltBuildsNothing()
+		{
+			QFETCH(bool, shown);
+			QTemporaryDir directory;
+			QVERIFY(directory.isValid());
+			QUuid out_uuid;
+			const QString file = savedPair(directory, &out_uuid);
+			QVERIFY(!file.isEmpty());
+
+			const QByteArray previous = qgetenv("QET_EAGER_FOLIOS");
+			qputenv("QET_EAGER_FOLIOS", "0");
+			QETProject reopened(file);
+			if (previous.isNull()) {
+				qunsetenv("QET_EAGER_FOLIOS");
+			} else {
+				qputenv("QET_EAGER_FOLIOS", previous);
+			}
+			QCOMPARE(reopened.state(), QETProject::Ok);
+			Diagram *first = reopened.folios().first();
+			Diagram *second = reopened.folios().at(1);
+			if (shown) {
+				reopened.buildFolioToShow(first);
+			} else {
+				reopened.buildFolios({first});
+			}
+			QVERIFY(!second->isLoaded());
+			Element *out = find(first, out_uuid);
+			QVERIFY(out);
+			Conductor *pipe = out->terminals().first()->conductors().first();
+
+			QVERIFY(PidOffPage::canCopyFromTwin(out));
+			QUndoCommand *undo = PidOffPage::copyFromTwin(out);
+			QVERIFY(undo);
+			reopened.undoStack()->push(undo);
+			QCOMPARE(pipeOf(pipe).fluid, QStringLiteral("ER"));
+			QVERIFY(PidOffPage::warnings(out).isEmpty());
+			QVERIFY(!second->isLoaded());
+			reopened.undoStack()->undo();
+			QCOMPARE(pipeOf(pipe).fluid, QStringLiteral("EB"));
+			QVERIFY(!second->isLoaded());
 		}
 
 			// The veil: the body and the point of the cartouche, on its right
