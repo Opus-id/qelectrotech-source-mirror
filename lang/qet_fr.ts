@@ -5583,6 +5583,24 @@ Continuer ?</translation>
     </message>
 </context>
 <context>
+    <name>HiddenTerminalCorrections</name>
+    <message>
+        <source>Set %1 to %2</source>
+        <comment>context menu action: an option of a symbol, a value</comment>
+        <translation>Passer %1 à %2</translation>
+    </message>
+    <message>
+        <source>Delete the line of the hidden terminal</source>
+        <comment>context menu action</comment>
+        <translation>Supprimer la ligne de la borne masquée</translation>
+    </message>
+    <message>
+        <source>Delete the %1 lines of the hidden terminal</source>
+        <comment>context menu action</comment>
+        <translation>Supprimer les %1 lignes de la borne masquée</translation>
+    </message>
+</context>
+<context>
     <name>PidProcessConnection</name>
     <message>
         <location filename="../sources/pidprocessconnection.cpp" line="40"/>

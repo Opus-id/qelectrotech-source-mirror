@@ -21,6 +21,7 @@
 #include "pidflow.h"
 #include "pidoffpage.h"
 #include "pidsizecorrections.h"
+#include "hiddenterminalcorrections.h"
 #include "itemdescription.h"
 #include "shownkinds.h"
 #include "autoNum/ui/pastenumberingimport.h"
@@ -3628,6 +3629,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 		updateFlowCorrections();
 		updateOffPageCorrection();
 		updateSizeCorrections();
+		updateHiddenTerminalCorrections();
 			//The selection may just have changed under the mouse
 		if (QETDiagramEditor *qde = diagramEditor()) {
 			qde->m_create_similar->setEnabled(similarSource() != nullptr);
@@ -3876,6 +3878,36 @@ void DiagramView::updateSizeCorrections()
 			}
 			if (QETDiagramEditor *qde = diagramEditor(); qde && !said.isEmpty()) {
 				qde->statusBar()->showMessage(said, 8000);
+			}
+		});
+	}
+}
+
+/**
+	@brief DiagramView::updateHiddenTerminalCorrections
+	8r-3 b: the right click on one symbol or one wire whose terminal the
+	options of the symbol hide while it keeps a wire adds the proposals of
+	HiddenTerminalCorrections to the "Correct" submenu (after
+	updateFlowCorrections(), which clears it): a value of an option which
+	shows it again, the deletion of its wires. Each is one undo step. Not
+	on a read-only diagram.
+*/
+void DiagramView::updateHiddenTerminalCorrections()
+{
+	const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+	if (m_diagram->isReadOnly() || selected.size() != 1) {
+		return;
+	}
+	const QList<HiddenTerminalCorrections::Proposal> found =
+		HiddenTerminalCorrections::proposals(selected.first(), m_menu_scene_pos);
+	for (const HiddenTerminalCorrections::Proposal &proposal : found)
+	{
+		QAction *action = proposal.kind == HiddenTerminalCorrections::Proposal::DeleteWires
+				? m_correct_menu->addAction(QET::Icons::EditDelete, proposal.text)
+				: m_correct_menu->addAction(proposal.text);
+		connect(action, &QAction::triggered, this, [this, proposal]() {
+			if (QUndoCommand *undo = HiddenTerminalCorrections::apply(proposal)) {
+				m_diagram->undoStack().push(undo);
 			}
 		});
 	}

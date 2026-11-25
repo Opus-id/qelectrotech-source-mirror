@@ -25,6 +25,7 @@
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "factory/elementpicturefactory.h"
+#include "hiddenterminalcorrections.h"
 #include "properties/elementoptions.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
@@ -230,6 +231,73 @@ class tst_elementoptions : public QObject
 					QStringLiteral("import/bubbles"), QStringLiteral("bubble.elmt"),
 					doc.documentElement());
 		return ElementsLocation(QStringLiteral("embed://import/bubbles/bubble.elmt"), &project);
+	}
+
+		// A valve with an actuator (step 8r-3 b): a signal terminal S1
+		// for a motor or a pneumatic actuator, S2 for a hand lever; a
+		// second option which shows neither
+	static ElementsLocation addActuatedValve(QETProject &project)
+	{
+		project.embeddedElementCollection()->createDir(
+					QStringLiteral("import"), QStringLiteral("valves"), NamesList());
+		QDomDocument doc;
+		doc.setContent(QStringLiteral(
+			"<definition version=\"0.100.0\" type=\"element\" link_type=\"simple\" "
+			"width=\"40\" height=\"40\" hotspot_x=\"20\" hotspot_y=\"20\">"
+			"<uuid uuid=\"{7a444444-4444-4444-4444-444444444444}\"/>"
+			"<names><name lang=\"en\">Actuated valve</name></names>"
+			"<options>"
+			"<option name=\"command\" default=\"none\">"
+			"<names><name lang=\"en\">Actuator</name></names>"
+			"<value name=\"none\"/><value name=\"manual\"/>"
+			"<value name=\"motor\"><names><name lang=\"en\">Motor</name></names></value>"
+			"<value name=\"pneumatic\"><names><name lang=\"en\">Pneumatic</name></names></value>"
+			"</option>"
+			"<option name=\"seal\" default=\"single\"><value name=\"single\"/><value name=\"double\"/></option>"
+			"</options>"
+			"<description>"
+			"<line x1=\"-10\" y1=\"0\" x2=\"10\" y2=\"0\" end1=\"none\" end2=\"none\" "
+			"length1=\"1.5\" length2=\"1.5\" style=\"line-weight:normal\" antialias=\"false\"/>"
+			"<terminal x=\"-20\" y=\"0\" orientation=\"w\" type=\"Generic\" medium=\"pipe\" name=\"N1\" "
+			"uuid=\"{7a444444-0000-0000-0000-000000000001}\"/>"
+			"<terminal x=\"20\" y=\"0\" orientation=\"e\" type=\"Generic\" medium=\"pipe\" name=\"N2\" "
+			"uuid=\"{7a444444-0000-0000-0000-000000000002}\"/>"
+			"<terminal x=\"0\" y=\"-20\" orientation=\"n\" type=\"Generic\" medium=\"signal\" name=\"S1\" "
+			"show_if=\"command=motor,pneumatic\" uuid=\"{7a444444-0000-0000-0000-000000000003}\"/>"
+			"<terminal x=\"10\" y=\"-20\" orientation=\"n\" type=\"Generic\" medium=\"signal\" name=\"S2\" "
+			"show_if=\"command=manual\" uuid=\"{7a444444-0000-0000-0000-000000000004}\"/>"
+			"</description></definition>"));
+		project.embeddedElementCollection()->addElementDefinition(
+					QStringLiteral("import/valves"), QStringLiteral("actuated.elmt"),
+					doc.documentElement());
+		return ElementsLocation(QStringLiteral("embed://import/valves/actuated.elmt"), &project);
+	}
+
+	static QStringList texts(const QList<HiddenTerminalCorrections::Proposal> &found)
+	{
+		QStringList list;
+		for (const HiddenTerminalCorrections::Proposal &proposal : found) {
+			list << proposal.text;
+		}
+		return list;
+	}
+
+		// The proposal of text @p text applied as the submenu does, in
+		// one step pushed on @p stack; false if none or nothing done
+	static bool apply(QUndoStack &stack, const QList<HiddenTerminalCorrections::Proposal> &found,
+					  const QString &text)
+	{
+		for (const HiddenTerminalCorrections::Proposal &proposal : found) {
+			if (proposal.text != text) continue;
+			QUndoCommand *undo = HiddenTerminalCorrections::apply(proposal);
+			if (!undo || undo->text() != text) {
+				delete undo;
+				return false;
+			}
+			stack.push(undo);
+			return true;
+		}
+		return false;
 	}
 
 		// The end of @p conductor on @p terminal is drawn there
@@ -584,6 +652,91 @@ class tst_elementoptions : public QObject
 			delete signal_line;
 			QVERIFY(!a_signal->isKeptByWire());
 			QVERIFY(!drawn(a_signal));
+		}
+
+		void aHiddenTerminalOffersItsCorrections()
+		{
+			QETProject project;
+			const ElementsLocation location = addActuatedValve(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			QVERIFY(a && b);
+			b->setPos(400, 200);
+			const ElementOptions::Choices motor{{QStringLiteral("command"), QStringLiteral("motor")}};
+			a->setOptionChoices(motor);
+			b->setOptionChoices(motor);
+			Terminal *a_s1 = terminalNamed(a, QStringLiteral("S1"));
+			auto *signal_line = new Conductor(a_s1, terminalNamed(b, QStringLiteral("S1")));
+			folio->addItem(signal_line);
+				// shown: nothing offered
+			QVERIFY(HiddenTerminalCorrections::proposals(a, a_s1->dockConductor()).isEmpty());
+			QVERIFY(HiddenTerminalCorrections::proposals(signal_line, a_s1->dockConductor()).isEmpty());
+
+				// the actuator taken off: each value which shows it again, in the
+				// order of the symbol, and the deletion of its line
+			a->setOptionChoices({{QStringLiteral("seal"), QStringLiteral("double")}});
+			QVERIFY(a_s1->isKeptByWire());
+			const QStringList expected{QStringLiteral("Set Actuator to Motor"),
+									   QStringLiteral("Set Actuator to Pneumatic"),
+									   QStringLiteral("Delete the line of the hidden terminal")};
+			const QList<HiddenTerminalCorrections::Proposal> found =
+					HiddenTerminalCorrections::proposals(a, a_s1->dockConductor());
+			QCOMPARE(texts(found), expected);
+				// the same from the line, wherever the click
+			QCOMPARE(texts(HiddenTerminalCorrections::proposals(signal_line, b->scenePos())), expected);
+				// nothing on the symbol at the other end, its terminal shown
+			QVERIFY(HiddenTerminalCorrections::proposals(b, b->scenePos()).isEmpty());
+
+				// a value: the other choices kept; one step, undone
+			QUndoStack stack;
+			QVERIFY(apply(stack, found, expected.at(1)));
+			QCOMPARE(a->optionChoices(),
+					 ElementOptions::Choices({{QStringLiteral("command"), QStringLiteral("pneumatic")},
+											  {QStringLiteral("seal"), QStringLiteral("double")}}));
+			QVERIFY(!a_s1->isKeptByWire());
+			stack.undo();
+			QCOMPARE(a->optionChoices(),
+					 ElementOptions::Choices({{QStringLiteral("seal"), QStringLiteral("double")}}));
+			QVERIFY(a_s1->isKeptByWire());
+
+				// the line deleted: one step, undone
+			QVERIFY(apply(stack, found, expected.last()));
+			QCOMPARE(a_s1->conductorsCount(), 0);
+			QVERIFY(!folio->items().contains(signal_line));
+			QVERIFY(!a_s1->isKeptByWire());
+			stack.undo();
+			QCOMPARE(a_s1->conductors(), QList<Conductor *>{signal_line});
+			QVERIFY(a_s1->isKeptByWire());
+		}
+
+			// A value which would hide another terminal with a line is not
+			// offered (choice of the user of 25/11)
+		void aValueWhichHidesAnotherLineIsNotOffered()
+		{
+			QETProject project;
+			const ElementsLocation location = addActuatedValve(project);
+			Diagram *folio = project.addNewDiagram();
+			Element *a = place(folio, location);
+			Element *b = place(folio, location);
+			Element *c = place(folio, location);
+			QVERIFY(a && b && c);
+			b->setPos(400, 200);
+			c->setPos(0, 400);
+			const ElementOptions::Choices motor{{QStringLiteral("command"), QStringLiteral("motor")}};
+			const ElementOptions::Choices manual{{QStringLiteral("command"), QStringLiteral("manual")}};
+			a->setOptionChoices(motor);
+			b->setOptionChoices(motor);
+			c->setOptionChoices(manual);
+			Terminal *a_s1 = terminalNamed(a, QStringLiteral("S1"));
+			folio->addItem(new Conductor(a_s1, terminalNamed(b, QStringLiteral("S1"))));
+				// hand lever: S1 hidden with its line, S2 shown with another
+			a->setOptionChoices(manual);
+			folio->addItem(new Conductor(terminalNamed(a, QStringLiteral("S2")),
+										 terminalNamed(c, QStringLiteral("S2"))));
+			QVERIFY(a_s1->isKeptByWire());
+			QCOMPARE(texts(HiddenTerminalCorrections::proposals(a, a_s1->dockConductor())),
+					 QStringList{QStringLiteral("Delete the line of the hidden terminal")});
 		}
 
 		void theEditorKeepsTheConditionOfATerminal()
