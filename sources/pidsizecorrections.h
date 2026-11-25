@@ -64,8 +64,9 @@ class QWidget;
 	between two sizes on the side of the click. The reducer is the symbol
 	of the project (PidCodification::tool_symbols, role "reducer"), taken
 	into the project; it goes on the first straight stretch of the pipe
-	from the nozzle, one step of the grid away from it, its large side
-	toward the large size. The piece between the nozzle and it takes the
+	from the nozzle, four steps of the grid away from it (10 mm, room for
+	the text of its sizes; closer, down to one step, on a shorter
+	stretch), its large side toward the large size. The piece between the nozzle and it takes the
 	other size (that of the nozzle, or of the other side of the inline
 	item); the rest of the pipe keeps its own. One undo step. Nothing is
 	offered without a reducer set, with a stretch too short, or a size

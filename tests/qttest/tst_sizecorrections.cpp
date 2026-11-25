@@ -457,7 +457,7 @@ class tst_sizecorrections : public QObject
 		}
 
 			// A nozzle of DN 80 on a pipe of DN 100: a reducer of the project
-			// one step of the grid from it, its small side toward it, the
+			// four steps of the grid from it, its small side toward it, the
 			// piece between them at DN 80; one step, undone (step 8r-3 d)
 		void aReducerIsInsertedAtANozzle()
 		{
@@ -487,14 +487,14 @@ class tst_sizecorrections : public QObject
 			QVERIFY(apply(folio, found, text));
 			QCOMPARE(folio->undoStack().count(), steps + 1);
 			QVERIFY(pipe.isNull() || !pipe->scene());
-				// the piece at DN 80, one step long, to the small side
+				// the piece at DN 80, four steps long (10 mm), to the small side
 			Terminal *small = across(n1);
 			QVERIFY(small);
 			Element *reducer = small->parentElement();
 			QVERIFY(reducer && reducer->isReducer() && reducer != b);
 			QCOMPARE(small->baseName(), QStringLiteral("N2"));
 			QCOMPARE(dn(pipeOn(n1)), 80);
-			QCOMPARE(QLineF(small->dockConductor(), n1->dockConductor()).length(), 10.0);
+			QCOMPARE(QLineF(small->dockConductor(), n1->dockConductor()).length(), 40.0);
 			QCOMPARE(small->orientation(), Qet::East);
 				// the rest at DN 100, from the large side to the other tank
 			Terminal *large = terminal(reducer, QStringLiteral("N1"));
@@ -615,6 +615,36 @@ class tst_sizecorrections : public QObject
 			Terminal *d1 = terminal(d, QStringLiteral("N1"));
 			QVERIFY(d1->hasDiameterGap());
 			QVERIFY(!texts(PidSizeCorrections::proposals(d, d1->dockConductor())).contains(text));
+		}
+
+			// A stretch too short for four steps: the reducer closer, step by
+			// step, down to one (choice of the user at the trial of 25/11)
+		void aShortStretchBringsTheReducerCloser()
+		{
+			const QString text = QStringLiteral("Insert a reducer here (DN 100 × DN 80)");
+			QETProject project;
+			setReducer(project);
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+				// 80 units between the nozzles: three steps (30 + 40 + 10);
+				// 60: one step (10 + 40 + 10)
+			const QList<QPair<qreal, qreal>> cases{{120, 30.0}, {100, 10.0}};
+			qreal x = 0;
+			for (const QPair<qreal, qreal> &one : cases)
+			{
+				Element *a = place(folio, tank, x);
+				Element *b = place(folio, tank, x + one.first);
+				QVERIFY(a && b);
+				Conductor *pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N1"));
+				setSize(pipe, 100);
+				Terminal *n1 = terminal(b, QStringLiteral("N1"));
+				QVERIFY(apply(folio, PidSizeCorrections::proposals(b, n1->dockConductor()), text));
+				Terminal *small = across(n1);
+				QVERIFY(small && small->parentElement()->isReducer());
+				QCOMPARE(QLineF(small->dockConductor(), n1->dockConductor()).length(), one.second);
+				QVERIFY(!n1->hasDiameterGap());
+				x += 400;
+			}
 		}
 
 			// Nothing reported: nothing offered; a wire is never looked at

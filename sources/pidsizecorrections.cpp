@@ -206,9 +206,12 @@ QUndoCommand *reverseReducer(Element *reducer, const QString &text)
 }
 
 	/// The piece of pipe between a nozzle and the reducer inserted there:
-	/// one step of the grid (step 8r-3 d, choice of the user of 25/11); as
-	/// much room is left between the reducer and the end of the stretch
-constexpr qreal kReducerStub = PidTee::nozzle_room;
+	/// four steps of the grid, 10 mm, room for the text of its sizes (step
+	/// 8r-3 d, choice of the user at the trial of 25/11); on a shorter
+	/// stretch, closer step by step down to one. One step of room is left
+	/// between the reducer and the end of the stretch
+constexpr qreal kReducerStep = PidTee::nozzle_room;
+constexpr qreal kReducerStub = 4 * kReducerStep;
 
 Qet::Orientation opposite(Qet::Orientation orientation)
 {
@@ -359,6 +362,8 @@ struct ReducerPlan
 	ConductorProperties stub;
 		/// The large side of the reducer toward the nozzle
 	bool stub_large = false;
+		/// The length of that piece
+	qreal stub_length = 0;
 		/// What the submenu says
 	QString text;
 	bool isValid() const { return pipe; }
@@ -442,7 +447,17 @@ ReducerPlan planReducer(Terminal *nozzle)
 		return plan;
 	}
 	const qreal run = reducerRun(folio);
-	if (run <= 0 || !straightFor(pipe, nozzle, kReducerStub + run + kReducerStub)) {
+	if (run <= 0) {
+		return plan;
+	}
+		//As far as the straight stretch lets it, from four steps down to one
+	for (qreal length = kReducerStub ; length >= kReducerStep - 0.01 ; length -= kReducerStep) {
+		if (straightFor(pipe, nozzle, length + run + kReducerStep)) {
+			plan.stub_length = length;
+			break;
+		}
+	}
+	if (plan.stub_length <= 0) {
 		return plan;
 	}
 	plan.stub_large = dn_stub.tenths() > dn_line.tenths();
@@ -512,7 +527,7 @@ QUndoCommand *insertReducer(Terminal *nozzle, const QString &text)
 	Terminal *back = plan.stub_large ? large : small;
 	Terminal *ahead = plan.stub_large ? small : large;
 	const Qet::Orientation out = nozzle->orientation();
-	const QPointF at = nozzle->dockConductor() + unitOf(out) * kReducerStub;
+	const QPointF at = nozzle->dockConductor() + unitOf(out) * plan.stub_length;
 	if (!fitReducer(reducer, back, ahead, opposite(out), at)) {
 		delete reducer;
 		return nullptr;
