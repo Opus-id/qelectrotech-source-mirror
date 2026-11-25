@@ -356,6 +356,75 @@ class tst_sizecorrections : public QObject
 					 QStringLiteral("Give DN 80 to the line"));
 		}
 
+			// A reducer laid the wrong way: reversed about the axis of its
+			// pipes, which go over to the nozzle facing them; its own sizes
+			// follow them; one step, undone (step 8r-3 b)
+		void aReducerLaidTheWrongWayIsReversed()
+		{
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(project, QStringLiteral("plain.elmt"),
+													 QStringLiteral("{7c444444-4444-4444-4444-444444444444}"), 0);
+			Element *a = place(folio, plain, 200);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7c555555-5555-5555-5555-555555555555}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" pid_large=\"N1\" ")), 400);
+			Element *b = place(folio, plain, 600);
+			QVERIFY(a && reducer && b);
+			Conductor *left = connect(folio, a, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *right = connect(folio, reducer, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			setSize(left, 50);
+			setSize(right, 100);
+			Terminal *n1 = terminal(reducer, QStringLiteral("N1"));
+			Terminal *n2 = terminal(reducer, QStringLiteral("N2"));
+			QVERIFY(n1->reducerReversed());
+			QCOMPARE(n1->diameterGap().kind, Terminal::DiameterGap::Reducer);
+
+			const QStringList expected{QStringLiteral("Reverse the reducer")};
+			const QList<PidSizeCorrections::Proposal> found =
+					PidSizeCorrections::proposals(reducer, n2->dockConductor());
+			QCOMPARE(texts(found), expected);
+				// the same from either pipe
+			QCOMPARE(texts(PidSizeCorrections::proposals(left, n1->dockConductor())), expected);
+			QCOMPARE(texts(PidSizeCorrections::proposals(right, n2->dockConductor())), expected);
+
+			const bool mirrored = reducer->hasHorizontalMirror();
+			const int steps = folio->undoStack().count();
+			QVERIFY(apply(folio, found, expected.first()));
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			QCOMPARE(reducer->hasHorizontalMirror(), !mirrored);
+				// the large side on the large pipe: nothing reported
+			QVERIFY(n1->conductors().contains(right));
+			QVERIFY(n2->conductors().contains(left));
+			QVERIFY(!n1->reducerReversed());
+			QVERIFY(!n1->hasDiameterGap() && !n2->hasDiameterGap());
+			QVERIFY(PidSizeCorrections::proposals(reducer, n1->dockConductor()).isEmpty());
+			folio->undoStack().undo();
+			QCOMPARE(reducer->hasHorizontalMirror(), mirrored);
+			QVERIFY(n1->conductors().contains(left));
+			QVERIFY(n1->reducerReversed());
+
+				// sizes of its own, those of its pipes: they follow them
+			reducer->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::nominal(50)},
+										 {QStringLiteral("N2"), PipeDiameter::nominal(100)}});
+			QCOMPARE(n1->diameterGap().kind, Terminal::DiameterGap::Reducer);
+			QVERIFY(apply(folio, PidSizeCorrections::proposals(reducer, n1->dockConductor()),
+						  expected.first()));
+			QCOMPARE(reducer->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::nominal(100));
+			QCOMPARE(reducer->nozzleDiameters().value(QStringLiteral("N2")), PipeDiameter::nominal(50));
+			QVERIFY(!n1->hasDiameterGap() && !n2->hasDiameterGap());
+			folio->undoStack().undo();
+			QCOMPARE(reducer->nozzleDiameters().value(QStringLiteral("N1")), PipeDiameter::nominal(50));
+			QVERIFY(n1->reducerReversed());
+
+				// a reducer which reduces nothing: no entry (choice of 25/11)
+			reducer->setNozzleDiameters(NozzleDiameters());
+			setSize(left, 100);
+			QVERIFY(n1->reducesNothing() && n1->hasDiameterGap());
+			QVERIFY(PidSizeCorrections::proposals(reducer, n1->dockConductor()).isEmpty());
+		}
+
 			// Nothing reported: nothing offered; a wire is never looked at
 		void nothingReportedNothingOffered()
 		{

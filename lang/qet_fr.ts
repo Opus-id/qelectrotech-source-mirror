@@ -5576,6 +5576,11 @@ Continuer ?</translation>
         <comment>context menu action</comment>
         <translation>Donner %1 au piquage %2</translation>
     </message>
+    <message>
+        <source>Reverse the reducer</source>
+        <comment>context menu action</comment>
+        <translation>Retourner la réduction</translation>
+    </message>
 </context>
 <context>
     <name>PidProcessConnection</name>

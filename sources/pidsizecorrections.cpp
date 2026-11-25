@@ -27,6 +27,7 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "undocommand/changenozzlediameterscommand.h"
+#include "undocommand/mirrorselectioncommand.h"
 #include "ui/pipepropertieswidget.h"
 
 #include <QCoreApplication>
@@ -148,6 +149,53 @@ void addLineSizes(QList<PidSizeCorrections::Proposal> &found, const QList<PipeDi
 	}
 }
 
+	/// The pipe nozzles of @p element
+QList<Terminal *> pipeEnds(const Element *element)
+{
+	QList<Terminal *> ends;
+	for (Terminal *terminal : element->terminals()) {
+		if (terminal->medium() == TerminalData::Pipe) {
+			ends << terminal;
+		}
+	}
+	return ends;
+}
+
+	/// The undo step of "Reverse the reducer", named @p text: @p reducer
+	/// mirrored about the axis of its pipes, as a flow arrow is
+	/// (PidFlow::mirrorArrows()), its pipes going over to the nozzle facing
+	/// them; its nozzles swap their own sizes, so that each keeps the size of
+	/// its pipe. Null when it is no longer laid the wrong way.
+QUndoCommand *reverseReducer(Element *reducer, const QString &text)
+{
+	const QList<Terminal *> ends = pipeEnds(reducer);
+	if (ends.size() != 2 || !ends.first()->reducerReversed()) {
+		return nullptr;
+	}
+	auto *undo = new QUndoCommand(text);
+	const QPointF along = ends.at(1)->dockConductor() - ends.at(0)->dockConductor();
+	const Qt::Orientation orientation = qAbs(along.x()) >= qAbs(along.y()) ? Qt::Horizontal
+																			: Qt::Vertical;
+	new MirrorSelectionCommand(QList<QPair<Element *, Qt::Orientation>>{qMakePair(reducer, orientation)},
+							   undo);
+	const QString first = ends.at(0)->baseName();
+	const QString second = ends.at(1)->baseName();
+	NozzleDiameters sizes = reducer->nozzleDiameters();
+	if (!first.isEmpty() && !second.isEmpty() && (sizes.contains(first) || sizes.contains(second)))
+	{
+		const PipeDiameter mine = sizes.take(first);
+		const PipeDiameter theirs = sizes.take(second);
+		if (theirs.isSet()) {
+			sizes.insert(first, theirs);
+		}
+		if (mine.isSet()) {
+			sizes.insert(second, mine);
+		}
+		new ChangeNozzleDiametersCommand(reducer, sizes, undo);
+	}
+	return undo;
+}
+
 	/// The proposals of the diamond of @p nozzle
 QList<PidSizeCorrections::Proposal> nozzleProposals(Terminal *nozzle)
 {
@@ -167,6 +215,21 @@ QList<PidSizeCorrections::Proposal> nozzleProposals(Terminal *nozzle)
 			}
 		}
 		addLineSizes(found, {gap.here, gap.there}, pipes, codes);
+		return found;
+	}
+	if (gap.kind == Terminal::DiameterGap::Reducer)
+	{
+			//Laid the wrong way: reversed; reducing nothing: no entry
+		Element *reducer = nozzle->parentElement();
+		if (reducer && nozzle->reducerReversed() && pipeEnds(reducer).size() == 2)
+		{
+			PidSizeCorrections::Proposal proposal;
+			proposal.kind = PidSizeCorrections::Proposal::ReverseReducer;
+			proposal.element = reducer;
+			proposal.text = QCoreApplication::translate("PidSizeCorrections", "Reverse the reducer",
+														"context menu action");
+			found << proposal;
+		}
 		return found;
 	}
 	if (gap.kind != Terminal::DiameterGap::Nozzle || !gap.own.isSet()) {
@@ -311,6 +374,10 @@ QUndoCommand *apply(const Proposal &proposal, QWidget *parent, QString *said, co
 {
 	if (said) {
 		said->clear();
+	}
+	if (proposal.kind == Proposal::ReverseReducer) {
+		Element *reducer = proposal.element.data();
+		return reducer ? reverseReducer(reducer, proposal.text) : nullptr;
 	}
 	if (proposal.kind == Proposal::NozzleSize)
 	{

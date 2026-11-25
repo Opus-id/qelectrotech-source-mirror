@@ -50,10 +50,16 @@ class QWidget;
 	offers "Change the line to" each of the two sizes of its material which
 	frame it, the one below and the one above (one at an end of the series).
 
+	A reducer laid the wrong way (Terminal::reducerReversed()) offers
+	"Reverse the reducer" (step 8r-3 b): mirrored about the axis of its
+	pipes, which go over to the nozzle facing them (5l-1h), as a flow arrow
+	is; its nozzles swap their own sizes, if they have any, in the same
+	undo step, so that each keeps the size of its pipe. A reducer which
+	reduces nothing offers nothing (choice of the user of 25/11).
+
 	A right click on a pipe looks at its end nearest to the click among
 	those which show a diamond; on a symbol, at its nozzle nearest to the
-	click among those. A reducer which reduces nothing or is laid the wrong
-	way is left to step 8r-3 b.
+	click among those.
 */
 namespace PidSizeCorrections {
 
@@ -61,8 +67,9 @@ namespace PidSizeCorrections {
 struct Proposal {
 		/// LineSize: @c size given to the line of @c pipes, as the panel of
 		/// these pipes would give it; NozzleSize: @c size given to the nozzle
-		/// @c nozzle of @c element as its own
-	enum Kind { LineSize, NozzleSize };
+		/// @c nozzle of @c element as its own; ReverseReducer: the reducer
+		/// @c element mirrored about the axis of its pipes
+	enum Kind { LineSize, NozzleSize, ReverseReducer };
 	Kind kind = LineSize;
 		/// What the submenu shows, the name of the undo step too
 	QString text;

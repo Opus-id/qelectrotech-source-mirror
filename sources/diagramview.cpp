@@ -3848,7 +3848,8 @@ void DiagramView::updateOffPageCorrection()
 /**
 	@brief DiagramView::updateSizeCorrections
 	P&ID, 8r-3 a: the right click on one pipe or one symbol whose size is
-	reported (a diamond of two sizes, a band of a size out of its series)
+	reported (a diamond of two sizes, a band of a size out of its series, a
+	reducer laid the wrong way since 8r-3 b)
 	adds the proposals of PidSizeCorrections to the "Correct" submenu (after
 	updateFlowCorrections(), which clears it). Each is one undo step; what
 	the panel says of the change is said in the status bar. Not on a
@@ -3864,7 +3865,10 @@ void DiagramView::updateSizeCorrections()
 		PidSizeCorrections::proposals(selected.first(), m_menu_scene_pos);
 	for (const PidSizeCorrections::Proposal &proposal : found)
 	{
-		QAction *action = m_correct_menu->addAction(proposal.text);
+			//Reversed as a flow arrow is: the same icon (step 8r-3 b)
+		QAction *action = proposal.kind == PidSizeCorrections::Proposal::ReverseReducer
+				? m_correct_menu->addAction(QET::Icons::ImageFlipHorizontal, proposal.text)
+				: m_correct_menu->addAction(proposal.text);
 		connect(action, &QAction::triggered, this, [this, proposal]() {
 			QString said;
 			if (QUndoCommand *undo = PidSizeCorrections::apply(proposal, this, &said)) {
