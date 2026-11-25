@@ -67,7 +67,8 @@ namespace PidInsulation
 
 		/// The band of an insulation along @p points: its two side lines,
 		/// and its hatches, none closer to a corner or an end than they lean;
-		/// wider around the jacket of a @p jacketed pipe
+		/// wider around the jacket of a @p jacketed pipe, its hatches then
+		/// only in the ring between the jacket and the band, on both sides
 	QPainterPath band(const QList<QPointF> &points, bool jacketed = false);
 		/// The line of a heat tracing along @p points, on the same side of
 		/// the folio (beside()): beside the pipe (@p insulated false), or

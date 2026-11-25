@@ -11,6 +11,7 @@
 #include "pidlinedesignation.h"
 #include "pidoffpage.h"
 #include "qetgraphicsitem/conductor.h"
+#include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
@@ -130,6 +131,12 @@ class tst_jacket : public QObject
 			if (path.elementAt(i).isMoveTo()) ++count;
 		}
 		return count;
+	}
+
+		// Where the axis of a horizontal @p pipe is, on the folio
+	static qreal nozzle_y(Conductor *pipe)
+	{
+		return pipe->terminal1->dockConductor().y();
 	}
 
 	private slots:
@@ -287,6 +294,88 @@ class tst_jacket : public QObject
 					 2 * PidInsulation::jacketed_half_width);
 			QVERIFY(pipe->boundingRect().contains(pipe->mapRectFromScene(
 					pipe->mapRectToScene(hatches.boundingRect()))));
+		}
+
+			// Around a jacket, the hatches stay in the ring between the jacket
+			// and the band, on both sides, over neither the jacket nor the
+			// pipe, from the start of the stub to its end (choice of the user,
+			// hand test of 25/11); without a jacket, across the band as before
+		void theHatchesStayInTheRing()
+		{
+			const QList<QPointF> straight{QPointF(0, 0), QPointF(32, 0)};
+			const QPainterPath band = PidInsulation::band(straight, true);
+				// two sides and six hatches on each side, 5 apart
+			QCOMPARE(lines(band), 2 + 2 * 6);
+			qreal first = 32, last = 0;
+			int above = 0, below = 0;
+			for (int i = 0 ; i < band.elementCount() ; ++i)
+			{
+				if (!band.elementAt(i).isMoveTo()) continue;
+				const QPointF from(band.elementAt(i).x, band.elementAt(i).y);
+				const QPointF to(band.elementAt(i + 1).x, band.elementAt(i + 1).y);
+					// a side of the band
+				if (qAbs(from.y() - to.y()) < 1e-6) continue;
+				for (const QPointF &p : {from, to}) {
+					QVERIFY(qAbs(p.y()) >= PidInsulation::half_width - 1e-6);
+					QVERIFY(qAbs(p.y()) <= PidInsulation::jacketed_half_width + 1e-6);
+				}
+					// at 45°, the same slant on both sides
+				QCOMPARE(qAbs(to.x() - from.x()), qAbs(to.y() - from.y()));
+				QVERIFY((to.x() - from.x()) * (to.y() - from.y()) < 0);
+				(from.y() < 0 ? above : below) += 1;
+				first = qMin(first, qMin(from.x(), to.x()));
+				last = qMax(last, qMax(from.x(), to.x()));
+			}
+			QCOMPARE(above, 6);
+			QCOMPARE(below, 6);
+				// along the whole stub
+			QVERIFY(first <= 1 && last >= 31);
+				// without a jacket: five hatches across the band
+			QCOMPARE(lines(PidInsulation::band(straight)), 2 + 5);
+			QCOMPARE(PidInsulation::band(straight).boundingRect().height(),
+					 2 * PidInsulation::half_width);
+		}
+
+			// The designation of a pipe whose jacket is drawn along it stands
+			// beyond the lines of the jacket, not on them (hand test of 25/11)
+		void theDesignationClearsTheJacket()
+		{
+			PidCodification codes = m_project.pidCodification();
+			const PidCodification kept = codes;
+			codes.tag_models.insert(PidLineDesignation::modelKey(), QStringLiteral("{fluid} {jacket_name:in}"));
+			m_project.setPidCodification(codes);
+			auto designated = [&](bool jacketed, bool full) {
+				const auto e = row({m_equipment, m_equipment});
+				Conductor *pipe = draw(nozzle(e[0], "N2"), nozzle(e[1], "N1"));
+				jacket(pipe, jacketed, full);
+				ConductorProperties data = pipe->properties();
+				data.m_show_text = true;
+				data.m_pipe.fluid = QStringLiteral("W01");
+				pipe->setProperties(data);
+				return pipe;
+			};
+				// how far above the axis the bottom of the designation is (its
+				// shape, the text without the margins of its bounds)
+			auto clearance = [](Conductor *pipe) {
+				const QRectF text = pipe->mapRectToScene(pipe->mapRectFromItem(
+						pipe->textItem(), pipe->textItem()->shape().boundingRect()));
+				return nozzle_y(pipe) - text.bottom();
+			};
+			Conductor *bare = designated(false, false);
+			Conductor *full = designated(true, true);
+			QVERIFY(bare->textItem()->isVisible() && full->textItem()->isVisible());
+			const QRectF lines_of_jacket = full->mapRectToScene(full->jacketPath().boundingRect());
+			QVERIFY(!lines_of_jacket.isEmpty());
+				// above the upper line of the jacket, and so higher than on a
+				// pipe without one
+			QVERIFY(clearance(full) > nozzle_y(full) - lines_of_jacket.top());
+			QVERIFY(clearance(full) > clearance(bare));
+			QVERIFY(!full->textItem()->collidesWithPath(
+						full->textItem()->mapFromItem(full, full->jacketPath())));
+				// stubs only, at the ends: in the middle, where it was
+			Conductor *stubs = designated(true, false);
+			QCOMPARE(clearance(stubs), clearance(bare));
+			m_project.setPidCodification(kept);
 		}
 
 			// The jacket given on the page of a pipe goes to the whole line,

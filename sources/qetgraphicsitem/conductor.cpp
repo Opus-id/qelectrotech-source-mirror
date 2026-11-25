@@ -3933,8 +3933,24 @@ void Conductor::calculateTextItemPosition()
 
 		m_text_item -> setPos(text_pos);
 
-			//Ensure text item does not collide with this conductor
-		while (m_text_item->collidesWithItem(this))
+			//Ensure text item does not collide with this conductor, nor
+			//with the lines of the jacket of a pipe drawn there (step 8r-1,
+			//hand test of 25/11: along the whole pipe, they went under it)
+		QPainterPath jacket_area;
+		if (pipe) {
+			const QPainterPath jacket = jacketPath();
+			if (!jacket.isEmpty()) {
+				QPainterPathStroker stroker;
+				stroker.setWidth(lineWidth() / 2 + 2);
+				jacket_area = stroker.createStroke(jacket);
+			}
+		}
+		auto collides = [&]() {
+			return m_text_item->collidesWithItem(this)
+					|| (!jacket_area.isEmpty()
+						&& m_text_item->collidesWithPath(m_text_item->mapFromItem(this, jacket_area)));
+		};
+		while (collides())
 		{
 			if(rotation == Qt::Vertical)
 			{

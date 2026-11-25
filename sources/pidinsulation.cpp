@@ -161,8 +161,13 @@ QPainterPath PidInsulation::band(const QList<QPointF> &points, bool jacketed)
 		}
 	}
 		//The hatches, at 45°, each as far along as across: none within
-		//that much of a corner or an end, where it would stick out
-	const qreal lean = half_width;
+		//that much of a corner or an end, where it would stick out. Across
+		//the whole band; around a jacket (choice of the user, 25/11/2026),
+		//only within the ring between the jacket and the band, on both
+		//sides, neither over the jacket nor over the pipe: shorter, so they
+		//go from the start of the stub to its end
+	const qreal inner = jacketed ? PidInsulation::half_width : -half_width;
+	const qreal lean = (half_width - inner) / 2;
 	for (int i = 0 ; i + 1 < axis.size() ; ++i)
 	{
 		const QLineF segment(axis.at(i), axis.at(i + 1));
@@ -178,8 +183,13 @@ QPainterPath PidInsulation::band(const QList<QPointF> &points, bool jacketed)
 		for (int k = 0 ; k < count ; ++k)
 		{
 			const QPointF c = segment.p1() + d * (first + k * hatch_step);
-			path.moveTo(c - left * half_width - d * lean);
+			path.moveTo(c + left * inner - d * lean);
 			path.lineTo(c + left * half_width + d * lean);
+			if (jacketed) {
+					//The same slant in the ring on the other side
+				path.moveTo(c - left * half_width - d * lean);
+				path.lineTo(c - left * inner + d * lean);
+			}
 		}
 	}
 	return path;
