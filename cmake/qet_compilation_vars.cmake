@@ -266,6 +266,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidsizecorrections.cpp
   ${QET_DIR}/sources/hiddenterminalcorrections.h
   ${QET_DIR}/sources/hiddenterminalcorrections.cpp
+  ${QET_DIR}/sources/traversalcorrections.h
+  ${QET_DIR}/sources/traversalcorrections.cpp
   ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/pipeproperties.h
   ${QET_DIR}/sources/signalproperties.cpp

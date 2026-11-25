@@ -5601,6 +5601,19 @@ Continuer ?</translation>
     </message>
 </context>
 <context>
+    <name>TraversalCorrections</name>
+    <message>
+        <source>Redraw the line</source>
+        <comment>context menu action: a pipe or a signal line drawn again by itself</comment>
+        <translation>Retracer la ligne</translation>
+    </message>
+    <message>
+        <source>Redraw the %1 lines</source>
+        <comment>context menu action: pipes or signal lines drawn again by themselves</comment>
+        <translation>Retracer les %1 lignes</translation>
+    </message>
+</context>
+<context>
     <name>PidProcessConnection</name>
     <message>
         <location filename="../sources/pidprocessconnection.cpp" line="40"/>

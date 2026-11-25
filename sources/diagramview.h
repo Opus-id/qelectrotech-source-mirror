@@ -280,6 +280,7 @@ class DiagramView : public PaletteGraphicsView
 		void updateOffPageCorrection();
 		void updateSizeCorrections();
 		void updateHiddenTerminalCorrections();
+		void updateTraversalCorrections();
 		void mirrorArrows(const QList<QPointer<Element>> &arrows, const QString &text);
 		void changeSelectedElementsType(const ElementsLocation &location);
 			/**

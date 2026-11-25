@@ -22,6 +22,7 @@
 #include "pidoffpage.h"
 #include "pidsizecorrections.h"
 #include "hiddenterminalcorrections.h"
+#include "traversalcorrections.h"
 #include "itemdescription.h"
 #include "shownkinds.h"
 #include "autoNum/ui/pastenumberingimport.h"
@@ -3630,6 +3631,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 		updateOffPageCorrection();
 		updateSizeCorrections();
 		updateHiddenTerminalCorrections();
+		updateTraversalCorrections();
 			//The selection may just have changed under the mouse
 		if (QETDiagramEditor *qde = diagramEditor()) {
 			qde->m_create_similar->setEnabled(similarSource() != nullptr);
@@ -3907,6 +3909,33 @@ void DiagramView::updateHiddenTerminalCorrections()
 				: m_correct_menu->addAction(proposal.text);
 		connect(action, &QAction::triggered, this, [this, proposal]() {
 			if (QUndoCommand *undo = HiddenTerminalCorrections::apply(proposal)) {
+				m_diagram->undoStack().push(undo);
+			}
+		});
+	}
+}
+
+/**
+	@brief DiagramView::updateTraversalCorrections
+	8r-3 c: the right click on one pipe or signal line which runs over a
+	symbol, or on that symbol, adds "Redraw the line" to the "Correct"
+	submenu (after updateFlowCorrections(), which clears it) when the path
+	the line takes by itself runs over no symbol any more
+	(TraversalCorrections). One undo step. Not on a read-only diagram.
+*/
+void DiagramView::updateTraversalCorrections()
+{
+	const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+	if (m_diagram->isReadOnly() || selected.size() != 1) {
+		return;
+	}
+	const QList<TraversalCorrections::Proposal> found =
+		TraversalCorrections::proposals(selected.first());
+	for (const TraversalCorrections::Proposal &proposal : found)
+	{
+		QAction *action = m_correct_menu->addAction(QET::Icons::ConductorSettings, proposal.text);
+		connect(action, &QAction::triggered, this, [this, proposal]() {
+			if (QUndoCommand *undo = TraversalCorrections::apply(proposal)) {
 				m_diagram->undoStack().push(undo);
 			}
 		});

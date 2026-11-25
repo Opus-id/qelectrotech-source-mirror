@@ -2,8 +2,10 @@
 #include "qetapptest.h"
 
 #include "ElementsCollection/xmlelementcollection.h"
+#include "conductorprofile.h"
 #include "conductorproperties.h"
 #include "conductorsegment.h"
+#include "conductorsegmentprofile.h"
 #include "diagram.h"
 #include "diagramcontext.h"
 #include "factory/elementfactory.h"
@@ -12,11 +14,14 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "traversalcorrections.h"
 
 #include <QDomDocument>
 #include <QImage>
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
+#include <QUndoCommand>
+#include <memory>
 
 // A pipe or a signal line which runs over a symbol it is not docked to there
 // (step 7c-bis): the part over the symbol is drawn orange on the screen, and
@@ -140,6 +145,27 @@ class tst_pidtraversal : public QObject
 	static QVector<QPointF> polyline(std::initializer_list<QPointF> list)
 	{
 		return QVector<QPointF>(list);
+	}
+
+		// The straight line of draw() changed by hand into a detour going
+		// @p depth down (up when negative) from x 90 to x 210, as the user
+		// does by dragging its segments
+	static void detour(Conductor *conductor, qreal depth)
+	{
+		ConductorProfile profile;
+		profile.beginOrientation = Qet::East;
+		profile.endOrientation = Qet::West;
+		profile.segments << new ConductorSegmentProfile(50, true)
+						 << new ConductorSegmentProfile(depth, false)
+						 << new ConductorSegmentProfile(120, true)
+						 << new ConductorSegmentProfile(-depth, false)
+						 << new ConductorSegmentProfile(50, true);
+		ConductorProfilesGroup group;
+		for (Qt::Corner corner : {Qt::TopLeftCorner, Qt::TopRightCorner,
+								  Qt::BottomLeftCorner, Qt::BottomRightCorner}) {
+			group.insert(corner, profile);
+		}
+		conductor->setProfiles(group);
 	}
 
 	private slots:
@@ -351,6 +377,127 @@ class tst_pidtraversal : public QObject
 			QVERIFY(wire->traversedSymbols().isEmpty());
 			QVERIFY(wire->traversalNote().isEmpty());
 			QCOMPARE(orangePixels(wire), 0);
+		}
+
+			// ---- "Redraw the line" (step 8r-3 c) ----
+		void aDetourThroughASymbolIsRedrawnByItself()
+		{
+			Conductor *pipe = draw(m_pump);
+			QVERIFY(pipe);
+			detour(pipe, 100);
+			QVERIFY(points(pipe).size() > 2);
+			Element *tank = place(m_circle, QPointF(150, m_next_y + 100));
+			QVERIFY(tank);
+			QCOMPARE(pipe->traversedSymbols(), QList<Element *>({tank}));
+			QVERIFY(pipe->defaultRouteTraversedSymbols().isEmpty());
+			QVERIFY(TraversalCorrections::clears(pipe));
+
+				// on the line and on the symbol: the same proposal
+			const QList<TraversalCorrections::Proposal> on_line =
+					TraversalCorrections::proposals(pipe);
+			QCOMPARE(on_line.size(), 1);
+			QCOMPARE(on_line.first().text, QStringLiteral("Redraw the line"));
+			QCOMPARE(on_line.first().lines.size(), 1);
+			QCOMPARE(on_line.first().lines.first().data(), pipe);
+			const QList<TraversalCorrections::Proposal> on_symbol =
+					TraversalCorrections::proposals(tank);
+			QCOMPARE(on_symbol.size(), 1);
+			QCOMPARE(on_symbol.first().text, QStringLiteral("Redraw the line"));
+
+				// one undo step, named as the entry
+			std::unique_ptr<QUndoCommand> undo(TraversalCorrections::apply(on_line.first()));
+			QVERIFY(undo);
+			QCOMPARE(undo->text(), QStringLiteral("Redraw the line"));
+			undo->redo();
+			const QList<QPointF> straight = points(pipe);
+			QCOMPARE(straight.first(), QPointF(40, m_next_y));
+			QCOMPARE(straight.last(), QPointF(260, m_next_y));
+			for (const QPointF &point : straight) {
+				QCOMPARE(point.y(), m_next_y);
+			}
+			QVERIFY(pipe->traversedSymbols().isEmpty());
+			QVERIFY(TraversalCorrections::proposals(pipe).isEmpty());
+				// nothing left to do
+			QVERIFY(!TraversalCorrections::apply(on_line.first()));
+			undo->undo();
+			QVERIFY(points(pipe).size() > 2);
+			QCOMPARE(pipe->traversedSymbols(), QList<Element *>({tank}));
+		}
+
+		void nothingWhenTheLineByItselfStillGoesThrough()
+		{
+			Conductor *pipe = draw(m_pump);
+			QVERIFY(pipe);
+			detour(pipe, 100);
+			Element *off = place(m_circle, QPointF(150, m_next_y + 100));
+			Element *on = place(m_circle, QPointF(150, m_next_y));
+			QVERIFY(off && on);
+			QCOMPARE(pipe->traversedSymbols(), QList<Element *>({off}));
+			QCOMPARE(pipe->defaultRouteTraversedSymbols(), QList<Element *>({on}));
+			QVERIFY(TraversalCorrections::proposals(pipe).isEmpty());
+			QVERIFY(TraversalCorrections::proposals(off).isEmpty());
+				// a straight line, never changed by hand: already by itself
+			Conductor *straight = draw(m_pump);
+			Element *tank = place(m_circle, QPointF(150, m_next_y));
+			QVERIFY(straight && tank);
+			QCOMPARE(straight->traversedSymbols(), QList<Element *>({tank}));
+			QVERIFY(TraversalCorrections::proposals(straight).isEmpty());
+			QVERIFY(TraversalCorrections::proposals(tank).isEmpty());
+		}
+
+		void aSymbolOffersOneEntryForAllItsLines()
+		{
+				// two rows 200 apart, both lines bent to y + 100, through a
+				// basin there
+			Conductor *upper = draw(m_pump);
+			const qreal y = m_next_y;
+			Element *a = place(m_pump, QPointF(0, y + 200));
+			Element *b = place(m_pump, QPointF(300, y + 200));
+			QVERIFY(upper && a && b);
+			auto *lower = new Conductor(a->terminals().at(1), b->terminals().at(0));
+			m_folio->addItem(lower);
+			detour(upper, 100);
+			detour(lower, -100);
+			Element *basin = place(m_basin, QPointF(150, y + 100));
+			QVERIFY(basin);
+			QCOMPARE(upper->traversedSymbols(), QList<Element *>({basin}));
+			QCOMPARE(lower->traversedSymbols(), QList<Element *>({basin}));
+				// a signal line through it too, whose path by itself goes
+				// through the tank on its row: left as it is
+			Conductor *signal = draw(m_signals);
+			QVERIFY(signal);
+			detour(signal, -m_next_y + y + 100);
+			Element *tank = place(m_circle, QPointF(150, m_next_y));
+			QVERIFY(tank);
+			QVERIFY(signal->traversedSymbols().contains(basin));
+			QVERIFY(!TraversalCorrections::clears(signal));
+
+			const QList<TraversalCorrections::Proposal> found =
+					TraversalCorrections::proposals(basin);
+			QCOMPARE(found.size(), 1);
+			QCOMPARE(found.first().text, QStringLiteral("Redraw the 2 lines"));
+			std::unique_ptr<QUndoCommand> undo(TraversalCorrections::apply(found.first()));
+			QVERIFY(undo);
+			undo->redo();
+			QVERIFY(upper->traversedSymbols().isEmpty());
+			QVERIFY(lower->traversedSymbols().isEmpty());
+			QVERIFY(signal->traversedSymbols().contains(basin));
+			undo->undo();
+			QCOMPARE(upper->traversedSymbols(), QList<Element *>({basin}));
+			QCOMPARE(lower->traversedSymbols(), QList<Element *>({basin}));
+		}
+
+		void aWireIsNeverRedrawn()
+		{
+			Conductor *wire = draw(m_electrical);
+			QVERIFY(wire);
+			detour(wire, 100);
+			Element *tank = place(m_circle, QPointF(150, m_next_y + 100));
+			QVERIFY(tank);
+			QVERIFY(wire->defaultRouteTraversedSymbols().isEmpty());
+			QVERIFY(!TraversalCorrections::clears(wire));
+			QVERIFY(TraversalCorrections::proposals(wire).isEmpty());
+			QVERIFY(TraversalCorrections::proposals(tank).isEmpty());
 		}
 };
 

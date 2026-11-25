@@ -719,6 +719,8 @@ qet_add_app_test(tst_signaldrawing tst_signaldrawing.cpp)
 # A pipe or a signal line which runs over a symbol, into it and out of it:
 # that part orange on the screen, the symbol named on hovering it; not the
 # symbols it begins or ends at, nor a basin it ends in; a wire as before.
+# "Redraw the line" (8r-3 c): offered on the line and on the symbol only when
+# the path it takes by itself runs over nothing; one undo step.
 qet_add_app_test(tst_pidtraversal tst_pidtraversal.cpp)
 # The insulation of a pipe (step 7d): hatched or dashed stubs where the
 # insulated part of a line begins and ends, none between two pipes insulated

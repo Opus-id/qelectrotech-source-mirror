@@ -346,6 +346,10 @@ class Conductor : public QGraphicsObject
 			/// What is said on hovering this line about traversedSymbols(),
 			/// one line by symbol; nothing when it runs over none
 		QString traversalNote() const;
+			/// The symbols the path this pipe or signal line takes by
+			/// itself (defaultRoute(), what "Reset" draws) would run over,
+			/// as traversedSymbols() says them (step 8r-3 c). None for a wire
+		QList<Element *> defaultRouteTraversedSymbols() const;
 			/// Raised whenever a conductor changes its path, its
 			/// properties, or enters or leaves a folio: what was worked out
 			/// from the lines of a folio may then change
@@ -544,6 +548,7 @@ class Conductor : public QGraphicsObject
 			///See traversedSymbols(): kept while no conductor nor symbol
 			///changed; the parts drawn orange, in its own coordinates
 		void updateTraversals() const;
+		QList<Element *> traversalsAlong(const QVector<QPointF> &line, QPainterPath *path) const;
 		mutable const Diagram *m_traversals_folio = nullptr;
 		mutable quint64 m_traversals_conductors = 0;
 		mutable quint64 m_traversals_symbols = 0;

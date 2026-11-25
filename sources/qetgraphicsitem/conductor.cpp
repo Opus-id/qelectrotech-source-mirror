@@ -104,6 +104,39 @@ namespace {
 	const Diagram *s_traversal_candidates_diagram = nullptr;
 	quint64 s_traversal_candidates_generation = 0;
 	QVector<TraversalCandidate> s_traversal_candidates;
+
+		//Read again the symbols of @p folio which a line may run over, when
+		//the folio or a symbol changed since the last time: every symbol but
+		//the drawing aids, those hidden (View > Show) and the T-junctions
+		//shown as a dot
+	void refreshTraversalCandidates(const Diagram *folio)
+	{
+		const quint64 symbols = PidTraversal::symbolsGeneration();
+		if (s_traversal_candidates_diagram == folio
+			&& s_traversal_candidates_generation == symbols) {
+			return;
+		}
+		s_traversal_candidates.clear();
+		const QList<Element *> elements = folio->elements();
+		for (const Element *element : elements)
+		{
+			if (!element->isVisible() || ShownKinds::isHidden(element)
+				|| element->isDrawingAid() || element->isShownAsDot()) {
+				continue;
+			}
+			TraversalCandidate candidate;
+			candidate.element = element;
+			candidate.outline = PidTraversal::outline(
+						ElementPictureFactory::instance()->getPrimitives(
+							element->location(), element->resolvedOptions()),
+						element->sceneTransform());
+			if (!candidate.outline.isEmpty()) {
+				s_traversal_candidates.append(candidate);
+			}
+		}
+		s_traversal_candidates_diagram = folio;
+		s_traversal_candidates_generation = symbols;
+	}
 }
 
 #define PR(x) qDebug() << #x " = " << x;
@@ -2387,31 +2420,7 @@ void Conductor::updateTraversals() const
 	m_traversals_symbols = symbols;
 	m_traversed.clear();
 	m_traversal_path = QPainterPath();
-
-	if (s_traversal_candidates_diagram != folio
-		|| s_traversal_candidates_generation != symbols)
-	{
-		s_traversal_candidates.clear();
-		const QList<Element *> elements = folio->elements();
-		for (const Element *element : elements)
-		{
-			if (!element->isVisible() || ShownKinds::isHidden(element)
-				|| element->isDrawingAid() || element->isShownAsDot()) {
-				continue;
-			}
-			TraversalCandidate candidate;
-			candidate.element = element;
-			candidate.outline = PidTraversal::outline(
-						ElementPictureFactory::instance()->getPrimitives(
-							element->location(), element->resolvedOptions()),
-						element->sceneTransform());
-			if (!candidate.outline.isEmpty()) {
-				s_traversal_candidates.append(candidate);
-			}
-		}
-		s_traversal_candidates_diagram = folio;
-		s_traversal_candidates_generation = symbols;
-	}
+	refreshTraversalCandidates(folio);
 
 	const QList<QPointF> points = segmentsToPoints();
 	if (points.size() < 2) {
@@ -2420,6 +2429,25 @@ void Conductor::updateTraversals() const
 	QVector<QPointF> line;
 	for (const QPointF &point : points) {
 		line.append(mapToScene(point));
+	}
+	QPainterPath path;
+	m_traversed = traversalsAlong(line, &path);
+	m_traversal_path = mapFromScene(path);
+}
+
+/**
+	@brief Conductor::traversalsAlong
+	The symbols of the folio (refreshTraversalCandidates(), already read)
+	which @p line, points of the scene from terminal1 to terminal2, runs
+	over, and in @p path when given, the parts of it which do, in the
+	scene: the work of updateTraversals(), for the path of this conductor
+	or for the one it would take by itself (step 8r-3 c)
+*/
+QList<Element *> Conductor::traversalsAlong(const QVector<QPointF> &line, QPainterPath *path) const
+{
+	QList<Element *> traversed;
+	if (line.size() < 2) {
+		return traversed;
 	}
 	const QRectF rect = QPolygonF(line).boundingRect().adjusted(-1, -1, 1, 1);
 		//A crossing of a mere line is a point: drawn a little longer
@@ -2441,9 +2469,31 @@ void Conductor::updateTraversals() const
 		if (spans.isEmpty()) {
 			continue;
 		}
-		m_traversed.append(const_cast<Element *>(candidate.element));
-		m_traversal_path.addPath(mapFromScene(PidTraversal::pathAlong(line, spans, min_length)));
+		traversed.append(const_cast<Element *>(candidate.element));
+		if (path) {
+			path->addPath(PidTraversal::pathAlong(line, spans, min_length));
+		}
 	}
+	return traversed;
+}
+
+/**
+	@brief Conductor::defaultRouteTraversedSymbols
+	See the declaration
+*/
+QList<Element *> Conductor::defaultRouteTraversedSymbols() const
+{
+	const Diagram *folio = diagram();
+	if (m_properties.m_medium == TerminalData::Electrical || !folio
+		|| !terminal1 || !terminal2) {
+		return {};
+	}
+	refreshTraversalCandidates(folio);
+		//As setProfiles() draws it once its profiles are reset
+	const QList<QPointF> points = defaultRoute(
+				terminal1->dockConductor(), terminal1->orientation(),
+				terminal2->dockConductor(), terminal2->orientation(), exitRoom());
+	return traversalsAlong(QVector<QPointF>(points.cbegin(), points.cend()), nullptr);
 }
 
 /**
