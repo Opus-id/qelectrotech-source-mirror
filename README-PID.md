@@ -246,6 +246,26 @@ line.*
   and a message says so). On the
   screen, on paper and in a PDF. *Select by criteria* finds the pipes by
   insulation and by its text.
+- **Double containment pipe** (the *Jacket* rows of the page of a pipe,
+  step 8r-1): the pipe runs in a jacket, "PTFE 4x6 in PVC Ø 63". The
+  jacket has a material of the project and a size picked in the series of
+  that material (an outside diameter for a material named by it, its DN
+  kept with it). It goes to the whole line as the insulation does, up to a
+  jacket limit (`pid_role` = `jacket_limit`, two short lines across the
+  pipe) or equipment; a new pipe takes it; *(None)* takes it away. Two
+  lines either side of the pipe, 1.5 mm from its axis, with the pattern of
+  its kind of line and half its width, are drawn where the jacket begins
+  and ends, as long as the stubs of an insulation, or along the whole pipe
+  (box *Jacket along the whole pipe*, this pipe only). Insulated too: the
+  hatched band goes around the jacket, 3 mm from the axis, a heat tracing
+  between them. Their colour: `object_color;jacket;#rrggbb` (*Colors*
+  tab), that of the pipe without one, that of a status of works first.
+  The designation writes `{jacket}` (code of the material and size,
+  `M05 Ø 63`) and `{jacket_name}` (its name, `PVC Ø 63`); a word after a
+  colon comes first, `{jacket_name:in}` gives `in PVC Ø 63`; nothing
+  without a jacket. The page says a jacket which is not larger than its
+  pipe. A deleted jacket limit, off-page connectors and *Select by
+  criteria* treat the jacket as the insulation.
 - **Flow arrow** (a symbol of `pid_role` = `flow_arrow`, an open chevron):
   placed on a pipe as a valve, it is a mark on the line; the pipe is drawn
   through it and nothing stops there.
@@ -730,7 +750,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<definition>` | `pid_family` | `equipment`, `valve`, `instrument`, `pipe` | none: not a P&ID symbol | the symbol has a family |
 | `.elmt`, `<definition>` | `pid_inline` | `true` | a line does not run through it | a line runs through its two nozzles (valve) |
 | `.elmt`, `<definition>` | `pid_run` | names of nozzles, space separated (`N1 N2 N3`) | the two nozzles of a `pid_inline` symbol | a tee or a three-way valve |
-| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break`, `junction`, `closure`, `insulation_limit`, `flow_arrow` | none | the symbol plays that role for the lines |
+| `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break`, `junction`, `closure`, `insulation_limit`, `jacket_limit`, `flow_arrow` | none | the symbol plays that role for the lines |
 | `.elmt`, `<definition>` | `pid_large` | name of a nozzle (`N1`) | none: the way of the reducer is not checked | a reducer names its large side; a large side smaller than the other one is marked |
 | `.elmt`, `<definition>` | `prefix` | identifier of the tag (`PC`) | that of the collection folder | the symbol gives one |
 | `.elmt`, `<definition>` | `<options>` block | options, each with named values and a default | no option | the symbol declares options |
@@ -756,6 +776,9 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<conductor>` | `pid_insulation_kind` | `insulation`, `tracing`, `insulation_tracing` | none | the pipe is insulated, heat traced or both |
 | `.qet`, `<conductor>` | `pid_insulation` | text (`Q 80`) | empty | set |
 | `.qet`, `<conductor>` | `pid_insulation_mark` | `true` | `false` | a hatched mark is drawn in the middle of the pipe |
+| `.qet`, `<conductor>` | `pid_jacket_material` | text (a code of the codification, or free) | empty: no jacket | the pipe runs in a jacket (double containment) |
+| `.qet`, `<conductor>` | `pid_jacket_dn`, `pid_jacket_od` | DN; outside diameter to the tenth | none | the jacket has a size |
+| `.qet`, `<conductor>` | `pid_jacket_full` | `true` | `false`: stubs where the jacket begins and ends | the jacket is drawn along the whole pipe |
 | `.qet`, `<conductor>` | `pid_color` | `#rrggbb` | the color of the codification | set by hand |
 | `.qet`, `<conductor>` | `pid_status` | `existing`, `demolished` | to be built | a pipe or a signal line not to be built |
 | `.qet`, `<conductor>` | `pid_signal_type` | `pneumatic`, `electrical`, `hydraulic`, `capillary`, `guided_electromagnetic`, `data_link`, `process_connection` | undefined | a signal line whose type is chosen |
