@@ -230,6 +230,7 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/materiallist/parttypes.cpp
   ${QET_DIR}/sources/ui/devicetypecheckdialog.cpp
   ${QET_DIR}/sources/conductornumexport.cpp
+  ${QET_DIR}/sources/labellistexport.cpp
   ${QET_DIR}/sources/wiringlistexport.h
   ${QET_DIR}/sources/wiringlistexport.cpp
   ${QET_DIR}/sources/wiringlistdb.h
@@ -244,6 +245,7 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/toolmenu.h
   ${QET_DIR}/sources/ui/wiringlistdialog.cpp
   ${QET_DIR}/sources/conductornumexport.h
+  ${QET_DIR}/sources/labellistexport.h
   ${QET_DIR}/sources/bomexport.cpp
   ${QET_DIR}/sources/bomexport.h
   ${QET_DIR}/sources/conductordashpattern.cpp
@@ -716,6 +718,7 @@ set(QET_SRC_FILES
 
   ${QET_DIR}/sources/factory/ui/addtabledialog.cpp
   ${QET_DIR}/sources/factory/ui/addtabledialog.h
+  ${QET_DIR}/sources/factory/ui/revisionquerywidget.h
 
   ${QET_DIR}/sources/NameList/nameslist.cpp
   ${QET_DIR}/sources/NameList/nameslist.h
@@ -748,6 +751,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/properties/projectlanguages.h
   ${QET_DIR}/sources/properties/potentialtypes.cpp
   ${QET_DIR}/sources/properties/potentialtypes.h
+  ${QET_DIR}/sources/properties/revisionlist.cpp
+  ${QET_DIR}/sources/properties/revisionlist.h
   ${QET_DIR}/sources/properties/propertiesinterface.cpp
   ${QET_DIR}/sources/properties/propertiesinterface.h
   ${QET_DIR}/sources/properties/reportproperties.cpp
@@ -1135,6 +1140,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/configpage/generalconfigurationpage.h
   ${QET_DIR}/sources/ui/configpage/projectconfigpages.cpp
   ${QET_DIR}/sources/ui/configpage/projectconfigpages.h
+  ${QET_DIR}/sources/ui/configpage/revisionsconfigpage.cpp
+  ${QET_DIR}/sources/ui/configpage/revisionsconfigpage.h
   ${QET_DIR}/sources/ui/configpage/guidespropertieswidget.cpp
   ${QET_DIR}/sources/ui/configpage/guidespropertieswidget.h
   ${QET_DIR}/sources/ui/configpage/shortcutsconfigpage.cpp

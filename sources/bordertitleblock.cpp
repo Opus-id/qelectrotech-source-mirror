@@ -17,6 +17,7 @@
 */
 #include "bordertitleblock.h"
 
+#include "autoNum/assignvariables.h"
 #include "bordercelllabels.h"
 #include "createdxf.h"
 #include "dxfexport.h"
@@ -375,6 +376,7 @@ TitleBlockProperties BorderTitleBlock::localTitleBlock() const
 	ip.folio_subgroup = btb_folio_subgroup_;
 	ip.higher_plant = btb_higher_plant_;
 	ip.higher_location = btb_higher_location_;
+	ip.document_kind = btb_document_kind_;
 	ip.indexrev = btb_indexrev_;
 	ip.version = btb_version_;
 	ip.folio = btb_folio_;
@@ -513,6 +515,7 @@ void BorderTitleBlock::importTitleBlock(const TitleBlockProperties &ip)
 	btb_folio_subgroup_ = ip.folio_subgroup;
 	btb_higher_plant_ = ip.higher_plant;
 	btb_higher_location_ = ip.higher_location;
+	btb_document_kind_ = ip.document_kind;
 	btb_indexrev_ = ip.indexrev;
 	btb_version_ = QetVersion::displayedVersion();
 	btb_auto_page_num_ = ip.auto_page_num;
@@ -1228,10 +1231,16 @@ void BorderTitleBlock::updateDiagramContextForTitleBlock(
 		//The IEC 81346 levels above the plant (==) and the location (++)
 	context.addValue("higher_plant",    tb.higher_plant);
 	context.addValue("higher_location", tb.higher_location);
+		//The kind of document the folio is (IEC 61355)
+	context.addValue("document_kind",  tb.document_kind);
 	context.addValue("indexrev",    tb.indexrev);
 	context.addValue("version",     tb.version);
 	context.addValue("folio",       btb_final_folio_);
 	context.addValue("folio-id",    folio_index_);
+		//The sheet's full name: =plant+location&kind/number (IEC 81346,
+		//61355), every part left out when it is empty
+	context.addValue("folio_designation",
+					 folioDesignation(tb.plant, tb.locmach, tb.document_kind, folio_index_));
 	context.addValue("folio-total", folio_total_);
 	context.addValue("auto_page_num", tb.auto_page_num);
 	context.addValue("previous-folio-num", m_previous_folio_num);
@@ -1310,6 +1319,23 @@ QString BorderTitleBlock::incrementLetters(const QString &string) {
 			return(incrementLetters(first_digits) % "A");
 		}
 	}
+}
+
+/**
+	@brief BorderTitleBlock::folioDesignation
+	@return the full name of a sheet: "=PLANT+LOC&EFS/3" for plant PLANT,
+	location LOC, document kind EFS (IEC 61355), its 3rd sheet. A part
+	typed with its sign keeps one sign; an empty one is left out, and the
+	number is always there. qet_folios.folio_designation says the same.
+*/
+QString BorderTitleBlock::folioDesignation(const QString &plant, const QString &location,
+										   const QString &document_kind, int folio_number)
+{
+	QString name = autonum::AssignVariables::buildStructureId(plant.trimmed(), location.trimmed(), QString());
+	const QString kind = document_kind.trimmed();
+	if (!kind.isEmpty())
+		name += kind.startsWith(QLatin1Char('&')) ? kind : QLatin1Char('&') + kind;
+	return name + QLatin1Char('/') + QString::number(folio_number);
 }
 
 /**

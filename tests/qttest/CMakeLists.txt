@@ -542,6 +542,8 @@ qet_add_app_test(tst_folioautonumcopy tst_folioautonumcopy.cpp)
 # A folio's group and sub-group: named, or its plant and location; title
 # block variables, kept by .qet and .qetdb, absent from older files.
 qet_add_app_test(tst_foliogroup tst_foliogroup.cpp)
+qet_add_app_test(tst_documentkind tst_documentkind.cpp)
+qet_add_app_test(tst_revisionlist tst_revisionlist.cpp)
 # The project panel lists folios as a tree by folio group and sub-group
 # (#1878 C9); a level shows only where it splits the folios.
 qet_add_app_test(tst_foliotree tst_foliotree.cpp)
@@ -1050,6 +1052,10 @@ target_link_libraries(tst_textresizehandles PRIVATE Qt::Test Qt::Widgets)
 # A line's pivot follows its centre when one of its ends is dragged, as a
 # rectangle's does; a pivot placed by hand stays.
 qet_add_app_test(tst_linepivotresize tst_linepivotresize.cpp)
+
+# A shape that was only moved saves its folio position in x1..y2, as 0.100
+# did; only a rotated or skewed shape writes posX/posY (issue #1997).
+qet_add_app_test(tst_shapesaveposition tst_shapesaveposition.cpp)
 
 # The terminal strip sorts into the plan's own order -- folio by folio, then
 # left to right -- instead of by label; the auto import and
@@ -2911,3 +2917,9 @@ qet_add_app_test(tst_projectidlocation tst_projectidlocation.cpp)
 qet_add_app_test(tst_librarylisting tst_librarylisting.cpp)
 target_compile_definitions(tst_librarylisting PRIVATE
   QET_ELEMENTS_DIR="${QET_DIR}/elements")
+# Label lists for printers (#1878 A7): device tags, terminal markers, cable
+# and wire numbers, one per line, read from the project database.
+qet_add_app_test(tst_labellistexport tst_labellistexport.cpp)
+target_compile_definitions(tst_labellistexport PRIVATE
+  QET_EXAMPLES_DIR="${QET_DIR}/examples"
+  QET_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")

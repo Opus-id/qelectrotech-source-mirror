@@ -5457,7 +5457,8 @@ QStringList projectDataBase::publicViews()
 			QStringLiteral("qet_cables"),
 			QStringLiteral("qet_plc_io"),
 			QStringLiteral("qet_cable_cores"),
-			QStringLiteral("qet_locations")};
+			QStringLiteral("qet_locations"),
+			QStringLiteral("qet_revisions")};
 }
 
 /**
@@ -5470,7 +5471,10 @@ QStringList projectDataBase::publicViews()
 	Every column comes from a table filled when the project is opened, so
 	a folio not built gives the same rows. folio_number is the folio's
 	place in the project from 1, folio its label as its title block shows
-	it. A device's plant and location are its own, else the ones of the
+	it, and document_kind (added last) the kind of document it is, an
+	IEC 61355 code such as FS, '' for none. folio_designation, after it,
+	is the sheet's full name: =plant+location&kind/folio_number, every
+	part but the number left out when empty, as %{folio_designation}. A device's plant and location are its own, else the ones of the
 	smallest structure box it is in, else its folio's, as in the parts list
 	and in its texts (StructureBoxItem::placeOf()), and structure_id composes them with its label
 	(=plant+location-label) as %{structure_id} does in its texts; each
@@ -5524,6 +5528,9 @@ QStringList projectDataBase::publicViews()
 	structure_id puts them in front (==A1=plant++S1+location). A folio counts under
 	every place it shows, so the folios of different rows are not to be
 	added up.
+	qet_revisions is the project's revision history (#1295), one row per
+	revision in the order of the list, position counted from 1: revision,
+	date, description, author and approver, as typed; '' for an empty one.
 
 */
 void projectDataBase::createPublicViews()
@@ -5563,7 +5570,20 @@ QStringList projectDataBase::publicViewStatements()
 			+ folioGroupSql(QStringLiteral("folio_group"), QStringLiteral("d.uuid"), QStringLiteral("di.plant"))
 			+ QStringLiteral(" AS folio_group, ")
 			+ folioGroupSql(QStringLiteral("folio_subgroup"), QStringLiteral("d.uuid"), QStringLiteral("di.locmach"))
-			+ QStringLiteral(" AS folio_subgroup "
+			+ QStringLiteral(" AS folio_subgroup, "
+				//The kind of document (IEC 61355), '' for none: added last
+			"COALESCE((SELECT ft.value FROM folio_titleblock ft WHERE ft.diagram_uuid = d.uuid "
+				"AND ft.name = 'document_kind'), '') AS document_kind, "
+				//The sheet's full name, =plant+location&kind/number, as
+				//%{folio_designation} in its title block: added last
+			"CASE WHEN COALESCE(TRIM(di.plant), '') = '' THEN '' "
+				"WHEN substr(TRIM(di.plant), 1, 1) = '=' THEN TRIM(di.plant) ELSE '=' || TRIM(di.plant) END "
+			"|| CASE WHEN COALESCE(TRIM(di.locmach), '') = '' THEN '' "
+				"WHEN substr(TRIM(di.locmach), 1, 1) = '+' THEN TRIM(di.locmach) ELSE '+' || TRIM(di.locmach) END "
+			"|| COALESCE((SELECT CASE WHEN TRIM(ft.value) = '' THEN '' "
+				"WHEN substr(TRIM(ft.value), 1, 1) = '&' THEN TRIM(ft.value) ELSE '&' || TRIM(ft.value) END "
+				"FROM folio_titleblock ft WHERE ft.diagram_uuid = d.uuid AND ft.name = 'document_kind'), '') "
+			"|| '/' || d.pos AS folio_designation "
 			"FROM diagram d LEFT JOIN diagram_info di ON di.diagram_uuid = d.uuid"),
 		QStringLiteral(
 			"CREATE VIEW qet_devices AS SELECT "
@@ -5830,7 +5850,18 @@ QStringList projectDataBase::publicViewStatements()
 			"COALESCE((SELECT LTRIM(TRIM(ft.value), '+') FROM folio_titleblock ft WHERE ft.diagram_uuid = f.folio_uuid "
 				"AND ft.name = 'higher_location'), '') FROM qet_folios f) "
 			"GROUP BY plant, location, COALESCE(higher_plant, ''), COALESCE(higher_location, '') "
-			"ORDER BY plant, location, higher_plant, higher_location")
+			"ORDER BY plant, location, higher_plant, higher_location"),
+			//The project's revision history, one row each in its order
+			//(RevisionList, saved as <revisions> in the project settings)
+		QStringLiteral(
+			"CREATE VIEW qet_revisions AS SELECT ord + 1 AS position, "
+			"COALESCE(MAX(CASE WHEN name = 'revision' THEN value END), '') AS revision, "
+			"COALESCE(MAX(CASE WHEN name = 'date' THEN value END), '') AS date, "
+			"COALESCE(MAX(CASE WHEN name = 'description' THEN value END), '') AS description, "
+			"COALESCE(MAX(CASE WHEN name = 'author' THEN value END), '') AS author, "
+			"COALESCE(MAX(CASE WHEN name = 'approver' THEN value END), '') AS approver "
+			"FROM project_setting WHERE section = 'revisions/revision' "
+			"GROUP BY ord ORDER BY ord")
 	};
 	return views;
 }
@@ -6571,6 +6602,8 @@ void projectDataBase::storeFolioTitleBlock(const QUuid &folio, const TitleBlockP
 		row(QStringLiteral("higher_plant"), properties.higher_plant, true);
 	if (!properties.higher_location.isEmpty())
 		row(QStringLiteral("higher_location"), properties.higher_location, true);
+	if (!properties.document_kind.isEmpty())
+		row(QStringLiteral("document_kind"), properties.document_kind, true);
 	row(QStringLiteral("indexrev"), properties.indexrev, true);
 	row(QStringLiteral("version"), properties.version, true);
 	row(QStringLiteral("folio"), properties.folio, true);
@@ -8095,6 +8128,7 @@ void projectDataBase::endPrefill(bool keep_unplaced)
 		if (built.folio_subgroup != p.folio_subgroup) differing << QStringLiteral("folio_subgroup");
 		if (built.higher_plant != p.higher_plant) differing << QStringLiteral("higher_plant");
 		if (built.higher_location != p.higher_location) differing << QStringLiteral("higher_location");
+		if (built.document_kind != p.document_kind) differing << QStringLiteral("document_kind");
 		if (built.indexrev != p.indexrev) differing << QStringLiteral("indexrev");
 		if (built.version != p.version) differing << QStringLiteral("version");
 		if (built.folio != p.folio) differing << QStringLiteral("folio");
