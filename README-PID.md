@@ -101,12 +101,17 @@ line.*
   place starts or ends the pipe there, with that symbol at its end. The
   preview is the route the pipe will take; an end within 10° of an axis of
   the start is set on it (Ctrl: no snap), and Space switches between a
-  route in L and in S when an end is free. A pipe started or ended on a
+  route in L and in S when an end is free. From an empty place to an
+  empty place, Space goes round four routes (an L along the longer way
+  first, an L the other way, an S, an S the other way); the status bar
+  names the one shown. A pipe started or ended on a
   free end takes that line up: one pipe, its route and data kept.
 - **A tee placed by the tool**: when the project names a tee symbol, a
   click of the tool on a pipe, or a drag from a free nozzle released on
   it, places the tee there (on the grid, 2.5 mm at least from a nozzle),
-  cuts that pipe and joins the branch, in one undo step.
+  cuts that pipe and joins the branch, in one undo step. While the tool
+  hovers a pipe, a circle shows where the tee will go, before the first
+  click as while drawing.
 - A conductor takes the medium
   of the terminal it starts from; other properties applied to it never
   change its medium. A file is read as it is: a conductor saved without a
@@ -163,6 +168,12 @@ line.*
   ink changes, not the white that masks). The code knows no color of its
   own, what has none stays black, and a folio drawn without colors stays
   black too.
+- **Valves and instruments take the color of their line** (box of the
+  *Colors* tab, ticked by default; `symbols_follow_pipes="false"` written
+  only when unticked): a symbol of the `valve` or `instrument` family with
+  a pipe on a nozzle takes the color of its pipes when they all agree,
+  else (or with no pipe) that of its family; a status of works comes
+  first. Equipment never does; tees and ends of lines already did.
 - **Defaults for new projects**: two buttons of the *P&ID* page,
   *Save as default codification* (codes of the fluids, materials and
   functional units, sizes of the materials, equal DN) and *Save as default
@@ -176,7 +187,15 @@ line.*
   selection in its context menu, in one undo step. On a symbol it is kept
   with the options, so a `.qetdb` file refuses it as it refuses them.
 - **Drawn after its kind of line** (ISO 10628-1): main line 1 mm (4 units),
-  secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed.
+  secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed. **The kinds are a
+  list of the project** (*Lines* tab of the *P&ID* page): a code, a name,
+  a width in mm and a pattern among solid, dashes, short dashes and
+  dash-dot, with a preview and *Back to the values of ISO 10628-1*; the
+  three kinds of ISO are always there, other kinds can be added (CSV line
+  `line_kind;L4;Buried;0.7;dash_dot`). A kind removed stays on its pipes,
+  drawn as a main line and named *(not in the project)*. The lines of tees
+  and crosses follow the width set; the thumbnails of the collection keep
+  the values of ISO.
 - A P&ID symbol placed or moved on a pipe always cuts it, whatever the
   button of automatic break of conductors says (wires and signal lines
   follow the button); a tee takes the pipe through its run and keeps its
@@ -185,7 +204,21 @@ line.*
   caught (20 pixels of the screen; Ctrl: no magnet) by a free nozzle
   facing one of its own, by the free end of a pipe, which it takes, or by
   a connected nozzle when its own nozzle lies on that pipe. Two nozzles
-  that touch get no pipe between them.
+  that touch get no pipe between them. Ctrl places freely: no magnet, and
+  no grid when moving (QElectroTech keeps its grid when placing).
+- **Magnet of the line**: a symbol of the line (a valve, a check valve, a
+  reducer, a limit, a spec break, a flow arrow; a tee or a cross by its
+  run), placed or dragged alone near a straight segment of a pipe (the
+  same distance), comes onto its axis, both nozzles on the pipe, and the
+  segment is lit green; it turns a quarter by itself if the segment goes
+  the other way, and takes back its own way when moved off. On the line,
+  Space turns it end for end. The whole run must fit on the segment and
+  both its nozzles be free; the magnet of the nozzles comes first, Ctrl
+  stops both, and equipment is never caught.
+- **Mirrored while placed**: after a double click in the collection, M
+  mirrors a P&ID symbol left to right and F top to bottom, as the same
+  keys do on a selection (the status bar says so); the symbol placed
+  keeps it.
 - **Deleting an in-line symbol** joins its two pipes into one again, with
   the data of the pipe on its N1 side; the branch of a deleted tee goes
   with it. A pump, a blower or any symbol with two nozzles only, face to
@@ -217,7 +250,10 @@ line.*
 - **A line through a symbol is signalled**: the part of a pipe or a signal
   line that enters a symbol and leaves it again is painted orange, and its
   tool tip names the symbol. Its ends, where it meets its own nozzles, do
-  not count.
+  not count. *Correct* > *Redraw the line* (context menu of the line, or
+  of the symbol: *Redraw the N lines*) gives it back its default route,
+  as *Reset conductors* does, offered only when that route crosses no
+  symbol any more.
 - **Insulation and heat tracing** (the *Insulation* row of the page of a
   pipe): none, insulation, heat tracing, or both, with a free text
   (`Q 80`) the designation writes by `{insulation}`, and a box *Hatched
@@ -293,7 +329,8 @@ line.*
   into a **Correct** submenu, with *Align the arrows of the line on this
   one* and *Reverse this arrow* on a flow arrow. *Correct* holds the
   proposals for what is signalled: nothing is ever done unasked, one undo
-  step each.
+  step each. It also corrects sizes and reducers (*Sizes*, below), a line
+  through a symbol (above) and a line on a hidden terminal (*Symbols*).
 - **Arrival and departure arrows** mark the limits of the drawing for the
   main fluids (raw water coming in, treated water going out): an arrow
   with a tail, pointing the way of the flow, the pipe leaving its point
@@ -453,10 +490,34 @@ line.*
   undo step.
 - A difference is marked without being blocked: an orange diamond in front
   of the pipe, on screen only, and a tooltip (a reducer with the same size
-  on both sides too). No reducer is ever inserted.
+  on both sides too). No reducer is ever inserted unasked.
+- **Correct a size** (context menu of the pipe or of the symbol, *Correct*,
+  one undo step each): on a nozzle with a size of its own, *Give DN 80 to
+  the line* (as far as when typed on the page of the pipe; not offered
+  when the size is not one of the material of the line) and *Give DN 100
+  to the nozzle N1*; on a valve between two sizes, or under an orange band
+  of a size out of the series, *Change the line to DN …* for the two sizes
+  around it. The end nearest the click is the one corrected.
+- **Insert a reducer here** (*Correct*, on a diamond between exactly two
+  sizes): when the project names a reducer symbol (*Connections* tab,
+  CSV line `tool_symbol;reducer;…`), it is placed 10 mm from the nozzle
+  (nearer, down to one step of the grid, on a short segment), its large
+  side towards the large size (mirrored if needed), the pipe cut, route
+  and data kept, in one undo step. Without such a symbol, no entry.
 - A reducer may name its large side (`pid_large`, *Large side* list of the
   element editor): laid the wrong way, its two nozzles are marked and the
-  tooltip says so; nothing is turned nor blocked.
+  tooltip says so; nothing is turned nor blocked unasked: *Correct* >
+  *Reverse the reducer* mirrors it on the axis of its pipes, which go over
+  to the nozzle in front, its own sizes swapped, in one undo step.
+- **A reducer writes its two sizes** where its label goes, when it has no
+  label of its own: `100 × 80`, `Ø 125 × 110` (the sign once), `Ø 110 ×
+  DN 80` when they differ, in the order of the drawing (left first, or
+  the way the vertical texts read), kept up to date; nothing while a side
+  has no size. On screen and on paper only: the file keeps an empty label,
+  and a label typed takes its place. Box *Write the sizes of the reducers*
+  of the *Texts* tab, ticked by default (`reducer_sizes="false"` written
+  only when unticked; CSV line `text_option;reducer_sizes;false`); their
+  size is that of the fittings (CSV line `text_size;pipe;…`).
 - The size of a nozzle is shown with its name, when terminal names are
   shown and the project shows the sizes; the word `DN` can be left out
   (*Texts* tab). Both are written 1 mm from the end of the nozzle, along its
@@ -489,8 +550,9 @@ line.*
   converted when there is one answer, else it is removed and said.
 - A pipe thread is sized in inches (`pid_thread="1 1/2"`), shown `G 1"1/2`,
   and typed as `G 1"1/2`, `1"1/2`, `3/4"` or `1-1/2`. A fixed table (the
-  usual one of EN 10255, 1/8" = DN 6 to 6" = DN 150, shown in the
-  *Connections* tab of the *P&ID* page) joins inches to DN:
+  usual one of EN 10255, 1/8" = DN 6 to 6" = DN 150, shown in two rows,
+  *Thread* and *DN*, in the *Connections* tab of the *P&ID* page) joins
+  inches to DN:
   for the orange diamond, and for a new pipe, which takes the DN of its
   threaded nozzle (a pipe is never sized in inches).
 - The folio shows the size (`DN 100`, `Ø 110`, `G 1"1/2`) and draws the
@@ -688,7 +750,11 @@ line.*
   moves, in the same undo step (an oval bubble takes the lines of the
   round one), never when a file is opened. A hidden terminal a line still
   holds is marked, not blocked: an orange stem with an orange disc of
-  3 mm, on the screen only, and a line in its tool tip.
+  3 mm, on the screen only, and a line in its tool tip. *Correct*, on the
+  symbol or on that line, offers *Set Actuator to Motor* (one entry per
+  value of a single option which shows the terminal again without hiding
+  another one that holds a line) and *Delete the line of the hidden
+  terminal*.
   A placed symbol saves its choices in its `<element>`
   block, only when it has some; they are chosen in the *Type and options*
   section of its *P&ID* tab or in the *Options* submenu of its context
@@ -709,9 +775,22 @@ line.*
   106 % of their nominal size, and a P&ID is not drawn to scale anyway. The
   default of a new folio is set in the project properties, *New sheet*.
 - The *P&ID* page of the project properties sets the size of the tags of
-  equipment, valves and instruments, of the names and diameters of the
+  equipment, valves, instruments and fittings (*Labels of fittings*, the
+  `pipe` family: reducers, tees...), of the names and diameters of the
   nozzles (none set: the size of the symbol) and of the line designations, and whether those of the
   nozzles are printed and exported.
+
+**Windows of settings** (not P&ID only)
+- In *Project properties* and *Configure QElectroTech*, each page scrolls
+  by itself, the list on the left staying still: a short page no longer
+  scrolls because a long one is in the same window. The tabs of *General*,
+  *New project* / *New folio* and of the *P&ID* page scroll each on its
+  own, the buttons under them always in sight. The icons of the list are
+  48 pixels.
+- *Ask for a backup copy when a project is opened* (*Configure
+  QElectroTech*, *General*, *Projects* tab, ticked by default): the
+  question asked at each opening can be turned off, there or by its box
+  *Do not ask again*. The progress window no longer stays behind it.
 
 **Checks**: every step has its tests, and the example projects of
 QElectroTech are saved byte for byte as by master.
@@ -788,8 +867,9 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<pid_codification>` | `insulation_stub` | length of the insulation stubs in mm | `8` | another length |
 | `.qet`, `<pid_codification>` | `<line_kind code name width pattern/>` | `code` = `main`, `secondary`, `auxiliary` or a code the project adds; `name` (an added kind only); `width` in mm; `pattern` = `solid`, `dashes`, `short_dashes`, `dash_dot` | the three kinds of ISO 10628-1: 1 mm; 0.5 mm; 0.5 mm in dashes | a kind of ISO changed, or a kind added (page *P&ID*, *Lines*) |
 | `.qet`, `<pid_codification>` | `symbols_follow_pipes` | `false` | `true`: valves and instruments on a line take the color their pipes agree on | they keep the color of their family |
+| `.qet`, `<pid_codification>` | `reducer_sizes` | `false` | `true`: a reducer without a label writes its two sizes | they are not written |
 | `.qet`, `<pid_codification>` | `instrument_numbering` | `parallel` | in series | the loops of the instruments are numbered in parallel |
-| `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee` or `blind_flange`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end | a symbol is chosen for the role |
+| `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee`, `blind_flange` or `reducer`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end, *Correct* inserts no reducer | a symbol is chosen for the role |
 | `.qet`, `<pid_codification>` | `<option_default family option value/>` | `family` = a `pid_family`; `option`, `value` = names of the `<options>` block of its symbols (`instrument`, `shape`, `oval`) | none: a symbol placed new takes the defaults of its own file | the project gives an option of a family a value (page *P&ID*, *Symbols*; right click, *Options*); only a symbol placed new takes it, written in its own `<options>` |
 | `.qet`, `<pid_codification>` | `<signal_mark type mark/>` | `type` = a type of signal (`undefined` and those of `pid_signal_type`); `mark` = `none`, `dashes`, `bar1`, `bar2`, `bar3`, `a_mark`, `e_mark`, `l_mark`, `cross`, `wave`, `circle` | the mark of ISO 14617 for the type, else that of ANSI/ISA-5.1 | the project gives the type another mark than the default one |
 
