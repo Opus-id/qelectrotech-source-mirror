@@ -15,6 +15,8 @@
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "ui/configpage/configpages.h"
+#include "ui/configpage/generalconfigurationpage.h"
 #include "ui/configpage/pidconfigpage.h"
 #include "ui/elementoptionswidget.h"
 #include "ui/pipepropertieswidget.h"
@@ -901,6 +903,26 @@ class tst_pidcolors : public QObject
 				}
 			}
 			QVERIFY2(scrolling > 0, "a tab taller than the window scrolls");
+		}
+
+			// The tabbed pages of the settings are not as tall, nor as
+			// wide, as their largest tab: each tab scrolls on its own
+		void theTabbedPagesAreNotAsLargeAsTheirLargestTab()
+		{
+			const QList<ConfigPage *> pages{new NewDiagramPage(), new NewDiagramPage(&m_project),
+											new GeneralConfigurationPage(), new PidConfigPage(&m_project)};
+			for (ConfigPage *page : pages) {
+				QTabWidget *tabs = nullptr;
+				for (QTabWidget *t : page->findChildren<QTabWidget *>())
+					if (t->parentWidget() == page) tabs = t;
+				QVERIFY2(tabs, qPrintable(page->title()));
+				for (int i = 0 ; i < tabs->count() ; ++i)
+					QVERIFY2(qobject_cast<QScrollArea *>(tabs->widget(i)),
+							 qPrintable(page->title() + QLatin1Char(' ') + tabs->tabText(i)));
+				QVERIFY2(page->minimumSizeHint().height() < 400, qPrintable(page->title()));
+				QVERIFY2(page->minimumSizeHint().width() < 700, qPrintable(page->title()));
+				delete page;
+			}
 		}
 
 		void theConfigPageSetsTheColorsOfTheProject()

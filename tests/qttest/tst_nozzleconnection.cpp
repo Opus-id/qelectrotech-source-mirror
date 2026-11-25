@@ -40,6 +40,7 @@
 #include <QPalette>
 #include <QHeaderView>
 #include <QScrollBar>
+#include <QTabWidget>
 #include <QTableWidget>
 #include <QToolButton>
 #include <QUndoStack>
@@ -977,6 +978,19 @@ class tst_nozzleconnection : public QObject
 			QCOMPARE(table->maximumWidth(), table->verticalHeader()->sizeHint().width()
 					 + table->horizontalHeader()->length() + 2 * table->frameWidth());
 			QCOMPARE(table->horizontalScrollBarPolicy(), Qt::ScrollBarAsNeeded);
+				// where there is room, it takes its whole width and does
+				// not scroll (it shared the room with the space beside it)
+			QTabWidget *tabs = nullptr;
+			for (QTabWidget *t : page.findChildren<QTabWidget *>())
+				if (t->parentWidget() == &page) tabs = t;
+			QVERIFY(tabs);
+			for (int i = 0 ; i < tabs->count() ; ++i)
+				if (tabs->widget(i)->isAncestorOf(table)) tabs->setCurrentIndex(i);
+			page.resize(1400, 900);
+			page.show();
+			for (int pass = 0 ; pass < 3 ; ++pass) QCoreApplication::processEvents();
+			QCOMPARE(table->width(), table->maximumWidth());
+			QCOMPARE(table->horizontalScrollBar()->maximum(), 0);
 		}
 };
 

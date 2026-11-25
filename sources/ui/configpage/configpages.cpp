@@ -215,12 +215,12 @@ NewDiagramPage::NewDiagramPage(QETProject *project,
 	if (m_terminal_label_gb) {
 		diagram_layout -> addWidget(m_terminal_label_gb);
 	}
-		//A width only: a minimum height set by hand replaces the one the
-		//tabs ask for, so on a low screen (1080p with display scaling,
-		//#1562) the dialog's scroll area never scrolled and the tallest
-		//tab (cross-references) was squeezed, its widgets drawn on top
-		//of each other. Without it the dialog scrolls instead.
-	tab_widget->setMinimumWidth(800);
+		//No minimum size set by hand: a minimum height replaced the one
+		//the tabs ask for, so on a low screen (1080p with display scaling,
+		//#1562) the tallest tab (cross-references) was squeezed, its
+		//widgets drawn on top of each other; a minimum width of 800 made
+		//the whole page scroll sideways in a window a little narrower.
+		//Each tab scrolls on its own instead (scrollTabs(), below)
 
 	tab_widget -> addTab (diagram_widget, tr("Sheet"));
 	tab_widget -> addTab (m_cpw,            tr("Conductor"));
@@ -245,6 +245,7 @@ NewDiagramPage::NewDiagramPage(QETProject *project,
 		autonum_layout->addWidget(autonum_inner_tab);
 		tab_widget -> addTab (autonum_widget, tr("Auto Numbering"));
 	}
+	scrollTabs(tab_widget);
 
 	QVBoxLayout *vlayout1 = new QVBoxLayout();
 	vlayout1->addWidget(tab_widget);

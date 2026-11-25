@@ -108,7 +108,9 @@ GeneralConfigurationPage::GeneralConfigurationPage(QWidget *parent) :
 	ui(new Ui::GeneralConfigurationPage)
 {
 	ui->setupUi(this);
-	
+		//A tab taller than the window scrolls on its own, not the page
+	scrollTabs(ui->tabWidget);
+
 	QSettings settings;
 	
 		//Appearance tab

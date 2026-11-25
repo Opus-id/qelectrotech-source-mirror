@@ -18,6 +18,7 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QGroupBox>
+#include <QScrollArea>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QSettings>
@@ -75,7 +76,11 @@ static void measure(NewDiagramPage *page, const char *which, bool has_labelling)
 		if (t->parentWidget() != page) {
 			continue;
 		}
+			//Each tab sits in a scroll area of its own (8r-8)
 		QWidget *sheet = t->widget(0);
+		if (auto *area = qobject_cast<QScrollArea *>(sheet)) {
+			sheet = area->widget();
+		}
 		for (QGroupBox *gb : sheet->findChildren<QGroupBox *>()) {
 			if (gb->parentWidget() == sheet) {
 				labelling = gb;
