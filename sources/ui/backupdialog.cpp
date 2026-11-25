@@ -18,10 +18,35 @@
 
 #include "backupdialog.h"
 
+#include <QCheckBox>
 #include <QLabel>
 #include <QPushButton>
+#include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+
+namespace {
+const QString AskKey = QStringLiteral("projects/ask_backup_on_open");
+}
+
+/**
+	@brief BackupDialog::asksOnOpen
+	@return whether opening a project asks for a backup copy; true when
+	the setting was never written, as before the setting existed
+*/
+bool BackupDialog::asksOnOpen()
+{
+	return QSettings().value(AskKey, true).toBool();
+}
+
+/**
+	@brief BackupDialog::setAsksOnOpen
+	@param ask whether opening a project asks for a backup copy
+*/
+void BackupDialog::setAsksOnOpen(bool ask)
+{
+	QSettings().setValue(AskKey, ask);
+}
 
 /**
 	@brief BackupDialog::BackupDialog
@@ -31,9 +56,10 @@ BackupDialog::BackupDialog(QWidget *parent) :
 	QDialog(parent)
 {
 	setWindowTitle(tr("Create a backup copy?", "window title"));
-	setFixedSize(450, 100);
+	setMinimumWidth(450);
 
 	auto main_layout = new QVBoxLayout(this);
+	main_layout->setSizeConstraint(QLayout::SetFixedSize);
 
 	auto label = new QLabel(
 		tr("Would you like to create a backup copy?",
@@ -43,7 +69,14 @@ BackupDialog::BackupDialog(QWidget *parent) :
 
 	main_layout->addStretch();
 
+	m_dont_ask_cb = new QCheckBox(tr("Do not ask again", "checkbox"));
+	m_dont_ask_cb->setToolTip(
+		tr("It can be asked again in Settings > General, "
+		   "\"Ask for a backup copy when a project is opened\".",
+		   "checkbox tooltip"));
+
 	auto button_layout = new QHBoxLayout();
+	button_layout->addWidget(m_dont_ask_cb);
 	button_layout->addStretch();
 
 	auto yes_button = new QPushButton(tr("Yes", "yes button"));
@@ -61,3 +94,16 @@ BackupDialog::BackupDialog(QWidget *parent) :
 	@brief BackupDialog::~BackupDialog
 */
 BackupDialog::~BackupDialog() = default;
+
+/**
+	@brief BackupDialog::done
+	"Do not ask again" holds whatever the answer: this copy is made or
+	not as asked, the next projects are opened without asking.
+	@param result
+*/
+void BackupDialog::done(int result)
+{
+	if (m_dont_ask_cb->isChecked())
+		setAsksOnOpen(false);
+	QDialog::done(result);
+}

@@ -21,12 +21,30 @@
 
 #include <QDialog>
 
+class QCheckBox;
+
+/**
+	@brief The BackupDialog class
+	Asks, when a project is opened, whether a dated copy of its file should
+	be made beside it. Whether it is asked at all is a setting
+	(Settings > General > Projects), on by default; the dialog's own
+	"Do not ask again" box turns it off.
+*/
 class BackupDialog : public QDialog
 {
 	Q_OBJECT
 	public:
 		explicit BackupDialog(QWidget *parent = nullptr);
 		~BackupDialog() override;
+
+			/// Whether opening a project asks for a backup copy
+		static bool asksOnOpen();
+		static void setAsksOnOpen(bool ask);
+
+		void done(int result) override;
+
+	private:
+		QCheckBox *m_dont_ask_cb = nullptr;
 };
 
 #endif // BACKUPDIALOG_H

@@ -1351,6 +1351,16 @@ add_test(NAME tst_scriptingsetting COMMAND tst_scriptingsetting)
 target_include_directories(tst_scriptingsetting PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_scriptingsetting PRIVATE Qt::Test Qt::Gui)
 
+# BackupDialog: "Create a backup copy?" asked by default, "Do not ask
+# again" turns it off. Compiles the dialog alone (sources/ui/backupdialog.*).
+add_executable(
+  tst_backupdialog
+  tst_backupdialog.cpp
+  ${QET_DIR}/sources/ui/backupdialog.cpp)
+add_test(NAME tst_backupdialog COMMAND tst_backupdialog)
+target_include_directories(tst_backupdialog PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_backupdialog PRIVATE Qt::Test Qt::Widgets)
+
 # AiAssistantSetup: finding the MCP server beside an installation, and the
 # configuration text for each AI assistant. Compiles the one file alone.
 add_executable(

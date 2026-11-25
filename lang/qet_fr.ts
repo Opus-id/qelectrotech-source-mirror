@@ -1340,6 +1340,18 @@ Remarque: Ces options n&apos;autorisent ou bloquent l&apos;auto numérotation, s
         <comment>no button</comment>
         <translation>Non</translation>
     </message>
+    <message>
+        <location filename="../sources/ui/backupdialog.cpp" line="77"/>
+        <source>Do not ask again</source>
+        <comment>checkbox</comment>
+        <translation>Ne plus demander</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/backupdialog.cpp" line="79"/>
+        <source>It can be asked again in Settings &gt; General, &quot;Ask for a backup copy when a project is opened&quot;.</source>
+        <comment>checkbox tooltip</comment>
+        <translation>La question peut être rétablie dans Configurer QElectroTech &gt; Général, « Demander une copie de sauvegarde à l&apos;ouverture d&apos;un projet ».</translation>
+    </message>
 </context>
 <context>
     <name>BackupRestoreDialog</name>
@@ -11826,6 +11838,16 @@ Vous pouvez spécifier ici la valeur par défaut de ce champ pour les éléments
         <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="746"/>
         <source>Previous versions kept when saving a project</source>
         <translation>Versions précédentes conservées à l&apos;enregistrement d&apos;un projet</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="769"/>
+        <source>Ask for a backup copy when a project is opened</source>
+        <translation>Demander une copie de sauvegarde à l&apos;ouverture d&apos;un projet</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="772"/>
+        <source>Each time a project is opened, ask whether a dated copy of its file should be made beside it. The previous versions kept when saving, above, already keep copies without asking.</source>
+        <translation>À chaque ouverture d&apos;un projet, demander s&apos;il faut faire une copie datée de son fichier à côté de lui. Les versions précédentes conservées à l&apos;enregistrement, ci-dessus, gardent déjà des copies sans rien demander.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/generalconfigurationpage.ui" line="749"/>

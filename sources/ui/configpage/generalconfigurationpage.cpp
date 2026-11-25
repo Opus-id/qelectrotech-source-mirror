@@ -35,6 +35,7 @@
 #include <utils/qetsettings.h>
 #include <utils/qetutils.h>
 #include <utils/previousversions.h>
+#include <ui/backupdialog.h>
 #include <qetmessagebox.h>
 #include <qetgraphicsitem/qgraphicsitemutility.h>
 #include <foliogrid.h>
@@ -278,6 +279,7 @@ GeneralConfigurationPage::GeneralConfigurationPage(QWidget *parent) :
 	ui->m_working_copy_recovery->setChecked(QetSettings::workingCopyRecovery());
 	ui->m_qetdb_enabled->setChecked(QetSettings::qetdbEnabled());
 	ui->m_previous_versions_sb->setValue(PreviousVersions::count());
+	ui->m_ask_backup_on_open->setChecked(BackupDialog::asksOnOpen());
 	
 	QString fontInfos = settings.value("diagramitemfont", "Liberation Sans").toString() + " " +
 			settings.value("diagramitemsize", "9").toString() + " (" +
@@ -577,6 +579,7 @@ void GeneralConfigurationPage::applyConf()
 	QetSettings::setWorkingCopyRecovery(ui->m_working_copy_recovery->isChecked());
 	QetSettings::setQetdbEnabled(ui->m_qetdb_enabled->isChecked());
 	PreviousVersions::setCount(ui->m_previous_versions_sb->value());
+	BackupDialog::setAsksOnOpen(ui->m_ask_backup_on_open->isChecked());
 
 	settings.setValue("diagrameditor/grid_display_startup", ui->grid_startup_cb->isChecked());
 	settings.setValue(FolioGrid::min_dot_spacing_key, ui->m_grid_min_spacing_sb->value());
