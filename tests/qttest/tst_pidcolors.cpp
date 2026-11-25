@@ -815,6 +815,37 @@ class tst_pidcolors : public QObject
 			}
 		}
 
+			// Icons of 48 and a little space: the nine pages of the
+			// settings are all in view in a list 900 high (1080 screen)
+		void theListOfPagesHoldsNinePagesOnA1080Screen()
+		{
+			class TitledPage : public ConfigPage
+			{
+				public:
+					explicit TitledPage(int i) : ConfigPage(nullptr), m_title(QStringLiteral("Page %1").arg(i)) {}
+					void applyConf() override {}
+					QString title() const override { return m_title; }
+					QIcon icon() const override {
+						QPixmap pixmap(128, 128);
+						pixmap.fill(Qt::darkGray);
+						return QIcon(pixmap);
+					}
+				private:
+					QString m_title;
+			};
+			ConfigDialog dialog;
+			for (int i = 0 ; i < 9 ; ++i) dialog.addPage(new TitledPage(i));
+			dialog.show();
+			QCoreApplication::processEvents();
+			auto *list = dialog.findChild<QListWidget *>();
+			QVERIFY(list);
+			QCOMPARE(list->iconSize(), QSize(48, 48));
+			const int top = list->visualItemRect(list->item(0)).top();
+			const int bottom = list->visualItemRect(list->item(8)).bottom();
+			QVERIFY2(bottom - top + 2 * list->spacing() + 2 * list->frameWidth() <= 900,
+					 qPrintable(QString::number(bottom - top)));
+		}
+
 			// A short page does not take the height of a tall one: each
 			// page scrolls on its own, only when it is taller than the
 			// window, and the list and the buttons never scroll

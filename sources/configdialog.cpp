@@ -32,15 +32,15 @@ ConfigDialog::ConfigDialog(QWidget *parent) : QDialog(parent) {
 	// liste des pages
 	pages_list = new QListWidget();
 	pages_list -> setViewMode(QListView::IconMode);
-	if(MachineInfo::instance()->i_max_screen_height() <= 1080){
-		pages_list -> setIconSize(QSize(64, 64));
-	} else {
-		pages_list -> setIconSize(QSize(128, 128));
-	}
+		//Icons of 48 on every screen, a little space: the pages of both
+		//windows are all in view on a 1080 screen. Icons of 128 above
+		//1080 (64 below) and a space of 16 showed five or six of them,
+		//the list scrolled for the rest
+	pages_list -> setIconSize(QSize(48, 48));
 	pages_list -> setMovement(QListView::Static);
 	pages_list -> setMinimumWidth(168);
 	pages_list -> setMaximumWidth(168);
-	pages_list -> setSpacing(16);
+	pages_list -> setSpacing(8);
 	pages_list -> setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
 	// pages
