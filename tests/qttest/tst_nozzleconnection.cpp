@@ -38,6 +38,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPalette>
+#include <QHeaderView>
+#include <QScrollBar>
 #include <QTableWidget>
 #include <QToolButton>
 #include <QUndoStack>
@@ -955,17 +957,26 @@ class tst_nozzleconnection : public QObject
 			PidConfigPage page(&project);
 			auto *table = page.findChild<QTableWidget *>(QStringLiteral("thread_table"));
 			QVERIFY(table);
-			QCOMPARE(table->rowCount(), int(PipeDiameter::threadTable().size()));
-			QCOMPARE(table->rowCount(), 14);
+				// step 8r-8 c: two rows, a column by thread
+			QCOMPARE(table->rowCount(), 2);
+			QCOMPARE(table->columnCount(), int(PipeDiameter::threadTable().size()));
+			QCOMPARE(table->columnCount(), 14);
+			QCOMPARE(table->verticalHeaderItem(0)->text(), QStringLiteral("Thread"));
+			QCOMPARE(table->verticalHeaderItem(1)->text(), QStringLiteral("DN"));
 			QCOMPARE(table->item(0, 0)->text(), QStringLiteral("G 1/8\""));
-			QCOMPARE(table->item(0, 1)->text(), QStringLiteral("DN 6"));
-			QCOMPARE(table->item(7, 0)->text(), QStringLiteral("G 1\"1/2"));
-			QCOMPARE(table->item(7, 1)->text(), QStringLiteral("DN 40"));
-			QCOMPARE(table->item(13, 0)->text(), QStringLiteral("G 6\""));
-			QCOMPARE(table->item(13, 1)->text(), QStringLiteral("DN 150"));
+			QCOMPARE(table->item(1, 0)->text(), QStringLiteral("DN 6"));
+			QCOMPARE(table->item(0, 7)->text(), QStringLiteral("G 1\"1/2"));
+			QCOMPARE(table->item(1, 7)->text(), QStringLiteral("DN 40"));
+			QCOMPARE(table->item(0, 13)->text(), QStringLiteral("G 6\""));
+			QCOMPARE(table->item(1, 13)->text(), QStringLiteral("DN 150"));
 			QCOMPARE(table->editTriggers(), QAbstractItemView::NoEditTriggers);
-				// as wide as its two columns
-			QCOMPARE(table->width(), table->horizontalHeader()->length() + 2 * table->frameWidth());
+				// two lines high, with room for the scroll bar under them
+			QCOMPARE(table->height(), table->rowHeight(0) + table->rowHeight(1)
+					 + 2 * table->frameWidth() + table->horizontalScrollBar()->sizeHint().height());
+				// no wider than its columns; narrower, it scrolls sideways
+			QCOMPARE(table->maximumWidth(), table->verticalHeader()->sizeHint().width()
+					 + table->horizontalHeader()->length() + 2 * table->frameWidth());
+			QCOMPARE(table->horizontalScrollBarPolicy(), Qt::ScrollBarAsNeeded);
 		}
 };
 

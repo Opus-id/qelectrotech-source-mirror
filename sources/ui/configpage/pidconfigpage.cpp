@@ -58,6 +58,7 @@
 #include <QSplitter>
 #include <QStyledItemDelegate>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QToolButton>
@@ -956,23 +957,30 @@ void PidConfigPage::initLayout()
 									threads_box);
 	threads_help->setWordWrap(true);
 	threads_layout->addWidget(threads_help);
-	const QList<QPair<int, int>> &rows = PipeDiameter::threadTable();
-	auto *threads = new QTableWidget(int(rows.size()), 2, threads_box);
+		//Two rows, a column by thread: two lines high whatever the number
+		//of threads, it no longer made the tab the tallest of the page
+	const QList<QPair<int, int>> &pairs = PipeDiameter::threadTable();
+	auto *threads = new QTableWidget(2, int(pairs.size()), threads_box);
 	threads->setObjectName(QStringLiteral("thread_table"));
-	threads->setHorizontalHeaderLabels({tr("Thread"), tr("DN")});
-	threads->verticalHeader()->hide();
+	threads->setVerticalHeaderLabels({tr("Thread"), tr("DN")});
+	threads->horizontalHeader()->hide();
 	threads->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 	threads->setEditTriggers(QAbstractItemView::NoEditTriggers);
-	threads->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
-	for (int i = 0 ; i < rows.size() ; ++i) {
-		threads->setItem(i, 0, new QTableWidgetItem(PipeDiameter::thread(rows.at(i).first).text()));
-		threads->setItem(i, 1, new QTableWidgetItem(PipeDiameter::nominal(rows.at(i).second).text()));
+	for (int i = 0 ; i < pairs.size() ; ++i) {
+		threads->setItem(0, i, new QTableWidgetItem(PipeDiameter::thread(pairs.at(i).first).text()));
+		threads->setItem(1, i, new QTableWidgetItem(PipeDiameter::nominal(pairs.at(i).second).text()));
 	}
-		//As wide as its two columns, no empty header beside them
-	threads->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+		//No wider than its columns, no empty cells beside them; narrower,
+		//it scrolls sideways, the scroll bar under its two rows
+	threads->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	threads->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 	threads->resizeColumnsToContents();
-	threads->setFixedWidth(threads->horizontalHeader()->length() + 2 * threads->frameWidth());
-		//Ctrl+C: the cells selected, a line by row, a tab between columns
+	threads->setMaximumWidth(threads->verticalHeader()->sizeHint().width()
+							 + threads->horizontalHeader()->length() + 2 * threads->frameWidth());
+	threads->setFixedHeight(threads->rowHeight(0) + threads->rowHeight(1) + 2 * threads->frameWidth()
+							+ threads->horizontalScrollBar()->sizeHint().height());
+		//Ctrl+C: the cells selected, as they are shown: a line by row,
+		//a tab between columns
 	auto *copy = new QShortcut(QKeySequence(QKeySequence::Copy), threads);
 	copy->setContext(Qt::WidgetShortcut);
 	connect(copy, &QShortcut::activated, threads, [threads]() {
