@@ -869,6 +869,40 @@ class tst_pidcolors : public QObject
 			QVERIFY(box->geometry().bottom() <= dialog.rect().bottom());
 		}
 
+			// The P&ID page in a low window: each tab scrolls on its own,
+			// the buttons under the tabs stay in view
+		void theButtonsOfThePidPageStayInView()
+		{
+			ConfigDialog dialog;
+			auto *page = new PidConfigPage(&m_project);
+			dialog.addPage(page);
+			dialog.show();
+			dialog.resize(900, 500);
+			for (int pass = 0 ; pass < 3 ; ++pass) QCoreApplication::processEvents();
+			QTabWidget *tabs = nullptr;
+			for (QTabWidget *t : page->findChildren<QTabWidget *>())
+				if (t->parentWidget() == page) tabs = t;
+			QVERIFY(tabs);
+			QVERIFY2(page->minimumSizeHint().height() < 400,
+					 "the page is not as tall as its tallest tab");
+			int scrolling = 0;
+			for (int i = 0 ; i < tabs->count() ; ++i) {
+				auto *area = qobject_cast<QScrollArea *>(tabs->widget(i));
+				QVERIFY2(area, qPrintable(tabs->tabText(i)));
+				tabs->setCurrentIndex(i);
+				for (int pass = 0 ; pass < 2 ; ++pass) QCoreApplication::processEvents();
+				if (area->verticalScrollBar()->maximum() > 0) ++scrolling;
+				for (const char *name : {"import_csv", "save_presentation"}) {
+					auto *button = page->findChild<QPushButton *>(QString::fromLatin1(name));
+					QVERIFY(button);
+					const QPoint at = button->mapTo(&dialog, QPoint(0, 0));
+					QVERIFY2(at.y() >= 0 && at.y() + button->height() <= dialog.height(),
+							 qPrintable(tabs->tabText(i) + QLatin1Char(' ') + QLatin1String(name)));
+				}
+			}
+			QVERIFY2(scrolling > 0, "a tab taller than the window scrolls");
+		}
+
 		void theConfigPageSetsTheColorsOfTheProject()
 		{
 			m_project.setPidCodification(PidCodification::fromCsv(QStringLiteral(

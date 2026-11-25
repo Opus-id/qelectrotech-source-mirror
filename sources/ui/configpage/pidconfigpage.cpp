@@ -57,6 +57,7 @@
 #include <QSpinBox>
 #include <QSplitter>
 #include <QStyledItemDelegate>
+#include <QScrollArea>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QToolButton>
@@ -1093,6 +1094,20 @@ void PidConfigPage::initLayout()
 	auto *messages = new QHBoxLayout();
 	messages->addWidget(m_code_message, 1);
 	messages->addWidget(m_default_saved, 0, Qt::AlignRight | Qt::AlignTop);
+
+		//Each tab scrolls on its own, when it is taller than the window:
+		//the tab bar and the buttons under the tabs stay in view
+	for (int i = 0 ; i < tabs->count() ; ++i) {
+		QWidget *tab = tabs->widget(i);
+		const QString title = tabs->tabText(i);
+		auto *scroll = new QScrollArea();
+		scroll->setFrameShape(QFrame::NoFrame);
+		scroll->setWidgetResizable(true);
+		tabs->removeTab(i);
+		scroll->setWidget(tab);
+		tabs->insertTab(i, scroll, title);
+	}
+	tabs->setCurrentIndex(0);
 
 	auto *page_layout = new QVBoxLayout(this);
 	page_layout->addWidget(tabs);
