@@ -3385,7 +3385,7 @@ bool QETDiagramEditor::openAndAddProject(
 
 		//Not when nobody is there to answer: an assistant opening a
 		//project in live mode would wait on a window it cannot see;
-		//nor when the user said not to ask (Settings > General)
+		//nor when the user said not to ask (Settings > General > Projects)
 	if (!interactive || !BackupDialog::asksOnOpen())
 		return true;
 	BackupDialog backup_dialog(this);

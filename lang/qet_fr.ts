@@ -1348,9 +1348,9 @@ Remarque: Ces options n&apos;autorisent ou bloquent l&apos;auto numérotation, s
     </message>
     <message>
         <location filename="../sources/ui/backupdialog.cpp" line="79"/>
-        <source>It can be asked again in Settings &gt; General, &quot;Ask for a backup copy when a project is opened&quot;.</source>
+        <source>It can be asked again in Settings &gt; General &gt; Projects, &quot;Ask for a backup copy when a project is opened&quot;.</source>
         <comment>checkbox tooltip</comment>
-        <translation>La question peut être rétablie dans Configurer QElectroTech &gt; Général, « Demander une copie de sauvegarde à l&apos;ouverture d&apos;un projet ».</translation>
+        <translation>La question peut être rétablie dans Configurer QElectroTech &gt; Général &gt; Projets, « Demander une copie de sauvegarde à l&apos;ouverture d&apos;un projet ».</translation>
     </message>
 </context>
 <context>

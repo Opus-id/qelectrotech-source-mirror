@@ -71,7 +71,7 @@ BackupDialog::BackupDialog(QWidget *parent) :
 
 	m_dont_ask_cb = new QCheckBox(tr("Do not ask again", "checkbox"));
 	m_dont_ask_cb->setToolTip(
-		tr("It can be asked again in Settings > General, "
+		tr("It can be asked again in Settings > General > Projects, "
 		   "\"Ask for a backup copy when a project is opened\".",
 		   "checkbox tooltip"));
 
