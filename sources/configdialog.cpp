@@ -29,11 +29,6 @@
 	@param parent QWidget parent
 */
 ConfigDialog::ConfigDialog(QWidget *parent) : QDialog(parent) {
-	//ScrollArea for low screens
-	QScrollArea *scroll = new QScrollArea(this);
-	scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-	scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-
 	// liste des pages
 	pages_list = new QListWidget();
 	pages_list -> setViewMode(QListView::IconMode);
@@ -57,22 +52,17 @@ ConfigDialog::ConfigDialog(QWidget *parent) : QDialog(parent) {
 				|QDialogButtonBox::Cancel);
 
 
-	QWidget *viewport = new QWidget(this);
-	scroll->setWidget(viewport);
-	scroll->setWidgetResizable(true);
-
-	// layouts
-	QHBoxLayout *hlayout1 = new QHBoxLayout(viewport);
-	// add needed widgets to layout "hlayout1"
+		//Low screens: each page scrolls on its own (addPage()), the list
+		//and the buttons stay. One scroll area around the list and all
+		//the pages made every page as tall as the tallest one, so a short
+		//page scrolled too, buttons of its own included
+	QHBoxLayout *hlayout1 = new QHBoxLayout();
 	hlayout1 -> addWidget(pages_list);
 	hlayout1 -> addWidget(pages_widget);
 
-	//add hlayout1 to widget
-	viewport->setLayout(hlayout1);
-
 	// Add a layout for QDialog
 	QVBoxLayout *dialog_layout = new QVBoxLayout(this);
-	dialog_layout -> addWidget(scroll); // add scroll to the QDialog's layout
+	dialog_layout -> addLayout(hlayout1);
 	dialog_layout -> addWidget(buttons);
 	setLayout(dialog_layout);
 
@@ -163,7 +153,13 @@ void ConfigDialog::applyPages()
 void ConfigDialog::addPage(ConfigPage *page) {
 	if (!page || pages.contains(page)) return;
 	pages << page;
-	pages_widget -> addWidget(page);
+		//A scroll area of its own: the page takes the height of the
+		//window, and scrolls only when it is taller
+	auto scroll = new QScrollArea();
+	scroll -> setFrameShape(QFrame::NoFrame);
+	scroll -> setWidgetResizable(true);
+	scroll -> setWidget(page);
+	pages_widget -> addWidget(scroll);
 	addPageToList(page);
 }
 

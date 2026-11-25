@@ -32,7 +32,10 @@
 
 #include <QLabel>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QTabWidget>
+#include <QVBoxLayout>
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTextDocument>
@@ -808,6 +811,62 @@ class tst_pidcolors : public QObject
 					QVERIFY(rect.top() > list->visualItemRect(list->item(row - 1)).bottom());
 				}
 			}
+		}
+
+			// A short page does not take the height of a tall one: each
+			// page scrolls on its own, only when it is taller than the
+			// window, and the list and the buttons never scroll
+		void aShortPageDoesNotScrollWithATallOne()
+		{
+			class SizedPage : public ConfigPage
+			{
+				public:
+					SizedPage(const QString &title, int height) : ConfigPage(nullptr), m_title(title) {
+						auto layout = new QVBoxLayout(this);
+						auto filler = new QWidget();
+						filler->setMinimumHeight(height);
+						layout->addWidget(filler);
+						m_button = new QPushButton(QStringLiteral("Import"));
+						layout->addWidget(m_button);
+					}
+					void applyConf() override {}
+					QString title() const override { return m_title; }
+					QIcon icon() const override { return QIcon(); }
+					QPushButton *m_button;
+				private:
+					QString m_title;
+			};
+			ConfigDialog dialog;
+			auto tall = new SizedPage(QStringLiteral("Tall"), 2000);
+			auto short_page = new SizedPage(QStringLiteral("Short"), 100);
+			dialog.addPage(tall);
+			dialog.addPage(short_page);
+			dialog.setCurrentPage(1);
+			dialog.show();
+			dialog.resize(900, 600);
+			for (int pass = 0 ; pass < 3 ; ++pass) QCoreApplication::processEvents();
+			QVERIFY2(dialog.height() < 1000, "the window is not as tall as the tallest page");
+
+			const auto areaOf = [](QWidget *page) {
+				return qobject_cast<QScrollArea *>(page->parentWidget()->parentWidget());
+			};
+			QScrollArea *short_area = areaOf(short_page);
+			QScrollArea *tall_area = areaOf(tall);
+			QVERIFY(short_area && tall_area && short_area != tall_area);
+				// the short page fits: nothing to scroll, its button shown
+			QVERIFY(short_page->height() <= short_area->viewport()->height());
+			QVERIFY(short_area->verticalScrollBar()->maximum() == 0);
+			const QPoint button = short_page->m_button->mapTo(&dialog, QPoint(0, 0));
+			QVERIFY2(button.y() + short_page->m_button->height() <= dialog.height(),
+					 "the button of a short page is in view");
+				// the tall page scrolls on its own
+			dialog.setCurrentPage(0);
+			for (int pass = 0 ; pass < 3 ; ++pass) QCoreApplication::processEvents();
+			QVERIFY(tall_area->verticalScrollBar()->maximum() > 0);
+				// and the buttons of the window stay in view
+			auto box = dialog.findChild<QDialogButtonBox *>();
+			QVERIFY(box);
+			QVERIFY(box->geometry().bottom() <= dialog.rect().bottom());
 		}
 
 		void theConfigPageSetsTheColorsOfTheProject()
