@@ -819,10 +819,12 @@ class tst_pidcolors : public QObject
 				auto *table = page.findChild<QTableWidget *>(QStringLiteral("color_table"));
 				QVERIFY(table);
 					// two families of fluid, five of object, the stubs of an
-					// insulation and of a heat tracing (step 7d), two statuses
-				QCOMPARE(table->rowCount(), 11);
+					// insulation and of a heat tracing (step 7d), the jacket of a
+					// double containment pipe (step 8r-1), two statuses
+				QCOMPARE(table->rowCount(), 12);
 				QCOMPARE(table->item(7, 1)->text(), QStringLiteral("Stubs of an insulation (hatches)"));
 				QCOMPARE(table->item(8, 1)->text(), QStringLiteral("Stubs of a heat tracing (dashes)"));
+				QCOMPARE(table->item(9, 1)->text(), QStringLiteral("Jacket of a double containment pipe"));
 
 				page.setColor(PidConfigPage::FluidFamily, QStringLiteral("E"), QColor(0, 0, 255));
 				page.setColor(PidConfigPage::ObjectFamily, QStringLiteral("pipe"), QColor(1, 1, 1));
