@@ -987,6 +987,10 @@ qet_add_app_test(tst_optiondefaults tst_optiondefaults.cpp)
 # name of the nozzle, that a placed element can change. Saved with the project
 # only when it differs, and never passed on to the pipe connected there.
 qet_add_app_test(tst_nozzlediameter tst_nozzlediameter.cpp)
+# "Correct" on a size reported (8r-3 a): a diamond of two sizes offers its size
+# to the line or the size of the line to the nozzle; an inline item between two
+# sizes, either for the whole line; a band, the sizes of the series around it.
+qet_add_app_test(tst_sizecorrections tst_sizecorrections.cpp)
 
 # The Auto numbering panel's Increment spin boxes get the width their style
 # asks for; a fixed 55 px cut the number off on Windows (#1566).

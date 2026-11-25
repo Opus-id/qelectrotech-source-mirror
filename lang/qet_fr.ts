@@ -5555,6 +5555,29 @@ Continuer ?</translation>
     </message>
 </context>
 <context>
+    <name>PidSizeCorrections</name>
+    <message>
+        <source>Change the line to %1</source>
+        <comment>context menu action</comment>
+        <translation>Passer la ligne en %1</translation>
+    </message>
+    <message>
+        <source>Give %1 to the line</source>
+        <comment>context menu action</comment>
+        <translation>Donner %1 à la ligne</translation>
+    </message>
+    <message>
+        <source>Give %1 to the nozzle</source>
+        <comment>context menu action</comment>
+        <translation>Donner %1 au piquage</translation>
+    </message>
+    <message>
+        <source>Give %1 to the nozzle %2</source>
+        <comment>context menu action</comment>
+        <translation>Donner %1 au piquage %2</translation>
+    </message>
+</context>
+<context>
     <name>PidProcessConnection</name>
     <message>
         <location filename="../sources/pidprocessconnection.cpp" line="40"/>

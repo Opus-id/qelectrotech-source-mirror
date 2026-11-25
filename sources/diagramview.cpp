@@ -20,6 +20,7 @@
 #include "pidstatus.h"
 #include "pidflow.h"
 #include "pidoffpage.h"
+#include "pidsizecorrections.h"
 #include "itemdescription.h"
 #include "shownkinds.h"
 #include "autoNum/ui/pastenumberingimport.h"
@@ -3626,6 +3627,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 		updateStatusMenu();
 		updateFlowCorrections();
 		updateOffPageCorrection();
+		updateSizeCorrections();
 			//The selection may just have changed under the mouse
 		if (QETDiagramEditor *qde = diagramEditor()) {
 			qde->m_create_similar->setEnabled(similarSource() != nullptr);
@@ -3841,6 +3843,38 @@ void DiagramView::updateOffPageCorrection()
 			}
 		}
 	});
+}
+
+/**
+	@brief DiagramView::updateSizeCorrections
+	P&ID, 8r-3 a: the right click on one pipe or one symbol whose size is
+	reported (a diamond of two sizes, a band of a size out of its series)
+	adds the proposals of PidSizeCorrections to the "Correct" submenu (after
+	updateFlowCorrections(), which clears it). Each is one undo step; what
+	the panel says of the change is said in the status bar. Not on a
+	read-only diagram.
+*/
+void DiagramView::updateSizeCorrections()
+{
+	const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+	if (m_diagram->isReadOnly() || selected.size() != 1) {
+		return;
+	}
+	const QList<PidSizeCorrections::Proposal> found =
+		PidSizeCorrections::proposals(selected.first(), m_menu_scene_pos);
+	for (const PidSizeCorrections::Proposal &proposal : found)
+	{
+		QAction *action = m_correct_menu->addAction(proposal.text);
+		connect(action, &QAction::triggered, this, [this, proposal]() {
+			QString said;
+			if (QUndoCommand *undo = PidSizeCorrections::apply(proposal, this, &said)) {
+				m_diagram->undoStack().push(undo);
+			}
+			if (QETDiagramEditor *qde = diagramEditor(); qde && !said.isEmpty()) {
+				qde->statusBar()->showMessage(said, 8000);
+			}
+		});
+	}
 }
 
 /**

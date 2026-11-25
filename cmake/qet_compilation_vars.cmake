@@ -262,6 +262,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidoffpage.h
   ${QET_DIR}/sources/pidoffpage.cpp
   ${QET_DIR}/sources/pidsection.h
+  ${QET_DIR}/sources/pidsizecorrections.h
+  ${QET_DIR}/sources/pidsizecorrections.cpp
   ${QET_DIR}/sources/pipeproperties.cpp
   ${QET_DIR}/sources/pipeproperties.h
   ${QET_DIR}/sources/signalproperties.cpp

@@ -183,6 +183,23 @@ class Terminal : public QGraphicsObject
 			/// table of the project (PidCodification::compare()): one it does
 			/// not know is a gap too.
 		bool hasDiameterGap() const;
+			/// What the mark of hasDiameterGap() says, as its tool tip says
+			/// it (step 8r-3 a): Inline, an inline item between two sizes,
+			/// @c here brought to this nozzle by @c here_pipe, @c there to
+			/// @c sibling, another nozzle of its run, by @c there_pipe;
+			/// Nozzle, a size of its own @c own, the line @c here (the outside
+			/// diameter of its pipe for an own outside diameter); Reducer, a
+			/// reducer which reduces nothing or is laid the wrong way, its
+			/// own size that of its line; None without a mark.
+		struct DiameterGap {
+			enum Kind { None, Inline, Nozzle, Reducer };
+			Kind kind = None;
+			PipeDiameter here, there, own;
+			const Conductor *here_pipe = nullptr;
+			const Conductor *there_pipe = nullptr;
+			const Terminal *sibling = nullptr;
+		};
+		DiameterGap diameterGap() const;
 			/// The other nozzle of the reducer of this nozzle
 			/// (Element::isReducer()), which has two; nullptr otherwise
 		Terminal *reducerOtherSide() const;
