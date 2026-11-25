@@ -145,13 +145,14 @@ QList<QPointF> PidInsulation::offset(const QList<QPointF> &points, qreal distanc
 	});
 }
 
-QPainterPath PidInsulation::band(const QList<QPointF> &points)
+QPainterPath PidInsulation::band(const QList<QPointF> &points, bool jacketed)
 {
 	QPainterPath path;
 	const QList<QPointF> axis = cleaned(points);
 	if (axis.size() < 2) {
 		return path;
 	}
+	const qreal half_width = jacketed ? jacketed_half_width : PidInsulation::half_width;
 	for (const qreal side : {half_width, -half_width}) {
 		const QList<QPointF> line = offset(axis, side);
 		path.moveTo(line.first());
@@ -184,16 +185,34 @@ QPainterPath PidInsulation::band(const QList<QPointF> &points)
 	return path;
 }
 
-QPainterPath PidInsulation::tracing(const QList<QPointF> &points, bool insulated)
+QPainterPath PidInsulation::tracing(const QList<QPointF> &points, bool insulated, bool jacketed)
 {
 	QPainterPath path;
-	const QList<QPointF> line = beside(points, insulated ? half_width / 2 : half_width);
+	const qreal distance = jacketed ? jacketed_tracing : insulated ? half_width / 2 : half_width;
+	const QList<QPointF> line = beside(points, distance);
 	if (line.size() < 2) {
 		return path;
 	}
 	path.moveTo(line.first());
 	for (int i = 1 ; i < line.size() ; ++i) {
 		path.lineTo(line.at(i));
+	}
+	return path;
+}
+
+QPainterPath PidInsulation::jacket(const QList<QPointF> &points)
+{
+	QPainterPath path;
+	const QList<QPointF> axis = cleaned(points);
+	if (axis.size() < 2) {
+		return path;
+	}
+	for (const qreal side : {half_width, -half_width}) {
+		const QList<QPointF> line = offset(axis, side);
+		path.moveTo(line.first());
+		for (int i = 1 ; i < line.size() ; ++i) {
+			path.lineTo(line.at(i));
+		}
 	}
 	return path;
 }

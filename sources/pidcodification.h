@@ -394,6 +394,10 @@ class PidCodification
 		static bool isInsulationStub(qreal mm) { return mm >= 2.0 && mm <= 50.0; }
 		static QString insulationColorKey() { return QStringLiteral("insulation"); }
 		static QString tracingColorKey() { return QStringLiteral("tracing"); }
+			/// The key of the colour of the jackets of the double
+			/// containment pipes in object_colors (step 8r-1); none: that of
+			/// the pipe. A status of works comes first.
+		static QString jacketColorKey() { return QStringLiteral("jacket"); }
 			/// The patterns of dashes a kind of line may be drawn with (step
 			/// 8r-6): a fixed list, in widths of the line, as the dashes of
 			/// QElectroTech

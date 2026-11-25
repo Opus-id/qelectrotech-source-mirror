@@ -112,6 +112,7 @@ void PipePropertiesWidget::setPipes(const QList<Conductor *> &pipes)
 				//a value refused before is no longer what matters
 			connect(pipe, &Conductor::propertiesChange, this, [this]() {
 				m_refused.clear();
+				m_jacket_refused.clear();
 				updateUi();
 			});
 		}
@@ -316,6 +317,48 @@ void PipePropertiesWidget::buildUi()
 		const bool marked = m_insulation_mark->checkState() != Qt::Unchecked;
 		applyChange([marked](PipeProperties &p) { p.insulation_mark = marked; }, Reach::Insulation);
 	});
+
+		//Its jacket, for a double containment pipe: a material and a size,
+		//on the whole line as the insulation, up to a jacket limit or
+		//equipment; drawn as two lines either side where it begins and
+		//ends, or along the whole pipe (step 8r-1)
+	m_jacket_material = addListField(QStringLiteral("jacket_material"), tr("Jacket:"),
+									 [](PipeProperties &p, const QString &code) { p.jacket_material = code; },
+									 [this](const QString &code) { jacketMaterialEdited(code); });
+	m_jacket_material->setToolTip(PidToolTip::wrapped(
+		tr("The material of the jacket a double containment pipe runs in. Given to the whole line, "
+		   "through valves and tees, up to a jacket limit or equipment. (None) takes the jacket away.")));
+	m_jacket_size = new QComboBox(this);
+	m_jacket_size->setObjectName(QStringLiteral("jacket_size_list"));
+	DiameterList::setUp(m_jacket_size);
+	QLineEdit *jacket_size_edit = m_jacket_size->lineEdit();
+	jacket_size_edit->setObjectName(QStringLiteral("jacket_size"));
+	m_jacket_size->setToolTip(PidToolTip::wrapped(
+		tr("A size of the material of the jacket: an outside diameter (Ø 63) for a material named "
+		   "by it, else a DN.")));
+	layout->addRow(tr("Jacket size:"), m_jacket_size);
+	connect(jacket_size_edit, &QLineEdit::editingFinished, this, [this, jacket_size_edit]() {
+		if (jacket_size_edit->isModified()) {
+			jacket_size_edit->setModified(false);
+			jacketSizeEdited();
+		}
+	});
+	connect(m_jacket_size, &QComboBox::activated, this, &PipePropertiesWidget::jacketSizeEdited);
+	m_jacket_full = new QCheckBox(tr("Jacket along the whole pipe"), this);
+	m_jacket_full->setObjectName(QStringLiteral("jacket_full"));
+	m_jacket_full->setToolTip(PidToolTip::wrapped(
+		tr("Draw the two lines of the jacket along this pipe, not only where the jacket begins and "
+		   "ends. This pipe only.")));
+	layout->addRow(QString(), m_jacket_full);
+	connect(m_jacket_full, &QCheckBox::clicked, this, [this]() {
+		const bool full = m_jacket_full->checkState() != Qt::Unchecked;
+		applyChange([full](PipeProperties &p) { p.jacket_full = full; });
+	});
+	m_jacket_message = new QLabel(this);
+	m_jacket_message->setObjectName(QStringLiteral("jacket_message"));
+	m_jacket_message->setWordWrap(true);
+	m_jacket_message->setStyleSheet(QStringLiteral("color: #c05000"));
+	layout->addRow(QString(), m_jacket_message);
 
 		//One button shows the colour drawn and where it comes from, and
 		//opens the dialog; a small one beside it gives the automatic colour
@@ -1118,6 +1161,7 @@ void PipePropertiesWidget::fillLists()
 	};
 	fill(m_fluid, codification.fluids, PipeProperties::defaultFluids());
 	fill(m_material, codification.materials, QStringList());
+	fill(m_jacket_material, codification.materials, QStringList());
 }
 
 /**
@@ -1185,6 +1229,7 @@ QList<Conductor *> PipePropertiesWidget::changedPipes(Reach reach) const
 											  : reach == Reach::LineKind   ? Conductor::LineReach::LineNumber
 											  : reach == Reach::Flow       ? Conductor::LineReach::Flow
 											  : reach == Reach::Insulation ? Conductor::LineReach::Insulation
+											  : reach == Reach::Jacket     ? Conductor::LineReach::Jacket
 																		   : Conductor::LineReach::Size;
 		for (Conductor *pipe : pipes()) {
 			for (Conductor *next : pipe->inlineRun(line_reach)) {
@@ -1253,6 +1298,11 @@ QString PipePropertiesWidget::lineNote(const std::function<QString(const PipePro
 		note += QLatin1Char(' ')
 				+ tr("%n of them had another insulation (%1): only an insulation limit or "
 					 "equipment keeps two insulations apart.", "", replaced)
+				  .arg(values.join(QStringLiteral(", ")));
+	} else if (replaced && reach == Reach::Jacket) {
+		note += QLatin1Char(' ')
+				+ tr("%n of them had another jacket (%1): only a jacket limit or equipment keeps "
+					 "two jackets apart.", "", replaced)
 				  .arg(values.join(QStringLiteral(", ")));
 	} else if (replaced) {
 		note += QLatin1Char(' ')
@@ -1503,6 +1553,8 @@ void PipePropertiesWidget::updateUi()
 	m_insulation_mark->setCheckState(mixed_marks ? Qt::PartiallyChecked
 												 : marks ? Qt::Checked : Qt::Unchecked);
 
+	showJacket();
+
 		//Shown on some of them only: half checked, and a click shows it on all
 	int designations = 0;
 	for (Conductor *pipe : list) {
@@ -1523,6 +1575,208 @@ void PipePropertiesWidget::updateUi()
 				   "a line of the presentation of the project, as tag_model;line;{fluid} {size}.")));
 
 	showColor();
+}
+
+/**
+	@brief PipePropertiesWidget::jacketMaterialEdited
+	See the declaration
+*/
+void PipePropertiesWidget::jacketMaterialEdited(const QString &code)
+{
+	m_jacket_refused.clear();
+		//The other jackets of the line said by their material
+	auto said = [](const PipeProperties &p) { return p.jacketed() ? p.jacket_material : QString(); };
+	const QString note = lineNote(said, code, Reach::Jacket);
+	if (code.isEmpty()) {
+			//No jacket any more: its size goes with its material
+		applyChange([](PipeProperties &p) { p.takeJacket(PipeProperties()); }, Reach::Jacket);
+	} else {
+			//A size the new material does not name its pipes by is written
+			//as it names them: the outside diameter of a DN, or the reverse
+		const PidCodification codes = codification();
+		applyChange([code, codes](PipeProperties &p) {
+			p.jacket_material = code;
+			const bool by_outside = codes.outsideDiameterFor(code);
+			if (by_outside && !p.jacket_outside.isSet() && p.jacket_nominal.isSet()) {
+				p.jacket_outside = codes.outsideOf(p.jacket_nominal, code);
+			} else if (!by_outside && p.jacket_outside.isSet() && !p.jacket_nominal.isSet()) {
+				p.jacket_nominal = codes.nominalOf(p.jacket_outside, code);
+			}
+			if (!by_outside && codes.material(code)) {
+				p.jacket_outside = PipeDiameter();
+			}
+		}, Reach::Jacket);
+	}
+		//Said after the change, which clears what was said
+	m_jacket_refused = note;
+	updateUi();
+}
+
+/**
+	@brief PipePropertiesWidget::jacketSizeEdited
+	See the declaration. A number alone is of the kind the material of the
+	jacket names its pipes by.
+*/
+void PipePropertiesWidget::jacketSizeEdited()
+{
+	m_jacket_refused.clear();
+	const QList<Conductor *> list = pipes();
+	if (list.isEmpty()) {
+		return;
+	}
+	const QString text = m_jacket_size->lineEdit()->text().trimmed();
+	const PidCodification codes = codification();
+	const QString material = list.first()->properties().m_pipe.jacket_material;
+	const bool by_outside = codes.outsideDiameterFor(material);
+	PipeDiameter typed = codes.nominalOfEqualText(text);
+	bool ok = true;
+	if (!typed.isSet()) {
+		typed = PipeDiameter::fromText(text, by_outside ? PipeDiameter::Outside : PipeDiameter::Nominal, &ok);
+	}
+	if (!ok || typed.isThread()) {
+		m_jacket_refused = tr("%1 is not a size of jacket.").arg(text);
+		updateUi();
+		return;
+	}
+	if (typed.isSet() && codes.pipeSizes(material) == PidCodification::SizeRule::Series
+		&& !codes.acceptsForPipe(typed, material)) {
+		m_jacket_refused = tr("%1 is not a size of the material %2 (P&ID properties of the project, "
+							  "Codification).").arg(text, material);
+		updateUi();
+		return;
+	}
+		//The DN and the outside diameter, the one typed giving the other
+		//through the series of the material
+	PipeDiameter nominal, outside;
+	if (typed.isOutside()) {
+		outside = typed;
+		nominal = codes.nominalOf(typed, material);
+	} else if (typed.isNominal()) {
+		nominal = codes.nominalIn(typed, material);
+		if (by_outside) {
+			outside = codes.outsideOf(nominal, material);
+		}
+	}
+	const QString note = lineNote(
+			[codes](const PipeProperties &p) {
+				const PipeDiameter size = p.jacketWrittenSize(codes.outsideDiameterFor(p.jacket_material));
+				return size.isSet() ? codes.text(size, p.jacket_material) : QString();
+			},
+			typed.isSet() ? codes.text(by_outside && outside.isSet() ? outside : nominal, material) : QString(),
+			Reach::Jacket);
+	applyChange([nominal, outside](PipeProperties &p) {
+		p.jacket_nominal = nominal;
+		p.jacket_outside = outside;
+	}, Reach::Jacket);
+		//Said after the change, which clears what was said
+	m_jacket_refused = note;
+	updateUi();
+}
+
+/**
+	@brief PipePropertiesWidget::showJacket
+	See the declaration
+*/
+void PipePropertiesWidget::showJacket()
+{
+	const QList<Conductor *> list = pipes();
+	if (list.isEmpty()) {
+		return;
+	}
+	const PidCodification codes = codification();
+	auto shown = [this](const QString &code) {
+		if (code.isEmpty()) {
+			return QString();
+		}
+		const int index = m_jacket_material->findData(code);
+		return index >= 0 ? m_jacket_material->itemText(index) : code;
+	};
+	showText(m_jacket_material->lineEdit(),
+			 [shown](const PipeProperties &p) { return shown(p.jacket_material); });
+
+		//The sizes of the material of the jacket, or the DN of the project
+		//without one; a material without sizes: whatever is typed
+	const QString material = list.first()->properties().m_pipe.jacket_material;
+	QList<PipeDiameter> sizes;
+	if (codes.pipeSizes(material, &sizes) == PidCodification::SizeRule::NoMaterial) {
+		sizes = codes.nominalSizes();
+	}
+	QStringList size_texts;
+	for (const PipeDiameter &size : std::as_const(sizes)) {
+		size_texts << codes.text(size, material);
+	}
+	DiameterList::fillTexts(m_jacket_size, size_texts);
+	showText(m_jacket_size->lineEdit(), [codes](const PipeProperties &p) {
+		const PipeDiameter size = p.jacketWrittenSize(codes.outsideDiameterFor(p.jacket_material));
+		return size.isSet() ? codes.text(size, p.jacket_material) : QString();
+	});
+
+	int full = 0;
+	for (Conductor *pipe : list) {
+		if (pipe->properties().m_pipe.jacket_full) {
+			++full;
+		}
+	}
+	const QSignalBlocker full_blocker(m_jacket_full);
+	const bool mixed = full && full < list.size();
+	m_jacket_full->setTristate(mixed);
+	m_jacket_full->setCheckState(mixed ? Qt::PartiallyChecked : full ? Qt::Checked : Qt::Unchecked);
+
+	const QString message = jacketMessage();
+	m_jacket_message->setText(message);
+	m_jacket_message->setVisible(!message.isEmpty());
+}
+
+/**
+	@brief PipePropertiesWidget::jacketMessage
+	See the declaration. A jacket whose size is not larger than that of its
+	pipe is said, nothing being refused (jacketWarning()): by their outside
+	diameters when both have one, else by the DN of their lines; nothing
+	when one of them is not known.
+*/
+QString PipePropertiesWidget::jacketMessage() const
+{
+	QStringList lines;
+	if (!m_jacket_refused.isEmpty()) {
+		lines << m_jacket_refused;
+	}
+	const QString warning = jacketWarning();
+	if (!warning.isEmpty()) {
+		lines << warning;
+	}
+	return lines.join(QLatin1Char('\n'));
+}
+
+/**
+	@brief PipePropertiesWidget::jacketWarning
+	See jacketMessage()
+*/
+QString PipePropertiesWidget::jacketWarning() const
+{
+	const PidCodification codes = codification();
+	for (Conductor *pipe : pipes())
+	{
+		const PipeProperties p = pipe->properties().m_pipe;
+		if (!p.jacketed()) {
+			continue;
+		}
+		bool smaller = false;
+		if (p.outside.isOutside() && p.jacket_outside.isOutside()) {
+			smaller = p.jacket_outside.tenths() <= p.outside.tenths();
+		} else {
+			const PipeDiameter own = p.nominal.isSet() ? p.nominal : codes.lineNominal(p.outside);
+			const PipeDiameter jacket = p.jacket_nominal.isSet() ? p.jacket_nominal
+																 : codes.lineNominal(p.jacket_outside);
+			smaller = own.isNominal() && jacket.isNominal() && jacket.tenths() <= own.tenths();
+		}
+		if (smaller) {
+			const PipeDiameter jacket = p.jacketWrittenSize(codes.outsideDiameterFor(p.jacket_material));
+			const PipeDiameter own = p.writtenSize(codes.outsideDiameterFor(p.material));
+			return tr("The jacket (%1) is not larger than its pipe (%2).")
+					.arg(codes.text(jacket, p.jacket_material), codes.text(own, p.material));
+		}
+	}
+	return QString();
 }
 
 /**

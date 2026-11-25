@@ -36,7 +36,8 @@ QString PidLineDesignation::text(const QString &model,
 		return QString();
 	}
 	static const QRegularExpression field(QStringLiteral(
-			"\\{(fluid|fluid_name|line_number|material|material_name|piping_class|pn|flow|insulation|size|dn)\\}"));
+			"\\{(?:(fluid|fluid_name|line_number|material|material_name|piping_class|pn|flow|insulation|size|dn)"
+			"|(jacket|jacket_name)(?::([^{}]*))?)\\}"));
 	static const QRegularExpression spaces(QStringLiteral(" {2,}"));
 
 		//The size as the drawing writes it: the material chooses
@@ -60,6 +61,21 @@ QString PidLineDesignation::text(const QString &model,
 	const QString fluid_name = nameOf(codification.fluid(pipe.fluid.trimmed()), pipe.fluid);
 	const QString material_name = nameOf(codification.material(pipe.material.trimmed()), pipe.material);
 
+		//The jacket (step 8r-1): its material, by its code or its name,
+		//then its size as the drawing writes it; nothing without a jacket
+	auto jacket = [&](bool by_name, const QString &word) {
+		if (!pipe.jacketed()) {
+			return QString();
+		}
+		const QString code = pipe.jacket_material.trimmed();
+		const QString material = by_name ? nameOf(codification.material(code), code) : code;
+		const PipeDiameter written = pipe.jacketWrittenSize(codification.outsideDiameterFor(code));
+		const QString size = written.isSet() ? codification.text(written, code) : QString();
+		const QString what = QStringLiteral("%1 %2").arg(material.trimmed(), size).trimmed();
+		return word.trimmed().isEmpty() ? what
+										: QStringLiteral("%1 %2").arg(word.trimmed(), what);
+	};
+
 	QString result;
 	int from = 0;
 	auto it = field.globalMatch(model);
@@ -68,6 +84,10 @@ QString PidLineDesignation::text(const QString &model,
 		const QRegularExpressionMatch match = it.next();
 		result += model.mid(from, match.capturedStart() - from);
 		from = match.capturedEnd();
+		if (!match.captured(2).isEmpty()) {
+			result += jacket(match.captured(2) == QLatin1String("jacket_name"), match.captured(3));
+			continue;
+		}
 		const QString name = match.captured(1);
 		const QString value =
 				name == QLatin1String("fluid")         ? pipe.fluid

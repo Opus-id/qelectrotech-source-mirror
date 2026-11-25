@@ -747,6 +747,13 @@ void DeleteQGraphicsItemCommand::rejoinPipesOfRemovedElements()
 				spreadInsulationOverRemovedLimit(pipe, first_is_n1 ? one.pipe : two.pipe,
 												 first_is_n1 ? two.pipe : one.pipe, gone);
 			}
+				//A jacket limit taken away: the jacket no longer stops
+				//there (8r-1)
+			if (element->isJacketLimit() && one.pipe && two.pipe) {
+				const bool first_is_n1 = first->baseName() != QLatin1String("N2");
+				spreadJacketOverRemovedLimit(pipe, first_is_n1 ? one.pipe : two.pipe,
+											 first_is_n1 ? two.pipe : one.pipe, gone);
+			}
 			pipe->takeNozzleDiameter();
 				//The route of the line kept, through where the symbol stood,
 				//its bends moved by hand included (7c); else a new one
@@ -839,6 +846,62 @@ void DeleteQGraphicsItemCommand::spreadInsulationOverRemovedLimit(
 		m_note = QObject::tr("Insulation limit deleted: the insulation of its N1 side (%1) "
 							 "replaces that of the other side (%2) on the line joined.")
 				 .arg(said(a), said(b));
+	}
+}
+
+/**
+	@brief DeleteQGraphicsItemCommand::spreadJacketOverRemovedLimit
+	A jacket limit taken away between @p n1_side and @p n2_side, as
+	spreadInsulationOverRemovedLimit() for an insulation (step 8r-1): a
+	jacketed side gives its jacket (material and sizes) to @p joined and
+	to the line of the other side, up to the next jacket limit or
+	equipment, in this step; two jackets which differ: that of the N1
+	side, and note() says so. The drawing along the whole pipe stays each
+	pipe's own.
+*/
+void DeleteQGraphicsItemCommand::spreadJacketOverRemovedLimit(
+		Conductor *joined, Conductor *n1_side, Conductor *n2_side, const QList<Conductor *> &gone)
+{
+	const PipeProperties a = n1_side->properties().m_pipe;
+	const PipeProperties b = n2_side->properties().m_pipe;
+	if ((!a.jacketed() && !b.jacketed()) || a.sameJacket(b)) {
+		return;
+	}
+	const PipeProperties given = a.jacketed() ? a : b;
+	Conductor *loser = a.jacketed() ? n2_side : n1_side;
+
+	ConductorProperties joined_data = joined->properties();
+	joined_data.m_pipe.takeJacket(given);
+	joined->setProperties(joined_data);
+
+		//The line of the other side, the limit still there: it stops at it
+	for (Conductor *pipe : loser->inlineRun(Conductor::LineReach::Jacket))
+	{
+		if (gone.contains(pipe)) {
+			continue;
+		}
+		ConductorProperties data = pipe->properties();
+		data.m_pipe.takeJacket(given);
+		if (data == pipe->properties()) {
+			continue;
+		}
+		QVariant old_value, new_value;
+		old_value.setValue(pipe->properties());
+		new_value.setValue(data);
+		new QPropertyUndoCommand(pipe, "properties", old_value, new_value, this);
+	}
+
+	if (a.jacketed() && b.jacketed())
+	{
+		auto said = [](const PipeProperties &p) {
+			const PipeDiameter size = p.jacket_outside.isSet() ? p.jacket_outside : p.jacket_nominal;
+			return QStringLiteral("%1 %2").arg(p.jacket_material, size.isSet() ? size.text() : QString())
+					.trimmed();
+		};
+		const QString note = QObject::tr("Jacket limit deleted: the jacket of its N1 side (%1) "
+										 "replaces that of the other side (%2) on the line joined.")
+				.arg(said(a), said(b));
+		m_note = m_note.isEmpty() ? note : m_note + QLatin1Char(' ') + note;
 	}
 }
 

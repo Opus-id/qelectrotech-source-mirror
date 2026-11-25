@@ -412,7 +412,21 @@ void SelectionCategories::addPipes(const QList<QGraphicsItem *> &pipes,
 		 }, QString(), insulation_order},
 		{QStringLiteral("insulation"), tr("By insulation text"), nullptr,
 		 [](QGraphicsItem *item) { return typed(pipeOf(item).insulation, tr("No insulation text")); },
-		 QString(), {}}};
+		 QString(), {}},
+			//The jacket of a double containment pipe (step 8r-1): its
+			//material and its size, as the designation writes them
+		{QStringLiteral("jacket"), tr("By jacket"), nullptr,
+		 [&codes](QGraphicsItem *item) {
+			const PipeProperties p = pipeOf(item);
+			if (!p.jacketed()) {
+				return Value{QString(), tr("No jacket")};
+			}
+			const QString code = p.jacket_material.trimmed();
+			const PipeDiameter size = p.jacketWrittenSize(codes.outsideDiameterFor(code));
+			const QString text = QStringLiteral("%1 %2")
+					.arg(code, size.isSet() ? codes.text(size, code) : QString()).trimmed();
+			return Value{text, text};
+		 }, QString(), {}}};
 
 	Node node;
 	node.label = tr("Pipe lines");

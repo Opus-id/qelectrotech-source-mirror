@@ -721,6 +721,10 @@ qet_add_app_test(tst_pidtraversal tst_pidtraversal.cpp)
 # alike; a mark in the middle with its text; their length and colours,
 # settings of the project.
 qet_add_app_test(tst_insulation tst_insulation.cpp)
+# The jacket of a double containment pipe (step 8r-1): a second material and
+# size passed on along the line up to a jacket limit or equipment, two lines
+# where it begins and ends or along the pipe, {jacket} in the designation.
+qet_add_app_test(tst_jacket tst_jacket.cpp)
 # The flow direction arrow (step 8a): a mark on the line, the pipes drawn into
 # it; nothing stops there, a cut writes the designation once.
 qet_add_app_test(tst_flowarrow tst_flowarrow.cpp)

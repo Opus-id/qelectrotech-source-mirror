@@ -5451,6 +5451,10 @@ Continuer ?</translation>
         <source>Lines joined: the data of the line drawn from are kept; set aside from the other one: %1.</source>
         <translation>Lignes réunies : les données de la ligne de départ sont gardées ; écartées de l&apos;autre : %1.</translation>
     </message>
+    <message>
+        <source>jacket %1</source>
+        <translation>gaine %1</translation>
+    </message>
 </context>
 <context>
     <name>PidOffPage</name>
@@ -5540,6 +5544,14 @@ Continuer ?</translation>
     <message>
         <source>Its pipe differs from that of the off-page connector it is linked to:</source>
         <translation>Sa tuyauterie diffère de celle du renvoi d&apos;en face :</translation>
+    </message>
+    <message>
+        <source>Jacket</source>
+        <translation>Gaine</translation>
+    </message>
+    <message>
+        <source>Jacket size</source>
+        <translation>Taille de la gaine</translation>
     </message>
 </context>
 <context>
@@ -16958,6 +16970,22 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message><source>The options a symbol of a family takes when it is placed new, such as instrument / shape / oval: the words of the symbol files. A symbol placed before keeps its own. The simplest way: right click on a symbol placed, Options, &quot;Make these choices the defaults of the project&quot;.</source><translation>Les options que prend un symbole d&apos;une famille quand il est posé neuf, par exemple instrument / shape / oval : les mots des fichiers de symboles. Un symbole posé avant garde les siennes. Le plus simple : clic droit sur un symbole posé, Options, « Faire de ces choix les valeurs par défaut du projet ».</translation></message>
     <message><source>This option of this family is already given a value above: this line is left out.</source><translation>Cette option de cette famille a déjà une valeur plus haut : cette ligne n&apos;est pas prise en compte.</translation></message>
     <message><source>A family, an option and a value are needed, in letters, digits, &quot;_&quot; and &quot;-&quot;: this line is left out.</source><translation>Il faut une famille, une option et une valeur, en lettres, chiffres, « _ » et « - » : cette ligne n&apos;est pas prise en compte.</translation></message>
+    <message>
+        <source>Jacket</source>
+        <translation>Gaine</translation>
+    </message>
+    <message>
+        <source>Jacket of a double containment pipe</source>
+        <translation>Gaine d&apos;une tuyauterie double peau</translation>
+    </message>
+    <message>
+        <source>Jacket: code of its material and size (M05 Ø 63)</source>
+        <translation>Gaine : code de son matériau et taille (M05 Ø 63)</translation>
+    </message>
+    <message>
+        <source>Jacket by the name of its material, after a word (in PVC Ø 63)</source>
+        <translation>Gaine par le nom de son matériau, après un mot ({jacket_name:dans} : dans PVC Ø 63)</translation>
+    </message>
 </context>
 <context>
     <name>SignalMark</name>
@@ -17044,6 +17072,14 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     <message><source>No insulation</source><translation>Sans calorifuge</translation></message>
     <message><source>By insulation text</source><translation>Par repère du calorifuge</translation></message>
     <message><source>No insulation text</source><translation>Sans repère du calorifuge</translation></message>
+    <message>
+        <source>By jacket</source>
+        <translation>Par gaine</translation>
+    </message>
+    <message>
+        <source>No jacket</source>
+        <translation>Sans gaine</translation>
+    </message>
 </context>
 <context>
     <name>SelectByCriteriaDialog</name>
@@ -17593,6 +17629,49 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/pipepropertieswidget.cpp" line="395"/>
         <source>Automatic (black)</source>
         <translation>Automatique (noir)</translation>
+    </message>
+    <message>
+        <source>Jacket:</source>
+        <translation>Gaine :</translation>
+    </message>
+    <message>
+        <source>The material of the jacket a double containment pipe runs in. Given to the whole line, through valves and tees, up to a jacket limit or equipment. (None) takes the jacket away.</source>
+        <translation>Le matériau de la gaine dans laquelle passe une tuyauterie double peau. Donné à toute la ligne, à travers la robinetterie et les Tés, jusqu&apos;à une limite de gaine ou un équipement. (Aucun) retire la gaine.</translation>
+    </message>
+    <message>
+        <source>A size of the material of the jacket: an outside diameter (Ø 63) for a material named by it, else a DN.</source>
+        <translation>Une taille du matériau de la gaine : un diamètre extérieur (Ø 63) pour un matériau désigné par lui, sinon un DN.</translation>
+    </message>
+    <message>
+        <source>Jacket size:</source>
+        <translation>Taille de la gaine :</translation>
+    </message>
+    <message>
+        <source>Jacket along the whole pipe</source>
+        <translation>Gaine sur toute la longueur</translation>
+    </message>
+    <message>
+        <source>Draw the two lines of the jacket along this pipe, not only where the jacket begins and ends. This pipe only.</source>
+        <translation>Dessiner les deux traits de la gaine le long de cette tuyauterie, pas seulement là où la gaine commence et finit. Cette tuyauterie seulement.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n of them had another jacket (%1): only a jacket limit or equipment keeps two jackets apart.</source>
+        <translation>
+            <numerusform>Dont %n qui avait une autre gaine (%1) : seuls une limite de gaine ou un équipement séparent deux gaines.</numerusform>
+            <numerusform>Dont %n qui avaient une autre gaine (%1) : seuls une limite de gaine ou un équipement séparent deux gaines.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 is not a size of jacket.</source>
+        <translation>%1 n&apos;est pas une taille de gaine.</translation>
+    </message>
+    <message>
+        <source>%1 is not a size of the material %2 (P&amp;ID properties of the project, Codification).</source>
+        <translation>%1 n&apos;est pas une taille du matériau %2 (propriétés P&amp;ID du projet, Codification).</translation>
+    </message>
+    <message>
+        <source>The jacket (%1) is not larger than its pipe (%2).</source>
+        <translation>La gaine (%1) n&apos;est pas plus grande que sa tuyauterie (%2).</translation>
     </message>
 </context>
 <context>
@@ -28714,6 +28793,10 @@ Comment voulez-vous les placer ?</translation>
         <extracomment>%1 is a filter (&quot;Category&quot;), %2 its value (&quot;Relay&quot;)</extracomment>
         <translation>%1 : %2</translation>
     </message>
+    <message>
+        <source>Jacket limit deleted: the jacket of its N1 side (%1) replaces that of the other side (%2) on the line joined.</source>
+        <translation>Limite de gaine supprimée : la gaine de son côté N1 (%1) remplace celle de l&apos;autre côté (%2) sur la ligne réunie.</translation>
+    </message>
 </context>
 <context>
     <name>QTextOrientationWidget</name>
@@ -33491,6 +33574,10 @@ Les autres champs ne sont pas utilisés.</translation>
         <location filename="../sources/editor/ui/pipingblockwidget.cpp" line="104"/>
         <source>This nozzle takes the size of its pipe and passes a change of size to the other nozzles of the run.</source>
         <translation>Ce piquage prend la taille de sa tuyauterie et transmet un changement de taille aux autres piquages du groupe.</translation>
+    </message>
+    <message>
+        <source>Jacket limit</source>
+        <translation>Limite de gaine</translation>
     </message>
 </context>
 <context>

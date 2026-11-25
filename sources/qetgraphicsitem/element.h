@@ -358,6 +358,13 @@ class Element : public QetGraphicsItem
 		bool isInsulationLimit() const {
 			return m_data.m_pid_role == QLatin1String("insulation_limit");
 		}
+			/// True for a jacket limit (pid_role="jacket_limit", step 8r-1):
+			/// an in-line symbol where the jacket of a double containment
+			/// line stops or changes, as an insulation limit for the
+			/// insulation; what else a line carries goes through it.
+		bool isJacketLimit() const {
+			return m_data.m_pid_role == QLatin1String("jacket_limit");
+		}
 			/// True for a flow arrow (pid_role="flow_arrow", step 8a): the
 			/// arrow of the direction of flow, a drawing on the line, as
 			/// the PipeFlowArrow of DEXPI. Nothing stops there.
@@ -365,7 +372,7 @@ class Element : public QetGraphicsItem
 			return m_data.m_pid_role == QLatin1String("flow_arrow");
 		}
 			/// A mark on the line, no piece: a spec break, an insulation
-			/// limit, a flow arrow (ElementData::isLineMarkRole()). It
+			/// limit, a jacket limit, a flow arrow (ElementData::isLineMarkRole()). It
 			/// never draws a connection, the pipes are drawn into its
 			/// middle, and a symbol placed against it meets the connection
 			/// beyond it, as if it were not there.

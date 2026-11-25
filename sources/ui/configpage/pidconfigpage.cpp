@@ -584,6 +584,8 @@ void PidConfigPage::initWidgets()
 		{QStringLiteral("{pn}"), tr("Nominal pressure")},
 		{QStringLiteral("{flow}"), tr("Flow")},
 		{QStringLiteral("{insulation}"), tr("Insulation as written (Q 80)")},
+		{QStringLiteral("{jacket}"), tr("Jacket: code of its material and size (M05 Ø 63)")},
+		{QStringLiteral("{jacket_name:in}"), tr("Jacket by the name of its material, after a word (in PVC Ø 63)")},
 		{QStringLiteral("\\n"), tr("New line")}};
 	for (const QString &family : modelFamilies())
 	{
@@ -1859,6 +1861,9 @@ void PidConfigPage::fillTable()
 		tr("Stubs of an insulation (hatches)"));
 	add(ObjectFamily, tr("Insulation"), PidCodification::tracingColorKey(),
 		tr("Stubs of a heat tracing (dashes)"));
+		//The jacket of the double containment pipes (step 8r-1)
+	add(ObjectFamily, tr("Jacket"), PidCodification::jacketColorKey(),
+		tr("Jacket of a double containment pipe"));
 
 	const QStringList statuses{tr("Existing, kept"), tr("To be demolished")};
 	const QStringList status_keys = PidCodification::statuses();

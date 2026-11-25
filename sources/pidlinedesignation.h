@@ -53,7 +53,12 @@ namespace PidLineDesignation
 			- {size}: the size as the drawing writes it, "DN 100", "Ø 110",
 			  "DN 60/65" (PidCodification::text()); "DN ?" when the pipe has
 			  none;
-			- {dn}: the DN alone, "100", "60/65"; "?" when the pipe has none.
+			- {dn}: the DN alone, "100", "60/65"; "?" when the pipe has none;
+			- {jacket}, {jacket_name}: the jacket of a double containment
+			  pipe (step 8r-1), its material by its code or by its name, then
+			  its size as the drawing writes it, "M05 Ø 63"; a word after a
+			  colon comes first, "{jacket_name:in}" writing "in PVC Ø 63";
+			  nothing, the word neither, without a jacket.
 			"\n" (backslash then n, as written in a file) starts a new line.
 			In each line, spaces in a row are made one and those at the ends
 			go, so that a missing field leaves no gap. An unknown {word}

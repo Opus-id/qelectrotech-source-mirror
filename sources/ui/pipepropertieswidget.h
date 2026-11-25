@@ -80,8 +80,9 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// class, nominal pressure) passes to; those their fluid, their
 			/// line number or their flow passes to, see Conductor::inlineRun();
 			/// those their kind of line passes to, the same as their line
-			/// number; those their insulation passes to (step 7d-bis)
-		enum class Reach { Selection, Size, Spec, Fluid, LineNumber, LineKind, Flow, Insulation };
+			/// number; those their insulation passes to (step 7d-bis); those
+			/// their jacket passes to (step 8r-1)
+		enum class Reach { Selection, Size, Spec, Fluid, LineNumber, LineKind, Flow, Insulation, Jacket };
 
 		void buildUi();
 		QLineEdit *addTextField(const QString &name, const QString &label,
@@ -177,6 +178,23 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 			/// What is wrong with the diameter shown, empty when nothing
 		QString diameterWarning() const;
 		void showColor();
+			/// The material of code @p code given to the jacket of the pipes
+			/// and of the rest of their line (Reach::Jacket, step 8r-1); none
+			/// takes the jacket away, its size too
+		void jacketMaterialEdited(const QString &code);
+			/// The size typed or picked for the jacket: one of the sizes of
+			/// its material, a DN or an outside diameter, the other one
+			/// given by its series; refused otherwise, said in m_refused
+		void jacketSizeEdited();
+			/// The sizes and the warning of the jacket shown again
+		void showJacket();
+			/// A jacket not larger than its pipe, empty when none is
+		QString jacketWarning() const;
+
+	public:
+			/// What is said under the fields of the jacket: a size refused,
+			/// a jacket not larger than its pipe; empty when nothing
+		QString jacketMessage() const;
 
 	public:
 			/// Give the line of the pipes edited the size @p text, read as
@@ -225,6 +243,13 @@ class PipePropertiesWidget : public PropertiesEditorWidget
 		QComboBox *m_status = nullptr;
 		QComboBox *m_insulation_kind = nullptr;
 		QCheckBox *m_insulation_mark = nullptr;
+			/// The jacket of a double containment pipe (step 8r-1)
+		QComboBox *m_jacket_material = nullptr;
+		QComboBox *m_jacket_size = nullptr;
+		QCheckBox *m_jacket_full = nullptr;
+		QLabel *m_jacket_message = nullptr;
+			/// A size of jacket refused, said until the next change
+		QString m_jacket_refused;
 		QCheckBox *m_show_designation = nullptr;
 		QPushButton *m_color = nullptr;
 		QToolButton *m_automatic_color = nullptr;

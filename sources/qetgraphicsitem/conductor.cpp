@@ -246,7 +246,8 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	step 5l-1k); its kind of line (main, secondary, auxiliary) as its line
 	number, a branch of a tee starting as a main line (step 6b-1c); its
 	insulation from the nearest pipe of its line (LineReach::Insulation,
-	step 7d-bis). Done once, when
+	step 7d-bis), and its jacket the same way (LineReach::Jacket, step
+	8r-1). Done once, when
 	it is connected: a pipe given data of its own afterwards (the halves of a
 	pipe cut, a pipe read from a file) keeps them, empty fields included.
 */
@@ -331,6 +332,26 @@ void Conductor::takeLineSpec()
 					data.insulation = theirs.insulation;
 					data.insulation_mark = theirs.insulation_mark;
 				}
+					//The nearest only: a bare one says the line is bare
+				break;
+			}
+		}
+	}
+		//Its jacket (material and size), the same way, up to a jacket
+		//limit or equipment (step 8r-1); not the drawing along its whole
+		//length, which is each pipe's own
+	if (!data.jacketed())
+	{
+		for (Terminal *end : {terminal1, terminal2})
+		{
+			if (!end || data.jacketed()) {
+				continue;
+			}
+			for (const Conductor *other : runFrom({end}, LineReach::Jacket)) {
+				if (other == this || other->m_properties.m_medium != TerminalData::Pipe) {
+					continue;
+				}
+				data.takeJacket(other->m_properties.m_pipe);
 					//The nearest only: a bare one says the line is bare
 				break;
 			}
@@ -1181,6 +1202,8 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 			//Its stubs and its mark keep their own colour as long as the
 			//pipe keeps its own (step 7d)
 		const bool plain = !m_preview && must_highlight_ == None && !isSelected();
+			//The jacket inside, the insulation around it (step 8r-1)
+		drawJacket(painter, final_conductor_color, plain, detail);
 		drawInsulation(painter, final_conductor_color, plain, detail);
 		drawDiameterGaps(painter);
 			//The symbols whose direction of flow disagrees, drawn again when
@@ -1710,7 +1733,7 @@ void Conductor::drawPipeParts(QPainter *painter, const QColor &color, qreal deta
 	@brief Conductor::pipesBeyond
 	See the declaration
 */
-QList<Conductor *> Conductor::pipesBeyond(const Terminal *terminal, bool *limit) const
+QList<Conductor *> Conductor::pipesBeyond(const Terminal *terminal, bool *limit, bool jacket) const
 {
 	QList<Conductor *> found;
 	if (limit) {
@@ -1725,8 +1748,8 @@ QList<Conductor *> Conductor::pipesBeyond(const Terminal *terminal, bool *limit)
 	{
 		const Terminal *at = todo.at(i);
 		const Element *symbol = at->parentElement();
-			//The insulation stops there, on both sides
-		if (symbol && symbol->isInsulationLimit()) {
+			//The insulation, or the jacket, stops there, on both sides
+		if (symbol && (jacket ? symbol->isJacketLimit() : symbol->isInsulationLimit())) {
 			if (limit) {
 				*limit = true;
 			}
@@ -1940,7 +1963,8 @@ QList<QPointF> Conductor::insulationMarkBetween(qreal from, qreal to, QRectF *te
 	if (text_rect && !p.insulation.trimmed().isEmpty() && m_text_item)
 	{
 		const QSizeF size = QFontMetricsF(m_text_item->font()).size(0, p.insulation.trimmed());
-		const qreal off = PidInsulation::half_width + 2.0;
+		const qreal off = (p.jacketed() ? PidInsulation::jacketed_half_width
+										: PidInsulation::half_width) + 2.0;
 			//Above a horizontal pipe, at the left of a vertical one; on the
 			//other side when the designation is on that side
 		auto placed = [&](bool first_side, const QPointF &c) {
@@ -2024,12 +2048,14 @@ void Conductor::insulationPaths(QPainterPath *hatches, QPainterPath *dashes) con
 	if (!mark.isEmpty()) {
 		parts << mark;
 	}
+		//Around the jacket of a double containment pipe (step 8r-1)
+	const bool jacketed = p.jacketed();
 	for (const QList<QPointF> &part : std::as_const(parts)) {
 		if (p.insulated()) {
-			hatches->addPath(PidInsulation::band(part));
+			hatches->addPath(PidInsulation::band(part, jacketed));
 		}
 		if (p.traced()) {
-			dashes->addPath(PidInsulation::tracing(part, p.insulated()));
+			dashes->addPath(PidInsulation::tracing(part, p.insulated(), jacketed));
 		}
 	}
 }
@@ -2092,6 +2118,138 @@ void Conductor::drawInsulation(QPainter *painter, const QColor &color, bool plai
 		painter->setPen(m_text_item->color());
 		painter->drawText(text_rect, Qt::AlignCenter, m_properties.m_pipe.insulation.trimmed());
 	}
+	painter->restore();
+}
+
+/**
+	@brief Conductor::jacketEndsAt
+	See the declaration
+*/
+bool Conductor::jacketEndsAt(const Terminal *terminal) const
+{
+	const PipeProperties &own = m_properties.m_pipe;
+	if (m_properties.m_medium != TerminalData::Pipe || !own.jacketed()
+		|| !terminal || (terminal != terminal1 && terminal != terminal2)) {
+		return false;
+	}
+	bool limit = false;
+	const QList<Conductor *> beyond = pipesBeyond(terminal, &limit, true);
+	if (limit) {
+		return true;
+	}
+	for (const Conductor *pipe : beyond) {
+		if (pipe->m_properties.m_pipe.sameJacket(own)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+	@brief Conductor::jacketPath
+	See the declaration
+*/
+QPainterPath Conductor::jacketPath() const
+{
+	const PipeProperties &p = m_properties.m_pipe;
+	if (m_properties.m_medium != TerminalData::Pipe || !p.jacketed() || endsTouch()) {
+		return {};
+	}
+	const QList<QPointF> points = segmentsToPoints();
+	const qreal total = PidInsulation::length(points);
+	const qreal from = pipeStartAt(terminal1);
+	const qreal to = total - pipeStartAt(terminal2);
+	const qreal room = to - from;
+	if (room < 1) {
+		return {};
+	}
+		//Into a line mark across the line (a jacket limit, a spec break),
+		//the pipe is drawn to its middle: the jacket goes there too, as the
+		//stubs of an insulation (step 7d-bis); not into a flow arrow
+	auto lead_into = [this](const Terminal *terminal) {
+		const Element *mark = terminal->parentElement();
+		return mark && mark->isFlowArrow() ? QLineF() : lineIntoSpecBreak(terminal);
+	};
+	auto with_leads = [&](QList<QPointF> part, bool at_first, bool at_second) {
+		if (part.isEmpty()) {
+			return part;
+		}
+		const QLineF first = at_first ? lead_into(terminal1) : QLineF();
+		const QLineF second = at_second ? lead_into(terminal2) : QLineF();
+		if (!first.isNull()) {
+			part.prepend(first.p2());
+		}
+		if (!second.isNull()) {
+			part.append(second.p2());
+		}
+		return part;
+	};
+	QPainterPath path;
+	if (p.jacket_full) {
+		path.addPath(PidInsulation::jacket(
+						 with_leads(PidInsulation::stretch(points, from, to), true, true)));
+		return path;
+	}
+	const bool at_first = jacketEndsAt(terminal1);
+	const bool at_second = jacketEndsAt(terminal2);
+		//On a short pipe, each stub on its half
+	const qreal stub = qMin(insulationStubOf(diagram()), at_first && at_second ? room / 2 : room);
+	if (at_first) {
+		const qreal lead = lead_into(terminal1).length();
+		path.addPath(PidInsulation::jacket(with_leads(
+			PidInsulation::stretch(points, from, from + qMax(stub - lead, 0.0)), true, false)));
+	}
+	if (at_second) {
+		const qreal lead = lead_into(terminal2).length();
+		path.addPath(PidInsulation::jacket(with_leads(
+			PidInsulation::stretch(points, to - qMax(stub - lead, 0.0), to), false, true)));
+	}
+	return path;
+}
+
+/**
+	@brief Conductor::drawJacket
+	See the declaration. Part of the drawing: on paper too.
+*/
+void Conductor::drawJacket(QPainter *painter, const QColor &color, bool plain, qreal detail) const
+{
+	const QPainterPath path = jacketPath();
+	if (path.isEmpty()) {
+		return;
+	}
+		//The colour of the jackets, unless the status of works of the pipe
+		//gives one, which comes first
+	QColor ink = color;
+	const Diagram *folio = diagram();
+	if (plain && folio && folio->project() && folio->drawColoredConductors()) {
+		const PidCodification &codes = folio->project()->pidCodification();
+		const QColor set = codes.object_colors.value(PidCodification::jacketColorKey());
+		if (set.isValid() && !codes.status_colors.value(m_properties.m_pipe.status).isValid()) {
+			ink = set;
+		}
+	}
+		//The pattern of the kind of line, half its width: its dashes as
+		//long as those of the pipe
+	const qreal width = lineWidth() / 2;
+	const bool on_screen = painter->device()
+			&& painter->device()->devType() == QInternal::Widget;
+	painter->save();
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	painter->setBrush(Qt::NoBrush);
+	QPen pen(ink, width, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+	const QList<qreal> dashes = pipeDashes();
+	if (!dashes.isEmpty()) {
+		QList<qreal> doubled;
+		for (qreal dash : dashes) {
+			doubled << dash * 2;
+		}
+		pen.setDashPattern(doubled);
+	}
+	if (on_screen && detail < 1.0) {
+		pen.setCosmetic(true);
+	}
+	painter->setPen(pen);
+	painter->drawPath(path);
 	painter->restore();
 }
 
@@ -2850,8 +3008,10 @@ QRectF Conductor::boundingRect() const
 {
 	QRectF br = shape().boundingRect();
 		//A pipe holds its counter-flanges, as long as the side of a valve
-	const qreal margin = m_properties.m_medium == TerminalData::Pipe
-			? PipeConnection::markHalfHeight + 2 : 10;
+		//and the band of an insulation around a jacket (step 8r-1)
+	const qreal margin = m_properties.m_medium != TerminalData::Pipe ? 10
+			: m_properties.m_pipe.jacketed() ? qMax(PipeConnection::markHalfHeight, PidInsulation::jacketed_half_width) + 2
+											 : PipeConnection::markHalfHeight + 2;
 	br.adjust(-margin, -margin, margin, margin);
 		//And the text of its mark of insulation (step 7d); the bands of
 		//the stubs are within the margin. Found on the whole path, on both
@@ -4801,6 +4961,11 @@ void Conductor::updateFittings() const
 			for (Conductor *pipe : pipesBeyond(terminal)) {
 				pipe->update();
 			}
+				//and their jacket stubs, beyond an insulation limit too
+				//(step 8r-1)
+			for (Conductor *pipe : pipesBeyond(terminal, nullptr, true)) {
+				pipe->update();
+			}
 		}
 			//An off-page connector and its twin compare their pipes (8c-3)
 		PidOffPage::refresh(element);
@@ -4879,8 +5044,12 @@ QList<Conductor *> Conductor::runFrom(const QList<Terminal *> &starts, LineReach
 			continue;
 		}
 			//The insulation stops at its limit, on both sides; it goes
-			//through anything else on the line, as the fluid does
+			//through anything else on the line, as the fluid does. So does
+			//the jacket, at its own limit (step 8r-1)
 		if (reach == LineReach::Insulation && element && element->isInsulationLimit()) {
+			continue;
+		}
+		if (reach == LineReach::Jacket && element && element->isJacketLimit()) {
 			continue;
 		}
 			//Through a tee or a cross the line goes on straight, with its

@@ -318,8 +318,9 @@ class Conductor : public QGraphicsObject
 			/// class and nominal pressure pass through, what its fluid
 			/// passes through, its line number, its flow, or its insulation
 			/// (as its fluid, but stopped by an insulation limit; step
-			/// 7d-bis, choice of the user of 22/11)
-		enum class LineReach { Size, Spec, Fluid, LineNumber, Flow, Insulation };
+			/// 7d-bis, choice of the user of 22/11), or its jacket (the
+			/// same, stopped by a jacket limit; step 8r-1)
+		enum class LineReach { Size, Spec, Fluid, LineNumber, Flow, Insulation, Jacket };
 		QList<Conductor *> inlineRun(LineReach reach = LineReach::Size);
 			/// This pipe, when it has no size, and the pipes without a size
 			/// its size would pass to (inlineRun(), LineReach::Size): a pipe
@@ -363,8 +364,27 @@ class Conductor : public QGraphicsObject
 			/// of this pipe: on the other nozzles of its run, the other side
 			/// of a reducer, those of a symbol placed against them, through
 			/// pipes of no length; none on equipment. @p limit says the walk
-			/// met an insulation limit, which it does not cross.
-		QList<Conductor *> pipesBeyond(const Terminal *terminal, bool *limit = nullptr) const;
+			/// met an insulation limit, which it does not cross; with
+			/// @p jacket, a jacket limit instead (step 8r-1).
+		QList<Conductor *> pipesBeyond(const Terminal *terminal, bool *limit = nullptr,
+									   bool jacket = false) const;
+			/// The jacket of this pipe ends at its end on @p terminal (step
+			/// 8r-1), as insulationEndsAt(): the pipe is jacketed, and its end
+			/// is on equipment, a free end, a jacket limit
+			/// (Element::isJacketLimit()), or beyond the symbol there is no
+			/// pipe of the same jacket. False for any other medium.
+		bool jacketEndsAt(const Terminal *terminal) const;
+			/// The two lines of the jacket of this pipe, in its frame: stubs
+			/// where jacketEndsAt(), as long as those of the insulation, or
+			/// along the whole pipe when it asks for it
+			/// (PipeProperties::jacket_full); 1.5 mm either side of the axis
+			/// (PidInsulation::half_width). None for a pipe without jacket.
+		QPainterPath jacketPath() const;
+			/// Draw jacketPath() with the pattern of the kind of line of this
+			/// pipe, half its width; in the colour its project gives the
+			/// jackets (PidCodification::jacketColorKey()) when @p plain and
+			/// its status of works gives none, else in @p color
+		void drawJacket(QPainter *painter, const QColor &color, bool plain, qreal detail) const;
 			/// What draws the insulation of this pipe, in its frame: the
 			/// hatched bands in @p hatches, the lines of a heat tracing in
 			/// @p dashes, of the stubs at the ends where insulationEndsAt(),

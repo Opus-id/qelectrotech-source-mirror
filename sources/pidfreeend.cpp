@@ -250,6 +250,16 @@ PipeProperties PidFreeEnd::mergedData(const PipeProperties &first, const PipePro
 		}
 	}
 	data.insulation_mark = data.insulation_mark || second.insulation_mark;
+		//The jacket (step 8r-1): material and sizes go together
+	if (!data.jacketed()) {
+		data.takeJacket(second);
+	} else if (second.jacketed() && !second.sameJacket(data)) {
+		const PipeDiameter size = second.jacketWrittenSize(second.jacket_outside.isSet());
+		aside << tr("jacket %1").arg(QStringLiteral("%1 %2").arg(second.jacket_material,
+																	size.isSet() ? size.text() : QString())
+														   .trimmed());
+	}
+	data.jacket_full = data.jacket_full || second.jacket_full;
 	if (!data.color.isValid()) {
 		data.color = second.color;
 	}

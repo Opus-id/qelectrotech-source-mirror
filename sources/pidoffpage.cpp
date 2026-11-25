@@ -254,6 +254,12 @@ QStringList PidOffPage::differences(const PipeProperties &here, const PipeProper
 	compare(QCoreApplication::translate("PidOffPage", "Insulation"), insulationKindName(here.insulation_kind),
 			insulationKindName(there.insulation_kind));
 	compare(QCoreApplication::translate("PidOffPage", "Insulation text"), here.insulation, there.insulation);
+		//The jacket (step 8r-1): its material, then its sizes
+	compare(QCoreApplication::translate("PidOffPage", "Jacket"), here.jacket_material, there.jacket_material);
+	compare(QCoreApplication::translate("PidOffPage", "Jacket size"), here.jacket_nominal.text(),
+			there.jacket_nominal.text());
+	compare(QCoreApplication::translate("PidOffPage", "Jacket size"), here.jacket_outside.text(),
+			there.jacket_outside.text());
 	compare(QCoreApplication::translate("PidOffPage", "Flow"), here.flow, there.flow);
 	compare(QCoreApplication::translate("PidOffPage", "Status of works"), statusName(here.status), statusName(there.status));
 	return lines;
@@ -377,6 +383,12 @@ QUndoCommand *PidOffPage::copyFromTwin(Element *report, QString *said)
 	if (filled(data(start).insulation, there.insulation)) {
 		give(Conductor::LineReach::Insulation, [&](PipeProperties &p) { p.insulation = there.insulation; });
 		copied << QCoreApplication::translate("PidOffPage", "Insulation text");
+	}
+		//The jacket as a whole, material and sizes (step 8r-1), when the
+		//other side has one
+	if (there.jacketed() && !data(start).sameJacket(there)) {
+		give(Conductor::LineReach::Jacket, [&](PipeProperties &p) { p.takeJacket(there); });
+		copied << QCoreApplication::translate("PidOffPage", "Jacket");
 	}
 	if (filled(data(start).flow, there.flow)) {
 		give(Conductor::LineReach::Flow, [&](PipeProperties &p) { p.flow = there.flow; });

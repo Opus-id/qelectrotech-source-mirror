@@ -42,8 +42,8 @@ class DeleteQGraphicsItemCommand : public QUndoCommand
 			/// end. A strainer or a vent stays. Returns how many were added.
 		static int addLonelyFreeEnds(DiagramContent &content);
 			/// What the user is told after this deletion: two insulations
-			/// met where an insulation limit was taken away (7d-bis); empty
-			/// otherwise
+			/// met where an insulation limit was taken away (7d-bis), two
+			/// jackets where a jacket limit was (8r-1); empty otherwise
 		QString note() const { return m_note; }
 
 	private:
@@ -53,6 +53,9 @@ class DeleteQGraphicsItemCommand : public QUndoCommand
 		void rejoinPipesOfRemovedElements();
 		void spreadInsulationOverRemovedLimit(Conductor *joined, Conductor *n1_side,
 											  Conductor *n2_side, const QList<Conductor *> &gone);
+			/// The same for a jacket limit and the jacket (step 8r-1)
+		void spreadJacketOverRemovedLimit(Conductor *joined, Conductor *n1_side,
+										  Conductor *n2_side, const QList<Conductor *> &gone);
 			/// A closure removed alone (Element::isClosure()) leaves its pipe
 			/// on a free end of the project (PidFreeEnd::reopen(), 6b-3c2); an
 			/// equipment (5l-1h) and the end of a line (8b) too

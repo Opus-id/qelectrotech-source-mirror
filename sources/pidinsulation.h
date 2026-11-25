@@ -58,13 +58,27 @@ namespace PidInsulation
 		/// horizontal step, right of a vertical one; each corner at the
 		/// meeting of its two sides
 	QList<QPointF> beside(const QList<QPointF> &points, qreal distance);
+		/// Half the width of the band of an insulation around a jacket
+		/// (step 8r-1): the jacket at half_width inside it, 3 mm
+	constexpr qreal jacketed_half_width = 12.0;
+		/// Where a heat tracing goes on a jacketed pipe: outside the
+		/// jacket, inside the band when the pipe is insulated too, 2.25 mm
+	constexpr qreal jacketed_tracing = 9.0;
+
 		/// The band of an insulation along @p points: its two side lines,
-		/// and its hatches, none closer to a corner or an end than they lean
-	QPainterPath band(const QList<QPointF> &points);
+		/// and its hatches, none closer to a corner or an end than they lean;
+		/// wider around the jacket of a @p jacketed pipe
+	QPainterPath band(const QList<QPointF> &points, bool jacketed = false);
 		/// The line of a heat tracing along @p points, on the same side of
 		/// the folio (beside()): beside the pipe (@p insulated false), or
-		/// inside the band, half way
-	QPainterPath tracing(const QList<QPointF> &points, bool insulated);
+		/// inside the band, half way; outside the jacket of a @p jacketed
+		/// pipe (jacketed_tracing)
+	QPainterPath tracing(const QList<QPointF> &points, bool insulated, bool jacketed = false);
+		/// The two lines of the jacket of a double containment pipe along
+		/// @p points (step 8r-1): either side of the pipe, half_width from
+		/// its axis, as the sides of the band of an insulation, without
+		/// hatches
+	QPainterPath jacket(const QList<QPointF> &points);
 }
 
 #endif

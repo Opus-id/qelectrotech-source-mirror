@@ -124,6 +124,43 @@ class PipeProperties
 		bool traced() const {
 			return insulation_kind == Tracing || insulation_kind == InsulationAndTracing;
 		}
+			/// The jacket of a double containment pipe (step 8r-1): the pipe
+			/// runs in a second one, "PTFE 4x6 in PVC Ø 63". Its material, a
+			/// code of the project or free text (attribute pid_jacket_material)
+		QString jacket_material;
+			/// Its size, as that of the pipe: a DN (pid_jacket_dn), and an
+			/// outside diameter for a material named by it (pid_jacket_od)
+		PipeDiameter jacket_nominal;
+		PipeDiameter jacket_outside;
+			/// What is written of the size of the jacket: see writtenSize()
+		PipeDiameter jacketWrittenSize(bool named_by_outside) const {
+			if (named_by_outside) {
+				return jacket_outside.isSet() ? jacket_outside : jacket_nominal;
+			}
+			return jacket_nominal.isSet() ? jacket_nominal : jacket_outside;
+		}
+			/// The pipe runs in a jacket: its material or its size is set.
+			/// Passed on along the line as the insulation, up to a jacket
+			/// limit or equipment (Conductor::LineReach::Jacket)
+		bool jacketed() const {
+			return !jacket_material.isEmpty() || jacket_nominal.isSet() || jacket_outside.isSet();
+		}
+			/// The same jacket as @p other: material and sizes
+		bool sameJacket(const PipeProperties &other) const {
+			return jacket_material == other.jacket_material && jacket_nominal == other.jacket_nominal
+					&& jacket_outside == other.jacket_outside;
+		}
+			/// Take the jacket of @p other (material and sizes, not
+			/// jacket_full, which is this pipe's own)
+		void takeJacket(const PipeProperties &other) {
+			jacket_material = other.jacket_material;
+			jacket_nominal = other.jacket_nominal;
+			jacket_outside = other.jacket_outside;
+		}
+			/// The jacket is drawn along the whole pipe, not only as stubs
+			/// where it begins and ends (attribute pid_jacket_full); this
+			/// pipe only, never passed on
+		bool jacket_full = false;
 			/// A colour set on this pipe, before that of its fluid; none by
 			/// default
 		QColor color;

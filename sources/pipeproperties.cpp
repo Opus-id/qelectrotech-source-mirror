@@ -127,6 +127,13 @@ QList<QPair<QString, QString>> PipeProperties::attributes() const
 	add("pid_insulation", insulation);
 	if (insulation_mark)
 		add("pid_insulation_mark", QStringLiteral("true"));
+	add("pid_jacket_material", jacket_material);
+	if (jacket_nominal.isNominal())
+		a << qMakePair(QStringLiteral("pid_jacket_dn"), PipeDiameter::fileNumber(jacket_nominal.tenths()));
+	if (jacket_outside.isOutside())
+		a << qMakePair(QStringLiteral("pid_jacket_od"), PipeDiameter::fileNumber(jacket_outside.tenths()));
+	if (jacket_full)
+		add("pid_jacket_full", QStringLiteral("true"));
 	if (color.isValid())
 		add("pid_color", color.name());
 	add("pid_status", status);
@@ -160,7 +167,13 @@ void PipeProperties::fromXml(const QDomElement &e)
 	insulation_kind  = insulationKindFromString(e.attribute(QStringLiteral("pid_insulation_kind")));
 	insulation       = e.attribute(QStringLiteral("pid_insulation"));
 	insulation_mark  = e.attribute(QStringLiteral("pid_insulation_mark")) == QLatin1String("true");
-	color           = QColor(e.attribute(QStringLiteral("pid_color")));
+	jacket_material  = e.attribute(QStringLiteral("pid_jacket_material"));
+	jacket_nominal   = PipeDiameter::fromTenths(
+				PipeDiameter::Nominal, PipeDiameter::tenthsOf(e.attribute(QStringLiteral("pid_jacket_dn"))));
+	jacket_outside   = PipeDiameter::fromTenths(
+				PipeDiameter::Outside, PipeDiameter::tenthsOf(e.attribute(QStringLiteral("pid_jacket_od"))));
+	jacket_full      = e.attribute(QStringLiteral("pid_jacket_full")) == QLatin1String("true");
+	color          = QColor(e.attribute(QStringLiteral("pid_color")));
 	status           = e.attribute(QStringLiteral("pid_status"));
 }
 
@@ -215,6 +228,8 @@ bool PipeProperties::operator==(const PipeProperties &other) const
 		&& insulation_kind == other.insulation_kind
 		&& insulation == other.insulation
 		&& insulation_mark == other.insulation_mark
+		&& sameJacket(other)
+		&& jacket_full == other.jacket_full
 		&& color == other.color
 		&& status == other.status;
 }
