@@ -630,6 +630,10 @@ qet_add_app_test(tst_pipemagnet tst_pipemagnet.cpp)
 # nozzle of another one comes against it, nozzle on nozzle; Shift, wires and
 # nozzles already taken leave it where the mouse is; one undo puts it back.
 qet_add_app_test(tst_nozzlemagnet tst_nozzlemagnet.cpp)
+# The magnet of the lines (8r-4 a, b): a symbol of a line placed or dragged
+# near a straight segment of a pipe comes onto its axis, turned along it;
+# Space then end for end; Ctrl, equipment, a run that does not fit: nothing.
+qet_add_app_test(tst_linemagnet tst_linemagnet.cpp)
 # The tool which draws pipes: two clicks or a drag near two free nozzles,
 # never a symbol picked nor moved, right click / Esc, wires left alone.
 qet_add_app_test(tst_pipetool tst_pipetool.cpp)

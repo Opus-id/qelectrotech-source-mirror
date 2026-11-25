@@ -290,6 +290,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidprocessconnection.h
   ${QET_DIR}/sources/pidnozzlemagnet.cpp
   ${QET_DIR}/sources/pidnozzlemagnet.h
+  ${QET_DIR}/sources/pidlinemagnet.cpp
+  ${QET_DIR}/sources/pidlinemagnet.h
   ${QET_DIR}/sources/conductormultiedit.h
   ${QET_DIR}/sources/conductorsegment.cpp
   ${QET_DIR}/sources/conductorsegment.h

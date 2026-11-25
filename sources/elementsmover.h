@@ -25,6 +25,7 @@
 
 class CablePart;
 class ConductorTextItem;
+class Element;
 class Diagram;
 class QStatusBar;
 class QUndoCommand;
@@ -59,7 +60,9 @@ class ElementsMover {
 		bool holds(const QGraphicsItem *item) const;
 			/// The magnet of the nozzles (P&ID, 5l-1c): near a free nozzle
 			/// of a symbol left in place, a free nozzle of a moved symbol
-			/// comes against it, within @p radius on the folio (0: none)
+			/// comes against it, within @p radius on the folio (0: none);
+			/// else the magnet of the lines (step 8r-4 a, b), for one
+			/// symbol moved alone: onto the axis of a pipe, turned along it
 		void magnetize(qreal radius);
 			/**
 				Steps of items this mover does not move itself -- the
@@ -106,6 +109,13 @@ class ElementsMover {
 			///Where every item of the movement stood when it began, so
 			///that calling it off puts them all back exactly there
 		QHash<QGraphicsItem *, QPointF> m_start_positions;
+			///The quarter turn the magnet of the lines gave the one symbol
+			///moved (step 8r-4 a, b), taken back at the next move of the
+			///mouse, kept with the move at the drop
+		QPointer<Element> m_line_element;
+		qreal m_line_turn{0};
+			///The quarter turn taken back, the symbol as the gesture left it
+		void takeLineTurnBack();
 
 };
 #endif

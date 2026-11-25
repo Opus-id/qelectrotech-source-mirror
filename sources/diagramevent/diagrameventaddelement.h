@@ -84,6 +84,10 @@ class DiagramEventAddElement : public DiagramEventInterface
 		int mirrorKey(const QKeyEvent *event) const;
 			/// The keys of the placing in the status bar, with where it is
 		void showPlacingHint() const;
+			/// The symbol being placed brought to @p scene_pos, on the grid,
+			/// then by the magnets (of the nozzles, then of the lines, step
+			/// 8r-4 a, b) within @p radius (0: none, Ctrl held)
+		void follow(const QPointF &scene_pos, qreal radius);
 
 	private:
 		ElementsLocation m_location;
@@ -121,6 +125,14 @@ class DiagramEventAddElement : public DiagramEventInterface
 		QGraphicsPathItem *m_preview_wires = nullptr;	///< grey, to each copy's partners
 		QList<Element *> m_ghosts;		///< previews of the copies
 		QList<QPointF> m_drag_positions;
+
+			/// The magnet of the lines (step 8r-4 a, b): the quarter turn it
+			/// gave the symbol (taken back at the next move), where the mouse
+			/// was and how near it caught
+		qreal m_line_turn = 0;
+		bool m_on_line = false;
+		QPointF m_last_pos;
+		qreal m_last_radius = 0;
 };
 
 #endif // DIAGRAMEVENTADDELEMENT_H

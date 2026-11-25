@@ -37,6 +37,7 @@
 #include <autoconnect.h>
 #include <pidtag.h>
 #include <pidnozzlemagnet.h>
+#include <pidlinemagnet.h>
 #include <shortcutmanager.h>
 #include <QPointer>
 #include <QTimer>
@@ -91,6 +92,7 @@ DiagramEventAddElement::DiagramEventAddElement(ElementsLocation &location, Diagr
 DiagramEventAddElement::~DiagramEventAddElement()
 {
 	PidNozzleMagnet::clearMark();
+	PidLineMagnet::clearMark();
 	endDrag();
 	if (m_element)
 	{
@@ -129,22 +131,53 @@ void DiagramEventAddElement::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 	if (m_element)
 	{
-		m_element->setPos(Diagram::snapToGrid(event->scenePos()));
-			//Near a free nozzle of another symbol, a nozzle of this one
-			//comes against it (P&ID, 5l-1c); Ctrl held places without, as it
-			//frees from the axis in the pipe tool (step 8r-4)
-		const PidNozzleMagnet::Snap snap = (event->modifiers() & Qt::ControlModifier)
-				? PidNozzleMagnet::Snap()
-				: PidNozzleMagnet::find({m_element}, Terminal::magnetSceneRadius(event));
-		if (snap.isNull()) {
-			PidNozzleMagnet::clearMark();
-		} else {
-			m_element->QGraphicsItem::setPos(m_element->pos() + snap.step);
-			PidNozzleMagnet::mark(snap.target);
-		}
-		showPlacingHint();
+			//Ctrl held places without the magnets, as it frees from the
+			//axis in the pipe tool (step 8r-4)
+		follow(event->scenePos(), (event->modifiers() & Qt::ControlModifier)
+			   ? 0 : Terminal::magnetSceneRadius(event));
 	}
 	event->setAccepted(true);
+}
+
+/**
+	@brief DiagramEventAddElement::follow
+	See the declaration
+*/
+void DiagramEventAddElement::follow(const QPointF &scene_pos, qreal radius)
+{
+	m_last_pos = scene_pos;
+	m_last_radius = radius;
+		//The quarter turn of the magnet of the lines is its own: taken back
+		//before looking again
+	if (m_line_turn != 0) {
+		m_element->setRotation(m_element->rotation() - m_line_turn);
+		m_line_turn = 0;
+	}
+	m_on_line = false;
+	m_element->setPos(Diagram::snapToGrid(scene_pos));
+		//Near a free nozzle of another symbol, a nozzle of this one comes
+		//against it (P&ID, 5l-1c)
+	const PidNozzleMagnet::Snap snap = PidNozzleMagnet::find({m_element}, radius);
+	if (!snap.isNull()) {
+		PidLineMagnet::clearMark();
+		m_element->QGraphicsItem::setPos(m_element->pos() + snap.step);
+		PidNozzleMagnet::mark(snap.target);
+		showPlacingHint();
+		return;
+	}
+	PidNozzleMagnet::clearMark();
+		//Else near a pipe, a symbol of a line comes onto its axis, turned
+		//along it (step 8r-4 a, b)
+	const PidLineMagnet::Snap line = PidLineMagnet::catchOn(m_element, radius, {m_element});
+	if (line.isNull()) {
+		PidLineMagnet::clearMark();
+	} else {
+		m_line_turn = line.turn;
+		m_on_line = true;
+		m_element->QGraphicsItem::setPos(m_element->pos() + line.step);
+		PidLineMagnet::mark(line);
+	}
+	showPlacingHint();
 }
 
 /**
@@ -305,7 +338,13 @@ void DiagramEventAddElement::keyPressEvent(QKeyEvent *event)
 {
 	if (m_element && event->key() == Qt::Key_Space)
 	{
-		m_element->setRotation(m_element->rotation() + 90);
+			//On a line, end for end: it stays along it (step 8r-4 b)
+		if (m_on_line && !m_dragging) {
+			m_element->setRotation(m_element->rotation() + 180);
+			follow(m_last_pos, m_last_radius);
+		} else {
+			m_element->setRotation(m_element->rotation() + 90);
+		}
 		if (m_dragging && m_drag_line)
 			updateDrag(m_drag_line->line().p2());
 		event->setAccepted(true);
@@ -580,6 +619,7 @@ void DiagramEventAddElement::addElement()
 		element->QGraphicsItem::setPos(m_element->pos());
 	}
 	PidNozzleMagnet::clearMark();
+	PidLineMagnet::clearMark();
 	element -> setRotation(m_element -> rotation());
 	m_diagram -> addItem(element);
 

@@ -42,6 +42,8 @@
 #include "qetdiagrameditor.h"
 #include "undocommand/movegraphicsitemcommand.h"
 #include "pidnozzlemagnet.h"
+#include "pidlinemagnet.h"
+#include "QPropertyUndoCommand/qpropertyundocommand.h"
 
 /**
 	@brief ElementsMover::ElementsMover Constructor
@@ -80,6 +82,8 @@ int ElementsMover::beginMovement(Diagram *diagram, QGraphicsItem *driver_item)
 		// Be sure we have diagram to work
 	if (!diagram) return(-1);
 	m_diagram = diagram;
+	m_line_element.clear();
+	m_line_turn = 0;
 
 	if (!diagram->views().isEmpty()) {
 		const auto qde = QETApp::diagramEditorAncestorOf(diagram->views().at(0));
@@ -334,24 +338,61 @@ void ElementsMover::continueMovement(const QPointF &movement)
 void ElementsMover::magnetize(qreal radius)
 {
 	if (!m_movement_running || holds(m_movement_driver)) return;
+		//The quarter turn of the magnet of the lines is its own: taken back
+		//before looking again
+	takeLineTurnBack();
 
-	const PidNozzleMagnet::Snap snap = PidNozzleMagnet::find(m_moved_content.m_elements, radius);
-	if (snap.isNull()) {
-		PidNozzleMagnet::clearMark();
-		return;
-	}
-	PidNozzleMagnet::mark(snap.target);
-	if (snap.step.isNull()) return;
-
-	m_current_movement += snap.step;
 		//The item under the mouse moves with its own hand, not with
 		//applyMovement(): off the grid, as the magnet put it; first, so
 		//the pipes are drawn again once everything stands in place
-	if (m_movement_driver) {
-		m_movement_driver->QGraphicsItem::setPos(m_movement_driver->pos()
-				+ QET::sceneStepInParent(m_movement_driver, snap.step));
+	auto take_step = [this](const QPointF &step) {
+		if (step.isNull()) return;
+		m_current_movement += step;
+		if (m_movement_driver) {
+			m_movement_driver->QGraphicsItem::setPos(m_movement_driver->pos()
+					+ QET::sceneStepInParent(m_movement_driver, step));
+		}
+		applyMovement(step);
+	};
+
+	const PidNozzleMagnet::Snap snap = PidNozzleMagnet::find(m_moved_content.m_elements, radius);
+	if (!snap.isNull()) {
+		PidLineMagnet::clearMark();
+		PidNozzleMagnet::mark(snap.target);
+		take_step(snap.step);
+		return;
 	}
-	applyMovement(snap.step);
+	PidNozzleMagnet::clearMark();
+
+		//A symbol of a line moved alone, near a pipe: onto its axis,
+		//turned along it (step 8r-4 a, b)
+	Element *element = m_moved_content.m_elements.size() == 1
+			? m_moved_content.m_elements.first() : nullptr;
+	const PidLineMagnet::Snap line = element
+			? PidLineMagnet::catchOn(element, radius, {element}) : PidLineMagnet::Snap();
+	if (line.isNull()) {
+		PidLineMagnet::clearMark();
+		return;
+	}
+	PidLineMagnet::mark(line);
+	if (line.turn != 0) {
+		m_line_element = element;
+		m_line_turn = line.turn;
+	}
+	take_step(line.step);
+}
+
+/**
+	@brief ElementsMover::takeLineTurnBack
+	See the declaration
+*/
+void ElementsMover::takeLineTurnBack()
+{
+	if (m_line_element && m_line_turn != 0) {
+		m_line_element->setRotation(m_line_element->rotation() - m_line_turn);
+	}
+	m_line_element.clear();
+	m_line_turn = 0;
 }
 
 /**
@@ -366,6 +407,7 @@ void ElementsMover::endMovement()
 	if (!m_movement_running) return;
 	endPreview();
 	PidNozzleMagnet::clearMark();
+	PidLineMagnet::clearMark();
 
 		//The lines he marked together with the elements settle first:
 		//they may have to be asked something before they can rest, and
@@ -399,6 +441,16 @@ void ElementsMover::endMovement()
 		QUndoCommand *quc{new MoveGraphicsItemCommand(m_diagram, m_moved_content, m_current_movement, undo_object)};
 		undo_object->setText(quc->text());
 	}
+		//The quarter turn the magnet of the lines gave it, in the same step
+		//(step 8r-4 b)
+	if (m_line_element && m_line_turn != 0) {
+		const qreal now = m_line_element->rotation();
+		new QPropertyUndoCommand(m_line_element.data(), "rotation", now - m_line_turn, now, undo_object);
+		if (undo_object->text().isEmpty())
+			undo_object->setText(QObject::tr("Rotate the selection", "undo caption"));
+	}
+	m_line_element.clear();
+	m_line_turn = 0;
 
 		//What a bridge lands on follows the terminals he moved: one
 		//moved onto one of its lines joins the bridge, one moved off it
@@ -691,6 +743,8 @@ void ElementsMover::cancelMovement()
 	if (!m_movement_running) return;
 	endPreview();
 	PidNozzleMagnet::clearMark();
+	PidLineMagnet::clearMark();
+	takeLineTurnBack();
 
 		//Back to the places the gesture found them in: the recorded
 		//ones rather than the movement taken back, since every step of
