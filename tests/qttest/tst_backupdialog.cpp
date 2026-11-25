@@ -29,10 +29,17 @@
 */
 
 #include "ui/backupdialog.h"
+#include "ui/dialogwaiting.h"
 
 #include <QtTest>
 #include <QCheckBox>
+#include <QPointer>
 #include <QSettings>
+
+	// DialogWaiting remembers its size through this; nothing to remember here
+namespace QET {
+void trackDialogGeometry(QDialog *, const QString &) {}
+}
 
 class TstBackupDialog : public QObject
 {
@@ -47,6 +54,7 @@ class TstBackupDialog : public QObject
 		void untouchedDialogWritesNothing();
 		void dontAskAgainOnYes();
 		void dontAskAgainOnNo();
+		void progressDialogGoneBeforeTheQuestion();
 };
 
 namespace {
@@ -120,6 +128,23 @@ void TstBackupDialog::dontAskAgainOnNo()
 	dialog.reject();
 	QCOMPARE(dialog.result(), int(QDialog::Rejected));
 	QVERIFY(!BackupDialog::asksOnOpen());
+}
+
+void TstBackupDialog::progressDialogGoneBeforeTheQuestion()
+{
+		// The project is read under the progress dialog, which is dropped
+		// just before the question is asked: the question's own event loop
+		// does not run the deferred delete, so the dialog must be hidden
+		// at once, not left showing behind the question
+	QPointer<DialogWaiting> waiting = DialogWaiting::instance();
+	waiting->show();
+	QVERIFY(waiting->isVisible());
+	DialogWaiting::dropInstance();
+	QVERIFY(!DialogWaiting::hasInstance());
+	QVERIFY2(waiting && !waiting->isVisible(),
+		 "the progress dialog must be hidden as soon as it is dropped");
+	QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+	QVERIFY(waiting.isNull());
 }
 
 QTEST_MAIN(TstBackupDialog)

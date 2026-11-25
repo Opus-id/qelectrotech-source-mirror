@@ -57,6 +57,11 @@ class DialogWaiting : public QDialog
 			if(m_static_dialog)
 			{
 				mutex.lock();
+					//Hidden now: deleteLater() waits for the event loop
+					//it was called from, and a dialog opened right after
+					//(Create a backup copy?) runs its own, which left
+					//this one showing behind it
+				m_static_dialog->hide();
 				m_static_dialog->deleteLater();
 				m_static_dialog = nullptr;
 				mutex.unlock();
