@@ -251,6 +251,15 @@ bool liesOnConductor(const Conductor *conductor, const QPointF &scene_point)
 }
 
 /**
+	@brief keptPipeRoute
+	See the declaration
+*/
+QList<QPointF> keptPipeRoute(const Conductor *line, const Terminal *from, const Terminal *nozzle)
+{
+	return keptRoute(line, from, nozzle);
+}
+
+/**
 	@brief autoBreakConductors
 	For each terminal of @a element, check if its dock point lies on an
 	existing conductor.  If so, break the conductor and reconnect through

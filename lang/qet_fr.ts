@@ -5581,6 +5581,16 @@ Continuer ?</translation>
         <comment>context menu action</comment>
         <translation>Retourner la réduction</translation>
     </message>
+    <message>
+        <source>Insert a reducer here (%1 at %2)</source>
+        <comment>context menu action: a symbol, a size</comment>
+        <translation>Insérer une réduction ici (%1 en %2)</translation>
+    </message>
+    <message>
+        <source>Insert a reducer here (%1 × %2)</source>
+        <comment>context menu action: the large size, the small one</comment>
+        <translation>Insérer une réduction ici (%1 × %2)</translation>
+    </message>
 </context>
 <context>
     <name>HiddenTerminalCorrections</name>
@@ -16610,13 +16620,17 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="615"/>
-        <source>With the tool &quot;Draw a pipe&quot;, a click in an empty place starts or ends the pipe on the free end, a click on a pipe on the tee, which is taken into the project; a drag from a nozzle released on a pipe too. None: the tool asks for a nozzle. A process connection drawn from or to a free end closes the line with the blind flange.</source>
-        <translation>Avec l&apos;outil « Tracer une tuyauterie », un clic dans un endroit vide commence ou finit la tuyauterie sur l&apos;extrémité libre, un clic sur une tuyauterie sur le Té, importé dans le projet ; de même, un glisser depuis un piquage relâché sur une tuyauterie. Aucun : l&apos;outil demande un piquage. Une liaison au procédé tracée depuis ou vers une extrémité libre ferme la ligne par la bride pleine.</translation>
+        <source>With the tool &quot;Draw a pipe&quot;, a click in an empty place starts or ends the pipe on the free end, a click on a pipe on the tee, which is taken into the project; a drag from a nozzle released on a pipe too. None: the tool asks for a nozzle. A process connection drawn from or to a free end closes the line with the blind flange. &quot;Correct&quot; on a diamond of two sizes inserts the reducer.</source>
+        <translation>Avec l&apos;outil « Tracer une tuyauterie », un clic dans un endroit vide commence ou finit la tuyauterie sur l&apos;extrémité libre, un clic sur une tuyauterie sur le Té, importé dans le projet ; de même, un glisser depuis un piquage relâché sur une tuyauterie. Aucun : l&apos;outil demande un piquage. Une liaison au procédé tracée depuis ou vers une extrémité libre ferme la ligne par la bride pleine. « Corriger » sur un losange de deux tailles insère la réduction.</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="616"/>
         <source>Blind flange:</source>
         <translation>Bride pleine :</translation>
+    </message>
+    <message>
+        <source>Reducer:</source>
+        <translation>Réduction :</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="621"/>

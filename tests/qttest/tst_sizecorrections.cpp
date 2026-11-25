@@ -123,6 +123,37 @@ class tst_sizecorrections : public QObject
 		return qRound(pipe->properties().m_pipe.nominal.value());
 	}
 
+		// A reducer, large side N1, set as the one of the project
+	static void setReducer(QETProject &project)
+	{
+		addSymbol(project, QStringLiteral("reducer.elmt"),
+				  QStringLiteral("{7c555555-5555-5555-5555-555555555555}"), 0,
+				  QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" pid_large=\"N1\" "));
+		setToolReducer(project, QStringLiteral("embed://import/sizes/reducer.elmt"));
+	}
+
+	static void setToolReducer(QETProject &project, const QString &path)
+	{
+		PidCodification codification = project.pidCodification();
+		codification.tool_symbols.insert(PidCodification::reducerRole(), path);
+		project.setPidCodification(codification);
+	}
+
+		// The only pipe on @p nozzle, nullptr for none or several
+	static Conductor *pipeOn(const Terminal *nozzle)
+	{
+		const QList<Conductor *> pipes = nozzle->conductors();
+		return pipes.size() == 1 ? pipes.first() : nullptr;
+	}
+
+		// The nozzle at the other end of the only pipe on @p nozzle
+	static Terminal *across(const Terminal *nozzle)
+	{
+		const Conductor *pipe = pipeOn(nozzle);
+		if (!pipe) return nullptr;
+		return pipe->terminal1 == nozzle ? pipe->terminal2 : pipe->terminal1;
+	}
+
 	static QStringList texts(const QList<PidSizeCorrections::Proposal> &found)
 	{
 		QStringList list;
@@ -423,6 +454,167 @@ class tst_sizecorrections : public QObject
 			setSize(left, 100);
 			QVERIFY(n1->reducesNothing() && n1->hasDiameterGap());
 			QVERIFY(PidSizeCorrections::proposals(reducer, n1->dockConductor()).isEmpty());
+		}
+
+			// A nozzle of DN 80 on a pipe of DN 100: a reducer of the project
+			// one step of the grid from it, its small side toward it, the
+			// piece between them at DN 80; one step, undone (step 8r-3 d)
+		void aReducerIsInsertedAtANozzle()
+		{
+			QETProject project;
+			setReducer(project);
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *a = place(folio, tank, 200);
+			Element *b = place(folio, tank, 400);
+			QVERIFY(a && b);
+			QPointer<Conductor> pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			setSize(pipe, 100);
+			Terminal *start = terminal(a, QStringLiteral("N2"));
+			Terminal *n1 = terminal(b, QStringLiteral("N1"));
+			QVERIFY(n1->hasDiameterGap());
+
+			const QString text = QStringLiteral("Insert a reducer here (DN 100 × DN 80)");
+			const QList<PidSizeCorrections::Proposal> found =
+					PidSizeCorrections::proposals(b, n1->dockConductor());
+			QCOMPARE(texts(found), QStringList({QStringLiteral("Give DN 80 to the line"),
+											   QStringLiteral("Give DN 100 to the nozzle N1"),
+											   text}));
+				// the same from the pipe
+			QVERIFY(texts(PidSizeCorrections::proposals(pipe, n1->dockConductor())).contains(text));
+
+			const int steps = folio->undoStack().count();
+			QVERIFY(apply(folio, found, text));
+			QCOMPARE(folio->undoStack().count(), steps + 1);
+			QVERIFY(pipe.isNull() || !pipe->scene());
+				// the piece at DN 80, one step long, to the small side
+			Terminal *small = across(n1);
+			QVERIFY(small);
+			Element *reducer = small->parentElement();
+			QVERIFY(reducer && reducer->isReducer() && reducer != b);
+			QCOMPARE(small->baseName(), QStringLiteral("N2"));
+			QCOMPARE(dn(pipeOn(n1)), 80);
+			QCOMPARE(QLineF(small->dockConductor(), n1->dockConductor()).length(), 10.0);
+			QCOMPARE(small->orientation(), Qet::East);
+				// the rest at DN 100, from the large side to the other tank
+			Terminal *large = terminal(reducer, QStringLiteral("N1"));
+			QCOMPARE(across(large), start);
+			QCOMPARE(dn(pipeOn(large)), 100);
+				// the way of the pipe kept: from a to b
+			QCOMPARE(pipeOn(start)->terminal1, start);
+			QCOMPARE(pipeOn(n1)->terminal2, n1);
+				// nothing reported any more
+			QVERIFY(!n1->hasDiameterGap());
+			QVERIFY(!large->hasDiameterGap() && !small->hasDiameterGap());
+			QVERIFY(!large->reducerReversed());
+			QVERIFY(PidSizeCorrections::proposals(b, n1->dockConductor()).isEmpty());
+
+			folio->undoStack().undo();
+			QVERIFY(!reducer->scene());
+			QVERIFY(pipe && pipe->scene());
+			QCOMPARE(pipeOn(n1), pipe.data());
+			QCOMPARE(dn(pipe), 100);
+			QVERIFY(n1->hasDiameterGap());
+			folio->undoStack().redo();
+			QCOMPARE(dn(pipeOn(n1)), 80);
+			QVERIFY(!n1->hasDiameterGap());
+		}
+
+			// The nozzle larger than its pipe: the large side toward it, by a
+			// mirror rather than a half turn
+		void theLargeSideGoesTowardTheLargeSize()
+		{
+			QETProject project;
+			setReducer(project);
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *a = place(folio, tank, 200);
+			Element *b = place(folio, tank, 400);
+			QVERIFY(a && b);
+			Conductor *pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			setSize(pipe, 50);
+			Terminal *n1 = terminal(b, QStringLiteral("N1"));
+			QVERIFY(apply(folio, PidSizeCorrections::proposals(b, n1->dockConductor()),
+						  QStringLiteral("Insert a reducer here (DN 80 × DN 50)")));
+			Terminal *large = across(n1);
+			QVERIFY(large && large->parentElement()->isReducer());
+			QCOMPARE(large->baseName(), QStringLiteral("N1"));
+			QCOMPARE(large->orientation(), Qet::East);
+			QVERIFY(large->parentElement()->hasHorizontalMirror());
+			QCOMPARE(large->parentElement()->rotation(), 0.0);
+			QCOMPARE(dn(pipeOn(n1)), 80);
+			QVERIFY(!n1->hasDiameterGap());
+			QVERIFY(!large->reducerReversed() && !large->hasDiameterGap());
+		}
+
+			// An inline item between two sizes: the reducer on the side of the
+			// click, the item and the piece taking the size of the other side
+		void aReducerIsInsertedBesideAnInlineItem()
+		{
+			QETProject project;
+			setReducer(project);
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation plain = addSymbol(project, QStringLiteral("plain.elmt"),
+													 QStringLiteral("{7c444444-4444-4444-4444-444444444444}"), 0);
+			Element *a = place(folio, plain, 200);
+			Element *valve = place(folio, addValve(project), 400);
+			Element *b = place(folio, plain, 600);
+			QVERIFY(a && valve && b);
+			Conductor *first = connect(folio, a, QStringLiteral("N2"), valve, QStringLiteral("N1"));
+			Conductor *second = connect(folio, valve, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			setSize(first, 100);
+			setSize(second, 80);
+			Terminal *in = terminal(valve, QStringLiteral("N1"));
+			Terminal *out = terminal(valve, QStringLiteral("N2"));
+
+			const QString here = QStringLiteral("Insert a reducer here (%1 at DN 80)").arg(valve->name());
+			const QList<PidSizeCorrections::Proposal> found =
+					PidSizeCorrections::proposals(valve, in->dockConductor());
+			QCOMPARE(texts(found), QStringList({QStringLiteral("Change the line to DN 100"),
+											   QStringLiteral("Change the line to DN 80"), here}));
+				// the other side: the valve at DN 100
+			QVERIFY(texts(PidSizeCorrections::proposals(second, out->dockConductor()))
+					.contains(QStringLiteral("Insert a reducer here (%1 at DN 100)").arg(valve->name())));
+
+			QVERIFY(apply(folio, found, here));
+			Terminal *small = across(in);
+			QVERIFY(small && small->parentElement()->isReducer());
+			QCOMPARE(small->baseName(), QStringLiteral("N2"));
+			QCOMPARE(dn(pipeOn(in)), 80);
+			QCOMPARE(dn(second), 80);
+			QCOMPARE(dn(pipeOn(terminal(small->parentElement(), QStringLiteral("N1")))), 100);
+			QVERIFY(!in->hasDiameterGap() && !out->hasDiameterGap());
+		}
+
+			// No reducer: no reducer set, the one set not a reducer, a stretch
+			// too short
+		void noReducerWhereNoneFits()
+		{
+			const QString text = QStringLiteral("Insert a reducer here (DN 100 × DN 80)");
+			QETProject project;
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *a = place(folio, tank, 200);
+			Element *b = place(folio, tank, 400);
+			QVERIFY(a && b);
+			Conductor *pipe = connect(folio, a, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			setSize(pipe, 100);
+			Terminal *n1 = terminal(b, QStringLiteral("N1"));
+			QVERIFY(!texts(PidSizeCorrections::proposals(b, n1->dockConductor())).contains(text));
+				// a tank set as the reducer
+			setToolReducer(project, QStringLiteral("embed://import/sizes/tank.elmt"));
+			QVERIFY(!texts(PidSizeCorrections::proposals(b, n1->dockConductor())).contains(text));
+			setReducer(project);
+			QVERIFY(texts(PidSizeCorrections::proposals(b, n1->dockConductor())).contains(text));
+				// 40 units between the tanks, 60 needed
+			Element *c = place(folio, tank, 600);
+			Element *d = place(folio, tank, 680);
+			QVERIFY(c && d);
+			Conductor *short_pipe = connect(folio, c, QStringLiteral("N2"), d, QStringLiteral("N1"));
+			setSize(short_pipe, 100);
+			Terminal *d1 = terminal(d, QStringLiteral("N1"));
+			QVERIFY(d1->hasDiameterGap());
+			QVERIFY(!texts(PidSizeCorrections::proposals(d, d1->dockConductor())).contains(text));
 		}
 
 			// Nothing reported: nothing offered; a wire is never looked at

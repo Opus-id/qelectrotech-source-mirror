@@ -70,4 +70,15 @@ QSet<Terminal *> autoBreakConductors(
 */
 bool liesOnConductor(const Conductor *conductor, const QPointF &scene_point);
 
+/**
+	@brief keptPipeRoute
+	@return the route of @a line kept for a new piece from @a from, one of
+	its terminals, to @a nozzle, a terminal of a symbol placed on it, as
+	autoBreakConductors() keeps it (P&ID, 7c): the points of @a line up to
+	where @a nozzle stands on it, then @a nozzle. Empty when no stretch of
+	it runs into @a nozzle the way it faces: a new piece then takes the
+	route of a new conductor.
+*/
+QList<QPointF> keptPipeRoute(const Conductor *line, const Terminal *from, const Terminal *nozzle);
+
 #endif // AUTOBREAKCONDUCTOR_H

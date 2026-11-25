@@ -512,14 +512,16 @@ class PidCodification
 			/// pipe drawn from or to an empty place (DiagramEventAddPipe),
 			/// the tee of a pipe drawn from or to a pipe (PidTee), the blind
 			/// flange which closes a free end a process connection is drawn
-			/// from or to (PidProcessConnection)
+			/// from or to (PidProcessConnection), the reducer inserted by
+			/// "Correct" on a diamond of two sizes (PidSizeCorrections)
 		static const QStringList &toolSymbolRoles() {
-			static const QStringList roles{freeEndRole(), teeRole(), blindFlangeRole()};
+			static const QStringList roles{freeEndRole(), teeRole(), blindFlangeRole(), reducerRole()};
 			return roles;
 		}
 		static QString freeEndRole() { return QStringLiteral("free_end"); }
 		static QString teeRole() { return QStringLiteral("tee"); }
 		static QString blindFlangeRole() { return QStringLiteral("blind_flange"); }
+		static QString reducerRole() { return QStringLiteral("reducer"); }
 		QString toolSymbol(const QString &role) const { return tool_symbols.value(role); }
 			/// The value a P&ID symbol placed new takes for one of its
 			/// options (ElementOptions), by family of the symbol

@@ -32,6 +32,7 @@ class Conductor;
 class Element;
 class QGraphicsItem;
 class QUndoCommand;
+class Terminal;
 class QWidget;
 
 /**
@@ -57,6 +58,19 @@ class QWidget;
 	undo step, so that each keeps the size of its pipe. A reducer which
 	reduces nothing offers nothing (choice of the user of 25/11).
 
+	A diamond between exactly two sizes face to face offers "Insert a
+	reducer here" (step 8r-3 d, choices of the user of 25/11): a nozzle
+	with a size of its own against the size of its pipe, or an inline item
+	between two sizes on the side of the click. The reducer is the symbol
+	of the project (PidCodification::tool_symbols, role "reducer"), taken
+	into the project; it goes on the first straight stretch of the pipe
+	from the nozzle, one step of the grid away from it, its large side
+	toward the large size. The piece between the nozzle and it takes the
+	other size (that of the nozzle, or of the other side of the inline
+	item); the rest of the pipe keeps its own. One undo step. Nothing is
+	offered without a reducer set, with a stretch too short, or a size
+	which is not one of the material of the line.
+
 	A right click on a pipe looks at its end nearest to the click among
 	those which show a diamond; on a symbol, at its nozzle nearest to the
 	click among those.
@@ -68,8 +82,10 @@ struct Proposal {
 		/// LineSize: @c size given to the line of @c pipes, as the panel of
 		/// these pipes would give it; NozzleSize: @c size given to the nozzle
 		/// @c nozzle of @c element as its own; ReverseReducer: the reducer
-		/// @c element mirrored about the axis of its pipes
-	enum Kind { LineSize, NozzleSize, ReverseReducer };
+		/// @c element mirrored about the axis of its pipes; InsertReducer:
+		/// a reducer on the pipe of @c pipes at the nozzle @c nozzle of
+		/// @c element, the piece between them taking @c size
+	enum Kind { LineSize, NozzleSize, ReverseReducer, InsertReducer };
 	Kind kind = LineSize;
 		/// What the submenu shows, the name of the undo step too
 	QString text;
@@ -77,6 +93,8 @@ struct Proposal {
 	QList<QPointer<Conductor>> pipes;
 	QPointer<Element> element;
 	QString nozzle;
+		/// InsertReducer: the nozzle of the diamond
+	QPointer<Terminal> at;
 };
 
 	/// The proposals for @p item, a pipe or a symbol, right clicked at
