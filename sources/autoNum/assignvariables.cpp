@@ -407,6 +407,11 @@ namespace autonum
 				&& diagram->project()->plantAndLocationInherited();
 		str.replace("%{plant}", inherited ? plant_value : own_plant);
 		str.replace("%{location}", inherited ? location_value : own_location);
+			//The == and ++ the information tab offers since they were
+			//added, as the plant and the location are
+		str.replace("%{higher_plant}", inherited ? higher_plant : dc.value("higher_plant").toString());
+		str.replace("%{higher_location}", inherited ? higher_location
+												   : dc.value("higher_location").toString());
 		str.replace("%{prefix}", prefix_value);
 		str.replace("%{structure_id}", structure_id);
 		str.replace("%{structure_id_full}", structure_id_full);
