@@ -317,6 +317,18 @@ class Element : public QetGraphicsItem
 			/// The name of the nozzle on the large side of a reducer
 			/// (pid_large); none when the symbol says nothing of it
 		const QString &largeNozzle() const { return m_data.m_pid_large; }
+			/// The two sizes a reducer writes in its label while it has
+			/// none of its own (step 8r-3 e): "100 × 80", "Ø 125 × 110",
+			/// in the order of the drawing (from the left; a reducer
+			/// standing, as its vertical texts read). Empty for any other
+			/// symbol, a side without a size, or a project which writes
+			/// them not (PidCodification::reducer_sizes). Display only:
+			/// never stored, never its label (actualLabel())
+		QString reducerSizesText() const;
+			/// Work out reducerSizesText() again, and draw the label
+			/// fields again when it changed: called when a size, the way
+			/// the reducer lies or the setting of its project changes
+		void refreshReducerSizes();
 			/// True for the free end of a pipe (pid_role="free_end"), which
 			/// goes when its pipe is deleted, a strainer or a vent staying
 		bool isFreeEnd() const {
@@ -680,6 +692,8 @@ class Element : public QetGraphicsItem
 		bool m_freeze_label = false;
 		bool m_shown_as_dot = false;
 		bool m_tool_placed = false;
+			/// What reducerSizesText() gave last (refreshReducerSizes())
+		QString m_reducer_sizes;
 		void drawAsDot(QPainter *painter, const QPointF &meet) const;
 		QHash<QUuid, QString> m_potential_sources;
 		QString m_F_str;

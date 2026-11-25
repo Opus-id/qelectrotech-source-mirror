@@ -285,6 +285,12 @@ class Terminal : public QGraphicsObject
 			/// (PidCodification::usualNominal(): DN 65 on a cast iron DN 60).
 			/// Nothing for none.
 		QString diameterText() const;
+			/// The size of this nozzle as its pipe names it: diameterText(),
+			/// but the outside diameter of a pipe whose material names its
+			/// pipes so ("Ø 125" for a PE of DN 100,
+			/// PipeProperties::writtenSize()). A size of its own stays as
+			/// it is. What a reducer writes (Element::reducerSizesText())
+		QString writtenSizeText() const;
 			/// The text shown at this terminal: its name, and the DN of a nozzle
 		QString labelText() const;
 			/// The size labelText() writes under the name of a nozzle, as the

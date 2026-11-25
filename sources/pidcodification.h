@@ -382,6 +382,10 @@ class PidCodification
 			/// without, "100". An outside diameter and a thread keep their
 			/// sign. Written only when it is false.
 		bool nozzle_dn_prefix = true;
+			/// A reducer without a label of its own writes its two sizes
+			/// there, "100 × 80" (Element::reducerSizesText(), step 8r-3 e).
+			/// Written only when it is false.
+		bool reducer_sizes = true;
 			/// The length in mm of the stubs drawn where the insulated
 			/// part of a line begins and ends, and of the mark in its middle
 			/// (Conductor::insulationStubs(), step 7d): 8 by default, written
@@ -596,7 +600,7 @@ class PidCodification
 			return !text_sizes.isEmpty() || colored_labels || label_color.isValid()
 					|| colored_designations || designation_color.isValid()
 					|| vertical_texts != VerticalTexts::Computer || !nozzle_texts_on_paper
-					|| !show_nozzle_sizes || !nozzle_dn_prefix || decimal != Decimal::Language || !tag_models.isEmpty()
+					|| !show_nozzle_sizes || !nozzle_dn_prefix || !reducer_sizes || decimal != Decimal::Language || !tag_models.isEmpty()
 					|| insulation_stub != defaultInsulationStub()
 					|| parallel_numbering
 					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty()
@@ -618,7 +622,8 @@ class PidCodification
 		static QStringList objectFamilies();
 		static QStringList statuses();
 			/// The words of the categories of texts which have a size: the
-			/// labels of a family of objects, then nozzleTexts()
+			/// labels of a family of objects ("pipe": the fittings, whose
+			/// reducers write their sizes there), then nozzleTexts()
 		static QStringList textCategories();
 		static QString nozzleTexts() { return QStringLiteral("nozzle"); }
 
@@ -658,8 +663,8 @@ class PidCodification
 			/// "couleur_statut"), key a family or a status, of lines
 			/// "text_size;category;points" ("taille_texte") and of lines
 			/// "text_option;name;true" ("option_texte"), name being
-			/// "nozzle_texts_on_paper", "show_nozzle_sizes" or
-			/// "nozzle_dn_prefix", "symbols_follow_pipes" ("colored_labels", of former files,
+			/// "nozzle_texts_on_paper", "show_nozzle_sizes",
+			/// "nozzle_dn_prefix", "reducer_sizes" or "symbols_follow_pipes" ("colored_labels", of former files,
 			/// colouring the labels and the designations), of the lines
 			/// "text_option;label_ink;object" and
 			/// "text_option;designation_ink;#0000ff" (the colour of their

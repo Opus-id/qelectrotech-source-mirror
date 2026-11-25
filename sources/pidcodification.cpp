@@ -62,6 +62,7 @@ namespace
 	const QString nozzle_texts_word = QStringLiteral("nozzle_texts_on_paper");
 	const QString nozzle_sizes_word = QStringLiteral("show_nozzle_sizes");
 	const QString dn_prefix_word = QStringLiteral("nozzle_dn_prefix");
+	const QString reducer_sizes_word = QStringLiteral("reducer_sizes");
 	const QString follow_pipes_word = QStringLiteral("symbols_follow_pipes");
 	const QString decimal_word = QStringLiteral("decimal_separator");
 	const QString insulation_stub_word = QStringLiteral("insulation_stub");
@@ -1273,7 +1274,8 @@ QStringList PidCodification::statuses()
 QStringList PidCodification::textCategories()
 {
 	return {QStringLiteral("equipment"), QStringLiteral("valve"),
-			QStringLiteral("instrument"), nozzleTexts(), QStringLiteral("line")};
+			QStringLiteral("instrument"), QStringLiteral("pipe"), nozzleTexts(),
+			QStringLiteral("line")};
 }
 
 /**
@@ -1369,6 +1371,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.nozzle_texts_on_paper = other.nozzle_texts_on_paper;
 		result.show_nozzle_sizes = other.show_nozzle_sizes;
 		result.nozzle_dn_prefix = other.nozzle_dn_prefix;
+		result.reducer_sizes = other.reducer_sizes;
 		result.insulation_stub = other.insulation_stub;
 		result.decimal = other.decimal;
 		result.tag_models = other.tag_models;
@@ -1452,6 +1455,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	}
 	if (!nozzle_dn_prefix) {
 		block.setAttribute(dn_prefix_word, QStringLiteral("false"));
+	}
+	if (!reducer_sizes) {
+		block.setAttribute(reducer_sizes_word, QStringLiteral("false"));
 	}
 	if (decimal != Decimal::Language) {
 		block.setAttribute(decimal_word, decimalToString(decimal));
@@ -1576,6 +1582,7 @@ void PidCodification::fromXml(const QDomElement &parent)
 	nozzle_texts_on_paper = block.attribute(nozzle_texts_word) != QLatin1String("false");
 	show_nozzle_sizes = block.attribute(nozzle_sizes_word) != QLatin1String("false");
 	nozzle_dn_prefix = block.attribute(dn_prefix_word) != QLatin1String("false");
+	reducer_sizes = block.attribute(reducer_sizes_word) != QLatin1String("false");
 	symbols_follow_pipes = block.attribute(follow_pipes_word) != QLatin1String("false");
 	decimal =decimalFromString(block.attribute(decimal_word));
 	insulation_stub = defaultInsulationStub();
@@ -1675,6 +1682,9 @@ QString PidCodification::presentationToCsv() const
 	}
 	if (!nozzle_dn_prefix) {
 		text += QStringLiteral("text_option;") + dn_prefix_word + QStringLiteral(";false\n");
+	}
+	if (!reducer_sizes) {
+		text += QStringLiteral("text_option;") + reducer_sizes_word + QStringLiteral(";false\n");
 	}
 	if (decimal != Decimal::Language) {
 		text += QStringLiteral("text_option;") + decimal_word + QLatin1Char(';')
@@ -1928,6 +1938,8 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 				codification.show_nozzle_sizes = yes;
 			} else if (fields.value(1) == dn_prefix_word) {
 				codification.nozzle_dn_prefix = yes;
+			} else if (fields.value(1) == reducer_sizes_word) {
+				codification.reducer_sizes = yes;
 			} else if (fields.value(1) == follow_pipes_word) {
 				codification.symbols_follow_pipes = yes;
 			} else {
@@ -2149,6 +2161,7 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& nozzle_texts_on_paper == other.nozzle_texts_on_paper
 			&& show_nozzle_sizes == other.show_nozzle_sizes
 			&& nozzle_dn_prefix == other.nozzle_dn_prefix
+			&& reducer_sizes == other.reducer_sizes
 			&& insulation_stub == other.insulation_stub
 			&& decimal == other.decimal
 			&& drawn_connections == other.drawn_connections

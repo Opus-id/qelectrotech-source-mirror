@@ -57,6 +57,7 @@
 #include <QLineEdit>
 #include <QPainter>
 #include <QScopeGuard>
+#include <QSpinBox>
 #include <QStyleOptionGraphicsItem>
 #include <QLabel>
 #include <QTabWidget>
@@ -4437,6 +4438,160 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(!project.pidCodification().nozzle_dn_prefix);
 			project.undoStack()->undo();
 			QVERIFY(project.pidCodification().nozzle_dn_prefix);
+		}
+
+			// Step 8r-3 e: a reducer without a label of its own writes its two
+			// sizes there, in the order of the drawing, kept up to date;
+			// nothing is stored, and it is never its label
+		void aReducerWritesItsSizesInItsLabel()
+		{
+			QETProject project;
+			PidCodification codification;
+			codification.materials = {plasticOf(QStringLiteral("M01"), {{900, 80}, {1100, 100}})};
+			codification.vertical_texts = PidCodification::VerticalTexts::FromBottom;
+			project.setPidCodification(codification);
+			Diagram *folio = project.addNewDiagram();
+			const ElementsLocation tank = addTank(project);
+			Element *reducer = place(folio, addSymbol(
+						project, QStringLiteral("reducer.elmt"),
+						QStringLiteral("{7b555555-5555-5555-5555-555555555556}"), 0,
+						QStringLiteral("pid_family=\"pipe\" pid_role=\"reducer\" ")));
+			Element *a = place(folio, tank);
+			Element *b = place(folio, tank);
+			QVERIFY(reducer && a && b);
+			auto *label = new DynamicElementTextItem(reducer);
+			label->setTextFrom(DynamicElementTextItem::ElementInfo);
+			label->setInfoName(QStringLiteral("label"));
+			reducer->addDynamicTextItem(label);
+			a->setPos(0, 200);
+			b->setPos(400, 200);
+			Conductor *left = connect(folio, a, QStringLiteral("N2"), reducer, QStringLiteral("N1"));
+			Conductor *right = connect(folio, reducer, QStringLiteral("N2"), b, QStringLiteral("N1"));
+			QVERIFY(left && right);
+
+				// one side alone (the DN 80 the tank gives the pipe on the
+				// right, which has none): nothing
+			QCOMPARE(terminal(reducer, QStringLiteral("N2"))->writtenSizeText(), QStringLiteral("DN 80"));
+			QVERIFY(terminal(reducer, QStringLiteral("N1"))->writtenSizeText().isEmpty());
+			QVERIFY(reducer->reducerSizesText().isEmpty());
+			QVERIFY(label->toPlainText().isEmpty());
+				// both: from the left, without "DN"
+			setDn(left, 100);
+			setDn(right, 80);
+			QCOMPARE(reducer->reducerSizesText(), QStringLiteral("100 × 80"));
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+			QVERIFY(reducer->actualLabel().isEmpty());
+			QVERIFY(reducer->elementInformations().value(QStringLiteral("label")).toString().isEmpty());
+				// a size changed later
+			setDn(right, 65);
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 65"));
+			setDn(right, 80);
+				// half a turn: N1 and its DN 100 on the right
+			reducer->setRotation(180);
+			QCOMPARE(label->toPlainText(), QStringLiteral("80 × 100"));
+			reducer->setRotation(0);
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+				// mirrored: the pipes pass to the nozzle across (5l-1h), the
+				// DN 100 stays on the left
+			MirrorSelectionCommand mirror({reducer}, Qt::Horizontal);
+			mirror.redo();
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+			mirror.undo();
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+				// standing, N1 at the top: from the bottom as the project reads,
+				// or from the top
+			reducer->setRotation(90);
+			QCOMPARE(label->toPlainText(), QStringLiteral("80 × 100"));
+			codification.vertical_texts = PidCodification::VerticalTexts::AsTurned;
+			project.setPidCodification(codification);
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+			reducer->setRotation(0);
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+
+				// a plastic named by its outside diameter: the sign once; a side
+				// of another kind keeps its own
+			ConductorProperties properties = left->properties();
+			properties.m_pipe.material = QStringLiteral("M01");
+			properties.m_pipe.nominal = PipeDiameter::nominal(100);
+			properties.m_pipe.outside = PipeDiameter::outside(110);
+			left->setProperties(properties);
+			QCOMPARE(label->toPlainText(), QStringLiteral("Ø 110 × DN 80"));
+			properties = right->properties();
+			properties.m_pipe.material = QStringLiteral("M01");
+			properties.m_pipe.nominal = PipeDiameter::nominal(80);
+			properties.m_pipe.outside = PipeDiameter::outside(90);
+			right->setProperties(properties);
+			QCOMPARE(label->toPlainText(), QStringLiteral("Ø 110 × 90"));
+				// a size of its own on a side is written as it is
+			reducer->setNozzleDiameters({{QStringLiteral("N2"), PipeDiameter::nominal(65)}});
+			QCOMPARE(label->toPlainText(), QStringLiteral("Ø 110 × DN 65"));
+			reducer->setNozzleDiameters(NozzleDiameters());
+			setDn(left, 100);
+			setDn(right, 80);
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+
+				// a label typed replaces them; emptied, they come back
+			DiagramContext information = reducer->elementInformations();
+			information.addValue(QStringLiteral("label"), QStringLiteral("R1"));
+			reducer->setElementInformations(information);
+			QCOMPARE(label->toPlainText(), QStringLiteral("R1"));
+			information.addValue(QStringLiteral("label"), QString());
+			reducer->setElementInformations(information);
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+
+				// nothing of them in the file
+			QVERIFY(!project.toXml().toString().contains(QStringLiteral("100 × 80")));
+
+				// the project writes them not: nothing
+			codification.reducer_sizes = false;
+			project.setPidCodification(codification);
+			QVERIFY(label->toPlainText().isEmpty());
+			codification.reducer_sizes = true;
+			project.setPidCodification(codification);
+			QCOMPARE(label->toPlainText(), QStringLiteral("100 × 80"));
+
+				// any other symbol: nothing
+			QVERIFY(a->reducerSizesText().isEmpty());
+		}
+
+			// Step 8r-3 e: the setting is written only when off, read back,
+			// kept by the palette, and the page gives it with undo; the
+			// fittings have a size of label of their own
+		void theProjectSaysWhetherReducersWriteTheirSizes()
+		{
+			PidCodification codification;
+			QVERIFY(codification.reducer_sizes);
+			QVERIFY(PidCodification::textCategories().contains(QStringLiteral("pipe")));
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			codification.decimal = PidCodification::Decimal::Point;
+			holder.appendChild(codification.toXml(doc));
+			QVERIFY(!holder.firstChildElement().hasAttribute(QStringLiteral("reducer_sizes")));
+
+			codification.reducer_sizes = false;
+			QVERIFY(codification.hasTextSettings());
+			QDomDocument doc2;
+			QDomElement holder2 = doc2.createElement(QStringLiteral("project"));
+			holder2.appendChild(codification.toXml(doc2));
+			QCOMPARE(holder2.firstChildElement().attribute(QStringLiteral("reducer_sizes")),
+					 QStringLiteral("false"));
+			PidCodification read;
+			read.fromXml(holder2);
+			QVERIFY(!read.reducer_sizes);
+			QVERIFY(codification.presentationToCsv().contains(QStringLiteral("text_option;reducer_sizes;false")));
+			QVERIFY(!PidCodification::fromCsv(codification.presentationToCsv()).reducer_sizes);
+			QVERIFY(PidCodification::fromCsv(QString()).reducer_sizes);
+
+			QETProject project;
+			PidConfigPage page(&project);
+			auto *box = page.findChild<QCheckBox *>(QStringLiteral("reducer_sizes"));
+			QVERIFY(box && box->isChecked());
+			QVERIFY(page.findChild<QSpinBox *>(QStringLiteral("text_size_pipe")));
+			box->setChecked(false);
+			page.applyProjectConf();
+			QVERIFY(!project.pidCodification().reducer_sizes);
+			project.undoStack()->undo();
+			QVERIFY(project.pidCodification().reducer_sizes);
 		}
 
 			// ---- the Nozzles tab of the properties of an element ----

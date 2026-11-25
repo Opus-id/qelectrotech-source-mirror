@@ -221,6 +221,9 @@ Element::Element(
 	connect(this, &Element::xChanged, update_docked_conductors);
 	connect(this, &Element::yChanged, update_docked_conductors);
 	connect(this, &Element::mirrorChanged, update_docked_conductors);
+		//A reducer writes its sizes in the order of the drawing (8r-3 e)
+	connect(this, &Element::rotationChanged, this, &Element::refreshReducerSizes);
+	connect(this, &Element::mirrorChanged, this, &Element::refreshReducerSizes);
 		//A pipe or a signal line may now run over it, or no more (7c-bis)
 	connect(this, &Element::xChanged, this, &PidTraversal::symbolsChanged);
 	connect(this, &Element::yChanged, this, &PidTraversal::symbolsChanged);
@@ -4769,7 +4772,12 @@ QString Element::designationForDisplay(const QString &label, const Element *draw
 QString Element::infoForDisplay(const QString &info_name, const Element *drawn_on)
 {
 	if (info_name == QETInformation::ELMT_LABEL) {
-		return designationForDisplay(labelForDisplay(), drawn_on);
+		const QString label = labelForDisplay();
+			//A reducer without a label of its own writes its sizes there
+		if (label.isEmpty() && !m_reducer_sizes.isEmpty()) {
+			return m_reducer_sizes;
+		}
+		return designationForDisplay(label, drawn_on);
 	}
 	if (info_name == QETInformation::ELMT_TERMINAL_NUMBER) {
 		return terminalNumberForDisplay();
@@ -4786,6 +4794,86 @@ QString Element::infoForDisplay(const QString &info_name, const Element *drawn_o
 	}
 
 	return m_data.m_informations.value(info_name).toString();
+}
+
+namespace {
+	/// "100 × 80" of "DN 100" and "DN 80"; "Ø 125 × 110" of "Ø 125" and
+	/// "Ø 110": a sign the two sizes share is written once, "DN" never;
+	/// two sizes of different signs keep each its own ("Ø 110 × DN 80")
+	QString joinedSizes(const QString &first, const QString &second)
+	{
+		const auto signOf = [](const QString &text) {
+			qsizetype i = 0;
+			while (i < text.size() && !text.at(i).isDigit()) {
+				++i;
+			}
+			return text.left(i);
+		};
+		const QString sign = signOf(first);
+		const QString times = QStringLiteral(" × ");
+		if (sign != signOf(second)) {
+			return first + times + second;
+		}
+		const QString written = sign == QLatin1String("DN ") ? QString() : sign;
+		return written + first.mid(sign.size()) + times + second.mid(sign.size());
+	}
+}
+
+/**
+	@brief Element::reducerSizesText
+	See the declaration
+*/
+QString Element::reducerSizesText() const
+{
+	if (!isReducer()) {
+		return QString();
+	}
+	const Diagram *folio = diagram();
+	if (folio && folio->project() && !folio->project()->pidCodification().reducer_sizes) {
+		return QString();
+	}
+	QList<const Terminal *> sides;
+	for (const Terminal *terminal : m_terminals) {
+		if (terminal->medium() == TerminalData::Pipe) {
+			sides << terminal;
+		}
+	}
+	if (sides.size() != 2) {
+		return QString();
+	}
+		//In the order of the drawing, as it lies on the folio (turned,
+		//mirrored): from the left; standing, as its vertical texts read
+	const QPointF a = sides.at(0)->dockConductor();
+	const QPointF b = sides.at(1)->dockConductor();
+	const bool lying = qAbs(b.x() - a.x()) >= qAbs(b.y() - a.y());
+	const bool swap = lying ? b.x() < a.x()
+							: (readsVerticalFromBottom() ? b.y() > a.y() : b.y() < a.y());
+	if (swap) {
+		sides.swapItemsAt(0, 1);
+	}
+	const QString first = sides.at(0)->writtenSizeText();
+	const QString second = sides.at(1)->writtenSizeText();
+	if (first.isEmpty() || second.isEmpty()) {
+		return QString();
+	}
+	return joinedSizes(first, second);
+}
+
+/**
+	@brief Element::refreshReducerSizes
+	See the declaration
+*/
+void Element::refreshReducerSizes()
+{
+	if (!isReducer()) {
+		return;
+	}
+	const QString sizes = reducerSizesText();
+	if (sizes == m_reducer_sizes) {
+		return;
+	}
+	m_reducer_sizes = sizes;
+	refreshLabelFields();
 }
 
 /**

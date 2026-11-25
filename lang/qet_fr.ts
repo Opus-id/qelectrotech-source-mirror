@@ -16520,6 +16520,16 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <translation>Décochée, un piquage affiche « 100 » au lieu de « DN 100 ». Un diamètre extérieur (Ø) et un filetage (G) gardent toujours leur signe.</translation>
     </message>
     <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="469"/>
+        <source>Write the sizes of the reducers</source>
+        <translation>Écrire les tailles des réductions</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="469"/>
+        <source>A reducer without a label of its own writes its two sizes there, in the order of the drawing: &quot;100 × 80&quot;, &quot;Ø 125 × 110&quot;. A label typed replaces them.</source>
+        <translation>Une réduction sans repère propre y écrit ses deux tailles, dans l&apos;ordre du dessin : « 100 × 80 », « Ø 125 × 110 ». Un repère tapé les remplace.</translation>
+    </message>
+    <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="159"/>
         <source>Comma (88,9)</source>
         <translation>Virgule (88,9)</translation>
@@ -16936,6 +16946,11 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="164"/>
         <source>Labels of instruments:</source>
         <translation>Repères d&apos;instrument :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="164"/>
+        <source>Labels of fittings:</source>
+        <translation>Repères des raccords :</translation>
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="164"/>

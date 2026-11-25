@@ -2542,6 +2542,10 @@ void Terminal::updateDiameterToolTip()
 	for (Conductor *conductor : std::as_const(m_conductors_list)) {
 		conductor->update();
 	}
+		//and a reducer writes its sizes (step 8r-3 e)
+	if (parent_element_) {
+		parent_element_->refreshReducerSizes();
+	}
 }
 
 void Terminal::setSymbolDiameter(const PipeDiameter &diameter)
@@ -2645,6 +2649,28 @@ QString Terminal::diameterText() const
 		}
 	}
 	return size.isSet() ? sizeText(size, pipe) : QString();
+}
+
+QString Terminal::writtenSizeText() const
+{
+	if (!ownDiameter().isSet())
+	{
+		const Conductor *pipe = nullptr;
+		if (pipeDiameter(&pipe).isSet() && pipe)
+		{
+			static const PidCodification none;
+			const Diagram *folio = diagram();
+			const PidCodification &codification = folio && folio->project()
+					? folio->project()->pidCodification() : none;
+			const PipeProperties properties = pipe->properties().m_pipe;
+			const PipeDiameter written = properties.writtenSize(
+						codification.outsideDiameterFor(properties.material));
+			if (written.isOutside()) {
+				return codification.text(written, properties.material);
+			}
+		}
+	}
+	return diameterText();
 }
 
 QLocale Terminal::sizeLocale() const

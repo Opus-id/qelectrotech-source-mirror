@@ -640,6 +640,12 @@ void PidConfigPage::initWidgets()
 	m_nozzle_dn_prefix->setToolTip(wrapped(tr("Unchecked, a nozzle shows \"100\" for \"DN 100\". An outside "
 									  "diameter (Ø) and a thread (G) always keep their sign.")));
 	connect(m_nozzle_dn_prefix, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
+	m_reducer_sizes = new QCheckBox(tr("Write the sizes of the reducers"), this);
+	m_reducer_sizes->setObjectName(QStringLiteral("reducer_sizes"));
+	m_reducer_sizes->setToolTip(wrapped(tr("A reducer without a label of its own writes its two sizes "
+										   "there, in the order of the drawing: \"100 × 80\", "
+										   "\"Ø 125 × 110\". A label typed replaces them.")));
+	connect(m_reducer_sizes, &QCheckBox::toggled, this, &PidConfigPage::readTextWidgets);
 		//Of no use when the sizes are not shown
 	connect(m_show_nozzle_sizes, &QCheckBox::toggled, this, [this](bool shown) {
 		m_nozzle_dn_prefix->setEnabled(shown && !m_project->isReadOnly());
@@ -820,8 +826,8 @@ void PidConfigPage::initLayout()
 	texts_layout->addWidget(texts_help);
 	auto *sizes = new QFormLayout();
 	const QStringList names{tr("Labels of equipment:"), tr("Labels of valves:"),
-							tr("Labels of instruments:"), tr("Names and DN of nozzles:"),
-							tr("Designations of the lines:")};
+							tr("Labels of instruments:"), tr("Labels of fittings:"),
+							tr("Names and DN of nozzles:"), tr("Designations of the lines:")};
 	const QStringList categories = PidCodification::textCategories();
 	for (int i = 0 ; i < categories.size() ; ++i) {
 		auto *row = new QHBoxLayout();
@@ -845,6 +851,7 @@ void PidConfigPage::initLayout()
 	texts_layout->addWidget(m_nozzle_texts_on_paper);
 	texts_layout->addWidget(m_show_nozzle_sizes);
 	texts_layout->addWidget(m_nozzle_dn_prefix);
+	texts_layout->addWidget(m_reducer_sizes);
 		//A list of the width of its choices
 	auto *decimal_row = new QHBoxLayout();
 	decimal_row->addWidget(m_decimal);
@@ -1142,6 +1149,8 @@ void PidConfigPage::showCodification(bool fill_codes, bool codes_from_project)
 	const QSignalBlocker prefix_blocker(m_nozzle_dn_prefix);
 	m_nozzle_dn_prefix->setChecked(codification.nozzle_dn_prefix);
 	m_nozzle_dn_prefix->setEnabled(codification.show_nozzle_sizes && !m_project->isReadOnly());
+	const QSignalBlocker reducer_blocker(m_reducer_sizes);
+	m_reducer_sizes->setChecked(codification.reducer_sizes);
 		//Not set yet: that of the language, which the project will keep
 	const QSignalBlocker decimal_blocker(m_decimal);
 	m_decimal->setCurrentIndex(m_decimal->findData(int(codification.effectiveDecimal())));
@@ -1544,6 +1553,7 @@ void PidConfigPage::adjustReadOnly()
 	decorateSizeRows();
 	m_show_nozzle_sizes->setEnabled(!read_only);
 	m_nozzle_dn_prefix->setEnabled(!read_only && m_show_nozzle_sizes->isChecked());
+	m_reducer_sizes->setEnabled(!read_only);
 	m_decimal->setEnabled(!read_only);
 	m_vertical_texts->setEnabled(!read_only);
 	m_insulation_stub->setEnabled(!read_only);
@@ -1641,6 +1651,7 @@ void PidConfigPage::readTextWidgets()
 	m_codification.nozzle_texts_on_paper = m_nozzle_texts_on_paper->isChecked();
 	m_codification.show_nozzle_sizes = m_show_nozzle_sizes->isChecked();
 	m_codification.nozzle_dn_prefix = m_nozzle_dn_prefix->isChecked();
+	m_codification.reducer_sizes = m_reducer_sizes->isChecked();
 	m_codification.vertical_texts = PidCodification::VerticalTexts(m_vertical_texts->currentData().toInt());
 	m_codification.insulation_stub = m_insulation_stub->value();
 	m_codification.symbols_follow_pipes = m_symbols_follow_pipes->isChecked();

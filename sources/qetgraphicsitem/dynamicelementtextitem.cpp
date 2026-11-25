@@ -220,6 +220,8 @@ void DynamicElementTextItem::setVerticalFromBottom(bool from_bottom)
 					//(Terminal::nozzleLabelsFor())
 				for (Terminal *terminal : element->terminals())
 					terminal->updateLabelPlace();
+					//and the order of the sizes of a standing reducer
+				element->refreshReducerSizes();
 			}
 }
 
@@ -335,7 +337,12 @@ QDomElement DynamicElementTextItem::toXml(QDomDocument &dom_doc) const
 	
 	
 	QDomElement dom_text = dom_doc.createElement("text");
-	dom_text.appendChild(dom_doc.createTextNode(toPlainText()));
+		//The sizes a reducer writes in its empty label are drawn, never
+		//saved (Element::reducerSizesText())
+	const Element *element = m_parent_element.data();
+	const bool reducer_sizes = m_text_from == ElementInfo && m_info_name == QLatin1String("label")
+			&& element && element->isReducer() && element->actualLabel().isEmpty();
+	dom_text.appendChild(dom_doc.createTextNode(reducer_sizes ? QString() : toPlainText()));
 	root_element.appendChild(dom_text);
 	
 		//Info name

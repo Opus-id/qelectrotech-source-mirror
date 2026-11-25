@@ -217,6 +217,8 @@ class PidConfigPage : public ProjectConfigPage
 		QCheckBox *m_show_nozzle_sizes = nullptr;
 			/// Whether a DN under a nozzle is written "DN 100" or "100"
 		QCheckBox *m_nozzle_dn_prefix = nullptr;
+			/// Whether a reducer writes its sizes in its empty label
+		QCheckBox *m_reducer_sizes = nullptr;
 		QComboBox *m_decimal = nullptr;
 			/// How the vertical texts of the P&ID symbols read
 			/// (PidCodification::vertical_texts)
