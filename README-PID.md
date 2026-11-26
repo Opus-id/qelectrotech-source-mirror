@@ -671,8 +671,9 @@ line.*
   rows of a P&ID symbol (an electrical element keeps them all); a filled
   one the project does not declare is shown in *Data* under its key, never
   hidden. Two data are known by name, `pid_standby` (installed standby)
-  and `pid_spare` (spare kept in its crate): the section tells when both
-  are ticked, and blocks nothing. No editor of these declarations yet:
+  and `pid_spare` (spare kept in its crate): never both, ticking one
+  unticks the other (a file written elsewhere which holds both is told in
+  the section). No editor of these declarations yet:
   they come from the file of codes.
 - **Line designation**: the model of the lines in the presentation of the
   project (CSV line `tag_model;line;{fluid} {size} {material}`, or the
