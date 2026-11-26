@@ -303,6 +303,8 @@ void DynamicTextFieldEditor::fillInfoComboBox()
 			for (int i = 0; i < parts.size(); ++i) {
 				strl.insert(label + 1 + i, parts.at(i));
 			}
+				//...and what a spare kept in its crate writes
+			strl.insert(label + 1 + parts.size(), QETInformation::PID_STANDBY_TEXT);
 		}
 
 			//Read from the wires, never stored (#1585)

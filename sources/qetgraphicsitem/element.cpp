@@ -4819,6 +4819,9 @@ QString Element::infoForDisplay(const QString &info_name, const Element *drawn_o
 	if (QETInformation::pidTagPartKeys().contains(info_name)) {
 		return pidTagPart(info_name);
 	}
+	if (info_name == QETInformation::PID_STANDBY_TEXT) {
+		return pidStandbyText();
+	}
 	if (m_data.m_type == ElementData::Terminal
 		&& QETInformation::isTerminalConductorInfo(info_name)) {
 		return conductorInfoForDisplay(info_name);
@@ -4985,6 +4988,94 @@ QString Element::pidTagPart(const QString &key)
 }
 
 /**
+	@brief Element::pidStandbyText
+	See the declaration
+*/
+QString Element::pidStandbyText() const
+{
+	if (m_data.m_pid_family.isEmpty()
+		|| m_data.m_informations.value(PidCodification::standbyKey()).toString()
+		   != PidCodification::standbySpare()) {
+		return QString();
+	}
+	const Diagram *folio = diagram();
+	return (folio && folio->project()) ? folio->project()->pidCodification().spareText()
+									   : PidCodification().spareText();
+}
+
+/**
+	@brief Element::showsStandbyText
+	See the declaration
+*/
+bool Element::showsStandbyText() const
+{
+	QList<DynamicElementTextItem *> texts = dynamicTextItems();
+	for (const ElementTextItemGroup *group : textGroups()) {
+		texts << group->texts();
+	}
+	const QString variable = QStringLiteral("%{") + QETInformation::PID_STANDBY_TEXT + QLatin1Char('}');
+	for (const DynamicElementTextItem *text : std::as_const(texts))
+	{
+		if (text->textFrom() == DynamicElementTextItem::ElementInfo
+			&& text->infoName() == QETInformation::PID_STANDBY_TEXT) {
+			return true;
+		}
+		if (text->textFrom() == DynamicElementTextItem::CompositeText
+			&& text->compositeText().contains(variable)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+	@brief Element::newStandbyText
+	See the declaration
+*/
+DynamicElementTextItem *Element::newStandbyText()
+{
+		//Under the drawing and the texts it shows now, its label among them
+	QRectF shown = boundingRect();
+	QList<DynamicElementTextItem *> texts = dynamicTextItems();
+	for (const ElementTextItemGroup *group : textGroups()) {
+		texts << group->texts();
+	}
+	for (DynamicElementTextItem *text : std::as_const(texts)) {
+		if (!text->toPlainText().trimmed().isEmpty()) {
+			shown |= text->mapRectToItem(this, text->boundingRect());
+		}
+	}
+
+	auto *text = new DynamicElementTextItem(this);
+	text->setTextFrom(DynamicElementTextItem::ElementInfo);
+	text->setInfoName(QETInformation::PID_STANDBY_TEXT);
+		//It stays centred where it is, and level when the symbol turns
+	text->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+	text->setKeepVisualRotation(true);
+	const Diagram *folio = diagram();
+	const int size = (folio && folio->project()) ? labelSize(folio->project()->pidCodification()) : 0;
+	if (size > 0) {
+		QFont font = text->font();
+		font.setPointSize(size);
+		text->setFont(font);
+	}
+	text->setPlainText(pidStandbyText());
+	text->setPos(shown.center().x() - text->boundingRect().width() / 2, shown.bottom());
+	return text;
+}
+
+/**
+	@brief Element::refreshStandbyText
+	See the declaration
+*/
+void Element::refreshStandbyText()
+{
+	if (showsStandbyText()) {
+		emit elementInfoChange(m_data.m_informations, m_data.m_informations);
+	}
+}
+
+/**
 	@brief Element::addDisplayValues
 	Add to @p dc the values a text shows differently from how they are stored.
 */
@@ -4995,6 +5086,7 @@ void Element::addDisplayValues(DiagramContext &dc)
 		for (const QString &key : QETInformation::pidTagPartKeys()) {
 			dc.addValue(key, pidTagPart(key));
 		}
+		dc.addValue(QETInformation::PID_STANDBY_TEXT, pidStandbyText());
 	}
 	dc.addValue(QETInformation::ELMT_TERMINAL_NUMBER, terminalNumberForDisplay());
 	dc.addValue(QETInformation::ELMT_CONDUCTOR_TEXT,  conductorTextForDisplay());

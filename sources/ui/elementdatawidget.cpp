@@ -20,6 +20,7 @@
 #include "elementtagwidget.h"
 
 #include <diagram.h>
+#include <qetgraphicsitem/dynamicelementtextitem.h>
 #include <qetgraphicsitem/element.h>
 #include <qetproject.h>
 #include <undocommand/changeelementinformationcommand.h>
@@ -32,10 +33,56 @@
 #include <QLineEdit>
 #include <QRegularExpressionValidator>
 #include <QSignalBlocker>
+#include <QUndoCommand>
 
 namespace
 {
 	const QString yes = QStringLiteral("true");
+
+		/// Places under an element the text of a spare kept in its crate
+		/// (Element::newStandbyText()), made when the command is first done:
+		/// the element has the value by then, and a command which is never
+		/// done leaves nothing behind
+	class AddStandbyTextCommand : public QUndoCommand
+	{
+		public:
+			AddStandbyTextCommand(Element *element, QUndoCommand *parent) :
+				QUndoCommand(parent), m_element(element) {}
+
+			~AddStandbyTextCommand() override
+			{
+				if (m_text && (!m_element || !m_element->dynamicTextItems().contains(m_text.data()))) {
+					delete m_text.data();
+				}
+			}
+
+			void redo() override
+			{
+				if (!m_element) {
+					return;
+				}
+				if (!m_text) {
+					m_text = m_element->newStandbyText();
+				}
+				m_text->setParentItem(m_element.data());
+				m_element->addDynamicTextItem(m_text.data());
+			}
+
+			void undo() override
+			{
+				if (!m_element || !m_text) {
+					return;
+				}
+				m_element->removeDynamicTextItem(m_text.data());
+				if (m_text->scene()) {
+					m_text->scene()->removeItem(m_text.data());
+				}
+			}
+
+		private:
+			QPointer<Element> m_element;
+			QPointer<DynamicElementTextItem> m_text;
+	};
 }
 
 /**
@@ -359,8 +406,21 @@ QUndoCommand *ElementDataWidget::associatedUndo() const
 	if (new_information == old_information) {
 		return nullptr;
 	}
-	auto *undo = new ChangeElementInformationCommand(m_element, old_information, new_information);
-	undo->setText(tr("Change the data of an element"));
+		//A symbol which becomes a spare kept in its crate says so on the
+		//folio: a text is placed under it, in the same change, unless one
+		//of its texts shows it already (one placed before, or its symbol's)
+	const QString key = PidCodification::standbyKey();
+	const bool becomes_spare = new_information.value(key).toString() == PidCodification::standbySpare()
+							   && old_information.value(key).toString() != PidCodification::standbySpare()
+							   && !m_element->showsStandbyText();
+	if (!becomes_spare) {
+		auto *undo = new ChangeElementInformationCommand(m_element, old_information, new_information);
+		undo->setText(tr("Change the data of an element"));
+		return undo;
+	}
+	auto *undo = new QUndoCommand(tr("Change the data of an element"));
+	new ChangeElementInformationCommand(m_element, old_information, new_information, undo);
+	new AddStandbyTextCommand(m_element, undo);
 	return undo;
 }
 

@@ -231,6 +231,25 @@ class Element : public QetGraphicsItem
 				line, then the others. Display only, nothing is stored.
 			*/
 		QString pidTagPart(const QString &key);
+			/**
+				What this P&ID symbol writes on the folio of its standby
+				(QETInformation::PID_STANDBY_TEXT): the text of its project
+				(PidCodification::spareText()) when it is a spare kept in
+				its crate, nothing otherwise. Display only, nothing is
+				stored.
+			*/
+		QString pidStandbyText() const;
+			/// A text of this element shows pidStandbyText(), alone or in a
+			/// composite text
+		bool showsStandbyText() const;
+			/// A new text showing pidStandbyText(), centred under what this
+			/// element shows, of the size of its labels, not added yet
+			/// (addDynamicTextItem()): what the Data section places when the
+			/// symbol becomes a spare kept in its crate
+		DynamicElementTextItem *newStandbyText();
+			/// The text of the project for a spare changed: the texts
+			/// showing it are drawn again
+		void refreshStandbyText();
 		QString infoForDisplay(const QString &info_name,
 							   const Element *drawn_on = nullptr);
 		QString designationForDisplay(const QString &label,

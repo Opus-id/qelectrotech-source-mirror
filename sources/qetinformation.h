@@ -58,6 +58,10 @@ namespace QETInformation
 		//makes without it (@sa Element::pidTagPart)
 	static QString PID_TAG_ID                        = "pid_tag_id";
 	static QString PID_TAG_REST                      = "pid_tag_rest";
+		//Not stored either: what a P&ID symbol writes on the folio when it
+		//is a spare kept in its crate (PidCodification::spareText()),
+		//nothing when it is not (@sa Element::pidStandbyText)
+	static QString PID_STANDBY_TEXT                  = "pid_standby_text";
 	static QString ELMT_FORMULA                      = "formula";
 	/**
 		Uuid of the project's element numbering scheme the element's

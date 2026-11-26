@@ -69,6 +69,7 @@ namespace
 	const QString follow_pipes_word = QStringLiteral("symbols_follow_pipes");
 	const QString decimal_word = QStringLiteral("decimal_separator");
 	const QString insulation_stub_word = QStringLiteral("insulation_stub");
+	const QString spare_text_word = QStringLiteral("spare_text");
 		/// A length of the insulation stubs read from @p text, in mm with a
 		/// point or a comma; false, nothing changed, when it is not one
 	bool insulationStubFromText(const QString &text, qreal &mm)
@@ -1221,7 +1222,7 @@ bool PidCodification::isDataName(const QString &name)
 		//The fields of the tag, and the texts made of them
 	const QStringList taken{PidTag::unitKey(), PidTag::trainKey(), PidTag::orderKey(),
 							PidTag::lettersKey(), QETInformation::PID_TAG_ID,
-							QETInformation::PID_TAG_REST};
+							QETInformation::PID_TAG_REST, QETInformation::PID_STANDBY_TEXT};
 	return !taken.contains(dataPrefix() + name);
 }
 
@@ -1268,6 +1269,18 @@ QString PidCodification::dataValueName(const DataField &field, const QString &va
 		}
 	}
 	return value;
+}
+
+/**
+	@brief PidCodification::spareText
+	@return what a spare kept in its crate writes on the folio: the text of
+	the project, else the name of the value in the language of QElectroTech
+*/
+QString PidCodification::spareText() const
+{
+	return spare_text.trimmed().isEmpty()
+			? QCoreApplication::translate("PidCodification", "Spare in its crate")
+			: spare_text.trimmed();
 }
 
 /**
@@ -1515,6 +1528,7 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 		result.decimal = other.decimal;
 		result.tag_models = other.tag_models;
 		result.parallel_numbering = other.parallel_numbering;
+		result.spare_text = other.spare_text;
 		result.drawn_connections = other.drawn_connections;
 		result.drawn_families = other.drawn_families;
 		result.tool_symbols = other.tool_symbols;
@@ -1607,6 +1621,9 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 	}
 	if (insulation_stub != defaultInsulationStub()) {
 		block.setAttribute(insulation_stub_word, QString::number(insulation_stub));
+	}
+	if (!spare_text.trimmed().isEmpty()) {
+		block.setAttribute(spare_text_word, spare_text.trimmed());
 	}
 	if (!drawn_connections.isEmpty()) {
 		block.setAttribute(drawn_connections_word, connectionsToText(drawn_connections));
@@ -1753,6 +1770,7 @@ void PidCodification::fromXml(const QDomElement &parent)
 	decimal =decimalFromString(block.attribute(decimal_word));
 	insulation_stub = defaultInsulationStub();
 	insulationStubFromText(block.attribute(insulation_stub_word), insulation_stub);
+	spare_text = block.attribute(spare_text_word).trimmed();
 	drawn_connections = connectionsFromText(block.attribute(drawn_connections_word));
 		//None written: all of them
 	drawn_families = block.hasAttribute(drawn_families_word)
@@ -1872,6 +1890,10 @@ QString PidCodification::presentationToCsv() const
 	if (insulation_stub != defaultInsulationStub()) {
 		text += QStringLiteral("text_option;") + insulation_stub_word + QLatin1Char(';')
 				+ QString::number(insulation_stub) + QLatin1Char('\n');
+	}
+	if (!spare_text.trimmed().isEmpty()) {
+		text += QStringLiteral("text_option;") + spare_text_word + QLatin1Char(';')
+				+ csvField(spare_text.trimmed()) + QLatin1Char('\n');
 	}
 	if (!drawn_connections.isEmpty()) {
 		text +=QStringLiteral("text_option;") + drawn_connections_word + QLatin1Char(';')
@@ -2079,7 +2101,14 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 		{
 			const QString value = fields.value(2).toLower();
 			const bool yes = value == QLatin1String("true");
-			if (fields.value(1) == drawn_connections_word) {
+			if (fields.value(1) == spare_text_word) {
+					//As it is typed, capitals kept; an empty one says nothing
+				if (fields.value(2).isEmpty()) {
+					++left_out;
+				} else {
+					codification.spare_text = fields.value(2);
+				}
+			} else if (fields.value(1) == drawn_connections_word) {
 				int unknown = 0;
 				codification.drawn_connections = connectionsFromText(value, &unknown);
 				if (unknown) {
@@ -2349,6 +2378,7 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& equal_nominals == other.equal_nominals
 			&& tag_models == other.tag_models
 			&& parallel_numbering == other.parallel_numbering
+			&& spare_text == other.spare_text
 			&& fluid_family_colors == other.fluid_family_colors
 			&& object_colors == other.object_colors
 			&& status_colors == other.status_colors

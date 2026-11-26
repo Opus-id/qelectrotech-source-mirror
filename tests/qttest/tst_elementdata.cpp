@@ -6,7 +6,9 @@
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
 #include "pidtag.h"
+#include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
+#include "qetinformation.h"
 #include "qetproject.h"
 #include "ui/customelementinfopartwidget.h"
 #include "ui/elementdatawidget.h"
@@ -434,6 +436,122 @@ class tst_elementdata : public QObject
 			standby->setCurrentIndex(0);
 			emit standby->activated(0);
 			QVERIFY(!pump->elementInformations().contains(QStringLiteral("pid_standby")));
+		}
+
+			// A symbol which becomes a spare kept in its crate says so on the
+			// folio: a text placed under it, which the user moves, empty when
+			// it is a spare no more; an installed standby writes nothing
+		void aSpareWritesItsTextOnTheFolio()
+		{
+			PidCodification codification = PidCodification::fromCsv(dataLines() + QStringLiteral(
+				"data;pump;standby;Standby\n"));
+			m_project->setPidCodification(codification);
+			Element *pump = place(m_folio, m_pump);
+			QVERIFY(!pump->showsStandbyText());
+			QCOMPARE(pump->pidStandbyText(), QString());
+			const int before = pump->dynamicTextItems().size();
+
+			ElementDataWidget section(pump);
+			section.setLiveEdit(true);
+			auto *standby = qobject_cast<QComboBox *>(section.fieldOf(PidCodification::standbyKey()));
+			QVERIFY(standby);
+			const auto pick = [standby](const QString &value) {
+				standby->setCurrentIndex(value.isEmpty() ? 0 : standby->findData(value));
+				emit standby->activated(standby->currentIndex());
+			};
+
+			pick(PidCodification::standbyInstalled());
+			QVERIFY(!pump->showsStandbyText());
+			QCOMPARE(pump->dynamicTextItems().size(), before);
+
+			pick(PidCodification::standbySpare());
+			QVERIFY(pump->showsStandbyText());
+			QCOMPARE(pump->dynamicTextItems().size(), before + 1);
+			DynamicElementTextItem *text = pump->dynamicTextItems().last();
+			QCOMPARE(text->infoName(), QETInformation::PID_STANDBY_TEXT);
+			QCOMPARE(text->toPlainText(), QStringLiteral("Spare in its crate"));
+				// under the symbol, centred
+			const QRectF placed = text->mapRectToItem(pump, text->boundingRect());
+			QVERIFY2(placed.top() >= pump->boundingRect().bottom() - 1.0,
+					 qPrintable(QStringLiteral("%1 / %2").arg(placed.top()).arg(pump->boundingRect().bottom())));
+			QVERIFY2(qAbs(placed.center().x() - pump->boundingRect().center().x()) < 2.0,
+					 qPrintable(QString::number(placed.center().x())));
+
+				// moved, then a spare no more: it shows nothing, and stays
+			text->setPos(text->pos().x(), 60);
+			pick(QString());
+			QCOMPARE(text->toPlainText(), QString());
+			QCOMPARE(pump->pidStandbyText(), QString());
+			QCOMPARE(pump->dynamicTextItems().size(), before + 1);
+				// a spare again: the same text, where it was put, no second one
+			pick(PidCodification::standbySpare());
+			QCOMPARE(pump->dynamicTextItems().size(), before + 1);
+			QCOMPARE(text->toPlainText(), QStringLiteral("Spare in its crate"));
+			QCOMPARE(text->pos().y(), 60.0);
+
+				// the text is a setting of the presentation of the project
+			codification.spare_text = QStringLiteral("IN CRATE");
+			m_project->setPidCodification(codification);
+			QCOMPARE(text->toPlainText(), QStringLiteral("IN CRATE"));
+		}
+
+			// The value and its text are one change: undone and redone together
+		void theTextOfASpareIsUndoneWithIt()
+		{
+			m_project->setPidCodification(PidCodification::fromCsv(QStringLiteral("data;pump;standby;Standby\n")));
+			Element *pump = place(m_folio, m_pump);
+			const int before = pump->dynamicTextItems().size();
+			ElementDataWidget section(pump);
+			auto *standby = qobject_cast<QComboBox *>(section.fieldOf(PidCodification::standbyKey()));
+			QVERIFY(standby);
+			standby->setCurrentIndex(standby->findData(PidCodification::standbySpare()));
+			section.apply();
+			QCOMPARE(pump->dynamicTextItems().size(), before + 1);
+			QCOMPARE(held(pump, PidCodification::standbyKey()), QStringLiteral("spare"));
+
+			m_folio->undoStack().undo();
+			QCOMPARE(pump->dynamicTextItems().size(), before);
+			QVERIFY(!pump->elementInformations().contains(PidCodification::standbyKey()));
+			QVERIFY(!pump->showsStandbyText());
+			m_folio->undoStack().redo();
+			QCOMPARE(pump->dynamicTextItems().size(), before + 1);
+			QCOMPARE(pump->dynamicTextItems().last()->toPlainText(), QStringLiteral("Spare in its crate"));
+
+				// saved as any text of the element: the name of what it shows
+			QDomDocument doc;
+			const QDomElement saved = pump->dynamicTextItems().last()->toXml(doc);
+			QCOMPARE(saved.firstChildElement(QStringLiteral("info_name")).text(),
+					 QETInformation::PID_STANDBY_TEXT);
+		}
+
+			// The text of a spare is a setting of the presentation, kept by
+			// the project and by a file; none: the name of the value
+		void theTextOfASpareIsASetting()
+		{
+			QCOMPARE(PidCodification().spareText(), QStringLiteral("Spare in its crate"));
+			int skipped = -1;
+			const PidCodification read = PidCodification::fromCsv(QStringLiteral(
+				"text_option;spare_text;IN CRATE\n"
+				"text_option;spare_text;\n"), &skipped);
+			QCOMPARE(skipped, 1);
+			QCOMPARE(read.spareText(), QStringLiteral("IN CRATE"));
+			QVERIFY(read.hasTextSettings());
+			QVERIFY(read.presentationToCsv().contains(QStringLiteral("text_option;spare_text;IN CRATE\n")));
+			QVERIFY(!read.codesToCsv().contains(QStringLiteral("spare_text")));
+			QCOMPARE(PidCodification::fromCsv(read.presentationToCsv()).spare_text, QStringLiteral("IN CRATE"));
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			holder.appendChild(read.toXml(doc));
+			PidCodification back;
+			back.fromXml(holder);
+			QCOMPARE(back, read);
+				// a project without one writes nothing of it
+			PidCodification plain;
+			plain.fluids << PidCodification::Entry{QStringLiteral("W01"), QStringLiteral("Raw water"), QString()};
+			QDomDocument other;
+			QVERIFY(!plain.toXml(other).hasAttribute(QStringLiteral("spare_text")));
+				// a datum cannot take the name of this text
+			QVERIFY(!PidCodification::isDataName(QStringLiteral("standby_text")));
 		}
 
 			// The Informations tab shows no "pid_" row for a P&ID symbol, and

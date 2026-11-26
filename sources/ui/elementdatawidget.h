@@ -46,7 +46,11 @@ class QETProject;
 
 	What may not be said together is one datum with a list: so is the standby
 	(PidCodification::standbyKey(): none, installed, or kept in its crate),
-	the one datum whose values QElectroTech fixes and names in clear.
+	the one datum whose values QElectroTech fixes and names in clear. A
+	symbol which becomes a spare kept in its crate gets a text saying so
+	under it (Element::newStandbyText()), in the same change: a text as any
+	other, which the user moves; it shows nothing when the symbol is a spare
+	no more, and is there again, where it was put, when it is one again.
 
 	Live, a line is applied when it is left, with undo.
 */

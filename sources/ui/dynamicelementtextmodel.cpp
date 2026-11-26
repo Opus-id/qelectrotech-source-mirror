@@ -2096,7 +2096,7 @@ QStringList DynamicTextItemDelegate::availableInfo(
 				//right after the label
 			if (info == QETInformation::ELMT_LABEL && dc.contains(info)
 					&& !elmt->elementData().m_pid_family.isEmpty())
-				qstrl << QETInformation::pidTagPartKeys();
+				qstrl << QETInformation::pidTagPartKeys() << QETInformation::PID_STANDBY_TEXT;
 		}
 		qstrl << QETInformation::elementCustomInfoKeys(dc.keys());
 

@@ -229,6 +229,12 @@ class PidCodification
 			/// What the user reads for the value @p value of the datum
 			/// @p field: translated for those of the standby; else the value
 		static QString dataValueName(const DataField &field, const QString &value);
+			/// What a spare kept in its crate writes on the folio, a setting
+			/// of the presentation ("text_option;spare_text;IN CRATE");
+			/// none: spareText() gives the translated name of the value.
+			/// Written only when set.
+		QString spare_text;
+		QString spareText() const;
 
 			/// The DN of the project which are the same size of line, by
 			/// pairs, the smaller first, in order: DN 60 exists for cast
@@ -684,7 +690,7 @@ class PidCodification
 					|| vertical_texts != VerticalTexts::Computer || !nozzle_texts_on_paper
 					|| !show_nozzle_sizes || !nozzle_dn_prefix || !reducer_sizes || decimal != Decimal::Language || !tag_models.isEmpty()
 					|| insulation_stub != defaultInsulationStub()
-					|| parallel_numbering
+					|| parallel_numbering || !spare_text.isEmpty()
 					|| !drawn_connections.isEmpty() || !drawsOnAllFamilies() || !tool_symbols.isEmpty()
 				|| !option_defaults.isEmpty() || line_kinds != isoLineKinds();
 		}
@@ -754,6 +760,8 @@ class PidCodification
 			/// object, "objet", or a fixed colour), of the line
 			/// "text_option;vertical_texts;from_bottom" (or "as_turned",
 			/// vertical_texts), or of the line
+			/// "text_option;spare_text;IN CRATE" (spare_text, as it is typed),
+			/// or of the line
 			/// "text_option;drawn_connections;flange butt_weld" (the words
 			/// of PipeConnection, a word not known being left out), and of lines
 			/// "tool_symbol;free_end;custom://folder/symbol.elmt" ("symbole_outil",

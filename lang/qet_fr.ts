@@ -28906,6 +28906,10 @@ Comment voulez-vous les placer ?</translation>
         <source>Jacket limit deleted: the jacket of its N1 side (%1) replaces that of the other side (%2) on the line joined.</source>
         <translation>Limite de gaine supprimée : la gaine de son côté N1 (%1) remplace celle de l&apos;autre côté (%2) sur la ligne réunie.</translation>
     </message>
+    <message>
+        <source>Standby, text of a spare in its crate</source>
+        <translation>Secours, texte d&apos;un secours en caisse</translation>
+    </message>
 </context>
 <context>
     <name>QTextOrientationWidget</name>

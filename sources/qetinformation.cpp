@@ -498,6 +498,7 @@ QString QETInformation::translatedInfoKey(const QString &info)
 	else if (info == ELMT_CONDUCTOR_TEXT)                return QObject::tr("Wire number");
 	else if (info == PID_TAG_ID)                         return QObject::tr("Tag, identifier (letters)");
 	else if (info == PID_TAG_REST)                       return QObject::tr("Tag, without its identifier");
+	else if (info == PID_STANDBY_TEXT)                   return QObject::tr("Standby, text of a spare in its crate");
 
 	QString property;
 	int connection = 0;

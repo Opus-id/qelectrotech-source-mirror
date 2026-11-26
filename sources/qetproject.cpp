@@ -4927,6 +4927,8 @@ void QETProject::setPidCodification(const PidCodification &codification)
 		//sizes shown or not, "DN 100" or "100", or another way of reading
 		//when vertical
 	const bool reading = codification.vertical_texts != m_pid_codification.vertical_texts;
+		//What a spare kept in its crate writes on the folio
+	const bool spare_text = codification.spareText() != m_pid_codification.spareText();
 	if (codification.text_sizes.value(PidCodification::nozzleTexts())
 			!= m_pid_codification.text_sizes.value(PidCodification::nozzleTexts())
 		|| codification.show_nozzle_sizes != m_pid_codification.show_nozzle_sizes
@@ -4966,6 +4968,10 @@ void QETProject::setPidCodification(const PidCodification &codification)
 				element->updateInk();
 					//and the labels its models of tags make
 				element->updatePidLabel();
+					//and the text of a spare kept in its crate
+				if (spare_text) {
+					element->refreshStandbyText();
+				}
 					//and what its table of diameters says of its nozzles
 				for (Terminal *terminal : element->terminals()) {
 					terminal->updateDiameterToolTip();
