@@ -826,6 +826,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | Where | Name | Values | Default | Written when |
 |---|---|---|---|---|
 | `.elmt`, `<definition>` | `pid_family` | `equipment`, `valve`, `instrument`, `pipe` | none: not a P&ID symbol | the symbol has a family |
+| `.elmt`, `<definition>` | `pid_class` | one word, free (`pump`, `tank`, `valve`) | none | the symbol says what kind of object it is, whatever its file is called (line *Class* of the *Piping* block of the element editor); the equipment list gives it |
 | `.elmt`, `<definition>` | `pid_inline` | `true` | a line does not run through it | a line runs through its two nozzles (valve) |
 | `.elmt`, `<definition>` | `pid_run` | names of nozzles, space separated (`N1 N2 N3`) | the two nozzles of a `pid_inline` symbol | a tee or a three-way valve |
 | `.elmt`, `<definition>` | `pid_role` | `reducer`, `free_end`, `spec_break`, `junction`, `closure`, `insulation_limit`, `jacket_limit`, `flow_arrow` | none | the symbol plays that role for the lines |
@@ -879,10 +880,10 @@ log.
 what a placed symbol carries is rows of `element_value` (symbol, section,
 rank, name, value), written only when set. The `<options>` and
 `<pid_nozzles>` blocks are there as any other block (sections
-`options/option`, `pid_nozzles`, `pid_nozzles/nozzle`); the family and the
-role of the symbol's definition are two rows of the section `pid_symbol`
-(`family`, `role`), for lists to tell a pump from a valve. These two are
-never written in a `.qet` file: they are the definition's.
+`options/option`, `pid_nozzles`, `pid_nozzles/nozzle`); the family, the
+class and the role of the symbol's definition are rows of the section
+`pid_symbol` (`family`, `class`, `role`), for lists to tell a pump from a
+valve. These are never written in a `.qet` file: they are the definition's.
 
 **Lists.** *Project > Reports* has one list more, *P&ID equipment list*: the
 placed symbols of the families `equipment`, `valve` and `instrument` that
@@ -899,7 +900,7 @@ refused by it); a column is only ever added, at the end:
 
 | Name | One row per | Columns |
 |---|---|---|
-| `qet_pid_equipment` | placed symbol with a tag | `uuid`, `label`, `unit`, `unit_name` (from the codification), `train`, `identifier` (letters of an instrument, else the prefix of the symbol), `number`, `family`, `role`, `type` (name of the symbol's file), `description`, `folio_number`, `folio`, `position`, `folio_uuid` |
+| `qet_pid_equipment` | placed symbol with a tag | `uuid`, `label`, `unit`, `unit_name` (from the codification), `train`, `identifier` (letters of an instrument, else the prefix of the symbol), `number`, `family`, `role`, `type` (name of the symbol's file), `description`, `folio_number`, `folio`, `position`, `folio_uuid`, `class` (the `pid_class` of the symbol) |
 | `qet_pid_equipment_data` | value such a symbol holds | `uuid`, `name` (`pid_power`, `option_motor`), `value` |
 | `qet_pid_codes` | code of the codification | `list` (`unit`, `fluid`, `material`, `letters`), `code`, `name` |
 
