@@ -675,8 +675,12 @@ add_dependencies(tst_conductormedium qelectrotech)
 target_compile_definitions(tst_conductormedium PRIVATE
   "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 # Functions of wires from upstream leave pipes alone: Renumber conductors,
-# the duplicate check, potential_view.
+# the duplicate check, potential_view; the electrical lists and exports leave
+# out pipes, signal lines and P&ID symbols, and say how many (9l-bis).
 qet_add_app_test(tst_mediumguards tst_mediumguards.cpp)
+add_dependencies(tst_mediumguards qelectrotech)
+target_compile_definitions(tst_mediumguards PRIVATE
+  "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 # The page of a pipe in the properties panel: only pipes get it, a change is
 # one undo step and reaches the field edited of the pipes selected, no other.
 qet_add_app_test(tst_pipepanel tst_pipepanel.cpp)

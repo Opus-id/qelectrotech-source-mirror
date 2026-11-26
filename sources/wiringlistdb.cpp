@@ -19,6 +19,7 @@
 
 #include "dataBase/projectdatabase.h"
 #include "diagram.h"
+#include "properties/terminaldata.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
@@ -74,7 +75,8 @@ enum Column
 	ColToTerminal,
 	ColToTerminalUuid,
 	ColToTerminalIndex,
-	ColDiagramPosition
+	ColDiagramPosition,
+	ColMedium
 };
 
 } // namespace
@@ -112,11 +114,15 @@ QStringList WiringListRow::values() const
 
 QVector<WiringListRow> wiringListRows(QETProject *project,
 									  int *unassigned_junctions,
-									  QString *error)
+									  QString *error,
+									  int *other_media)
 {
 	QVector<WiringListRow> result;
 	if (unassigned_junctions) {
 		*unassigned_junctions = 0;
+	}
+	if (other_media) {
+		*other_media = 0;
 	}
 	if (error) {
 		error->clear();
@@ -135,7 +141,10 @@ QVector<WiringListRow> wiringListRows(QETProject *project,
 			"SELECT conductor_uuid, wire_number, from_element_uuid, from_element_label,"
 			" from_terminal, from_terminal_uuid, from_terminal_index,"
 			" to_element_uuid, to_element_label, to_terminal, to_terminal_uuid,"
-			" to_terminal_index, diagram_position"
+			" to_terminal_index, diagram_position,"
+				//The medium of the wire: absent for an electrical one
+			" (SELECT m.value FROM conductor_properties m"
+			" WHERE m.conductor_uuid = wiring_list_view.conductor_uuid AND m.name = 'medium')"
 			" FROM wiring_list_view"
 			//Wire numbers are text, so a plain sort puts "10" before "9".
 			//Numeric ones first, ordered by value; anything non-numeric
@@ -156,6 +165,14 @@ QVector<WiringListRow> wiringListRows(QETProject *project,
 	QVector<WiringListRow> rows;
 	while (query.next())
 	{
+			//A pipe or a signal line is no wire: left out, and counted
+		if (TerminalData::mediumFromString(query.value(ColMedium).toString())
+				!= TerminalData::Electrical) {
+			if (other_media) {
+				++*other_media;
+			}
+			continue;
+		}
 		WiringListRow row;
 		row.conductor_uuid = query.value(ColConductorUuid).toString();
 		row.wire_number = query.value(ColWireNumber).toString();

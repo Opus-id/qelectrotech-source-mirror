@@ -121,6 +121,23 @@ const QHash<QString, QString> &exportFlags()
 	return flags;
 }
 
+/// Says how many lines of another medium (pipes, signal lines) an electrical
+/// list left out, nothing when it left none: they are no wires, and a reader
+/// of a list shorter than the folios should know why.
+void printOtherMedia(int count)
+{
+	if (count > 0)
+		out << count << " line(s) of another medium (pipes, signal lines) left out.\n";
+}
+
+/// Says how many P&ID symbols an electrical list left out, nothing when it
+/// left none: they have their own list, the P&ID equipment list.
+void printPidSymbols(int count)
+{
+	if (count > 0)
+		out << count << " P&ID symbol(s) left out.\n";
+}
+
 /// Device tag of an element ("K1", "Q55"), falling back to its name.
 QString elementLabel(Element *element)
 {
@@ -446,15 +463,18 @@ int exportLabels(QETProject &project, const QString &output, LabelListExport::Ki
 int exportCsv(QETProject &project, const QString &format, const QString &output)
 {
 	QString csv;
+	int other_media = 0;
 	if (format == "cables") {
 		WiringListExport wle(&project, nullptr);
-		csv = wle.toCsvString();
+		csv = wle.toCsvString(nullptr, &other_media);
 	} else { // wires
 		ConductorNumExport cne(&project, nullptr);
 		csv = cne.wiresNum();
+		other_media = cne.otherMediaCount();
 	}
 	if (csv.isEmpty()) {
 		err << "Nothing to export (empty list).\n";
+		printOtherMedia(other_media);
 		return 1;
 	}
 
@@ -467,6 +487,7 @@ int exportCsv(QETProject &project, const QString &format, const QString &output)
 	fout << csv;
 	file.close();
 	out << "Exported " << format << " list -> " << output << "\n";
+	printOtherMedia(other_media);
 	return 0;
 }
 
@@ -491,6 +512,14 @@ int exportBom(QETProject &project, const QString &output,
 		return 1;
 	}
 	out << "Exported " << rows << " component(s) -> " << output << "\n";
+		// The symbols of a P&ID element_nomenclature_view leaves out, of the
+		// kinds it would otherwise list
+	QSqlQuery pid = project.dataBase()->newQuery(
+		QStringLiteral("SELECT COUNT(*) FROM element e "
+					   "WHERE e.type IN ('simple', 'terminal', 'master', 'slave', 'thumbnail') "
+					   "AND NOT ") + projectDataBase::notPidSymbolSql(QStringLiteral("e.uuid")));
+	if (pid.exec() && pid.next())
+		printPidSymbols(pid.value(0).toInt());
 	return 0;
 }
 
@@ -765,9 +794,10 @@ int exportWiring(QETProject &project, const QString &output)
 	// already resolved to where the junction's chain leads: the one rule
 	// this export and the CSV one share, so the two lists agree (#1500).
 	int unassigned_junctions = 0;
+	int other_media = 0;
 	QString error;
 	const QVector<WiringListRow> rows =
-		wiringListRows(&project, &unassigned_junctions, &error);
+		wiringListRows(&project, &unassigned_junctions, &error, &other_media);
 	if (!error.isEmpty()) {
 		err << "Wiring list query failed: " << error << "\n";
 		return 1;
@@ -799,6 +829,7 @@ int exportWiring(QETProject &project, const QString &output)
 		return 1;
 	}
 	out << "Exported " << rows.size() << " conductor(s) -> " << output << "\n";
+	printOtherMedia(other_media);
 		//Said rather than left out: those rows end at the junction, which
 		//is what the export would otherwise not tell anyone about
 	if (unassigned_junctions > 0)
@@ -823,9 +854,16 @@ int exportNets(QETProject &project, const QString &output)
 	QSet<Conductor *> visited;
 	QJsonArray nets;
 	int net_no = 0;
+	int other_media = 0;
 	for (Conductor *c : all_conductors) {
 		if (visited.contains(c))
 			continue;
+			// A pipe or a signal line has no potential: it is no net, not
+			// even one of its own two ends
+		if (c->medium() != TerminalData::Electrical) {
+			++other_media;
+			continue;
+		}
 
 		// The whole potential this conductor belongs to. relatedPotential-
 		// Conductors() also fills t_list with every terminal in the net
@@ -879,6 +917,7 @@ int exportNets(QETProject &project, const QString &output)
 	file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
 	file.close();
 	out << "Exported " << nets.size() << " net(s) -> " << output << "\n";
+	printOtherMedia(other_media);
 	return 0;
 }
 

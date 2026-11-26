@@ -33,13 +33,17 @@ class ConductorNumExport
 	ConductorNumExport(QETProject *project, QWidget *parent = nullptr);
 	bool toCsv();
 	QString wiresNum() const;
-	
+		/// How many lines of another medium than electrical (pipes, signal
+		/// lines) were left out: they carry no wire number
+	int otherMediaCount() const {return m_other_media;}
+
 	private:
 	void fillHash();
-	
+
 	private:
 	QETProject *m_project = nullptr;
 	QHash <QString, int> m_hash;
+	int m_other_media = 0;
 	QWidget *m_parent_widget = nullptr;
 };
 

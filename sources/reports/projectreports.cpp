@@ -144,7 +144,9 @@ namespace ProjectReports
 			Report r;
 			r.id = QStringLiteral("parts");
 			r.title = Text::tr("Parts list");
-			r.source = QStringLiteral("qet_device_list");
+				//No symbol of a P&ID: the P&ID equipment list has them
+			r.source = QStringLiteral("(SELECT * FROM qet_device_list WHERE %1)")
+					.arg(projectDataBase::notPidSymbolSql(QStringLiteral("head_uuid")));
 			r.places = {QStringLiteral("structure_id")};
 			r.order = QStringLiteral("structure_id");
 			r.columns = {{QStringLiteral("structure_id"), Text::tr("Device")},
@@ -160,7 +162,9 @@ namespace ProjectReports
 			Report r;
 			r.id = QStringLiteral("wires");
 			r.title = Text::tr("Wire list");
-			r.source = QStringLiteral("qet_wires");
+				//No pipe and no signal line: they are no wires
+			r.source = QStringLiteral("(SELECT * FROM qet_wires WHERE %1)")
+					.arg(projectDataBase::electricalWireSql(QStringLiteral("medium")));
 			r.places = {QStringLiteral("from_structure_id"), QStringLiteral("to_structure_id")};
 			r.order = QStringLiteral("folio_number, ") + number_order;
 			r.columns = {{QStringLiteral("wire_number"), Text::tr("Wire")},

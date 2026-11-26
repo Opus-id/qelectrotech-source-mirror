@@ -482,8 +482,9 @@ class projectDataBase : public QObject
 		};
 		QHash<QUuid, LinkRow> linkRows(const QList<QUuid> &elements) const;
 			/// A wire placed on a folio: its text and the kinds of the
-			/// symbols at its ends (ElementData::typeToString())
-		struct FolioWire { QString text; QString kind1; QString kind2; };
+			/// symbols at its ends (ElementData::typeToString()); its
+			/// medium, as the file writes it (empty for an electrical one)
+		struct FolioWire { QString text; QString kind1; QString kind2; QString medium; };
 		QList<FolioWire> wiresOnFolios(const QList<QUuid> &folios) const;
 		QString elementLabel(const QUuid &element) const;
 		QString terminalName(const QUuid &terminal, const QUuid &element) const;
@@ -507,6 +508,16 @@ class projectDataBase : public QObject
 			/// this database holds in memory as well
 		static QSet<QUuid> otherMediumWiresOf(const QSqlDatabase &db);
 		QSet<QUuid> otherMediumWires() const;
+			/// An SQL condition true for a wire whose medium, read in the
+			/// column @p medium (as qet_wires has it), is electrical: empty,
+			/// or any word TerminalData::mediumFromString() reads so. The
+			/// electrical lists keep only those
+		static QString electricalWireSql(const QString &medium);
+			/// An SQL condition true for a placed symbol, of uuid @p element,
+			/// which is no symbol of a P&ID: it has no family (section
+			/// pid_symbol of element_value). The electrical lists keep only
+			/// those; the P&ID equipment list has the others
+		static QString notPidSymbolSql(const QString &element);
 			/// A potential that reaches more than one potential type
 		struct PotentialMismatch {
 			int potential = 0;

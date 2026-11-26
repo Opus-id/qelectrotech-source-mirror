@@ -3,6 +3,7 @@
 #include "diagram.h"
 #include "dataBase/projectdatabase.h"
 #include "ElementsCollection/xmlelementcollection.h"
+#include "properties/terminaldata.h"
 #include "qetgraphicsitem/element.h"
 #include <QFileDialog>
 #include <QMessageBox>
@@ -282,15 +283,24 @@ QMap<QString, ElementInfo> WiringListExport::collectElementsInfo(const QDomEleme
     return infoMap;
 }
 
-QList<ConductorData> WiringListExport::collectConductors(const QDomElement &root) const
+QList<ConductorData> WiringListExport::collectConductors(const QDomElement &root,
+                                                         int *other_media) const
 {
     QList<ConductorData> conductors;
     QDomNodeList conductorNodes = root.elementsByTagName("conductor");
+    if (other_media) *other_media = 0;
 
     for (int i = 0; i < conductorNodes.size(); ++i) {
         QDomElement cond = conductorNodes.at(i).toElement();
 
         if (cond.attribute("num") == "Brücke") continue;
+            //A pipe or a signal line is no wire: left out, and counted, as
+            //the database list does
+        if (TerminalData::mediumFromString(cond.attribute(QStringLiteral("medium")))
+                != TerminalData::Electrical) {
+            if (other_media) ++*other_media;
+            continue;
+        }
 
         ConductorData data;
         data.index = i;
@@ -370,7 +380,7 @@ void WiringListExport::toCsv()
     QMessageBox::information(m_parent, tr("Export successful"), message);
 }
 
-QString WiringListExport::toCsvString(int *unassigned_junctions) const
+QString WiringListExport::toCsvString(int *unassigned_junctions, int *other_media) const
 {
     if (!m_project) return QString();
     if (unassigned_junctions) *unassigned_junctions = 0;
@@ -418,7 +428,7 @@ QString WiringListExport::toCsvString(int *unassigned_junctions) const
     }
 
     QMap<QString, ElementInfo> elementsInfo = collectElementsInfo(doc.documentElement());
-    QList<ConductorData> conductors = collectConductors(doc.documentElement());
+    QList<ConductorData> conductors = collectConductors(doc.documentElement(), other_media);
 
     QList<ConductorData> uniqueConductors;
     // Conductors with one end on a folio report, by that report. All of them

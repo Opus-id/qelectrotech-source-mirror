@@ -19,6 +19,8 @@
 #ifndef LISTQUERYWIDGET_H
 #define LISTQUERYWIDGET_H
 
+#include "../../dataBase/projectdatabase.h"
+
 #include <QCoreApplication>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -100,7 +102,11 @@ class ListQueryWidget : public QWidget
 						"COALESCE(articles, '') AS articles, "
 						"COALESCE(symbols, 0) AS symbols, "
 						"COALESCE(folio_number, '') AS folio_number "
-						"FROM qet_device_list ORDER BY structure_id");
+							//No symbol of a P&ID: the P&ID equipment
+							//list has them
+						"FROM qet_device_list WHERE ")
+						+ projectDataBase::notPidSymbolSql(QStringLiteral("head_uuid"))
+						+ QStringLiteral(" ORDER BY structure_id");
 				case Wiring:
 						//The wiring list's rows and order (wiring_list_view as
 						//WiringListDialog reads it), a wire's ends named as
@@ -117,7 +123,10 @@ class ListQueryWidget : public QWidget
 						"COALESCE(w.folio_number, '') AS folio_number "
 						"FROM qet_wires w LEFT JOIN core k ON k.wire_uuid = w.wire_uuid "
 						"WHERE w.from_device_uuid IS NOT NULL AND w.to_device_uuid IS NOT NULL "
-						"ORDER BY w.folio_number, "
+							//No pipe and no signal line: they are no wires
+						"AND ")
+						+ projectDataBase::electricalWireSql(QStringLiteral("w.medium"))
+						+ QStringLiteral(" ORDER BY w.folio_number, "
 						"CASE WHEN w.wire_number GLOB '[0-9]*' THEN 0 ELSE 1 END, "
 						"CAST(w.wire_number AS INTEGER), w.wire_number");
 				case Plc:

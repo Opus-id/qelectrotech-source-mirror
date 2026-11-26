@@ -1804,9 +1804,10 @@ QList<projectDataBase::FolioWire> projectDataBase::wiresOnFolios(const QList<QUu
 {
 	QList<FolioWire> wires;
 	QSqlQuery query(m_data_base);
-	query.prepare(QStringLiteral("SELECT c.text, e1.type, e2.type FROM conductor c "
+	query.prepare(QStringLiteral("SELECT c.text, e1.type, e2.type, m.value FROM conductor c "
 								 "LEFT JOIN element e1 ON e1.uuid = c.terminal1_element_uuid "
 								 "LEFT JOIN element e2 ON e2.uuid = c.terminal2_element_uuid "
+								 "LEFT JOIN conductor_properties m ON m.conductor_uuid = c.uuid AND m.name = 'medium' "
 								 "WHERE c.diagram_uuid = :folio ORDER BY c.rowid"));
 	for (const QUuid &folio : folios) {
 		query.bindValue(QStringLiteral(":folio"), folio.toString());
@@ -1815,7 +1816,7 @@ QList<projectDataBase::FolioWire> projectDataBase::wiresOnFolios(const QList<QUu
 		}
 		while (query.next()) {
 			wires.append({query.value(0).toString(), query.value(1).toString(),
-						  query.value(2).toString()});
+						  query.value(2).toString(), query.value(3).toString()});
 		}
 	}
 	return wires;
@@ -2031,6 +2032,20 @@ QSet<QUuid> projectDataBase::otherMediumWiresOf(const QSqlDatabase &db)
 		if (TerminalData::mediumFromString(query.value(1).toString()) != TerminalData::Electrical)
 			wires.insert(QUuid(query.value(0).toString()));
 	return wires;
+}
+
+QString projectDataBase::electricalWireSql(const QString &medium)
+{
+	return QStringLiteral("COALESCE(%1, '') NOT IN ('%2', '%3')")
+			.arg(medium, TerminalData::mediumToString(TerminalData::Pipe),
+				 TerminalData::mediumToString(TerminalData::Signal));
+}
+
+QString projectDataBase::notPidSymbolSql(const QString &element)
+{
+	return QStringLiteral("NOT EXISTS (SELECT 1 FROM element_value pid_v "
+						  "WHERE pid_v.element_uuid = %1 AND pid_v.section = 'pid_symbol' "
+						  "AND pid_v.name = 'family')").arg(element);
 }
 
 QSet<QUuid> projectDataBase::otherMediumWires() const
@@ -5285,7 +5300,11 @@ void projectDataBase::createElementNomenclatureView()
 							 //own auxiliary contact, say -- is kept out by
 							 //exclude_from_bom above, not by its base type.
 							 //See discussion #847.
-						 " AND e.type IN ('simple', 'terminal', 'master', 'slave', 'thumbnail')"));
+						 " AND e.type IN ('simple', 'terminal', 'master', 'slave', 'thumbnail')"
+							//A symbol of a P&ID (one with a family) is no part of
+							//the electrical nomenclature: the P&ID equipment list
+							//has it (PidLists). No row for an electrical symbol
+						 " AND ") + notPidSymbolSql(QStringLiteral("e.uuid")));
 
 		//The spare terminals of the terminal strips (on no folio) are lines of
 		//the nomenclature too : the same columns, read in the spare_terminal
@@ -5641,8 +5660,11 @@ QStringList projectDataBase::publicViewStatements()
 							 effectiveStructureSql(QStringLiteral("ei2.location"), QStringLiteral("es2.location"), QStringLiteral("di.locmach")),
 							 QStringLiteral("ei2.label"), QStringLiteral("ei2"), QStringLiteral("es2"),
 							 QStringLiteral("c.diagram_uuid"))
-			+ QStringLiteral(" AS to_structure_id "
-			"FROM conductor c "
+				//Last, the medium of the line (pipe, signal), empty for a
+				//wire: a list of wires reads only those
+			+ QStringLiteral(" AS to_structure_id, ")
+			+ property(QStringLiteral("medium"), QStringLiteral("medium")) + QStringLiteral(
+			" FROM conductor c "
 			"LEFT JOIN terminal t1 ON t1.uuid = c.terminal1_uuid AND t1.element_uuid = c.terminal1_element_uuid "
 			"LEFT JOIN terminal t2 ON t2.uuid = c.terminal2_uuid AND t2.element_uuid = c.terminal2_element_uuid "
 			"LEFT JOIN element_info ei1 ON ei1.element_uuid = c.terminal1_element_uuid "

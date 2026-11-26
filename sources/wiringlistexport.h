@@ -67,8 +67,11 @@ public:
         Used by toCsv() and by the headless command-line export.
         @param unassigned_junctions, when given, is set to how many junctions
         have no source connection set and so stayed in the list unresolved
+        @param other_media, when given, is set to how many lines of another
+        medium than electrical (pipes, signal lines) were left out
     */
-    QString toCsvString(int *unassigned_junctions = nullptr) const;
+    QString toCsvString(int *unassigned_junctions = nullptr,
+                        int *other_media = nullptr) const;
 
     /**
         Write every run through a junction as the one run it is, and count
@@ -100,7 +103,8 @@ private:
     QHash<QString, JunctionRoles> junctionRoles(const QDomElement &root) const;
 
     QMap<QString, ElementInfo> collectElementsInfo(const QDomElement &root) const;
-    QList<ConductorData> collectConductors(const QDomElement &root) const;
+    QList<ConductorData> collectConductors(const QDomElement &root,
+                                           int *other_media = nullptr) const;
 };
 
 #endif // WIRINGLISTEXPORT_H

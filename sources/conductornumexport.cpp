@@ -130,8 +130,14 @@ void ConductorNumExport::fillHash()
 	QList<QUuid> unbuilt;
 	for (Diagram *d : m_project->folios())
 		if (!d->isLoaded()) unbuilt << d->uuid();
+	m_other_media = 0;
 	for (const auto &wire : m_project->dataBase()->wiresOnFolios(unbuilt))
 	{
+			//A pipe or a signal line is no wire: its text is no wire number
+		if (TerminalData::mediumFromString(wire.medium) != TerminalData::Electrical) {
+			++m_other_media;
+			continue;
+		}
 		if (wire.text.isEmpty() || wire.text.contains(rx)) {
 			continue;
 		}
@@ -147,6 +153,10 @@ void ConductorNumExport::fillHash()
 			//potentials onto other folios, building those not built
 		for (Conductor *c : d->conductors())
 		{
+			if (c->medium() != TerminalData::Electrical) {
+				++m_other_media;
+				continue;
+			}
 			QString num = c->textItem()->toPlainText();
 			if (num.isEmpty() || num.contains(rx)) {
 				continue;
