@@ -884,6 +884,27 @@ role of the symbol's definition are two rows of the section `pid_symbol`
 (`family`, `role`), for lists to tell a pump from a valve. These two are
 never written in a `.qet` file: they are the definition's.
 
+**Lists.** *Project > Reports* has one list more, *P&ID equipment list*: the
+placed symbols of the families `equipment`, `valve` and `instrument` that
+have a tag, one row each, sorted by unit, train and tag, then one column
+for each value they hold (their `pid_` information, their options), to CSV
+or PDF. It is an exchange file for a spreadsheet or another program: its
+columns keep their names in every language, and its key is `uuid`, the
+placed symbol's, never the tag. The same rows are read from outside, from a
+`.qet`, a `.qetz` or a `.qetdb`, without building the folios:
+`qelectrotech --query "SELECT * FROM qet_pid_equipment" project.qet`.
+Three objects, made when a query names one and never saved in a file (a
+`.qetdb` holding a view another QElectroTech does not know would be
+refused by it); a column is only ever added, at the end:
+
+| Name | One row per | Columns |
+|---|---|---|
+| `qet_pid_equipment` | placed symbol with a tag | `uuid`, `label`, `unit`, `unit_name` (from the codification), `train`, `identifier` (letters of an instrument, else the prefix of the symbol), `number`, `family`, `role`, `type` (name of the symbol's file), `description`, `folio_number`, `folio`, `position`, `folio_uuid` |
+| `qet_pid_equipment_data` | value such a symbol holds | `uuid`, `name` (`pid_power`, `option_motor`), `value` |
+| `qet_pid_codes` | code of the codification | `list` (`unit`, `fluid`, `material`, `letters`), `code`, `name` |
+
+The electrical lists do not tell pipes from wires yet.
+
 ## Read this before using it on real work
 
 - The file format of these additions may change.
