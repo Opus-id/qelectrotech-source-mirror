@@ -543,8 +543,15 @@ qet_add_app_test(tst_folioautonumcopy tst_folioautonumcopy.cpp)
 # block variables, kept by .qet and .qetdb, absent from older files.
 qet_add_app_test(tst_foliogroup tst_foliogroup.cpp)
 qet_add_app_test(tst_drawingstandard tst_drawingstandard.cpp)
+# Project templates (#852, #1878 B13): a new project from a .qet template
+# has its folios, title block, paper size, numbering and drawing standard.
+qet_add_app_test(tst_projecttemplates tst_projecttemplates.cpp)
+target_compile_definitions(tst_projecttemplates PRIVATE
+  QET_TEMPLATES_DIR="${QET_DIR}/templates")
 qet_add_app_test(tst_documentkind tst_documentkind.cpp)
 qet_add_app_test(tst_revisionlist tst_revisionlist.cpp)
+# The device, wiring, PLC and signal lists as tables on a folio (#1878 B9-B11)
+qet_add_app_test(tst_listtables tst_listtables.cpp)
 # The project panel lists folios as a tree by folio group and sub-group
 # (#1878 C9); a level shows only where it splits the folios.
 qet_add_app_test(tst_foliotree tst_foliotree.cpp)
@@ -600,6 +607,8 @@ qet_add_app_test(tst_placesuggestions tst_placesuggestions.cpp)
 
 # Renaming a plant or a location in the whole project, in one undo step.
 qet_add_app_test(tst_placerename tst_placerename.cpp)
+# Copying a plant with its folios under a new name, in one undo step.
+qet_add_app_test(tst_placecopy tst_placecopy.cpp)
 # A read-only project builds its lazy folios whole: shown, exported, written out.
 qet_add_app_test(tst_readonlyfolios tst_readonlyfolios.cpp)
 target_compile_definitions(tst_readonlyfolios PRIVATE
@@ -2773,6 +2782,11 @@ qet_add_app_test(tst_potentialtypes tst_potentialtypes.cpp)
 # The Check panel (#1878 B1): every check at once, each finding shown on
 # its folio; wires over the limit and repeated terminal names are new.
 qet_add_app_test(tst_projectcheck tst_projectcheck.cpp)
+# The choices of the checks kept in the project (#1878 B12), and each
+# check switched off or a finding accepted for the project (#1878 B8).
+qet_add_app_test(tst_checksettings tst_checksettings.cpp)
+target_compile_definitions(tst_checksettings PRIVATE
+  QET_EXAMPLES_DIR="${QET_DIR}/examples")
 # potential_view: one row per potential (wires, terminals, folios, wire
 # numbers, more than one number), as QElectroTech groups the wires.
 qet_add_app_test(tst_potentialview tst_potentialview.cpp)

@@ -18,6 +18,8 @@
 #ifndef PROJECTCONFIGPAGES_H
 #define PROJECTCONFIGPAGES_H
 #include "configpage.h"
+#include <projectcheck/checksettings.h>
+#include <QHash>
 #include <QPointer>
 #include <QVector>
 #include <autoNum/autonumschemecommand.h>
@@ -127,6 +129,7 @@ class ProjectMainConfigPage : public ProjectConfigPage {
 	private slots:
 	void resetUsageTracker();
 	void updateWiringRulesWidgets();
+	void updateCheckOptionsWidgets();
 
 	// attributes
 	protected:
@@ -170,6 +173,11 @@ class ProjectMainConfigPage : public ProjectConfigPage {
 	QCheckBox *one_wire_per_report_cb_;
 	QCheckBox *refuse_mixed_media_cb_;
 	QLabel *wiring_rules_off_label_;
+	QGroupBox *m_check_options_gb;
+	QCheckBox *m_check_options_application_cb;
+	QHash<CheckSettings::Option, QCheckBox *> m_check_option_cbs;
+	QLabel *m_check_rules_label;
+	QHash<ProjectCheck::Kind, QCheckBox *> m_check_rule_cbs;
 	QLabel *origin_label_;
 	QComboBox *origin_cb_;
 };

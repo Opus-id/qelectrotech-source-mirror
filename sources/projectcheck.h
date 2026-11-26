@@ -23,6 +23,7 @@
 #include <QList>
 #include <QPointer>
 #include <QString>
+#include <QStringList>
 #include <QUuid>
 #include <QVector>
 
@@ -41,9 +42,12 @@ class QETProject;
 */
 class ProjectCheck
 {
+	Q_GADGET
 	Q_DECLARE_TR_FUNCTIONS(ProjectCheck)
 
 	public:
+			/// The name of each kind is its id in a project file
+			/// (CheckSettings, #1878 B8): never rename one
 		enum class Kind {
 			DuplicateLabels,   ///< DuplicateLabels::find()
 			PotentialTypes,    ///< projectDataBase::potentialTypeMismatches()
@@ -52,8 +56,12 @@ class ProjectCheck
 			TerminalBranches,  ///< projectDataBase::terminalBranches()
 			DeviceTypes,       ///< DeviceTypeCheck::check()
 			WiresPerTerminal,  ///< terminals with more wires than WiringRules::limit()
-			TerminalNames      ///< symbols with two terminals of one name (TerminalNameCheck)
+			TerminalNames,     ///< symbols with two terminals of one name (TerminalNameCheck)
+			WireInTwoCables,   ///< a wire that is a core of two cables
+			NoPartNumber,      ///< symbols the parts list holds, with no part number
+			UnansweredPrompts  ///< labels and texts still holding a ? or a ?name
 		};
+		Q_ENUM(Kind)
 
 			/// Where a finding is. One of item, element or wires says what
 			/// to show; a place with none of them is a line of detail only.
@@ -63,15 +71,21 @@ class ProjectCheck
 			QString cell;                    ///< "B4", empty if not known
 			QPointer<QGraphicsObject> item;  ///< a built item
 			QUuid element;                   ///< a symbol, when item is not given
+			QUuid drawing;                   ///< a free text of the folio, found
+											 ///< on the folio diagram
 			QUuid diagram;                   ///< the symbol's folio
 			QList<QUuid> wires;              ///< wires, found when shown, on
 											 ///< the folio diagram if given
-			bool canShow() const {return item || !element.isNull() || !wires.isEmpty();}
+			bool canShow() const {return item || !element.isNull() || !drawing.isNull() || !wires.isEmpty();}
 		};
 
 		struct Finding {
 			QString text;
 			QList<Place> places;
+				/// Further lasting ids of what the finding is about (a
+				/// terminal's uuid), when its places alone do not tell
+				/// it from another finding: CheckSettings::findingId()
+			QStringList ids;
 		};
 
 		struct Result {
@@ -85,6 +99,9 @@ class ProjectCheck
 			/// Every check, in the order the panel lists them
 		static QList<Kind> kinds();
 		static QString title(Kind kind);
+			/// The id of @p kind in a project file: its name, "OpenWireEnds"
+		static QString id(Kind kind);
+		static bool kindFromId(const QString &id, Kind *kind);
 			/// Where the check's own window is, with its options
 		static QString toolTip(Kind kind);
 		static Result run(QETProject *project, Kind kind);
@@ -98,6 +115,9 @@ class ProjectCheck
 		static Result deviceTypes(QETProject *project);
 		static Result wiresPerTerminal(QETProject *project);
 		static Result terminalNames(QETProject *project);
+		static Result wireInTwoCables(QETProject *project);
+		static Result noPartNumber(QETProject *project);
+		static Result unansweredPrompts(QETProject *project);
 };
 
 #endif // PROJECTCHECK_H

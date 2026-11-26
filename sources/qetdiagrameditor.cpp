@@ -20,6 +20,7 @@
 #include "container/qetcontainer.h"
 #include "container/qetzip.h"
 #include "utils/previousversions.h"
+#include "utils/projecttemplates.h"
 #include "shownkinds.h"
 #include "symboltextplacement.h"
 #include "ui/textclearancedialog.h"
@@ -33,6 +34,7 @@
 #include "scripting/assistantinfo.h"
 #endif
 #include <QDomDocument>
+#include <QInputDialog>
 #include <QTemporaryDir>
 #include <QCoreApplication>
 #include <QToolButton>
@@ -78,6 +80,7 @@
 #include "elementspanelwidget.h"
 #include "factory/elementpicturefactory.h"
 #include "factory/qetgraphicstablefactory.h"
+#include "factory/ui/listquerywidget.h"
 #include "print/projectprintwindow.h"
 #include "project/projectpropertieshandler.h"
 #include "ui/multielementinfowidget.h"
@@ -1556,6 +1559,36 @@ void QETDiagramEditor::setUpActions()
 		}
 	});
 
+		//Add a table of the devices (#1878 B9)
+	m_add_device_list = new QAction(QET::Icons::TableOfContent, tr("Add a device list"), this);
+	connect(m_add_device_list, &QAction::triggered, this, [this]() {
+		if (this->currentDiagramView()) {
+			QetGraphicsTableFactory::createAndAddListTable(this->currentDiagramView()->diagram(), ListQueryWidget::Device);
+		}
+	});
+
+		//Add a table of the wires (#1878 B10)
+	m_add_wiring_table = new QAction(QET::Icons::TableOfContent, tr("Add a wiring table"), this);
+	connect(m_add_wiring_table, &QAction::triggered, this, [this]() {
+		if (this->currentDiagramView()) {
+			QetGraphicsTableFactory::createAndAddListTable(this->currentDiagramView()->diagram(), ListQueryWidget::Wiring);
+		}
+	});
+
+		//Add a table of the PLC I/O and of the signals (#1878 B11)
+	m_add_plc_list = new QAction(QET::Icons::TableOfContent, tr("Add a PLC list"), this);
+	connect(m_add_plc_list, &QAction::triggered, this, [this]() {
+		if (this->currentDiagramView()) {
+			QetGraphicsTableFactory::createAndAddListTable(this->currentDiagramView()->diagram(), ListQueryWidget::Plc);
+		}
+	});
+	m_add_signal_list = new QAction(QET::Icons::TableOfContent, tr("Add a signal list"), this);
+	connect(m_add_signal_list, &QAction::triggered, this, [this]() {
+		if (this->currentDiagramView()) {
+			QetGraphicsTableFactory::createAndAddListTable(this->currentDiagramView()->diagram(), ListQueryWidget::Signal);
+		}
+	});
+
 		//Add a cable list
 	m_add_cable_list = new QAction(QET::Icons::TableOfContent, tr("Add a cable list"), this);
 	connect(m_add_cable_list, &QAction::triggered, this, [this]() {
@@ -1803,6 +1836,7 @@ void QETDiagramEditor::setUpActions()
 		//Files action
 	QAction *new_file  = m_file_actions_group.addAction(QET::Icons::ProjectNew,     tr("&New"));
 	QAction *new_auto_file = m_file_actions_group.addAction(QET::Icons::ProjectNew, tr("New project with automatic connections"));
+	QAction *new_template_file = m_file_actions_group.addAction(QET::Icons::ProjectNew, tr("New from template..."));
 	QAction *open_file = m_file_actions_group.addAction(QET::Icons::DocumentOpen,   tr("&Open"));
 	m_save_file        = m_file_actions_group.addAction(QET::Icons::DocumentSave,   tr("&Save"));
 	m_save_file_as     = m_file_actions_group.addAction(QET::Icons::DocumentSaveAs, tr("Save as"));
@@ -1812,6 +1846,7 @@ void QETDiagramEditor::setUpActions()
 
 	ShortcutManager::instance().registerAction(new_file, "diagrameditor.new_file", tr("Diagram editors"), QKeySequence::New);
 	ShortcutManager::instance().registerAction(new_auto_file, "diagrameditor.new_auto_connect_file", tr("Diagram editors"), QKeySequence());
+	ShortcutManager::instance().registerAction(new_template_file, "diagrameditor.new_from_template", tr("Diagram editors"), QKeySequence());
 	ShortcutManager::instance().registerAction(open_file, "diagrameditor.open_file", tr("Diagram editors"), QKeySequence::Open);
 	ShortcutManager::instance().registerAction(m_close_file, "diagrameditor.close_file", tr("Diagram editors"), QKeySequence::Close);
 	ShortcutManager::instance().registerAction(m_save_file, "diagrameditor.save_file", tr("Diagram editors"), QKeySequence::Save);
@@ -1820,6 +1855,8 @@ void QETDiagramEditor::setUpActions()
 	new_file     ->setStatusTip( tr("Creates a new project", "status bar tip") );
 	new_auto_file->setStatusTip( tr("Creates a new project in which terminals in line connect by themselves; "
 									"a project is of one kind or the other for good", "status bar tip") );
+	new_template_file->setStatusTip( tr("Creates a new project from a template: its folios, title block, numbering and properties",
+										"status bar tip") );
 	open_file    ->setStatusTip( tr("Opens an existing project", "status bar tip") );
 	m_close_file ->setStatusTip( tr("Closes the current project", "status bar tip") );
 	m_save_file    ->setStatusTip( tr("Saves the current project and all its sheets", "status bar tip") );
@@ -1842,6 +1879,7 @@ void QETDiagramEditor::setUpActions()
 	connect(m_save_file,    &QAction::triggered, this, &QETDiagramEditor::save);
 	connect(new_file,       &QAction::triggered, this, &QETDiagramEditor::newProject);
 	connect(new_auto_file,  &QAction::triggered, this, &QETDiagramEditor::newAutoConnectProject);
+	connect(new_template_file, &QAction::triggered, this, [this]() { newProjectFromTemplate(); });
 	connect(open_file,      &QAction::triggered, this, &QETDiagramEditor::openProject);
 	connect(m_close_file,   &QAction::triggered, [this]() {
 		if (ProjectView *project_view = currentProjectView()) {
@@ -2629,6 +2667,10 @@ void QETDiagramEditor::setUpMenu()
 	menu_lists -> addSeparator();
 	menu_lists -> addAction(m_add_cable_list);
 	menu_lists -> addAction(m_add_revision_table);
+	menu_lists -> addAction(m_add_device_list);
+	menu_lists -> addAction(m_add_wiring_table);
+	menu_lists -> addAction(m_add_plc_list);
+	menu_lists -> addAction(m_add_signal_list);
 
 	main_tool_bar         -> toggleViewAction() -> setStatusTip(tr("Display or hide the main toolbar"));
 	view_tool_bar         -> toggleViewAction() -> setStatusTip(tr("Display or hide the Display toolbar"));
@@ -2806,6 +2848,66 @@ bool QETDiagramEditor::newProject()
 	// add new diagram
 	new_project -> addNewDiagram();
 
+	return addProject(new_project);
+}
+
+/**
+	@brief QETDiagramEditor::newProjectFromTemplate
+	Ask which project template to start from, and open a new project made
+	from it (#852).
+	@return true if a project was opened
+*/
+bool QETDiagramEditor::newProjectFromTemplate()
+{
+	const QList<ProjectTemplates::Entry> templates = ProjectTemplates::list(QETApp::projectTemplateFolders());
+	if (templates.isEmpty()) {
+		QMessageBox::information(
+					this,
+					tr("New from template"),
+					tr("There is no project template yet. A template is a project saved as a .qet file in the folder %1")
+					.arg(QDir::toNativeSeparators(QETApp::customProjectTemplatesDir())));
+		return false;
+	}
+
+	QStringList names;
+	for (const ProjectTemplates::Entry &entry : templates)
+		names << tr("%1 (%2)").arg(entry.name, entry.origin);
+	bool accepted = false;
+	const QString chosen = QInputDialog::getItem(this, tr("New from template"),
+												 tr("Start the new project from:"),
+												 names, 0, false, &accepted);
+	if (!accepted)
+		return false;
+	return newProjectFromTemplateFile(templates.at(names.indexOf(chosen)).path);
+}
+
+/**
+	@brief QETDiagramEditor::newProjectFromTemplateFile
+	Open a new project made from the template @p path: an untitled copy, with
+	a uuid of its own, that Save asks a file name for. A template without a
+	folio gets an empty one, as a new project does.
+	@return true if a project was opened
+*/
+bool QETDiagramEditor::newProjectFromTemplateFile(const QString &path)
+{
+	QTemporaryDir dir;
+	QString error;
+	const QString copy = dir.filePath(QStringLiteral("template.qet"));
+	if (!dir.isValid() || !ProjectTemplates::prepareCopy(path, copy, &error)) {
+		QMessageBox::warning(this, tr("New from template"),
+							 error.isEmpty() ? tr("Cannot make a copy of the template.") : error);
+		return false;
+	}
+
+	auto new_project = new QETProject(copy, QString(), this);
+	if (new_project->state() != QETProject::Ok) {
+		delete new_project;
+		QMessageBox::warning(this, tr("New from template"),
+							 tr("Cannot open the template %1.").arg(QFileInfo(path).fileName()));
+		return false;
+	}
+	if (new_project->diagrams().isEmpty())
+		new_project->addNewDiagram();
 	return addProject(new_project);
 }
 
@@ -4414,6 +4516,10 @@ void QETDiagramEditor::slot_updateActions()
 	m_cable_numbering             -> setEnabled(editable_project);
 	m_add_cable_list              -> setEnabled(editable_project);
 	m_add_revision_table          -> setEnabled(editable_project);
+	m_add_device_list             -> setEnabled(editable_project);
+	m_add_wiring_table            -> setEnabled(editable_project);
+	m_add_plc_list                -> setEnabled(editable_project);
+	m_add_signal_list             -> setEnabled(editable_project);
 	m_export_cable_list           -> setEnabled(editable_project);
 	m_reload_element_drawings     -> setEnabled(opened_project);
 	m_update_elements_from_collections -> setEnabled(editable_project);
