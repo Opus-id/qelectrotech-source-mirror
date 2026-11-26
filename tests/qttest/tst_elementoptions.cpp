@@ -920,40 +920,62 @@ class tst_elementoptions : public QObject
 			QCOMPARE(motorOf(render(plain)), QStringLiteral("none"));
 		}
 
-			// a .qetdb is written from the project database, which has no
-			// place for them: refused rather than lost without a word
-		void aQetdbFileIsRefusedWhileOptionsAreChosen()
+			// a .qetdb is written from the project database, which holds
+			// them with the other values of the symbol (step 9k): kept,
+			// where it used to be refused rather than lose them
+		void aQetdbFileKeepsTheOptionsChosen()
 		{
 			QTemporaryDir dir;
 			QVERIFY(dir.isValid());
 			const QString qet = dir.filePath(QStringLiteral("pumps.qet"));
 			const QString qetdb = dir.filePath(QStringLiteral("pumps.qetdb"));
+			const ElementOptions::Choices fixed{{QStringLiteral("motor"), QStringLiteral("fixed")}};
+			const ElementOptions::Choices variable{{QStringLiteral("motor"), QStringLiteral("variable")}};
 			{
 				QETProject project;
 				const ElementsLocation location = addPump(project);
 				Element *pump = place(project.addNewDiagram(), location);
 				QVERIFY(pump);
-				pump->setOptionChoices({{QStringLiteral("motor"), QStringLiteral("fixed")}});
+				pump->setOptionChoices(fixed);
 				project.setFilePath(qet);
 				QVERIFY(project.write().isOk());
 			}
-
-			QETProject back(qet);
-				// told before any folio is built
-			QVERIFY(back.hasSymbolChoices());
-			back.setFilePath(qetdb);
-			const QETResult refused = back.write();
-			QVERIFY(!refused.isOk());
-			QVERIFY(refused.errorMessage().contains(QStringLiteral(".qetdb")));
-			QVERIFY(!QFile::exists(qetdb));
-
-				// back to the defaults, saved as before
-			for (QGraphicsItem *item : back.diagrams().first()->items())
-				if (auto *element = qgraphicsitem_cast<Element *>(item))
-					element->setOptionChoices({});
-			QVERIFY(!back.hasSymbolChoices());
-			QVERIFY(back.write().isOk());
-			QVERIFY(QFile::exists(qetdb));
+			const auto pumpOf = [](QETProject &project) -> Element * {
+				for (QGraphicsItem *item : project.diagrams().first()->items())
+					if (auto *element = qgraphicsitem_cast<Element *>(item))
+						return element;
+				return nullptr;
+			};
+			{
+					// saved as a .qetdb before any folio is built
+				QETProject back(qet);
+				back.setFilePath(qetdb);
+				QVERIFY(back.write().isOk());
+				QVERIFY(QFile::exists(qetdb));
+			}
+			{
+				QETProject from_database(qetdb);
+				Element *pump = pumpOf(from_database);
+				QVERIFY(pump);
+				QCOMPARE(pump->optionChoices(), fixed);
+				QCOMPARE(motorOf(render(pump)), QStringLiteral("fixed"));
+					// a choice changed there is saved too
+				pump->setOptionChoices(variable);
+				QVERIFY(from_database.write().isOk());
+			}
+			{
+				QETProject again(qetdb);
+				Element *pump = pumpOf(again);
+				QVERIFY(pump);
+				QCOMPARE(pump->optionChoices(), variable);
+					// back to the default: nothing kept
+				pump->setOptionChoices({});
+				QVERIFY(again.write().isOk());
+			}
+			QETProject last(qetdb);
+			Element *pump = pumpOf(last);
+			QVERIFY(pump);
+			QVERIFY(pump->optionChoices().isEmpty());
 		}
 
 			// ---- the Options tab of the properties of an element ----

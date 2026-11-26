@@ -155,9 +155,6 @@ class QETProject : public QObject
 			//The folios whether their items are built or not
 			//(lazy folios); diagrams() builds them
 		QList<Diagram *> folios() const;
-			/// Whether a folio has symbols given a value of their options,
-			/// which a .qetdb does not keep yet (write())
-		bool hasSymbolChoices() const;
 			/// The codes of the fluids and materials of the pipes of this
 			/// project (PidCodification), saved with it; empty by default
 		const PidCodification &pidCodification() const {return m_pid_codification;}

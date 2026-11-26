@@ -1083,40 +1083,6 @@ QDomElement Diagram::deferredXmlWithHeader(QDomDocument &document)
 }
 
 /**
-	@brief Diagram::hasSymbolChoices
-	@return true if a symbol of this folio was given a value of one of its
-	options or a nominal diameter of one of its nozzles, or a link of the tab of
-	its nozzles undone: among its elements,
-	or in the <options> and <pid_nozzles> blocks of an element of its XML while it
-	is not built (lazy folios)
-*/
-bool Diagram::hasSymbolChoices() const
-{
-	if (!isLoaded()) {
-		const QDomElement elements = m_deferred.firstChildElement(QStringLiteral("elements"));
-		for (QDomElement element = elements.firstChildElement(QStringLiteral("element")) ;
-			 !element.isNull() ; element = element.nextSiblingElement(QStringLiteral("element"))) {
-			if (!ElementOptions::choicesFromXml(element).isEmpty()
-				|| !Element::nozzleDiametersFromXml(element).isEmpty()
-				|| !Element::nozzleConnectionsFromXml(element).isEmpty()
-				|| !Element::nozzleMarksFromXml(element).isEmpty()
-				|| Element::unlinkedNozzlesFromXml(element))
-				return true;
-		}
-		return false;
-	}
-	const QList<QGraphicsItem *> all = items();
-	return std::any_of(all.cbegin(), all.cend(), [](QGraphicsItem *item) {
-		const Element *element = qgraphicsitem_cast<Element *>(item);
-		return element && (!element->optionChoices().isEmpty()
-						   || !element->nozzleDiameters().isEmpty()
-						   || !element->nozzleConnections().isEmpty()
-						   || !element->nozzleMarks().isEmpty()
-						   || element->unlinkedNozzles());
-	});
-}
-
-/**
 	@brief Diagram::deferredXml
 	The XML kept for building this folio later. A folio of a .qetdb opened
 	from its tables has its header only: its items are written into it

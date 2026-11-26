@@ -652,6 +652,7 @@ void Element::setOptionChoices(const ElementOptions::Choices &choices)
 		return;
 	}
 	m_option_choices = choices;
+	scheduleTextsStore();
 	takePictures();
 		//A terminal may depend on the options too (Terminal::isHiddenByOptions())
 	for (Terminal *terminal : std::as_const(m_terminals)) {
@@ -681,6 +682,7 @@ void Element::setNozzleDiameters(const NozzleDiameters &diameters)
 		return;
 	}
 	m_nozzle_diameters = kept;
+	scheduleTextsStore();
 		//and the nozzles placed against them, which have their size
 	for (Terminal *terminal : std::as_const(m_terminals)) {
 		terminal->refreshSizes();
@@ -701,6 +703,7 @@ void Element::setNozzleConnections(const NozzleConnections &connections)
 		return;
 	}
 	m_nozzle_connections = connections;
+	scheduleTextsStore();
 	for (Terminal *terminal : std::as_const(m_terminals)) {
 		terminal->updateDiameterToolTip();
 			//its mark, and the counter-flange of its pipe
@@ -721,6 +724,7 @@ void Element::setNozzleMarks(const NozzleMarks &marks)
 		return;
 	}
 	m_nozzle_marks = marks;
+	scheduleTextsStore();
 	for (Terminal *terminal : std::as_const(m_terminals)) {
 		terminal->updateConnectionMark();
 	}
@@ -739,6 +743,7 @@ void Element::setUnlinkedNozzles(NozzleLinks unlinked)
 		return;
 	}
 	m_unlinked_nozzles = unlinked;
+	scheduleTextsStore();
 	emit nozzleDiametersChanged();
 }
 
@@ -2959,6 +2964,24 @@ QDomElement Element::toXml(
 			element.appendChild(infos);
 	}
 
+	appendChoicesXml(document, element);
+
+	appendDataXml(document, element);
+
+	//Dynamic texts
+	appendTextsXml(document, element);
+
+	return(element);
+}
+
+/**
+	@brief Element::appendChoicesXml
+	Append to @p element, made in @p document, what toXml() writes of what
+	was chosen on this symbol: the values given to its options (<options>)
+	and to its nozzles (<pid_nozzles>).
+*/
+void Element::appendChoicesXml(QDomDocument &document, QDomElement &element) const
+{
 		//The options of the symbol given a value on this element; none
 		//written for an element that gave none, which saves as before
 	const QDomElement options = ElementOptions::choicesToXml(document, m_option_choices);
@@ -3004,13 +3027,6 @@ QDomElement Element::toXml(
 		}
 		element.appendChild(nozzles);
 	}
-
-	appendDataXml(document, element);
-
-	//Dynamic texts
-	appendTextsXml(document, element);
-
-	return(element);
 }
 
 /**
@@ -3965,7 +3981,9 @@ void Element::appendDataXml(QDomDocument &document, QDomElement &element) const
 	@return an <element> made in @p document holding what toXml() writes
 	of this symbol that no other table of the project database holds: its
 	prefix, frozen label, whether it can be moved, whether it is shown as a
-	dot, and appendDataXml()
+	dot, appendDataXml() and appendChoicesXml(); and, toXml() writing
+	none of it, the family and the role its definition gives it
+	(<pid_symbol>), for the lists to tell a pump from a valve
 */
 QDomElement Element::ownValuesXml(QDomDocument &document) const
 {
@@ -3976,6 +3994,17 @@ QDomElement Element::ownValuesXml(QDomDocument &document) const
 	if (m_shown_as_dot)
 		element.setAttribute(QStringLiteral("shownAsDot"), QStringLiteral("true"));
 	appendDataXml(document, element);
+	appendChoicesXml(document, element);
+		//None for a symbol that has neither: an electrical one stores as before
+	if (!m_data.m_pid_family.isEmpty() || !m_data.m_pid_role.isEmpty())
+	{
+		QDomElement symbol = document.createElement(QStringLiteral("pid_symbol"));
+		if (!m_data.m_pid_family.isEmpty())
+			symbol.setAttribute(QStringLiteral("family"), m_data.m_pid_family);
+		if (!m_data.m_pid_role.isEmpty())
+			symbol.setAttribute(QStringLiteral("role"), m_data.m_pid_role);
+		element.appendChild(symbol);
+	}
 	return element;
 }
 
@@ -5434,6 +5463,8 @@ bool Element::changeLocation(const ElementsLocation &location)
 	setToolTip(name());
 	updateSymbolPictures(true);
 	update();
+		//Its family and its role may be others (ownValuesXml())
+	scheduleTextsStore();
 	emit symbolChanged();
 	return true;
 }

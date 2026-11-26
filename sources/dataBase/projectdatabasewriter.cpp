@@ -345,8 +345,12 @@ void writeElements(QDomDocument &document, QDomElement &folio, const QSqlDatabas
 		if (!query.value(2).toString().isEmpty())
 			element.setAttribute(QString::fromLatin1(ItemGroups::xml_attribute), query.value(2).toString());
 
-			//Prefix, frozen label, movability, override properties, PLC data
+			//Prefix, frozen label, movability, override properties, PLC data,
+			//values given to its options and its nozzles
 		Rows own_values = values.value(element_uuid);
+			//Its family and its role in a P&ID are its definition's: the
+			//rows are for the lists, a saved symbol never holds them
+		own_values.removeIf([](const Row &row) { return row.section == QLatin1String("pid_symbol"); });
 			//Its children's sections start with their own tag
 		for (Row &row : own_values)
 			if (row.section != QLatin1String("element")) row.section.prepend(QStringLiteral("element/"));

@@ -992,6 +992,17 @@ qet_add_app_test(tst_optiondefaults tst_optiondefaults.cpp)
 # name of the nozzle, that a placed element can change. Saved with the project
 # only when it differs, and never passed on to the pipe connected there.
 qet_add_app_test(tst_nozzlediameter tst_nozzlediameter.cpp)
+# What was chosen on a placed P&ID symbol (options, sizes of nozzles) and the
+# family and role of its definition are rows of element_value: the same from
+# the document, built folios and a .qetdb, which keeps the choices (step 9k).
+add_executable(
+  tst_symbolchoicerows
+  tst_symbolchoicerows.cpp)
+add_test(NAME tst_symbolchoicerows COMMAND tst_symbolchoicerows)
+add_dependencies(tst_symbolchoicerows qelectrotech)
+target_link_libraries(tst_symbolchoicerows PRIVATE Qt::Test Qt::Xml)
+target_compile_definitions(tst_symbolchoicerows PRIVATE
+  "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 # "Correct" on a size reported (8r-3 a): a diamond of two sizes offers its size
 # to the line or the size of the line to the nozzle; an inline item between two
 # sizes, either for the whole line; a band, the sizes of the series around it.

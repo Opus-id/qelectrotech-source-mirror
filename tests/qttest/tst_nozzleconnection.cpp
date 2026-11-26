@@ -229,7 +229,6 @@ class tst_nozzleconnection : public QObject
 			QCOMPARE(n2->connection(), PipeConnection::PlainEnd);
 			QCOMPARE(n1->labelText(), QStringLiteral("N1\nDN 100"));
 			QCOMPARE(n1->toolTip(), QStringLiteral("Flange"));
-			QVERIFY(!folio->hasSymbolChoices());
 
 				// a socket is named by a DN too: DN 100 kept
 			tank->setNozzleConnections({{QStringLiteral("N1"), PipeConnection::Socket}});
@@ -239,8 +238,6 @@ class tst_nozzleconnection : public QObject
 			QCOMPARE(n1->toolTip(), QStringLiteral("Socket"));
 			tank->setNozzleDiameters({{QStringLiteral("N1"), PipeDiameter::outside(110)}});
 			QCOMPARE(n1->labelText(), QStringLiteral("N1\nØ 110"));
-				// a folio with such a choice is no .qetdb
-			QVERIFY(folio->hasSymbolChoices());
 
 				// written in the <pid_nozzles> block, and read back
 			QDomDocument doc;
@@ -475,8 +472,6 @@ class tst_nozzleconnection : public QObject
 			QVERIFY(!nozzles.hasAttribute(QStringLiteral("same_size")));
 			QVERIFY(!nozzles.hasAttribute(QStringLiteral("same_mark")));
 			QVERIFY(Element::unlinkedNozzlesFromXml(written) == NozzleLinks(NozzleLink::Connection));
-				// a folio with such a choice is no .qetdb
-			QVERIFY(folio->hasSymbolChoices());
 
 				// N2 made unlike, then alike again by hand: still unlinked
 			ElementNozzlesWidget tab(tank);

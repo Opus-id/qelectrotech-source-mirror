@@ -276,9 +276,6 @@ class Diagram : public QGraphicsScene
 			/// false while this folio's items wait in its XML to be
 			/// built (lazy folios)
 		bool isLoaded() const {return m_deferred.isNull();}
-			/// Whether a symbol of this folio was given a value of one of
-			/// its options (ElementOptions), built or still in its XML
-		bool hasSymbolChoices() const;
 		QDomElement deferredXml() const;
 			/// The part @p file of the .qetz the project was opened from
 			/// holds this folio as it is while not built: saving may copy it

@@ -6942,9 +6942,16 @@ void projectDataBase::forgetElementTexts(const QUuid &element)
 	other table does: its frozen label, whether it moves and its prefix, as
 	Element::fromXml() reads them (a file that leaves one out gives the
 	value it is read as), whether a T-junction is shown as a dot, then its
-	<properties>, <plcMasterData>, <xrefDisplay> and <potentialSources>
+	<properties>, <plcMasterData>, <xrefDisplay>, <potentialSources>,
+	<options> and <pid_nozzles>.
+	Last, the family and the role of the symbol in a P&ID (section
+	pid_symbol), which no saved symbol holds: from the <pid_symbol>
+	Element::ownValuesXml() makes, else from @p definition, the symbol's
+	definition, as ElementData::fromXml() reads them. No row for a symbol
+	that has neither: an electrical symbol's rows are as before.
 */
-QList<projectDataBase::ProjectSetting> projectDataBase::elementValueRowsOf(const QDomElement &element)
+QList<projectDataBase::ProjectSetting> projectDataBase::elementValueRowsOf(const QDomElement &element,
+																		   const QDomElement &definition)
 {
 	QList<ProjectSetting> rows;
 	const QString section = QStringLiteral("element");
@@ -6959,11 +6966,23 @@ QList<projectDataBase::ProjectSetting> projectDataBase::elementValueRowsOf(const
 	if (element.attribute(QStringLiteral("shownAsDot")) == QLatin1String("true"))
 		rows.append({section, 0, QStringLiteral("shownAsDot"), QStringLiteral("true")});
 	for (const QString &tag : {QStringLiteral("properties"), QStringLiteral("plcMasterData"),
-							   QStringLiteral("xrefDisplay"), QStringLiteral("potentialSources")}) {
+							   QStringLiteral("xrefDisplay"), QStringLiteral("potentialSources"),
+							   QStringLiteral("options"), QStringLiteral("pid_nozzles")}) {
 		const QDomElement child = element.firstChildElement(tag);
 		if (!child.isNull())
 			xmlRows(child, tag, 0, rows);
 	}
+		//In name order, as xmlRows() gives the attributes of <pid_symbol>
+	const QString symbol_section = QStringLiteral("pid_symbol");
+	const QDomElement symbol = element.firstChildElement(symbol_section);
+	const QString family = symbol.isNull() ? definition.attribute(QStringLiteral("pid_family"))
+										   : symbol.attribute(QStringLiteral("family"));
+	const QString role = symbol.isNull() ? definition.attribute(QStringLiteral("pid_role")).trimmed()
+										 : symbol.attribute(QStringLiteral("role"));
+	if (!family.isEmpty())
+		rows.append({symbol_section, 0, QStringLiteral("family"), family});
+	if (!role.isEmpty())
+		rows.append({symbol_section, 0, QStringLiteral("role"), role});
 	return rows;
 }
 
@@ -7939,7 +7958,7 @@ void projectDataBase::prefillFromDocument(const QDomDocument &document)
 				//Element::fromXml() drops the definition's texts and reads
 				//these: they are the symbol's texts as they stand
 			element_texts.insert(uuid, elementTextRowsOf(element));
-			element_values.insert(uuid, elementValueRowsOf(element));
+			element_values.insert(uuid, elementValueRowsOf(element, definitions.value(type)));
 		}
 			//The shapes, free texts and tables, as the file holds them: for
 			//a folio not built that is what saving it writes again

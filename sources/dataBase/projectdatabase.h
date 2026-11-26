@@ -280,7 +280,8 @@ class projectDataBase : public QObject
 		QList<ProjectSetting> elementTextRows(const QUuid &element) const {
 			readElementTexts(element); return m_element_texts.value(element);}
 		void forgetElementTexts(const QUuid &element);
-		static QList<ProjectSetting> elementValueRowsOf(const QDomElement &element);
+		static QList<ProjectSetting> elementValueRowsOf(const QDomElement &element,
+														const QDomElement &definition = QDomElement());
 		bool storeElementValues(const QUuid &element, const QList<ProjectSetting> &rows);
 		QList<ProjectSetting> elementValueRows(const QUuid &element) const {
 			return m_element_values.value(element);}

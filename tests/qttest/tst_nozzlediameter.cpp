@@ -4136,8 +4136,9 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(plain->nozzleDiameters().isEmpty());
 		}
 
-			// a .qetdb has no place for them: refused rather than lost
-		void aQetdbFileIsRefusedWhileANozzleHasItsOwnDiameter()
+			// a .qetdb holds them with the other values of the symbol (step
+			// 9k): kept, where it used to be refused rather than lose them
+		void aQetdbFileKeepsTheDiameterOfANozzle()
 		{
 			QTemporaryDir dir;
 			QVERIFY(dir.isValid());
@@ -4151,22 +4152,36 @@ class tst_nozzlediameter : public QObject
 				project.setFilePath(qet);
 				QVERIFY(project.write().isOk());
 			}
-
-			QETProject back(qet);
-				// told before any folio is built
-			QVERIFY(back.hasSymbolChoices());
-			back.setFilePath(qetdb);
-			QVERIFY(!back.write().isOk());
-			QVERIFY(!QFile::exists(qetdb));
-
-			Diagram *folio = back.diagrams().first();
-			folio->ensureLoaded();
-			for (QGraphicsItem *item : folio->items())
-				if (auto *element = qgraphicsitem_cast<Element *>(item))
-					element->setNozzleDiameters({});
-			QVERIFY(!back.hasSymbolChoices());
-			QVERIFY(back.write().isOk());
-			QVERIFY(QFile::exists(qetdb));
+			const auto tankOf = [](QETProject &project) -> Element * {
+				Diagram *folio = project.diagrams().first();
+				folio->ensureLoaded();
+				for (QGraphicsItem *item : folio->items())
+					if (auto *element = qgraphicsitem_cast<Element *>(item))
+						return element;
+				return nullptr;
+			};
+			{
+					// saved as a .qetdb before any folio is built
+				QETProject back(qet);
+				back.setFilePath(qetdb);
+				QVERIFY(back.write().isOk());
+				QVERIFY(QFile::exists(qetdb));
+			}
+			{
+				QETProject from_database(qetdb);
+				Element *tank = tankOf(from_database);
+				QVERIFY(tank);
+				QCOMPARE(tank->nozzleDiameters(), dns({{QStringLiteral("N1"), 100}}));
+				QCOMPARE(terminal(tank, QStringLiteral("N1"))->diameter().value(), 100.0);
+					// back to the size of the symbol: nothing kept
+				tank->setNozzleDiameters({});
+				QVERIFY(from_database.write().isOk());
+			}
+			QETProject last(qetdb);
+			Element *tank = tankOf(last);
+			QVERIFY(tank);
+			QVERIFY(tank->nozzleDiameters().isEmpty());
+			QCOMPARE(terminal(tank, QStringLiteral("N1"))->diameter().value(), 80.0);
 		}
 
 			// ---- below 50 % ----

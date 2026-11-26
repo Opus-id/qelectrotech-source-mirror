@@ -747,6 +747,7 @@ class Element : public QetGraphicsItem
 		projectDataBase *placedStore() const;
 		void appendTextsXml(QDomDocument &document, QDomElement &element) const;
 		void appendDataXml(QDomDocument &document, QDomElement &element) const;
+		void appendChoicesXml(QDomDocument &document, QDomElement &element) const;
 		void scheduleTextsStore();
 		void connectTextStore(DynamicElementTextItem *deti);
 		void connectTextStore(ElementTextItemGroup *group);

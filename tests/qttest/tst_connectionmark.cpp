@@ -426,10 +426,7 @@ class tst_connectionmark : public QObject
 			Diagram *folio = project.addNewDiagram();
 			Element *valve = place(project, folio, QPointF(200, 200));
 			QVERIFY(valve);
-			QVERIFY(!folio->hasSymbolChoices());
 			valve->setNozzleMarks({{QStringLiteral("N1"), PipeConnection::MarkChoice::Never}});
-				// a folio with such a choice is no .qetdb
-			QVERIFY(folio->hasSymbolChoices());
 
 			QDomDocument doc;
 			QHash<Terminal *, int> table;
