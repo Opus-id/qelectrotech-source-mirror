@@ -67,9 +67,11 @@ class Terminal : public QGraphicsObject
 		void   drawHelpLine (bool draw = true);
 		QLineF HelpLine     () const;
 		QRectF boundingRect () const override;
-			/// The room of a nozzle holds the mark of its connection, its
-			/// shape does not: a click on the mark does not start a pipe
-		QPainterPath shape  () const override;
+			/// Only the terminal itself takes the mouse, not its name
+			/// (bugtracker #349). A nozzle: its texts too; its room holds
+			/// the mark of its connection, its shape does not: a click on
+			/// the mark does not start a pipe
+		QPainterPath shape () const override;
 
 		// methods to manage conductors attached to the terminal
 		Terminal* alignedWithTerminal () const;

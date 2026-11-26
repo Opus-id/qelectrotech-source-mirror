@@ -542,6 +542,7 @@ qet_add_app_test(tst_folioautonumcopy tst_folioautonumcopy.cpp)
 # A folio's group and sub-group: named, or its plant and location; title
 # block variables, kept by .qet and .qetdb, absent from older files.
 qet_add_app_test(tst_foliogroup tst_foliogroup.cpp)
+qet_add_app_test(tst_drawingstandard tst_drawingstandard.cpp)
 qet_add_app_test(tst_documentkind tst_documentkind.cpp)
 qet_add_app_test(tst_revisionlist tst_revisionlist.cpp)
 # The project panel lists folios as a tree by folio group and sub-group
@@ -1086,6 +1087,9 @@ qet_add_app_test(tst_connectordeviceplan tst_connectordeviceplan.cpp)
 # plan order, the same three fields the cable list computes for a target.
 qet_add_app_test(tst_cabletarget tst_cabletarget.cpp)
 qet_add_app_test(tst_cablelist tst_cablelist.cpp)
+# Picking a cable from the cable type file brings its manufacturer and
+# part number, and an empty cell keeps what was typed (#2002).
+qet_add_app_test(tst_cabletypepick tst_cabletypepick.cpp)
 
 # What a junction's chain says: how a stub beside the strip names the wire
 # which ends on the junction, and where a cable list says each cable starts
@@ -1093,6 +1097,8 @@ qet_add_app_test(tst_cablelist tst_cablelist.cpp)
 qet_add_app_test(tst_junctionchain tst_junctionchain.cpp)
 # A wire dropped on a terminal that already has a wire is made.
 qet_add_app_test(tst_wireonusedterminal tst_wireonusedterminal.cpp)
+# Only a terminal takes its clicks, not its name (bugtracker #349).
+qet_add_app_test(tst_terminalnamehitarea tst_terminalnamehitarea.cpp)
 
 # An undone step of a symbol and its wires, dropped later, deletes the
 # wires without reading the symbol's deleted terminals.

@@ -674,21 +674,23 @@ QRectF Terminal::boundingRect() const
 
 /**
 	@brief Terminal::shape
-	See the declaration: for any other terminal, its room, as before
+	Only the terminal itself takes the mouse, not its name: the name's
+	box reaches over the terminals beside it, and the one on top took
+	their clicks, so a terminal close to a named one could not be
+	reached (bugtracker #349).
+	A nozzle takes it on its texts too, each apart, the pipe between
+	them staying the pipe's to click.
+	@return the shape of the terminal, without its name
 */
 QPainterPath Terminal::shape() const
 {
 	QPainterPath path;
-		//A nozzle: its texts each apart, the pipe between them staying
-		//the pipe's to click
+	path.addRect(m_br);
 	if (d->m_medium == TerminalData::Pipe && d->m_show_name) {
-		path.addRect(m_br);
 		for (const QRectF &text : nozzleLabelRooms()) {
 			path.addRect(text);
 		}
-		return path;
 	}
-	path.addRect(ownRect());
 	return path;
 }
 
@@ -745,7 +747,16 @@ QRectF Terminal::ownRect() const {
 	else if (d->m_label_valignment & Qt::AlignVCenter) dy = -text_size.height() / 2.0;
 	else if (d->m_label_valignment & Qt::AlignBottom) dy = -text_size.height();
 
-	QRectF label_rect(label_pos + QPointF(dx, dy), text_size);
+		// A turned name is drawn turned about label_pos (see paint()),
+		// so its box must be turned the same way to cover it
+	QRectF label_rect;
+	if (!qFuzzyIsNull(d->m_label_rotation)) {
+		const QTransform t = QTransform::fromTranslate(label_pos.x(), label_pos.y())
+							 .rotate(d->m_label_rotation);
+		label_rect = t.mapRect(QRectF(QPointF(dx, dy), text_size));
+	} else {
+		label_rect = QRectF(label_pos + QPointF(dx, dy), text_size);
+	}
 	label_rect = label_rect.adjusted(-2, -2, 2, 2);
 
 	return m_br.united(label_rect);
