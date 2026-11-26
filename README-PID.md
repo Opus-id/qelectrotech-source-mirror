@@ -677,7 +677,16 @@ line.*
   (`spare`: drawn, not connected, out of the list of motors, in the
   quantity to buy). The project says which classes have it and how it is
   named (`data;pump blower;standby;Standby`); its values are fixed, shown
-  in clear in a list, never typed. No editor of these declarations yet:
+  in clear in a list, never typed. A symbol said a spare kept in its
+  crate gets a text saying so, placed under it in the same change (one
+  undo takes both back): a text of the element as any other, which is
+  moved or deleted; it shows nothing when the symbol is a spare no more,
+  and is there again when it is one again. What it writes is a setting of
+  the presentation (`text_option;spare_text;IN CRATE`; none: the name of
+  the value in the language of QElectroTech). An installed standby writes
+  nothing. The text shows an information which is never stored,
+  `pid_standby_text`, which the texts of a symbol may use too
+  (`%{pid_standby_text}`). No editor of these declarations yet:
   they come from the file of codes.
 - **Line designation**: the model of the lines in the presentation of the
   project (CSV line `tag_model;line;{fluid} {size} {material}`, or the
@@ -890,6 +899,8 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, instrument letters (`<instrument_letters code name/>`), equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
 | `.qet`, `<project>` | `<wire_crossings hop shape/>` | `hop` = `thinner` (QElectroTech: `horizontal`, `vertical`); `shape` = `gap` | no hop; an arc | the thinner line gives way; a gap instead of an arc |
 | `.qet`, `<pid_codification>` | `<data_field name classes label unit kind values dexpi/>` | `name` in small letters (`power`); `classes` = the `pid_class` of the symbols which have it, separated by spaces; `kind` = `number`, `list`, `yes_no`; `values` of a list separated by bars | no data field; `kind` = text | the project declares data for its symbols |
+| `.qet`, `<pid_codification>` | `spare_text` | what a spare kept in its crate writes on the folio | the name of the value, translated | the project has a text of its own |
+| `.qet`, `<element>`, a `<dynamic_elmt_text>` | `<info_name>pid_standby_text</info_name>` | a text of the element as QElectroTech writes them | none | the *Data* section placed the text of a spare; another QElectroTech shows it empty |
 | `.qet`, `<pid_codification>` | `insulation_stub` | length of the insulation stubs in mm | `8` | another length |
 | `.qet`, `<pid_codification>` | `<line_kind code name width pattern/>` | `code` = `main`, `secondary`, `auxiliary` or a code the project adds; `name` (an added kind only); `width` in mm; `pattern` = `solid`, `dashes`, `short_dashes`, `dash_dot` | the three kinds of ISO 10628-1: 1 mm; 0.5 mm; 0.5 mm in dashes | a kind of ISO changed, or a kind added (page *P&ID*, *Lines*) |
 | `.qet`, `<pid_codification>` | `symbols_follow_pipes` | `false` | `true`: valves and instruments on a line take the color their pipes agree on | they keep the color of their family |
