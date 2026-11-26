@@ -44,8 +44,9 @@ class QETProject;
 	project does not declare for this class is shown here under its key, as
 	a text.
 
-	No datum is known by its name here: what may not be said together is one
-	datum with a list (a standby: installed, or kept in its crate).
+	What may not be said together is one datum with a list: so is the standby
+	(PidCodification::standbyKey(): none, installed, or kept in its crate),
+	the one datum whose values QElectroTech fixes and names in clear.
 
 	Live, a line is applied when it is left, with undo.
 */

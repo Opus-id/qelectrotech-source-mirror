@@ -376,25 +376,58 @@ class tst_elementdata : public QObject
 			QVERIFY(section.fieldOf(QStringLiteral("pid_power")));
 		}
 
+			// The standby is the one datum QElectroTech knows: the project
+			// says which classes have it, its values are fixed, never typed
+		void theValuesOfTheStandbyAreFixed()
+		{
+			int skipped = -1;
+				// whatever the file says of its kind and of its values
+			const PidCodification read = PidCodification::fromCsv(QStringLiteral(
+				"data;pump;standby;Standby;;yes_no\n"
+				"data;blower;duty;Duty;;list;a|b\n"), &skipped);
+			QCOMPARE(skipped, 0);
+			const PidCodification::DataField standby = read.data_fields.first();
+			QCOMPARE(standby.key(), PidCodification::standbyKey());
+			QCOMPARE(standby.kind, PidCodification::DataKind::List);
+			QCOMPARE(standby.values, QStringList({QStringLiteral("installed"), QStringLiteral("spare")}));
+			QCOMPARE(standby.values, PidCodification::standbyValues());
+			QCOMPARE(PidCodification::fromCsv(read.codesToCsv()), read);
+			QDomDocument doc;
+			QDomElement holder = doc.createElement(QStringLiteral("project"));
+			holder.appendChild(read.toXml(doc));
+			PidCodification back;
+			back.fromXml(holder);
+			QCOMPARE(back, read);
+				// named in clear; another list shows its values as they are
+			QCOMPARE(PidCodification::dataValueName(standby, QStringLiteral("installed")),
+					 QStringLiteral("Installed standby"));
+			QCOMPARE(PidCodification::dataValueName(standby, QStringLiteral("spare")),
+					 QStringLiteral("Spare in its crate"));
+			QCOMPARE(PidCodification::dataValueName(read.data_fields.at(1), QStringLiteral("a")),
+					 QStringLiteral("a"));
+		}
+
 			// What may not be said together is one datum with a list: a
 			// standby is installed, or kept in its crate, or the symbol is none
 		void aStandbyIsOneListOfThreeStates()
 		{
 			m_project->setPidCodification(PidCodification::fromCsv(dataLines() + QStringLiteral(
-				"data;pump;standby;Standby;;list;installed|crate\n")));
+				"data;pump;standby;Standby\n")));
 			Element *pump = place(m_folio, m_pump);
 			ElementDataWidget section(pump);
 			section.setLiveEdit(true);
-			auto *standby = qobject_cast<QComboBox *>(section.fieldOf(QStringLiteral("pid_standby")));
+			auto *standby = qobject_cast<QComboBox *>(section.fieldOf(PidCodification::standbyKey()));
 			QVERIFY(standby);
-			QCOMPARE(standby->count(), 3);   // none, installed, crate
+			QCOMPARE(standby->count(), 3);   // none, installed, spare
 			QCOMPARE(standby->currentIndex(), 0);
+			QCOMPARE(standby->itemText(1), QStringLiteral("Installed standby"));
+			QCOMPARE(standby->itemText(2), QStringLiteral("Spare in its crate"));
 			QVERIFY(!pump->elementInformations().contains(QStringLiteral("pid_standby")));
 
-			standby->setCurrentIndex(standby->findData(QStringLiteral("crate")));
+			standby->setCurrentIndex(standby->findData(PidCodification::standbySpare()));
 			emit standby->activated(standby->currentIndex());
-			QCOMPARE(held(pump, QStringLiteral("pid_standby")), QStringLiteral("crate"));
-			standby->setCurrentIndex(standby->findData(QStringLiteral("installed")));
+			QCOMPARE(held(pump, QStringLiteral("pid_standby")), QStringLiteral("spare"));
+			standby->setCurrentIndex(standby->findData(PidCodification::standbyInstalled()));
 			emit standby->activated(standby->currentIndex());
 			QCOMPARE(held(pump, QStringLiteral("pid_standby")), QStringLiteral("installed"));
 				// no standby: nothing is written

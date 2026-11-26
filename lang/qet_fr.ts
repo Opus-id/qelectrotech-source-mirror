@@ -16148,6 +16148,14 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <source>Dash and dot</source>
         <translation>Trait-point</translation>
     </message>
+    <message>
+        <source>Installed standby</source>
+        <translation>Secours installé</translation>
+    </message>
+    <message>
+        <source>Spare in its crate</source>
+        <translation>Secours en caisse</translation>
+    </message>
 </context>
 <context>
     <name>PidConfigPage</name>

@@ -241,7 +241,7 @@ void ElementDataWidget::updateUi()
 			list->clear();
 			list->addItem(QString(), QString());
 			for (const QString &value : std::as_const(row.field.values)) {
-				list->addItem(value, value);
+				list->addItem(PidCodification::dataValueName(row.field, value), value);
 			}
 				//A value the list has no more is kept, and shown
 			int index = held.isEmpty() ? 0 : list->findData(held);

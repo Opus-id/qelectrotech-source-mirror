@@ -1234,6 +1234,11 @@ bool PidCodification::addDataField(DataField field)
 	if (field.name.startsWith(dataPrefix())) {
 		field.name.remove(0, dataPrefix().size());
 	}
+		//The standby: its values are those QElectroTech knows, never typed
+	if (field.key() == standbyKey()) {
+		field.kind = DataKind::List;
+		field.values = standbyValues();
+	}
 	if (!isDataName(field.name) || field.classes.isEmpty()
 		|| (field.kind == DataKind::List) == field.values.isEmpty()) {
 		return false;
@@ -1245,6 +1250,24 @@ bool PidCodification::addDataField(DataField field)
 	}
 	data_fields << field;
 	return true;
+}
+
+/**
+	@brief PidCodification::dataValueName
+	See the declaration
+*/
+QString PidCodification::dataValueName(const DataField &field, const QString &value)
+{
+	if (field.key() == standbyKey())
+	{
+		if (value == standbyInstalled()) {
+			return QCoreApplication::translate("PidCodification", "Installed standby");
+		}
+		if (value == standbySpare()) {
+			return QCoreApplication::translate("PidCodification", "Spare in its crate");
+		}
+	}
+	return value;
 }
 
 /**

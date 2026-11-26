@@ -153,7 +153,8 @@ class PidCodification
 			/// What a datum of a symbol is, see DataField
 		enum class DataKind { Text, Number, List, YesNo };
 			/// A datum the project asks of its symbols of some classes (step
-			/// 9b), such as the power of a pump: QElectroTech knows none. The
+			/// 9b), such as the power of a pump: QElectroTech knows none but
+			/// the standby (standbyKey()). The
 			/// placed symbol keeps its value in an information of its own, as
 			/// a custom property of QElectroTech (the key key(), "pid_power"),
 			/// written only when it is filled; the project says here how it is
@@ -197,7 +198,8 @@ class PidCodification
 			/// Add @p field after the others; false, nothing changed, when its
 			/// name cannot be one or is there already, when it has no class,
 			/// or when it is a list without values or has values without
-			/// being a list. A name given with dataPrefix() loses it.
+			/// being a list. A name given with dataPrefix() loses it. The
+			/// standby (standbyKey()) is made a list of standbyValues().
 		bool addDataField(DataField field);
 			/// The data the symbols of class @p pid_class have, in order; none
 			/// for no class
@@ -211,6 +213,22 @@ class PidCodification
 			/// the values of a list (a bar): signs no separator of a CSV file
 			/// cuts
 		static QChar dataValueSeparator() { return QLatin1Char('|'); }
+			/// The one datum QElectroTech knows by its name, as two papers
+			/// given to others hang on it: a symbol is no standby (nothing
+			/// written), an installed standby (connected; in the list of
+			/// motors, out of the power in service) or a spare kept in its
+			/// crate (drawn, not connected; out of the list of motors, in
+			/// the quantity to buy). The project says which classes have it
+			/// and how it is named ("data;pump;standby;Standby"); its kind is
+			/// always a list of standbyValues(), whatever the file says, so
+			/// that no value is typed.
+		static QString standbyKey() { return QStringLiteral("pid_standby"); }
+		static QString standbyInstalled() { return QStringLiteral("installed"); }
+		static QString standbySpare() { return QStringLiteral("spare"); }
+		static QStringList standbyValues() { return {standbyInstalled(), standbySpare()}; }
+			/// What the user reads for the value @p value of the datum
+			/// @p field: translated for those of the standby; else the value
+		static QString dataValueName(const DataField &field, const QString &value);
 
 			/// The DN of the project which are the same size of line, by
 			/// pairs, the smaller first, in order: DN 60 exists for cast
