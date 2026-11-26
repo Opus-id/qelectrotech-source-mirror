@@ -903,7 +903,19 @@ refused by it); a column is only ever added, at the end:
 | `qet_pid_equipment_data` | value such a symbol holds | `uuid`, `name` (`pid_power`, `option_motor`), `value` |
 | `qet_pid_codes` | code of the codification | `list` (`unit`, `fluid`, `material`, `letters`), `code`, `name` |
 
-The electrical lists do not tell pipes from wires yet.
+The electrical lists leave the P&ID out. Pipes and signal lines are in no
+list of wires: the wiring list (window, `--export-wiring`), the list of
+`--export-cables`, the wire numbers (`--export-wires`), the nets of
+`--export-nets`, the *Wire list* of *Reports* and the wiring table placed on
+a folio. The symbols of a P&ID (those with a `pid_family`) are in no
+electrical nomenclature: the window, `--export-bom`, a nomenclature table,
+the *Parts list* of *Reports* and the device table placed on a folio. A
+command says how many it left out ("2 line(s) of another medium (pipes,
+signal lines) left out.", "2 P&ID symbol(s) left out."); it says nothing
+for an electrical project. The public views keep every row: `qet_wires`
+has one column more, last, `medium` (`pipe`, `signal`; empty for a wire),
+for a script to choose; `qet_devices` and `qet_device_list` list the P&ID
+symbols too.
 
 ## Read this before using it on real work
 
