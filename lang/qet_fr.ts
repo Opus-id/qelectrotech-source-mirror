@@ -19820,6 +19820,11 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <source>Function</source>
         <translation>Fonction</translation>
     </message>
+    <message>
+        <location filename="../sources/reports/projectreports.cpp" line="347"/>
+        <source>P&amp;ID equipment list</source>
+        <translation>Nomenclature P&amp;ID</translation>
+    </message>
 </context>
 <context>
     <name>ProjectView</name>

@@ -53,6 +53,10 @@ namespace ProjectReports
 		bool places_inside = false;  ///< ...among others, as a list of them
 		QString order;               ///< ORDER BY what
 		bool potentials = false;     ///< reads the TEMP potential views
+			/// A view of (uuid, name, value) beside the source, whose rows
+			/// have a uuid too: each name it holds in the project becomes
+			/// one column more, called by that name, in name order
+		QString pivot;
 		QList<Column> columns;
 	};
 

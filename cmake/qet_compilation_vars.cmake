@@ -282,6 +282,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/pidcodification.h
   ${QET_DIR}/sources/pidtag.cpp
   ${QET_DIR}/sources/pidtag.h
+  ${QET_DIR}/sources/pidlists.cpp
+  ${QET_DIR}/sources/pidlists.h
   ${QET_DIR}/sources/pidlinedesignation.cpp
   ${QET_DIR}/sources/pidlinedesignation.h
   ${QET_DIR}/sources/pidinsulation.cpp

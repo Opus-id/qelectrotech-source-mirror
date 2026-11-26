@@ -18,6 +18,7 @@
 #include "projectdatabase.h"
 #include <qetversion.h>
 #include "sqlreadonly.h"
+#include "../pidlists.h"
 
 #include <autoNum/assignvariables.h>
 #include <borderproperties.h>
@@ -2939,6 +2940,10 @@ QSqlQuery projectDataBase::newQuery(const QString &query, QString *error) {
 			QRegularExpression::CaseInsensitiveOption);
 	if (potential_objects.match(query).hasMatch()) {
 		potentialTypeMismatchesOf(m_data_base);
+	}
+		//The lists of a P&ID are TEMP too, and made in the same way
+	if (PidLists::namedIn(query)) {
+		PidLists::refresh(m_data_base);
 	}
 
 	// First gate: which kind of statement is acceptable here at all. A

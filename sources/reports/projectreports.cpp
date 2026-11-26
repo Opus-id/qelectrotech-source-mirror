@@ -19,6 +19,7 @@
 
 #include "../autoNum/assignvariables.h"
 #include "../dataBase/projectdatabase.h"
+#include "../pidlists.h"
 #include "../qetproject.h"
 
 #include <QCoreApplication>
@@ -335,7 +336,40 @@ namespace ProjectReports
 						 {QStringLiteral("unsized"), Text::tr("Parts without a size")}};
 			list << r;
 		}
+		{
+				//The equipment of a P&ID (PidLists): the symbols with a tag,
+				//then one column per value they hold. An exchange file read
+				//by a spreadsheet or another program: its columns keep the
+				//names of the view, in every language. The places of the
+				//electrical structure do not apply to it.
+			Report r;
+			r.id = QStringLiteral("pid_equipment");
+			r.title = Text::tr("P&ID equipment list");
+			r.source = PidLists::equipmentView();
+			r.pivot = PidLists::equipmentDataView();
+			r.order = QStringLiteral("unit, CAST(train AS INTEGER), train, label, uuid");
+			for (const QString &column : PidLists::equipmentColumns())
+				if (column != QLatin1String("folio_uuid"))
+					r.columns << Column{column, column};
+			list << r;
+		}
 		return list;
+	}
+
+		/// @p report with one column more per name its pivot view holds in
+		/// @p project, and no pivot left to do
+	static Report pivoted(QETProject *project, Report report)
+	{
+		QSqlQuery names = project->dataBase()->newQuery(
+				QStringLiteral("SELECT DISTINCT name FROM %1 ORDER BY name").arg(report.pivot));
+		while (names.next()) {
+			const QString name = names.value(0).toString();
+			report.columns << Column{QStringLiteral("SELECT p.value FROM %1 p WHERE p.uuid = %2.uuid "
+													"AND p.name = %3 LIMIT 1")
+									 .arg(report.pivot, report.source, quoted(name)), name};
+		}
+		report.pivot.clear();
+		return report;
 	}
 
 	Report report(const QString &id)
@@ -423,7 +457,7 @@ namespace ProjectReports
 		for (int i = 0 ; i < report.columns.size() ; ++i)
 			columns << QStringLiteral("(%1) AS c%2").arg(report.columns.at(i).sql).arg(i);
 		QString text = QStringLiteral("SELECT %1 FROM %2").arg(columns.join(QStringLiteral(", ")), report.source);
-		if (!place.plant.isEmpty() || !place.location.isEmpty()) {
+		if (!report.places.isEmpty() && (!place.plant.isEmpty() || !place.location.isEmpty())) {
 			QStringList tests;
 			const QStringList starts = prefixes(place);
 			for (const QString &column : report.places) {
@@ -447,6 +481,11 @@ namespace ProjectReports
 	*/
 	Table read(QETProject *project, const Report &report, const Place &place)
 	{
+			//Its columns depend on the project: found first
+		if (!report.pivot.isEmpty() && project && project->dataBase()) {
+			project->dataBase()->updateDB();
+			return read(project, pivoted(project, report), place);
+		}
 		Table table;
 		for (const Column &column : report.columns)
 			table.headers << column.title;

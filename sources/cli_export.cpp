@@ -36,6 +36,7 @@
 #include "ElementsCollection/librarylisting.h"
 #include "exportproperties.h"
 #include "pdf_links.h"
+#include "pidlists.h"
 #include "container/qetcontainer.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/diagramimageitem.h"
@@ -1236,6 +1237,9 @@ int queryDatabaseFile(const QString &file, const QString &sql, Print print, QStr
 					QRegularExpression::CaseInsensitiveOption);
 			if (error->isEmpty() && potential_objects.match(sql).hasMatch())
 				projectDataBase::potentialTypeMismatchesOf(db);
+				//The lists of a P&ID, TEMP in the same way
+			if (error->isEmpty() && PidLists::namedIn(sql))
+				PidLists::refresh(db);
 			if (error->isEmpty() && projectDataBase::isReadOnlySelect(sql, error)) {
 				QSqlQuery query = QETSql::execReadOnly(db, sql, error);
 				if (error->isEmpty() && query.lastError().isValid())

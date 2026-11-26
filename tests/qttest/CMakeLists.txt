@@ -1012,6 +1012,13 @@ add_dependencies(tst_symbolchoicerows qelectrotech)
 target_link_libraries(tst_symbolchoicerows PRIVATE Qt::Test Qt::Xml)
 target_compile_definitions(tst_symbolchoicerows PRIVATE
   "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
+# The equipment list of a P&ID (step 9l): the symbols with a tag through two
+# TEMP views, the same from .qet, .qetz and .qetdb, never saved in a file;
+# one column per value they hold in the list of Project > Reports.
+qet_add_app_test(tst_pidequipmentlist tst_pidequipmentlist.cpp)
+add_dependencies(tst_pidequipmentlist qelectrotech)
+target_compile_definitions(tst_pidequipmentlist PRIVATE
+  "QET_TEST_BINARY_PATH=\"$<TARGET_FILE:qelectrotech>\"")
 # "Correct" on a size reported (8r-3 a): a diamond of two sizes offers its size
 # to the line or the size of the line to the nozzle; an inline item between two
 # sizes, either for the whole line; a band, the sizes of the series around it.
