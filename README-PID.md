@@ -656,6 +656,24 @@ line.*
   says so (`tag_option;instrument_numbering;parallel`), one sequence for
   each measured variable, their first letter. A loop copied whole gets one
   new number. Equipment and valves keep a sequence of their own.
+- **Data of a symbol, declared by the project**: QElectroTech knows no
+  field such as the power of a pump. The codification of the project
+  declares them by class of symbol (`pid_class`), one line of its file for
+  each: `data;pump blower;power;Rated power;kW;number`, then for a list
+  its values, `data;pump;starter;Starter;;list;direct|soft starter|drive`
+  (kinds: `text`, `number`, `list`, `yes_no`; a last field may keep the
+  name DEXPI gives it). A *Data* section of the *P&ID* tab then has one
+  line for each, named in clear, with its unit. Nothing new is stored: a
+  value is an information of the placed symbol named `pid_` then the name
+  (`pid_power`), exactly as a custom property of QElectroTech, written only
+  when filled, which a text of the symbol can show (`%{pid_power}`) and
+  *Change type* keeps. The *Informations* tab no longer shows the `pid_`
+  rows of a P&ID symbol (an electrical element keeps them all); a filled
+  one the project does not declare is shown in *Data* under its key, never
+  hidden. Two data are known by name, `pid_standby` (installed standby)
+  and `pid_spare` (spare kept in its crate): the section tells when both
+  are ticked, and blocks nothing. No editor of these declarations yet:
+  they come from the file of codes.
 - **Line designation**: the model of the lines in the presentation of the
   project (CSV line `tag_model;line;{fluid} {size} {material}`, or the
   *Models* section of the *Texts* tab) puts the
@@ -847,6 +865,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never`; on the block, `same_connection`, `same_size`, `same_mark` = `false` | those of the symbol and the project; nozzles linked | a nozzle of the placed symbol is changed, or a link undone |
 | `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
 | `.qet`, `<element>` | information `pid_letters` | letters of identification of an instrument (`PT`) | the identifier of its symbol | the letters of an instrument are typed |
+| `.qet`, `<element>` | information `pid_<name>` (`pid_power`, `pid_standby`) | the value alone, without its unit: text, number with a point, a value of a list, `true` | empty | a line of the *Data* section is filled; stored as a custom property of QElectroTech is |
 | `.qet`, `<element>` | `pid_tool_placed` | `true` | `false`: placed by the user | a blind flange the pipe tool placed on a free end; it goes with the pipe it closes |
 | `.qet`, `<conductor>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
@@ -864,6 +883,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<project>` | `<text_leaders distance end/>` | `distance` in mm (`5`); `end` = `dot`, `arrow` | none: no leader line; a plain end | the leader lines of the texts are on |
 | `.qet`, `<project>` | `<pid_codification>` block | fluids, materials and their sizes, functional units, instrument letters (`<instrument_letters code name/>`), equal DN, tag models, colors, text sizes, text options | none | the project has a codification |
 | `.qet`, `<project>` | `<wire_crossings hop shape/>` | `hop` = `thinner` (QElectroTech: `horizontal`, `vertical`); `shape` = `gap` | no hop; an arc | the thinner line gives way; a gap instead of an arc |
+| `.qet`, `<pid_codification>` | `<data_field name classes label unit kind values dexpi/>` | `name` in small letters (`power`); `classes` = the `pid_class` of the symbols which have it, separated by spaces; `kind` = `number`, `list`, `yes_no`; `values` of a list separated by bars | no data field; `kind` = text | the project declares data for its symbols |
 | `.qet`, `<pid_codification>` | `insulation_stub` | length of the insulation stubs in mm | `8` | another length |
 | `.qet`, `<pid_codification>` | `<line_kind code name width pattern/>` | `code` = `main`, `secondary`, `auxiliary` or a code the project adds; `name` (an added kind only); `width` in mm; `pattern` = `solid`, `dashes`, `short_dashes`, `dash_dot` | the three kinds of ISO 10628-1: 1 mm; 0.5 mm; 0.5 mm in dashes | a kind of ISO changed, or a kind added (page *P&ID*, *Lines*) |
 | `.qet`, `<pid_codification>` | `symbols_follow_pipes` | `false` | `true`: valves and instruments on a line take the color their pipes agree on | they keep the color of their family |
