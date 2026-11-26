@@ -39,6 +39,7 @@
 #include <undocommand/changeelementinformationcommand.h>
 #include <devicetype/devicetype.h>
 #include "customelementinfopartwidget.h"
+#include "elementdatawidget.h"
 #include "elementinfopartwidget.h"
 #include "placesuggestions.h"
 
@@ -132,6 +133,20 @@ void ElementInfoWidget::setElement(Element *element)
 bool ElementInfoWidget::labelMadeByPidTag() const
 {
 	return m_element && !m_element->pidTagModel().isEmpty();
+}
+
+/**
+	@brief ElementInfoWidget::shownCustomKeys
+	See the declaration. An electrical element has no P&ID tab: all its
+	custom properties are shown, as before.
+*/
+QStringList ElementInfoWidget::shownCustomKeys(const DiagramContext &info) const
+{
+	QStringList keys = QETInformation::elementCustomInfoKeys(info.keys());
+	keys.removeIf([this](const QString &key) {
+		return ElementDataWidget::hides(m_element.data(), key);
+	});
+	return keys;
 }
 
 /**
@@ -592,7 +607,7 @@ void ElementInfoWidget::updateUi()
 		ui->scroll_vlayout->removeWidget(w);
 		delete w;
 	}
-	for (const QString &key : QETInformation::elementCustomInfoKeys(element_info.keys())) {
+	for (const QString &key : shownCustomKeys(element_info)) {
 		addCustomProperty(key, element_info[key].toString());
 	}
 
@@ -628,7 +643,9 @@ DiagramContext ElementInfoWidget::currentInfo() const
 	// (e.g. ElementArticlesWidget) are preserved untouched.
 	DiagramContext info_ = m_element ? m_element->elementInformations() : DiagramContext();
 
-	for (const QString &key : QETInformation::elementCustomInfoKeys(info_.keys())) {
+		//Only the custom properties this tab shows are taken out, to be put
+		//back from its rows: one it does not show is kept as it is
+	for (const QString &key : shownCustomKeys(info_)) {
 		info_.remove(key);
 	}
 

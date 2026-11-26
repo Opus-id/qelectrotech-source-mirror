@@ -1056,6 +1056,10 @@ qet_add_app_test(tst_elementchangetype tst_elementchangetype.cpp)
 # The tag of a P&ID symbol: identifier given by the symbol, unit, train and
 # order of the placed element, label made by the model of the project.
 qet_add_app_test(tst_elementtag tst_elementtag.cpp)
+# The data a project asks of its P&ID symbols, by class: declared in its
+# codification, typed in the Data section of the P&ID tab, kept as information
+# of the element; the Informations tab neither shows nor loses them.
+qet_add_app_test(tst_elementdata tst_elementdata.cpp)
 # The optional "line-cap" style of element primitives (round or flat ends of
 # lines); square, the former behaviour, stays the default.
 qet_add_app_test(tst_elementlinecap tst_elementlinecap.cpp)

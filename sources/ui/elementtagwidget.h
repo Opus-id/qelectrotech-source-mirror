@@ -57,6 +57,10 @@ class ElementTagWidget : public AbstractElementPropertiesEditorWidget
 			/// Whether @p element is a P&ID symbol that takes a tag: an
 			/// equipment, a valve or an instrument
 		static bool isWanted(const Element *element);
+			/// The keys of the information of @p element this section shows:
+			/// the fields of its tag, the letters for an instrument only;
+			/// none when it is not wanted
+		static QStringList shownKeys(const Element *element);
 
 		void setElement(Element *element) override;
 		void apply() override;

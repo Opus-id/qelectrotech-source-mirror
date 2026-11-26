@@ -1054,6 +1054,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/elementoptionswidget.h
   ${QET_DIR}/sources/ui/elementtagwidget.cpp
   ${QET_DIR}/sources/ui/elementtagwidget.h
+  ${QET_DIR}/sources/ui/elementdatawidget.cpp
+  ${QET_DIR}/sources/ui/elementdatawidget.h
   ${QET_DIR}/sources/ui/elementcommentwidget.cpp
   ${QET_DIR}/sources/ui/elementcommentwidget.h
   ${QET_DIR}/sources/ui/multielementinfowidget.cpp

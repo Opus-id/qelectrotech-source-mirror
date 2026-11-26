@@ -150,6 +150,73 @@ class PidCodification
 		QList<Entry> &entries(List list);
 		const QList<Entry> &entries(List list) const;
 
+			/// What a datum of a symbol is, see DataField
+		enum class DataKind { Text, Number, List, YesNo };
+			/// A datum the project asks of its symbols of some classes (step
+			/// 9b), such as the power of a pump: QElectroTech knows none. The
+			/// placed symbol keeps its value in an information of its own, as
+			/// a custom property of QElectroTech (the key key(), "pid_power"),
+			/// written only when it is filled; the project says here how it is
+			/// named, in what unit, and what it may be.
+		struct DataField
+		{
+				/// Its short name, in small letters ("power"), unique: the
+				/// information of the symbol is this name after dataPrefix()
+			QString name;
+				/// The classes of the symbols which have it (pid_class of
+				/// their .elmt: "pump", "blower"), one at least
+			QStringList classes;
+				/// What the user reads, in the language of the project; none:
+				/// the name
+			QString label;
+				/// Its unit ("kW"), shown after the value, which is kept alone
+			QString unit;
+			DataKind kind = DataKind::Text;
+				/// The values of a list, in order
+			QStringList values;
+				/// The name DEXPI gives it, kept for an export; none here
+			QString dexpi;
+
+			QString key() const { return dataPrefix() + name; }
+			QString title() const { return label.isEmpty() ? name : label; }
+			bool operator==(const DataField &other) const {
+				return name == other.name && classes == other.classes && label == other.label
+						&& unit == other.unit && kind == other.kind && values == other.values
+						&& dexpi == other.dexpi;
+			}
+		};
+			/// The data of the symbols the project declares, in the order
+			/// they are shown
+		QList<DataField> data_fields;
+			/// What begins the key of every datum of a P&ID symbol
+		static QString dataPrefix() { return QStringLiteral("pid_"); }
+			/// @p name may be the name of a datum: small letters, digits and
+			/// "_", a letter first, and not a field of the tag (PidTag), which
+			/// has a place of its own
+		static bool isDataName(const QString &name);
+			/// Add @p field after the others; false, nothing changed, when its
+			/// name cannot be one or is there already, when it has no class,
+			/// or when it is a list without values or has values without
+			/// being a list. A name given with dataPrefix() loses it.
+		bool addDataField(DataField field);
+			/// The data the symbols of class @p pid_class have, in order; none
+			/// for no class
+		QList<DataField> dataFieldsOf(const QString &pid_class) const;
+			/// The word of @p kind in a file: "text", "number", "list", "yes_no"
+		static QString dataKindToString(DataKind kind);
+			/// Reads it (or its French word; nothing: a text); false, nothing
+			/// changed, for another word
+		static bool dataKindFromString(const QString &word, DataKind &kind);
+			/// What separates the classes of a datum in a file (a space) and
+			/// the values of a list (a bar): signs no separator of a CSV file
+			/// cuts
+		static QChar dataValueSeparator() { return QLatin1Char('|'); }
+			/// The two data which say a symbol a standby: installed, or kept
+			/// in its crate. Never both (ElementDataWidget tells it, and
+			/// blocks nothing); the project declares them as any other.
+		static QString standbyKey() { return QStringLiteral("pid_standby"); }
+		static QString spareKey() { return QStringLiteral("pid_spare"); }
+
 			/// The DN of the project which are the same size of line, by
 			/// pairs, the smaller first, in order: DN 60 exists for cast
 			/// iron only, where other materials have DN 65, and their
@@ -587,7 +654,9 @@ class PidCodification
 			/// What writes a size with the separator of the project
 		QLocale locale() const;
 
-		bool hasCodes() const { return hasCodeLists() || !equal_nominals.isEmpty(); }
+		bool hasCodes() const {
+			return hasCodeLists() || !equal_nominals.isEmpty() || !data_fields.isEmpty();
+		}
 		bool hasCodeLists() const {
 			return !fluids.isEmpty() || !materials.isEmpty() || !functional_units.isEmpty()
 					|| !instrument_letters.isEmpty();
@@ -629,8 +698,9 @@ class PidCodification
 
 			/// This codification, with the codes of @p other when it has
 			/// none (and its equal DN when it has none either), its colours
-			/// when it has none, its settings of texts when it has none and
-			/// its marks of signal lines when it says none: a file of codes
+			/// when it has none, its settings of texts when it has none, its
+			/// marks of signal lines when it says none and the data of its
+			/// symbols when it declares none: a file of codes
 			/// does not take the colours of a project away, nor the reverse
 		PidCodification completedWith(const PidCodification &other) const;
 
@@ -683,7 +753,13 @@ class PidCodification
 			/// "signal_mark;pneumatic;bar2" ("marque_signal": a type of signal
 			/// and the mark of its lines, by their words of the files; a file
 			/// which has some says them all, a type it leaves out taking the
-			/// default one); the separator
+			/// default one), and of lines
+			/// "data;pump blower;power;Power;kW;number" ("donnée": a datum of
+			/// the symbols, DataField: the classes which have it, separated by
+			/// spaces, its name, what the user reads, its unit, its kind
+			/// (dataKindFromString()), then for a list its values separated by
+			/// bars, "direct|starter|drive", and last the name DEXPI gives it;
+			/// a file which has some says them all); the separator
 			/// may also be a tab or a comma, a first line naming the columns
 			/// is skipped, and so is a line that cannot be read, counted in
 			/// @p skipped. Returns the codification read, empty when none.
@@ -700,8 +776,8 @@ class PidCodification
 			/// kept in the settings, for new projects. The codes stay out,
 			/// kept apart (codesToCsv())
 		QString presentationToCsv() const;
-			/// The codes, the sizes of the materials and the equal DN, as
-			/// lines fromCsv() reads: the codification
+			/// The codes, the sizes of the materials, the equal DN and the
+			/// data of the symbols, as lines fromCsv() reads: the codification
 			/// kept in the settings, for new projects, apart from the
 			/// presentation, as a company may keep its colours with codes of
 			/// another client

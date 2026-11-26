@@ -2658,7 +2658,8 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 		//the page
 	const bool presentation = read.hasColors() || read.hasTextSettings();
 	QStringList what;
-	if (read.hasCodeLists() || (sizes_alone.isEmpty() && !presentation && !signal_marks)) {
+	const int data_fields = int(read.data_fields.size());
+	if (read.hasCodeLists() || (sizes_alone.isEmpty() && !presentation && !signal_marks && !data_fields)) {
 		what << tr("%1 fluids, %2 materials, %3 functional units and %4 instrument letters")
 				.arg(read.fluids.size()).arg(read.materials.size())
 				.arg(read.functional_units.size()).arg(read.instrument_letters.size());
@@ -2671,6 +2672,10 @@ bool PidConfigPage::importCsv(const QStringList &paths)
 		//The marks of the signal lines apart: a file may bring them alone
 	if (signal_marks) {
 		what << tr("the marks of the signal lines");
+	}
+		//So are the data of the symbols, which replace those of the page
+	if (data_fields) {
+		what << tr("%n data field(s) of the symbols", "", data_fields);
 	}
 	QString message = tr("Read: %1. Apply this page to keep them.").arg(what.join(QStringLiteral("; ")));
 	if (skipped) {

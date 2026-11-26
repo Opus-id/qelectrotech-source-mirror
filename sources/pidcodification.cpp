@@ -17,11 +17,14 @@
 */
 #include "pidcodification.h"
 
+#include "pidtag.h"
 #include "pipeproperties.h"
 #include "qetapp.h"
+#include "qetinformation.h"
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QRegularExpression>
 #include <QSet>
 #include <QStringList>
 
@@ -108,6 +111,34 @@ namespace
 	const QString serial_word = QStringLiteral("serial");
 	const QString parallel_word = QStringLiteral("parallel");
 	const QString letters_word = QStringLiteral("letters");
+	const QString data_tag = QStringLiteral("data_field");
+	const QString data_word = QStringLiteral("data");
+
+		/// A datum of the symbols read from a file, in @p field: its classes
+		/// separated by spaces, its name, what the user reads, its unit, the
+		/// word of its kind, its values separated by bars and the name DEXPI
+		/// gives it; false when the word of its kind is not one
+	bool dataFieldFromTexts(const QString &classes, const QString &name, const QString &label,
+							const QString &unit, const QString &kind, const QString &values,
+							const QString &dexpi, PidCodification::DataField &field)
+	{
+		field = PidCodification::DataField();
+		field.name = name.trimmed().toLower();
+		for (const QString &word : classes.split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+			if (!field.classes.contains(word)) {
+				field.classes << word;
+			}
+		}
+		field.label = label.trimmed();
+		field.unit = unit.trimmed();
+		for (const QString &value : values.split(PidCodification::dataValueSeparator(), Qt::SkipEmptyParts)) {
+			if (!value.trimmed().isEmpty() && !field.values.contains(value.trimmed())) {
+				field.values << value.trimmed();
+			}
+		}
+		field.dexpi = dexpi.trimmed();
+		return PidCodification::dataKindFromString(kind, field.kind);
+	}
 
 		/// @p word is the word of a type of signal this version knows,
 		/// written in @p type if given
@@ -1178,6 +1209,91 @@ const QList<PidCodification::Entry> &PidCodification::entries(List list) const
 }
 
 /**
+	@brief PidCodification::isDataName
+	See the declaration
+*/
+bool PidCodification::isDataName(const QString &name)
+{
+	static const QRegularExpression rule(QStringLiteral("^[a-z][a-z0-9_]*$"));
+	if (!rule.match(name).hasMatch()) {
+		return false;
+	}
+		//The fields of the tag, and the texts made of them
+	const QStringList taken{PidTag::unitKey(), PidTag::trainKey(), PidTag::orderKey(),
+							PidTag::lettersKey(), QETInformation::PID_TAG_ID,
+							QETInformation::PID_TAG_REST};
+	return !taken.contains(dataPrefix() + name);
+}
+
+/**
+	@brief PidCodification::addDataField
+	See the declaration
+*/
+bool PidCodification::addDataField(DataField field)
+{
+	if (field.name.startsWith(dataPrefix())) {
+		field.name.remove(0, dataPrefix().size());
+	}
+	if (!isDataName(field.name) || field.classes.isEmpty()
+		|| (field.kind == DataKind::List) == field.values.isEmpty()) {
+		return false;
+	}
+	for (const DataField &known : std::as_const(data_fields)) {
+		if (known.name == field.name) {
+			return false;
+		}
+	}
+	data_fields << field;
+	return true;
+}
+
+/**
+	@brief PidCodification::dataFieldsOf
+	See the declaration
+*/
+QList<PidCodification::DataField> PidCodification::dataFieldsOf(const QString &pid_class) const
+{
+	QList<DataField> fields;
+	if (pid_class.isEmpty()) {
+		return fields;
+	}
+	for (const DataField &field : data_fields) {
+		if (field.classes.contains(pid_class)) {
+			fields << field;
+		}
+	}
+	return fields;
+}
+
+QString PidCodification::dataKindToString(DataKind kind)
+{
+	switch (kind) {
+		case DataKind::Number: return QStringLiteral("number");
+		case DataKind::List:   return QStringLiteral("list");
+		case DataKind::YesNo:  return QStringLiteral("yes_no");
+		case DataKind::Text:   break;
+	}
+	return QStringLiteral("text");
+}
+
+bool PidCodification::dataKindFromString(const QString &word, DataKind &kind)
+{
+	const QString read = word.trimmed().toLower();
+	if (read.isEmpty() || read == QLatin1String("text") || read == QLatin1String("texte")) {
+		kind = DataKind::Text;
+	} else if (read == QLatin1String("number") || read == QLatin1String("nombre")) {
+		kind = DataKind::Number;
+	} else if (read == QLatin1String("list") || read == QLatin1String("liste")) {
+		kind = DataKind::List;
+	} else if (read == QLatin1String("yes_no") || read == QLatin1String("oui_non")) {
+		kind = DataKind::YesNo;
+	} else {
+		return false;
+	}
+	return true;
+}
+
+/**
 	@brief PidCodification::codeLessThan
 	See the declaration; two codes which differ only by their case keep an
 	order of their own, so that the order never depends on the list read
@@ -1386,6 +1502,10 @@ PidCodification PidCodification::completedWith(const PidCodification &other) con
 	if (signal_marks.isEmpty()) {
 		result.signal_marks = other.signal_marks;
 	}
+		//So does a file which declares data of the symbols
+	if (data_fields.isEmpty()) {
+		result.data_fields = other.data_fields;
+	}
 	return result;
 }
 
@@ -1517,6 +1637,29 @@ QDomElement PidCodification::toXml(QDomDocument &document) const
 		e.setAttribute(QStringLiteral("pattern"), linePatternToString(entry.pattern));
 		block.appendChild(e);
 	}
+		//The data of the symbols: what is empty is not written
+	for (const DataField &field : data_fields)
+	{
+		QDomElement e = document.createElement(data_tag);
+		e.setAttribute(QStringLiteral("name"), field.name);
+		e.setAttribute(QStringLiteral("classes"), field.classes.join(QLatin1Char(' ')));
+		if (!field.label.isEmpty()) {
+			e.setAttribute(QStringLiteral("label"), field.label);
+		}
+		if (!field.unit.isEmpty()) {
+			e.setAttribute(QStringLiteral("unit"), field.unit);
+		}
+		if (field.kind != DataKind::Text) {
+			e.setAttribute(QStringLiteral("kind"), dataKindToString(field.kind));
+		}
+		if (!field.values.isEmpty()) {
+			e.setAttribute(QStringLiteral("values"), field.values.join(dataValueSeparator()));
+		}
+		if (!field.dexpi.isEmpty()) {
+			e.setAttribute(QStringLiteral("dexpi"), field.dexpi);
+		}
+		block.appendChild(e);
+	}
 		//Default marks alone: nothing to write
 	if (!block.hasChildNodes() && !block.hasAttributes()) {
 		return QDomElement();
@@ -1634,6 +1777,19 @@ void PidCodification::fromXml(const QDomElement &parent)
 							   e.attribute(QStringLiteral("width")), e.attribute(QStringLiteral("pattern")),
 							   entry)) {
 			setLineKind(entry);
+		}
+	}
+	data_fields.clear();
+	for (QDomElement e = block.firstChildElement(data_tag) ; !e.isNull() ;
+		 e = e.nextSiblingElement(data_tag))
+	{
+			//One which cannot be read, or named as another, is left out
+		DataField field;
+		if (dataFieldFromTexts(e.attribute(QStringLiteral("classes")), e.attribute(QStringLiteral("name")),
+							   e.attribute(QStringLiteral("label")), e.attribute(QStringLiteral("unit")),
+							   e.attribute(QStringLiteral("kind")), e.attribute(QStringLiteral("values")),
+							   e.attribute(QStringLiteral("dexpi")), field)) {
+			addDataField(field);
 		}
 	}
 }
@@ -1783,6 +1939,16 @@ QString PidCodification::codesToCsv() const
 	for (const QPair<int, int> &pair : equal_nominals) {
 		text += QStringLiteral("dn_equal;") + QString::number(pair.first) + QLatin1Char(';')
 				+ QString::number(pair.second) + QLatin1Char('\n');
+	}
+		//A datum of the symbols by line, its last empty fields left out
+	for (const DataField &field : data_fields) {
+		QStringList fields{data_word, csvField(field.classes.join(QLatin1Char(' '))), field.name,
+						   csvField(field.label), csvField(field.unit), dataKindToString(field.kind),
+						   csvField(field.values.join(dataValueSeparator())), csvField(field.dexpi)};
+		while (fields.last().isEmpty()) {
+			fields.removeLast();
+		}
+		text += fields.join(QLatin1Char(';')) + QLatin1Char('\n');
 	}
 	return text;
 }
@@ -2058,6 +2224,18 @@ PidCodification PidCodification::fromCsv(const QString &text, int *skipped,
 			}
 			continue;
 		}
+		if (kind == data_word || kind == QStringLiteral("donnée") || kind == QLatin1String("donnee"))
+		{
+				//A kind which is not one, a name which cannot be one or said
+				//twice, no class, a list without values
+			DataField field;
+			if (!dataFieldFromTexts(fields.value(1), fields.value(2), fields.value(3), fields.value(4),
+									fields.value(5), fields.value(6), fields.value(7), field)
+				|| !codification.addDataField(field)) {
+				++left_out;
+			}
+			continue;
+		}
 		const bool is_fluid = kind == QLatin1String("fluid") || kind == QLatin1String("fluide");
 		const bool is_material = kind == QLatin1String("material") || kind == QStringLiteral("matériau")
 							   || kind == QLatin1String("materiau");
@@ -2169,7 +2347,8 @@ bool PidCodification::operator==(const PidCodification &other) const
 			&& tool_symbols == other.tool_symbols
 			&& option_defaults == other.option_defaults
 			&& line_kinds == other.line_kinds
-			&& signal_marks == other.signal_marks;
+			&& signal_marks == other.signal_marks
+			&& data_fields == other.data_fields;
 }
 
 /**

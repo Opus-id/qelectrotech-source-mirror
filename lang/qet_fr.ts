@@ -17096,6 +17096,13 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
         <source>Jacket by the name of its material, after a word (in PVC Ø 63)</source>
         <translation>Gaine par le nom de son matériau, après un mot ({jacket_name:dans} : dans PVC Ø 63)</translation>
     </message>
+    <message numerus="yes">
+        <source>%n data field(s) of the symbols</source>
+        <translation>
+            <numerusform>%n grandeur des symboles</numerusform>
+            <numerusform>%n grandeurs des symboles</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>SignalMark</name>
@@ -37156,6 +37163,33 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
         <location filename="../sources/SearchAndReplace/ui/replaceadvanceddialog.ui" line="92"/>
         <source>What:</source>
         <translation>Quoi :</translation>
+    </message>
+</context>
+<context>
+    <name>ElementDataWidget</name>
+    <message>
+        <source>Data</source>
+        <translation>Données</translation>
+    </message>
+    <message>
+        <source>%1:</source>
+        <translation>%1 :</translation>
+    </message>
+    <message>
+        <source>The information %1 of the element, which a text of its symbol may show</source>
+        <translation>L&apos;information %1 de l&apos;élément, qu&apos;un texte de son symbole peut afficher</translation>
+    </message>
+    <message>
+        <source>The project declares no data field of this name for this class of symbols: emptied, this line goes.</source>
+        <translation>Le projet ne déclare aucune grandeur de ce nom pour cette classe de symboles : une fois vidée, cette ligne disparaît.</translation>
+    </message>
+    <message>
+        <source>A standby is either installed or kept in its crate: both are ticked.</source>
+        <translation>Un secours est soit installé, soit gardé en caisse : les deux sont cochés.</translation>
+    </message>
+    <message>
+        <source>Change the data of an element</source>
+        <translation>Modifier les données d&apos;un élément</translation>
     </message>
 </context>
 </TS>

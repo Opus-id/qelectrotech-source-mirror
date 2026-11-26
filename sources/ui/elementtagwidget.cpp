@@ -152,6 +152,22 @@ bool ElementTagWidget::isWanted(const Element *element)
 }
 
 /**
+	@brief ElementTagWidget::shownKeys
+	See the declaration
+*/
+QStringList ElementTagWidget::shownKeys(const Element *element)
+{
+	if (!isWanted(element)) {
+		return QStringList();
+	}
+	QStringList keys{PidTag::unitKey(), PidTag::trainKey(), PidTag::orderKey()};
+	if (element->elementData().m_pid_family == PidTag::instrumentFamily()) {
+		keys << PidTag::lettersKey();
+	}
+	return keys;
+}
+
+/**
 	@brief ElementTagWidget::asksLetters
 	See the declaration
 */

@@ -35,6 +35,7 @@
 #include "elementnozzleswidget.h"
 #include "elementoptionswidget.h"
 #include "elementtagwidget.h"
+#include "elementdatawidget.h"
 #include "elementcommentwidget.h"
 #include "linksingleelementwidget.h"
 #include "masterpropertieswidget.h"
@@ -436,6 +437,9 @@ void ElementPropertiesWidget::updateUi()
 		//...the tag, made of fields, whose identifier follows the type...
 	if (ElementTagWidget::isWanted(m_element))
 		pid_sections << new ElementTagWidget(m_element, this);
+		//...the data its project asks of the symbols of its class...
+	if (ElementDataWidget::isWanted(m_element))
+		pid_sections << new ElementDataWidget(m_element, this);
 		//...the comment it shows on the folio (where an arrow of inlet
 		//comes from)...
 	if (ElementCommentWidget::isWanted(m_element))

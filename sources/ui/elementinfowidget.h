@@ -86,6 +86,10 @@ class ElementInfoWidget : public AbstractElementPropertiesEditorWidget
 		QString followedScheme() const;
 			/// P&ID: the label is made by the P&ID tab, not typed here
 		bool labelMadeByPidTag() const;
+			/// The custom properties of @p info this tab shows, and so the
+			/// only ones it writes back: all of them, but the "pid_" ones
+			/// of a P&ID symbol, which have their place in its P&ID tab
+		QStringList shownCustomKeys(const DiagramContext &info) const;
 
 	private slots:
 		void firstActivated();
