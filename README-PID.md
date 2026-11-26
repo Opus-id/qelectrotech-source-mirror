@@ -670,11 +670,14 @@ line.*
   *Change type* keeps. The *Informations* tab no longer shows the `pid_`
   rows of a P&ID symbol (an electrical element keeps them all); a filled
   one the project does not declare is shown in *Data* under its key, never
-  hidden. No datum is known by its name in the code: what may not be said
-  together is one datum with a list, such as a standby which is installed
-  or kept in its crate (`data;pump;standby;Standby;;list;installed|crate`,
-  nothing picked for a symbol which is none). No editor of these
-  declarations yet:
+  hidden. One datum is known by its name, as papers given to others hang
+  on it: the standby, `pid_standby`. A symbol is no standby (nothing
+  written), an installed standby (`installed`: connected, in the list of
+  motors, out of the power in service) or a spare kept in its crate
+  (`spare`: drawn, not connected, out of the list of motors, in the
+  quantity to buy). The project says which classes have it and how it is
+  named (`data;pump blower;standby;Standby`); its values are fixed, shown
+  in clear in a list, never typed. No editor of these declarations yet:
   they come from the file of codes.
 - **Line designation**: the model of the lines in the presentation of the
   project (CSV line `tag_model;line;{fluid} {size} {material}`, or the
@@ -868,6 +871,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
 | `.qet`, `<element>` | information `pid_letters` | letters of identification of an instrument (`PT`) | the identifier of its symbol | the letters of an instrument are typed |
 | `.qet`, `<element>` | information `pid_<name>` (`pid_power`, `pid_starter`) | the value alone, without its unit: text, number with a point, a value of a list, `true` | empty | a line of the *Data* section is filled; stored as a custom property of QElectroTech is |
+| `.qet`, `<element>` | information `pid_standby` | `installed`, `spare` (kept in its crate) | none: no standby | the symbol is a standby (a line of the *Data* section, for the classes the project says) |
 | `.qet`, `<element>` | `pid_tool_placed` | `true` | `false`: placed by the user | a blind flange the pipe tool placed on a free end; it goes with the pipe it closes |
 | `.qet`, `<conductor>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
