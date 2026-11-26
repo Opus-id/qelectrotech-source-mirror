@@ -85,8 +85,8 @@ class tst_elementdata : public QObject
 			"kind;code;name;family\n"
 			"data;pump blower;power;Rated power;kW;number\n"
 			"data;pump blower;starter;Starter;;list;direct|soft starter|drive\n"
-			"data;pump blower;standby;Installed standby;;yes_no\n"
-			"data;pump;spare;Spare in its crate;;yes_no\n"
+			"data;pump blower;insulated;Insulated;;yes_no\n"
+			"data;pump;checked;Checked;;yes_no\n"
 			"data;pump;note;;;text;;PumpNote\n");
 	}
 
@@ -227,8 +227,8 @@ class tst_elementdata : public QObject
 			ElementDataWidget section(pump);
 			QVERIFY(qobject_cast<QLineEdit *>(section.fieldOf(QStringLiteral("pid_power"))));
 			QVERIFY(qobject_cast<QComboBox *>(section.fieldOf(QStringLiteral("pid_starter"))));
-			QVERIFY(qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_standby"))));
-			QVERIFY(qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_spare"))));
+			QVERIFY(qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_insulated"))));
+			QVERIFY(qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_checked"))));
 			QVERIFY(qobject_cast<QLineEdit *>(section.fieldOf(QStringLiteral("pid_note"))));
 			QVERIFY(!section.fieldOf(QStringLiteral("pid_unit")));
 				// named in clear, with the unit
@@ -260,17 +260,17 @@ class tst_elementdata : public QObject
 
 			auto *power = qobject_cast<QLineEdit *>(section.fieldOf(QStringLiteral("pid_power")));
 			auto *starter = qobject_cast<QComboBox *>(section.fieldOf(QStringLiteral("pid_starter")));
-			auto *standby = qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_standby")));
-			QVERIFY(power && starter && standby);
+			auto *insulated = qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_insulated")));
+			QVERIFY(power && starter && insulated);
 			power->setText(QStringLiteral("7,5"));
 			starter->setCurrentIndex(starter->findData(QStringLiteral("drive")));
-			standby->setChecked(true);
+			insulated->setChecked(true);
 			section.apply();
 				// a file has a point, whatever the project writes
 			QCOMPARE(held(pump, QStringLiteral("pid_power")), QStringLiteral("7.5"));
 			QCOMPARE(held(pump, QStringLiteral("pid_starter")), QStringLiteral("drive"));
-			QCOMPARE(held(pump, QStringLiteral("pid_standby")), QStringLiteral("true"));
-			QVERIFY(!pump->elementInformations().contains(QStringLiteral("pid_spare")));
+			QCOMPARE(held(pump, QStringLiteral("pid_insulated")), QStringLiteral("true"));
+			QVERIFY(!pump->elementInformations().contains(QStringLiteral("pid_checked")));
 			QVERIFY(!pump->elementInformations().contains(QStringLiteral("pid_note")));
 			QCOMPARE(power->text(), QStringLiteral("7,5"));
 			QVERIFY(!section.associatedUndo());
@@ -278,7 +278,7 @@ class tst_elementdata : public QObject
 			m_folio->undoStack().undo();
 			QVERIFY(!pump->elementInformations().contains(QStringLiteral("pid_power")));
 			QCOMPARE(power->text(), QString());   // the section follows
-			QVERIFY(!standby->isChecked());
+			QVERIFY(!insulated->isChecked());
 			m_folio->undoStack().redo();
 			QCOMPARE(power->text(), QStringLiteral("7,5"));
 			QCOMPARE(starter->currentData().toString(), QStringLiteral("drive"));
@@ -286,10 +286,10 @@ class tst_elementdata : public QObject
 				// emptied, unticked, nothing picked: the information goes
 			power->clear();
 			starter->setCurrentIndex(0);
-			standby->setChecked(false);
+			insulated->setChecked(false);
 			section.apply();
 			for (const QString &key : {QStringLiteral("pid_power"), QStringLiteral("pid_starter"),
-									   QStringLiteral("pid_standby")}) {
+									   QStringLiteral("pid_insulated")}) {
 				QVERIFY2(!pump->elementInformations().contains(key), qPrintable(key));
 			}
 		}
@@ -301,10 +301,10 @@ class tst_elementdata : public QObject
 			Element *pump = place(m_folio, m_pump);
 			ElementDataWidget section(pump);
 			section.setLiveEdit(true);
-			auto *spare = qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_spare")));
-			QVERIFY(spare);
-			spare->click();
-			QCOMPARE(held(pump, QStringLiteral("pid_spare")), QStringLiteral("true"));
+			auto *checked = qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_checked")));
+			QVERIFY(checked);
+			checked->click();
+			QCOMPARE(held(pump, QStringLiteral("pid_checked")), QStringLiteral("true"));
 			auto *note = qobject_cast<QLineEdit *>(section.fieldOf(QStringLiteral("pid_note")));
 			note->setText(QStringLiteral("to be confirmed"));
 			emit note->editingFinished();
@@ -316,7 +316,7 @@ class tst_elementdata : public QObject
 		{
 			m_project->setPidCodification(PidCodification::fromCsv(dataLines()));
 			Element *pump = place(m_folio, m_pump);
-			give(pump, QStringLiteral("pid_standby"), QStringLiteral("false"));
+			give(pump, QStringLiteral("pid_insulated"), QStringLiteral("false"));
 			give(pump, QStringLiteral("pid_note"), QStringLiteral("two\nlines"));
 			give(pump, QStringLiteral("pid_power"), QStringLiteral("about 7"));
 			give(pump, QStringLiteral("pid_starter"), QStringLiteral("star-delta"));
@@ -331,10 +331,10 @@ class tst_elementdata : public QObject
 			QCOMPARE(starter->count(), 5);
 
 				// another line edited: these stay as they are
-			qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_spare")))->setChecked(true);
+			qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_checked")))->setChecked(true);
 			section.apply();
-			QCOMPARE(held(pump, QStringLiteral("pid_spare")), QStringLiteral("true"));
-			QCOMPARE(held(pump, QStringLiteral("pid_standby")), QStringLiteral("false"));
+			QCOMPARE(held(pump, QStringLiteral("pid_checked")), QStringLiteral("true"));
+			QCOMPARE(held(pump, QStringLiteral("pid_insulated")), QStringLiteral("false"));
 			QCOMPARE(held(pump, QStringLiteral("pid_note")), QStringLiteral("two\nlines"));
 			QCOMPARE(held(pump, QStringLiteral("pid_power")), QStringLiteral("about 7"));
 		}
@@ -376,61 +376,31 @@ class tst_elementdata : public QObject
 			QVERIFY(section.fieldOf(QStringLiteral("pid_power")));
 		}
 
-			// An installed standby is no spare in its crate: ticking one
-			// unticks the other, in one change
-		void standbyAndSpareAreNeverTickedTogether()
+			// What may not be said together is one datum with a list: a
+			// standby is installed, or kept in its crate, or the symbol is none
+		void aStandbyIsOneListOfThreeStates()
 		{
-			m_project->setPidCodification(PidCodification::fromCsv(dataLines()));
+			m_project->setPidCodification(PidCodification::fromCsv(dataLines() + QStringLiteral(
+				"data;pump;standby;Standby;;list;installed|crate\n")));
 			Element *pump = place(m_folio, m_pump);
 			ElementDataWidget section(pump);
 			section.setLiveEdit(true);
-			auto *standby = qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::standbyKey()));
-			auto *spare = qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::spareKey()));
-			QVERIFY(standby && spare);
-			standby->click();
-			QCOMPARE(held(pump, PidCodification::standbyKey()), QStringLiteral("true"));
+			auto *standby = qobject_cast<QComboBox *>(section.fieldOf(QStringLiteral("pid_standby")));
+			QVERIFY(standby);
+			QCOMPARE(standby->count(), 3);   // none, installed, crate
+			QCOMPARE(standby->currentIndex(), 0);
+			QVERIFY(!pump->elementInformations().contains(QStringLiteral("pid_standby")));
 
-			spare->click();
-			QVERIFY(spare->isChecked() && !standby->isChecked());
-			QCOMPARE(held(pump, PidCodification::spareKey()), QStringLiteral("true"));
-			QVERIFY(!pump->elementInformations().contains(PidCodification::standbyKey()));
-			QVERIFY(section.warningShown()->text().isEmpty());
-				// changes of an element made in a row are one step of undo
-				// (ChangeElementInformationCommand::mergeWith()): it takes
-				// the two ticks back, and the section follows
-			m_folio->undoStack().undo();
-			QVERIFY(!standby->isChecked() && !spare->isChecked());
-			QVERIFY(!pump->elementInformations().contains(PidCodification::standbyKey()));
-			QVERIFY(!pump->elementInformations().contains(PidCodification::spareKey()));
-			m_folio->undoStack().redo();
-			QVERIFY(spare->isChecked() && !standby->isChecked());
-
-			spare->click();   // unticked: neither
-			QVERIFY(!pump->elementInformations().contains(PidCodification::spareKey()));
-			QVERIFY(!pump->elementInformations().contains(PidCodification::standbyKey()));
-			spare->click();
-			standby->click();
-			QVERIFY(standby->isChecked() && !spare->isChecked());
-			QVERIFY(!pump->elementInformations().contains(PidCodification::spareKey()));
-		}
-
-			// A file written elsewhere may hold both: told, and the first
-			// tick puts it right
-		void bothStandbysReadFromAFileAreTold()
-		{
-			m_project->setPidCodification(PidCodification::fromCsv(dataLines()));
-			Element *pump = place(m_folio, m_pump);
-			give(pump, PidCodification::standbyKey(), QStringLiteral("true"));
-			give(pump, PidCodification::spareKey(), QStringLiteral("true"));
-			ElementDataWidget section(pump);
-			section.setLiveEdit(true);
-			QVERIFY(!section.warningShown()->text().isEmpty());
-			QVERIFY(!section.associatedUndo());   // looking at it changes nothing
-
-			qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::spareKey()))->click();
-			QVERIFY(section.warningShown()->text().isEmpty());
-			QCOMPARE(held(pump, PidCodification::standbyKey()), QStringLiteral("true"));
-			QVERIFY(!pump->elementInformations().contains(PidCodification::spareKey()));
+			standby->setCurrentIndex(standby->findData(QStringLiteral("crate")));
+			emit standby->activated(standby->currentIndex());
+			QCOMPARE(held(pump, QStringLiteral("pid_standby")), QStringLiteral("crate"));
+			standby->setCurrentIndex(standby->findData(QStringLiteral("installed")));
+			emit standby->activated(standby->currentIndex());
+			QCOMPARE(held(pump, QStringLiteral("pid_standby")), QStringLiteral("installed"));
+				// no standby: nothing is written
+			standby->setCurrentIndex(0);
+			emit standby->activated(0);
+			QVERIFY(!pump->elementInformations().contains(QStringLiteral("pid_standby")));
 		}
 
 			// The Informations tab shows no "pid_" row for a P&ID symbol, and

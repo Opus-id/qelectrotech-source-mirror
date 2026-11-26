@@ -37184,10 +37184,6 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
         <translation>Le projet ne déclare aucune grandeur de ce nom pour cette classe de symboles : une fois vidée, cette ligne disparaît.</translation>
     </message>
     <message>
-        <source>A standby is either installed or kept in its crate: both are ticked.</source>
-        <translation>Un secours est soit installé, soit gardé en caisse : les deux sont cochés.</translation>
-    </message>
-    <message>
         <source>Change the data of an element</source>
         <translation>Modifier les données d&apos;un élément</translation>
     </message>

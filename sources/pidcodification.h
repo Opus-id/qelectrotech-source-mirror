@@ -211,11 +211,6 @@ class PidCodification
 			/// the values of a list (a bar): signs no separator of a CSV file
 			/// cuts
 		static QChar dataValueSeparator() { return QLatin1Char('|'); }
-			/// The two data which say a symbol a standby: installed, or kept
-			/// in its crate. Never both (ElementDataWidget unticks one when
-			/// the other is ticked); the project declares them as any other.
-		static QString standbyKey() { return QStringLiteral("pid_standby"); }
-		static QString spareKey() { return QStringLiteral("pid_spare"); }
 
 			/// The DN of the project which are the same size of line, by
 			/// pairs, the smaller first, in order: DN 60 exists for cast

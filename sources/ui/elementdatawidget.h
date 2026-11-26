@@ -27,7 +27,6 @@
 #include <QPointer>
 
 class QFormLayout;
-class QLabel;
 class QETProject;
 
 /**
@@ -45,8 +44,8 @@ class QETProject;
 	project does not declare for this class is shown here under its key, as
 	a text.
 
-	A standby is installed (PidCodification::standbyKey()) or kept in its
-	crate (spareKey()), never both: ticking one unticks the other.
+	No datum is known by its name here: what may not be said together is one
+	datum with a list (a standby: installed, or kept in its crate).
 
 	Live, a line is applied when it is left, with undo.
 */
@@ -81,7 +80,6 @@ class ElementDataWidget : public AbstractElementPropertiesEditorWidget
 			/// The field of the information @p key (a QLineEdit, a QComboBox
 			/// or a QCheckBox), nullptr when there is none
 		QWidget *fieldOf(const QString &key) const;
-		QLabel *warningShown() const { return m_warning; }
 
 	private:
 		struct Row
@@ -95,13 +93,11 @@ class ElementDataWidget : public AbstractElementPropertiesEditorWidget
 
 		void buildRows(const QList<PidCodification::DataField> &fields);
 		QString valueOf(const Row &row, const QString &held) const;
-		void showWarning();
 		void fieldDone();
 		QChar decimalSign() const;
 
 		QFormLayout *m_form = nullptr;
 		QList<Row> m_rows;
-		QLabel *m_warning = nullptr;
 		QPointer<QETProject> m_project;
 };
 

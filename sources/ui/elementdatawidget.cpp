@@ -47,15 +47,6 @@ ElementDataWidget::ElementDataWidget(Element *element, QWidget *parent) :
 	AbstractElementPropertiesEditorWidget(parent)
 {
 	m_form = new QFormLayout(this);
-
-		//Under the lines, what the lines say together
-	m_warning = new QLabel(this);
-	m_warning->setObjectName(QStringLiteral("warning"));
-	m_warning->setWordWrap(true);
-	m_warning->setStyleSheet(QStringLiteral("color: #c05000"));
-	m_warning->hide();
-	m_form->addRow(m_warning);
-
 	setElement(element);
 }
 
@@ -184,20 +175,6 @@ void ElementDataWidget::buildRows(const QList<PidCodification::DataField> &field
 		if (field.kind == PidCodification::DataKind::YesNo)
 		{
 			auto *box = new QCheckBox(holder);
-				//A standby is installed or kept in its crate, never both:
-				//ticking one unticks the other, in the same change
-			const bool standby = field.key() == PidCodification::standbyKey();
-			if (standby || field.key() == PidCodification::spareKey())
-			{
-				const QString other = standby ? PidCodification::spareKey() : PidCodification::standbyKey();
-				connect(box, &QCheckBox::clicked, this, [this, other](bool checked) {
-					auto *other_box = qobject_cast<QCheckBox *>(fieldOf(other));
-					if (checked && other_box) {
-						const QSignalBlocker blocker(other_box);
-						other_box->setChecked(false);
-					}
-				});
-			}
 			connect(box, &QCheckBox::clicked, this, &ElementDataWidget::fieldDone);
 			row.editor = box;
 		}
@@ -281,7 +258,6 @@ void ElementDataWidget::updateUi()
 			row.shown = edit->text();
 		}
 	}
-	showWarning();
 }
 
 /**
@@ -358,28 +334,11 @@ QWidget *ElementDataWidget::fieldOf(const QString &key) const
 }
 
 /**
-	@brief ElementDataWidget::showWarning
-	Tell what the lines should not say together: a standby is installed, or
-	kept in its crate. The section never ticks both (ticking one unticks the
-	other); a file written elsewhere may hold both, and is told here.
-*/
-void ElementDataWidget::showWarning()
-{
-	const DiagramContext information = edited();
-	const bool both = information.value(PidCodification::standbyKey()).toString() == yes
-					  && information.value(PidCodification::spareKey()).toString() == yes;
-	m_warning->setText(both ? tr("A standby is either installed or kept in its crate: both are ticked.")
-							: QString());
-	m_warning->setVisible(both);
-}
-
-/**
 	@brief ElementDataWidget::fieldDone
 	A line is left, picked or ticked: it is applied when live
 */
 void ElementDataWidget::fieldDone()
 {
-	showWarning();
 	if (m_live_edit) {
 		apply();
 	}
