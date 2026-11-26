@@ -670,10 +670,11 @@ line.*
   *Change type* keeps. The *Informations* tab no longer shows the `pid_`
   rows of a P&ID symbol (an electrical element keeps them all); a filled
   one the project does not declare is shown in *Data* under its key, never
-  hidden. Two data are known by name, `pid_standby` (installed standby)
-  and `pid_spare` (spare kept in its crate): never both, ticking one
-  unticks the other (a file written elsewhere which holds both is told in
-  the section). No editor of these declarations yet:
+  hidden. No datum is known by its name in the code: what may not be said
+  together is one datum with a list, such as a standby which is installed
+  or kept in its crate (`data;pump;standby;Standby;;list;installed|crate`,
+  nothing picked for a symbol which is none). No editor of these
+  declarations yet:
   they come from the file of codes.
 - **Line designation**: the model of the lines in the presentation of the
   project (CSV line `tag_model;line;{fluid} {size} {material}`, or the
@@ -866,7 +867,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never`; on the block, `same_connection`, `same_size`, `same_mark` = `false` | those of the symbol and the project; nozzles linked | a nozzle of the placed symbol is changed, or a link undone |
 | `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
 | `.qet`, `<element>` | information `pid_letters` | letters of identification of an instrument (`PT`) | the identifier of its symbol | the letters of an instrument are typed |
-| `.qet`, `<element>` | information `pid_<name>` (`pid_power`, `pid_standby`) | the value alone, without its unit: text, number with a point, a value of a list, `true` | empty | a line of the *Data* section is filled; stored as a custom property of QElectroTech is |
+| `.qet`, `<element>` | information `pid_<name>` (`pid_power`, `pid_starter`) | the value alone, without its unit: text, number with a point, a value of a list, `true` | empty | a line of the *Data* section is filled; stored as a custom property of QElectroTech is |
 | `.qet`, `<element>` | `pid_tool_placed` | `true` | `false`: placed by the user | a blind flange the pipe tool placed on a free end; it goes with the pipe it closes |
 | `.qet`, `<conductor>` | `medium` | `pipe`, `signal` | `electrical` | not electrical |
 | `.qet`, `<conductor>` | `pid_dn`, `pid_od` | DN; outside diameter to the tenth | none | set |
