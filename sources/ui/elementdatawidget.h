@@ -45,6 +45,9 @@ class QETProject;
 	project does not declare for this class is shown here under its key, as
 	a text.
 
+	A standby is installed (PidCodification::standbyKey()) or kept in its
+	crate (spareKey()), never both: ticking one unticks the other.
+
 	Live, a line is applied when it is left, with undo.
 */
 class ElementDataWidget : public AbstractElementPropertiesEditorWidget

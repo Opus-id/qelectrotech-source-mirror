@@ -184,6 +184,20 @@ void ElementDataWidget::buildRows(const QList<PidCodification::DataField> &field
 		if (field.kind == PidCodification::DataKind::YesNo)
 		{
 			auto *box = new QCheckBox(holder);
+				//A standby is installed or kept in its crate, never both:
+				//ticking one unticks the other, in the same change
+			const bool standby = field.key() == PidCodification::standbyKey();
+			if (standby || field.key() == PidCodification::spareKey())
+			{
+				const QString other = standby ? PidCodification::spareKey() : PidCodification::standbyKey();
+				connect(box, &QCheckBox::clicked, this, [this, other](bool checked) {
+					auto *other_box = qobject_cast<QCheckBox *>(fieldOf(other));
+					if (checked && other_box) {
+						const QSignalBlocker blocker(other_box);
+						other_box->setChecked(false);
+					}
+				});
+			}
 			connect(box, &QCheckBox::clicked, this, &ElementDataWidget::fieldDone);
 			row.editor = box;
 		}
@@ -345,8 +359,9 @@ QWidget *ElementDataWidget::fieldOf(const QString &key) const
 
 /**
 	@brief ElementDataWidget::showWarning
-	Tell what the lines should not say together, and block nothing: a standby
-	is installed, or kept in its crate
+	Tell what the lines should not say together: a standby is installed, or
+	kept in its crate. The section never ticks both (ticking one unticks the
+	other); a file written elsewhere may hold both, and is told here.
 */
 void ElementDataWidget::showWarning()
 {

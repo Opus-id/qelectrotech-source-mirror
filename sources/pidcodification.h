@@ -212,8 +212,8 @@ class PidCodification
 			/// cuts
 		static QChar dataValueSeparator() { return QLatin1Char('|'); }
 			/// The two data which say a symbol a standby: installed, or kept
-			/// in its crate. Never both (ElementDataWidget tells it, and
-			/// blocks nothing); the project declares them as any other.
+			/// in its crate. Never both (ElementDataWidget unticks one when
+			/// the other is ticked); the project declares them as any other.
 		static QString standbyKey() { return QStringLiteral("pid_standby"); }
 		static QString spareKey() { return QStringLiteral("pid_spare"); }
 

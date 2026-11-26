@@ -376,22 +376,61 @@ class tst_elementdata : public QObject
 			QVERIFY(section.fieldOf(QStringLiteral("pid_power")));
 		}
 
-			// An installed standby is no spare in its crate: told, not blocked
-		void standbyAndSpareAreToldTogether()
+			// An installed standby is no spare in its crate: ticking one
+			// unticks the other, in one change
+		void standbyAndSpareAreNeverTickedTogether()
 		{
 			m_project->setPidCodification(PidCodification::fromCsv(dataLines()));
 			Element *pump = place(m_folio, m_pump);
 			ElementDataWidget section(pump);
 			section.setLiveEdit(true);
-			QVERIFY(section.warningShown()->text().isEmpty());
-			qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::standbyKey()))->click();
-			QVERIFY(section.warningShown()->text().isEmpty());
-			qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::spareKey()))->click();
-			QVERIFY(!section.warningShown()->text().isEmpty());
+			auto *standby = qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::standbyKey()));
+			auto *spare = qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::spareKey()));
+			QVERIFY(standby && spare);
+			standby->click();
 			QCOMPARE(held(pump, PidCodification::standbyKey()), QStringLiteral("true"));
+
+			spare->click();
+			QVERIFY(spare->isChecked() && !standby->isChecked());
 			QCOMPARE(held(pump, PidCodification::spareKey()), QStringLiteral("true"));
-			qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::standbyKey()))->click();
+			QVERIFY(!pump->elementInformations().contains(PidCodification::standbyKey()));
 			QVERIFY(section.warningShown()->text().isEmpty());
+				// changes of an element made in a row are one step of undo
+				// (ChangeElementInformationCommand::mergeWith()): it takes
+				// the two ticks back, and the section follows
+			m_folio->undoStack().undo();
+			QVERIFY(!standby->isChecked() && !spare->isChecked());
+			QVERIFY(!pump->elementInformations().contains(PidCodification::standbyKey()));
+			QVERIFY(!pump->elementInformations().contains(PidCodification::spareKey()));
+			m_folio->undoStack().redo();
+			QVERIFY(spare->isChecked() && !standby->isChecked());
+
+			spare->click();   // unticked: neither
+			QVERIFY(!pump->elementInformations().contains(PidCodification::spareKey()));
+			QVERIFY(!pump->elementInformations().contains(PidCodification::standbyKey()));
+			spare->click();
+			standby->click();
+			QVERIFY(standby->isChecked() && !spare->isChecked());
+			QVERIFY(!pump->elementInformations().contains(PidCodification::spareKey()));
+		}
+
+			// A file written elsewhere may hold both: told, and the first
+			// tick puts it right
+		void bothStandbysReadFromAFileAreTold()
+		{
+			m_project->setPidCodification(PidCodification::fromCsv(dataLines()));
+			Element *pump = place(m_folio, m_pump);
+			give(pump, PidCodification::standbyKey(), QStringLiteral("true"));
+			give(pump, PidCodification::spareKey(), QStringLiteral("true"));
+			ElementDataWidget section(pump);
+			section.setLiveEdit(true);
+			QVERIFY(!section.warningShown()->text().isEmpty());
+			QVERIFY(!section.associatedUndo());   // looking at it changes nothing
+
+			qobject_cast<QCheckBox *>(section.fieldOf(PidCodification::spareKey()))->click();
+			QVERIFY(section.warningShown()->text().isEmpty());
+			QCOMPARE(held(pump, PidCodification::standbyKey()), QStringLiteral("true"));
+			QVERIFY(!pump->elementInformations().contains(PidCodification::spareKey()));
 		}
 
 			// The Informations tab shows no "pid_" row for a P&ID symbol, and
