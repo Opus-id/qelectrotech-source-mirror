@@ -185,7 +185,7 @@ line.*
   existing and kept, to be demolished. Its color, set for the project,
   comes before any other. Chosen on the page of the object, or for a whole
   selection in its context menu, in one undo step. On a symbol it is kept
-  with the options, so a `.qetdb` file refuses it as it refuses them.
+  with the options, in `.qet`, `.qetz` and `.qetdb` files.
 - **Drawn after its kind of line** (ISO 10628-1): main line 1 mm (4 units),
   secondary 0.5 mm (2 units), auxiliary 0.5 mm dashed. **The kinds are a
   list of the project** (*Lines* tab of the *P&ID* page): a code, a name,
@@ -481,8 +481,8 @@ line.*
   (`<pid_nozzles>` block of `<element>`, written only when set; undoable).
   A reducer (`pid_role` = `reducer`) is where the size of the line
   changes: a size typed on one of its sides resizes that line in the same
-  undo step. A `.qetdb` file refuses a size given on a placed symbol, as
-  it refuses the options.
+  undo step. A `.qetdb` file keeps a size given on a placed symbol, as
+  it keeps the options.
 - A size fills what is empty and never replaces a value: a new pipe
   without a size takes that of its nozzle, once. A size typed on a nozzle
   of an equipment, or brought by *Change type*, fills the pipes without a
@@ -759,8 +759,7 @@ line.*
   block, only when it has some; they are chosen in the *Type and options*
   section of its *P&ID* tab or in the *Options* submenu of its context
   menu (undoable) and kept by *Change type*. A `.qetdb` file
-  does not keep them yet: saving such a project as `.qetdb` is refused
-  with a message. A project may give an option of a family of P&ID symbols
+  keeps them too (rows of the project database, see below). A project may give an option of a family of P&ID symbols
   a value of its own (the oval bubbles of a plant: *instrument*, *shape*,
   *oval*), in the *Symbols* tab of its *P&ID* page or from a placed symbol
   (*Options*, *Make these choices the defaults of the project*): a symbol
@@ -875,6 +874,15 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 
 A `medium` this version does not know is read as electrical and said in the
 log.
+
+**In the project database** (and so in a `.qetdb` file) no table changes:
+what a placed symbol carries is rows of `element_value` (symbol, section,
+rank, name, value), written only when set. The `<options>` and
+`<pid_nozzles>` blocks are there as any other block (sections
+`options/option`, `pid_nozzles`, `pid_nozzles/nozzle`); the family and the
+role of the symbol's definition are two rows of the section `pid_symbol`
+(`family`, `role`), for lists to tell a pump from a valve. These two are
+never written in a `.qet` file: they are the definition's.
 
 ## Read this before using it on real work
 
