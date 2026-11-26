@@ -353,6 +353,12 @@ class ElementData : public PropertiesInterface
 			/// gives it the colour its project sets for that family
 			/// (PidCodification::objectFamilies()); none for any other symbol
 		QString m_pid_family;
+			/// The kind of object a P&ID symbol stands for (attribute
+			/// pid_class): one word its library chooses, such as "pump",
+			/// the same on every symbol of that kind whatever its file is
+			/// called, for a list or a project to tell the kinds apart;
+			/// kept as it is, none for any other symbol
+		QString m_pid_class;
 			/// A line runs through this symbol, as through a valve: it has one
 			/// DN, and a change of DN goes through it (attribute
 			/// pid_inline="true", Element::isPipeInline())

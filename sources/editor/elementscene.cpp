@@ -594,6 +594,9 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 	if (!m_element_data.m_pid_family.isEmpty()) {
 		root.setAttribute(QStringLiteral("pid_family"), m_element_data.m_pid_family);
 	}
+	if (!m_element_data.m_pid_class.isEmpty()) {
+		root.setAttribute(QStringLiteral("pid_class"), m_element_data.m_pid_class);
+	}
 	if (m_element_data.m_pipe_inline) {
 		root.setAttribute(QStringLiteral("pid_inline"), QStringLiteral("true"));
 	}

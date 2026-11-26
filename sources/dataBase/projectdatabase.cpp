@@ -6971,11 +6971,11 @@ void projectDataBase::forgetElementTexts(const QUuid &element)
 	value it is read as), whether a T-junction is shown as a dot, then its
 	<properties>, <plcMasterData>, <xrefDisplay>, <potentialSources>,
 	<options> and <pid_nozzles>.
-	Last, the family and the role of the symbol in a P&ID (section
-	pid_symbol), which no saved symbol holds: from the <pid_symbol>
+	Last, the class, the family and the role of the symbol in a P&ID
+	(section pid_symbol), which no saved symbol holds: from the <pid_symbol>
 	Element::ownValuesXml() makes, else from @p definition, the symbol's
 	definition, as ElementData::fromXml() reads them. No row for a symbol
-	that has neither: an electrical symbol's rows are as before.
+	that has none of them: an electrical symbol's rows are as before.
 */
 QList<projectDataBase::ProjectSetting> projectDataBase::elementValueRowsOf(const QDomElement &element,
 																		   const QDomElement &definition)
@@ -7006,6 +7006,10 @@ QList<projectDataBase::ProjectSetting> projectDataBase::elementValueRowsOf(const
 										   : symbol.attribute(QStringLiteral("family"));
 	const QString role = symbol.isNull() ? definition.attribute(QStringLiteral("pid_role")).trimmed()
 										 : symbol.attribute(QStringLiteral("role"));
+	const QString pid_class = symbol.isNull() ? definition.attribute(QStringLiteral("pid_class")).trimmed()
+											  : symbol.attribute(QStringLiteral("class"));
+	if (!pid_class.isEmpty())
+		rows.append({symbol_section, 0, QStringLiteral("class"), pid_class});
 	if (!family.isEmpty())
 		rows.append({symbol_section, 0, QStringLiteral("family"), family});
 	if (!role.isEmpty())

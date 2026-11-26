@@ -120,7 +120,7 @@ QString project()
 						 "<collection><category name=\"import\">"
 						 "<names><name lang=\"en\">Imported</name></names>")
 		+ definition(1, QStringLiteral("pump_centrifugal"),
-					 QStringLiteral(" pid_family=\"equipment\" pid_role=\"pump\""),
+					 QStringLiteral(" pid_family=\"equipment\" pid_role=\"pump\" pid_class=\"rotating\""),
 					 QStringLiteral("<options>")
 					 + option(QStringLiteral("motor"), {QStringLiteral("none"), QStringLiteral("variable")})
 					 + QStringLiteral("</options>"))
@@ -137,7 +137,7 @@ QString project()
 	//Every column of the list but where the symbol is drawn on its folio
 const QString equipment_query = QStringLiteral(
 		"SELECT uuid, label, unit, unit_name, train, identifier, number, family, role, type, "
-		"description, folio_number FROM qet_pid_equipment ORDER BY label");
+		"description, folio_number, class FROM qet_pid_equipment ORDER BY label");
 const QString data_query = QStringLiteral(
 		"SELECT uuid, name, value FROM qet_pid_equipment_data ORDER BY uuid, name");
 
@@ -200,9 +200,10 @@ class tst_pidequipmentlist : public QObject
 
 	static QStringList expectedEquipment()
 	{
-		return {bubble_uuid + QStringLiteral(",U01 LIT 101,U01,Lift station,1,LIT,1,instrument,,instrument_bubble,,1"),
-				pump_uuid + QStringLiteral(",U01 PC 101,U01,Lift station,1,PC,1,equipment,pump,pump_centrifugal,Lift pump,1"),
-				valve_uuid + QStringLiteral(",U02 VBO 201,U02,,2,VBO,1,valve,,valve_ball,,1")};
+			//The class last: that of the pump's definition, none for the two others
+		return {bubble_uuid + QStringLiteral(",U01 LIT 101,U01,Lift station,1,LIT,1,instrument,,instrument_bubble,,1,"),
+				pump_uuid + QStringLiteral(",U01 PC 101,U01,Lift station,1,PC,1,equipment,pump,pump_centrifugal,Lift pump,1,rotating"),
+				valve_uuid + QStringLiteral(",U02 VBO 201,U02,,2,VBO,1,valve,,valve_ball,,1,")};
 	}
 
 	static QStringList expectedData()
@@ -227,7 +228,7 @@ private slots:
 	{
 		const QString equipment = QStringLiteral(
 				"uuid,label,unit,unit_name,train,identifier,number,family,role,type,description,"
-				"folio_number,folio,position,folio_uuid");
+				"folio_number,folio,position,folio_uuid,class");
 		QCOMPARE(PidLists::equipmentColumns().join(QLatin1Char(',')), equipment);
 		QCOMPARE(PidLists::equipmentDataColumns().join(QLatin1Char(',')), QStringLiteral("uuid,name,value"));
 		const Result list = run({QStringLiteral("--query"),

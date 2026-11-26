@@ -33673,6 +33673,14 @@ Les autres champs ne sont pas utilisés.</translation>
         <source>Jacket limit</source>
         <translation>Limite de gaine</translation>
     </message>
+    <message>
+        <source>Class:</source>
+        <translation>Classe :</translation>
+    </message>
+    <message>
+        <source>The kind of object the symbol stands for, in one word such as &quot;pump&quot; or &quot;tank&quot;, the same on every symbol of that kind. The lists of a project give it for each symbol.</source>
+        <translation>Le genre d&apos;objet que le symbole représente, en un mot comme « pump » ou « tank », le même sur tous les symboles de ce genre. Les listes d&apos;un projet le donnent pour chaque symbole.</translation>
+    </message>
 </context>
 <context>
     <name>TerminalEditor</name>

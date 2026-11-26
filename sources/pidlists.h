@@ -37,7 +37,9 @@
 	  identifier the letters of an instrument, else the prefix of its symbol;
 	  family and role are those of the symbol's definition; type is the name
 	  of its file ("pump_centrifugal"); description its information of that
-	  name; then its folio and its place on it, as qet_devices has them.
+	  name; then its folio and its place on it, as qet_devices has them;
+	  last, class, the kind of object its definition says it is ("pump",
+	  ElementData::m_pid_class), whatever its file is called.
 	- equipmentDataView(): what each of these symbols holds besides, one row
 	  per value (uuid, name, value): its information whose name starts with
 	  "pid_" (a power, a voltage: data the project chose to keep), the

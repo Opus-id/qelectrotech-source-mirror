@@ -79,7 +79,8 @@ QStringList PidLists::equipmentColumns()
 			QStringLiteral("unit_name"), QStringLiteral("train"), QStringLiteral("identifier"),
 			QStringLiteral("number"), QStringLiteral("family"), QStringLiteral("role"),
 			QStringLiteral("type"), QStringLiteral("description"), QStringLiteral("folio_number"),
-			QStringLiteral("folio"), QStringLiteral("position"), QStringLiteral("folio_uuid")};
+			QStringLiteral("folio"), QStringLiteral("position"), QStringLiteral("folio_uuid"),
+			QStringLiteral("class")};
 }
 
 QStringList PidLists::equipmentDataColumns()
@@ -125,7 +126,7 @@ bool PidLists::refresh(QSqlDatabase db)
 			"CASE WHEN s.letters <> '' THEN s.letters ELSE s.prefix END AS identifier, "
 			"s.number AS number, s.family AS family, s.role AS role, s.type AS type, "
 			"s.description AS description, s.folio_number AS folio_number, s.folio AS folio, "
-			"s.position AS position, s.folio_uuid AS folio_uuid "
+			"s.position AS position, s.folio_uuid AS folio_uuid, s.class AS class "
 			"FROM (SELECT e.uuid AS uuid, ei.label AS label, ")
 		.arg(equipmentView(), codesTable())
 		+ information(PidTag::unitKey()) + QStringLiteral(" AS unit, ")
@@ -135,6 +136,7 @@ bool PidLists::refresh(QSqlDatabase db)
 		+ ownValue(QStringLiteral("element"), QStringLiteral("prefix")) + QStringLiteral(" AS prefix, ")
 		+ ownValue(QStringLiteral("pid_symbol"), QStringLiteral("family")) + QStringLiteral(" AS family, ")
 		+ ownValue(QStringLiteral("pid_symbol"), QStringLiteral("role")) + QStringLiteral(" AS role, ")
+		+ ownValue(QStringLiteral("pid_symbol"), QStringLiteral("class")) + QStringLiteral(" AS class, ")
 		+ QStringLiteral(
 			"COALESCE(REPLACE(REPLACE(e.definition, "
 				"RTRIM(e.definition, REPLACE(e.definition, '/', '')), ''), '.elmt', ''), '') AS type, "

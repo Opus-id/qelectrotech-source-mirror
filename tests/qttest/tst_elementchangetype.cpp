@@ -492,6 +492,16 @@ class tst_elementchangetype : public QObject
 			QVERIFY(an_end && an_arrow);
 			QVERIFY(an_end->canChangeLocationTo(arrow));
 			QVERIFY(an_arrow->canChangeLocationTo(free_end));
+
+				// the class (pid_class, step 9b) is that of the type: taken
+				// from the new one, none when the new one has none
+			const ElementsLocation gate = fitting("gate.elmt", "aaaaaaaa-0000-0000-0000-00000000000c",
+												  QStringLiteral("pid_inline=\"true\" pid_class=\"valve\""), 2);
+			QVERIFY(a_valve->elementData().m_pid_class.isEmpty());
+			QVERIFY(a_valve->changeLocation(gate));
+			QCOMPARE(a_valve->elementData().m_pid_class, QStringLiteral("valve"));
+			QVERIFY(a_valve->changeLocation(other_valve));
+			QVERIFY(a_valve->elementData().m_pid_class.isEmpty());
 		}
 
 			// Two terminals at one place, facing apart (step 6b-3c1): the

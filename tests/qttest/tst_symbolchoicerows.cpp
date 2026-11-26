@@ -11,7 +11,7 @@
 
 // What was chosen on a placed P&ID symbol (the values of its options, the
 // sizes of its nozzles) is in the project database, in the rows of
-// element_value, with the family and the role its definition gives it:
+// element_value, with the family, the class and the role its definition gives it:
 // the same rows from the document alone, from built folios and from a
 // .qetdb, so a .qetdb keeps the choices and a list can tell a pump from a
 // valve. An electrical symbol has none of these rows.
@@ -41,7 +41,8 @@ QString project()
 				"<names><name lang=\"en\">Imported</name></names>"
 				"<element name=\"pump.elmt\">"
 				"<definition width=\"60\" hotspot_y=\"20\" version=\"0.100.0\" type=\"element\""
-				" link_type=\"simple\" hotspot_x=\"30\" height=\"40\" pid_family=\"equipment\" pid_role=\"pump\">"
+				" link_type=\"simple\" hotspot_x=\"30\" height=\"40\" pid_family=\"equipment\" pid_role=\"pump\""
+				" pid_class=\"rotating\">"
 				"<uuid uuid=\"{66666666-6666-4666-8666-66666666aaaa}\"/>"
 				"<names><name lang=\"en\">pump</name></names>"
 				"<options><option name=\"motor\" default=\"none\">"
@@ -142,6 +143,7 @@ class tst_symbolchoicerows : public QObject
 			pump_uuid + QStringLiteral(",pid_nozzles,0,same_size,false"),
 			pump_uuid + QStringLiteral(",pid_nozzles/nozzle,0,dn,100"),
 			pump_uuid + QStringLiteral(",pid_nozzles/nozzle,0,name,N1"),
+			pump_uuid + QStringLiteral(",pid_symbol,0,class,rotating"),
 			pump_uuid + QStringLiteral(",pid_symbol,0,family,equipment"),
 			pump_uuid + QStringLiteral(",pid_symbol,0,role,pump")};
 		rows.sort();

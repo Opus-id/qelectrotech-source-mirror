@@ -25,6 +25,7 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 
 PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 	QGroupBox(tr("Piping"), parent)
@@ -37,18 +38,25 @@ PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 							   "nozzle takes the size of its pipe.")));
 	grid->addWidget(m_family_cb, 0, 1);
 
+	grid->addWidget(new QLabel(tr("Class:"), this), 1, 0);
+	m_class_edit = new QLineEdit(this);
+	m_class_edit->setToolTip(PidToolTip::wrapped(tr("The kind of object the symbol stands for, in one word such as "
+							   "\"pump\" or \"tank\", the same on every symbol of that kind. "
+							   "The lists of a project give it for each symbol.")));
+	grid->addWidget(m_class_edit, 1, 1);
+
 	m_inline_cb = new QCheckBox(tr("In-line symbol (a line runs through it)"), this);
 	m_inline_cb->setToolTip(PidToolTip::wrapped(tr("Without a run chosen below, all the nozzles take the size of "
 							   "their pipe, and a change of size goes through the symbol.")));
-	grid->addWidget(m_inline_cb, 1, 0, 1, 2);
+	grid->addWidget(m_inline_cb, 2, 0, 1, 2);
 
-	grid->addWidget(new QLabel(tr("Run of the line:"), this), 2, 0);
+	grid->addWidget(new QLabel(tr("Run of the line:"), this), 3, 0);
 	m_run_widget = new QWidget(this);
 	new QHBoxLayout(m_run_widget);
 	m_run_widget->layout()->setContentsMargins(0, 0, 0, 0);
-	grid->addWidget(m_run_widget, 2, 1);
+	grid->addWidget(m_run_widget, 3, 1);
 
-	grid->addWidget(new QLabel(tr("Role:"), this), 3, 0);
+	grid->addWidget(new QLabel(tr("Role:"), this), 4, 0);
 	m_role_cb = new QComboBox(this);
 	m_role_cb->setToolTip(PidToolTip::wrapped(tr("\"Reducer\": the size of the line changes at this symbol. Each of "
 							 "its nozzles takes the size of its pipe or a size of its own, and a "
@@ -60,16 +68,22 @@ PipingBlockWidget::PipingBlockWidget(QWidget *parent) :
 							 "the symbol to a nozzle, as the pipe of that nozzle. \"Insulation "
 							 "limit\": the insulation of the line stops or changes at this symbol; "
 							 "make it an in-line symbol.")));
-	grid->addWidget(m_role_cb, 3, 1);
+	grid->addWidget(m_role_cb, 4, 1);
 
 	m_large_label = new QLabel(tr("Large side:"), this);
-	grid->addWidget(m_large_label, 4, 0);
+	grid->addWidget(m_large_label, 5, 0);
 	m_large_cb = new QComboBox(this);
 	m_large_cb->setToolTip(PidToolTip::wrapped(tr("The nozzle of the large side of the reducer, as it is drawn. When "
 							  "its size is smaller than that of the other side, both nozzles are "
 							  "marked: a reducer laid the wrong way. \"Not said\": nothing is checked.")));
-	grid->addWidget(m_large_cb, 4, 1);
+	grid->addWidget(m_large_cb, 5, 1);
 
+		//The class once it is typed, not at each letter
+	connect(m_class_edit, &QLineEdit::editingFinished, this, [this]() {
+		if (!m_locked) {
+			emit edited();
+		}
+	});
 		//The role first: the list "Large side" shows or hides with it
 	connect(m_role_cb, QOverload<int>::of(&QComboBox::activated), this, &PipingBlockWidget::updateLargeSide);
 	for (QComboBox *list : {m_family_cb, m_role_cb, m_large_cb}) {
@@ -115,6 +129,7 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 		m_family_cb->addItem(data.m_pid_family, data.m_pid_family);
 	}
 	m_family_cb->setCurrentIndex(m_family_cb->findData(data.m_pid_family));
+	m_class_edit->setText(data.m_pid_class);
 
 	m_role_cb->clear();
 	m_role_cb->addItem(tr("None"), QString());
@@ -163,7 +178,7 @@ void PipingBlockWidget::setData(const ElementData &data, const QStringList &nozz
 		m_run_cbs << cb;
 	}
 
-	setVisible(!nozzles.isEmpty() || !data.m_pid_family.isEmpty()
+	setVisible(!nozzles.isEmpty() || !data.m_pid_family.isEmpty() || !data.m_pid_class.isEmpty()
 			   || data.m_pipe_inline || !data.m_pipe_run.isEmpty() || !data.m_pid_role.isEmpty());
 	m_locked = false;
 }
@@ -188,6 +203,7 @@ ElementData PipingBlockWidget::applyTo(ElementData data) const
 	}
 	data.m_pipe_inline = m_inline_cb->isChecked();
 	data.m_pid_family = m_family_cb->currentData().toString();
+	data.m_pid_class = m_class_edit->text().trimmed();
 	data.m_pid_role = m_role_cb->currentData().toString();
 		//A large side for a reducer only
 	data.m_pid_large = data.m_pid_role == QLatin1String("reducer") ? m_large_cb->currentData().toString()

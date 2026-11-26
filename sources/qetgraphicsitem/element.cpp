@@ -3982,8 +3982,8 @@ void Element::appendDataXml(QDomDocument &document, QDomElement &element) const
 	of this symbol that no other table of the project database holds: its
 	prefix, frozen label, whether it can be moved, whether it is shown as a
 	dot, appendDataXml() and appendChoicesXml(); and, toXml() writing
-	none of it, the family and the role its definition gives it
-	(<pid_symbol>), for the lists to tell a pump from a valve
+	none of it, the family, the class and the role its definition gives
+	it (<pid_symbol>), for the lists to tell a pump from a valve
 */
 QDomElement Element::ownValuesXml(QDomDocument &document) const
 {
@@ -3995,12 +3995,14 @@ QDomElement Element::ownValuesXml(QDomDocument &document) const
 		element.setAttribute(QStringLiteral("shownAsDot"), QStringLiteral("true"));
 	appendDataXml(document, element);
 	appendChoicesXml(document, element);
-		//None for a symbol that has neither: an electrical one stores as before
-	if (!m_data.m_pid_family.isEmpty() || !m_data.m_pid_role.isEmpty())
+		//None for a symbol that has none of them: an electrical one stores as before
+	if (!m_data.m_pid_family.isEmpty() || !m_data.m_pid_class.isEmpty() || !m_data.m_pid_role.isEmpty())
 	{
 		QDomElement symbol = document.createElement(QStringLiteral("pid_symbol"));
 		if (!m_data.m_pid_family.isEmpty())
 			symbol.setAttribute(QStringLiteral("family"), m_data.m_pid_family);
+		if (!m_data.m_pid_class.isEmpty())
+			symbol.setAttribute(QStringLiteral("class"), m_data.m_pid_class);
 		if (!m_data.m_pid_role.isEmpty())
 			symbol.setAttribute(QStringLiteral("role"), m_data.m_pid_role);
 		element.appendChild(symbol);
@@ -5082,6 +5084,7 @@ Element::ReloadPictureResult Element::reloadPicture(bool adopt_frame)
 
 	m_data.m_options = options;
 	m_data.m_pid_family = definition.attribute(QStringLiteral("pid_family"));
+	m_data.m_pid_class = definition.attribute(QStringLiteral("pid_class")).trimmed();
 	m_data.m_pipe_inline = definition.attribute(QStringLiteral("pid_inline")) == QLatin1String("true");
 	m_data.m_pipe_run = definition.attribute(QStringLiteral("pid_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	m_data.m_pid_role = definition.attribute(QStringLiteral("pid_role")).trimmed();
@@ -5403,6 +5406,7 @@ bool Element::changeLocation(const ElementsLocation &location)
 	m_data.m_names_list = names;
 	m_data.m_options = options;
 	m_data.m_pid_family = family;
+	m_data.m_pid_class = location.xml().attribute(QStringLiteral("pid_class")).trimmed();
 	m_data.m_pipe_inline = location.xml().attribute(QStringLiteral("pid_inline")) == QLatin1String("true");
 	m_data.m_pipe_run = location.xml().attribute(QStringLiteral("pid_run")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
 	m_data.m_pid_role = location.xml().attribute(QStringLiteral("pid_role")).trimmed();

@@ -1853,6 +1853,55 @@ class tst_nozzlediameter : public QObject
 			QVERIFY(other.m_pid_role.isEmpty());
 		}
 
+			// pid_class="pump" (step 9b) is read, written back by the editor,
+			// typed in the line "Class" of the block; nothing is written
+			// without it
+		void theEditorKeepsTheClass()
+		{
+			QDomDocument doc;
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666681}"), 0,
+								  QStringLiteral("pid_family=\"equipment\" pid_class=\" pump \" ")));
+			ElementData data;
+			data.fromXml(doc.documentElement());
+			QCOMPARE(data.m_pid_class, QStringLiteral("pump"));
+			ElementScene scene(nullptr);
+			scene.fromXml(doc, QPointF(), true);
+			QCOMPARE(scene.toXml().documentElement().attribute(QStringLiteral("pid_class")),
+					 QStringLiteral("pump"));
+
+			PipingBlockWidget block;
+			block.setData(scene.elementData(), scene.pipeNozzleNames());
+			QVERIFY(block.applyTo(scene.elementData()) == scene.elementData());
+			auto *line = block.findChild<QLineEdit *>();
+			QVERIFY(line);
+			QCOMPARE(line->text(), QStringLiteral("pump"));
+				// typed: said once the line is left, not at each letter
+			QSignalSpy edited(&block, &PipingBlockWidget::edited);
+			line->setText(QStringLiteral("tank"));
+			QCOMPARE(edited.count(), 0);
+			emit line->editingFinished();
+			QCOMPARE(edited.count(), 1);
+			const ElementData tank = block.applyTo(scene.elementData());
+			QCOMPARE(tank.m_pid_class, QStringLiteral("tank"));
+			QVERIFY(tank != scene.elementData());
+			scene.setElementData(tank);
+			QCOMPARE(scene.toXml().documentElement().attribute(QStringLiteral("pid_class")),
+					 QStringLiteral("tank"));
+				// emptied: no attribute
+			line->clear();
+			scene.setElementData(block.applyTo(scene.elementData()));
+			QVERIFY(!scene.toXml().documentElement().hasAttribute(QStringLiteral("pid_class")));
+
+				// another symbol has none, and the editor writes none
+			doc.setContent(symbol(QStringLiteral("{7b666666-6666-6666-6666-666666666682}"), 0));
+			ElementData other;
+			other.fromXml(doc.documentElement());
+			QVERIFY(other.m_pid_class.isEmpty());
+			ElementScene plain(nullptr);
+			plain.fromXml(doc, QPointF(), true);
+			QVERIFY(!plain.toXml().documentElement().hasAttribute(QStringLiteral("pid_class")));
+		}
+
 			// A reducer stops a change of DN, whatever its sizes; one whose two
 			// sides have the same size, theirs or their lines', is marked, and
 			// the side whose line changes is drawn again
