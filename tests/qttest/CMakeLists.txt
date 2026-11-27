@@ -1077,6 +1077,9 @@ qet_add_app_test(tst_pidselectiontag tst_pidselectiontag.cpp)
 # whole project, folios not built included; the veil, the tool tip, "Give the
 # next number", and the duplicate list of upstream.
 qet_add_app_test(tst_pidduplicatetags tst_pidduplicatetags.cpp)
+# The notes of a PDF export on its symbols: every information named, P&ID
+# ones included; no border drawn around a note.
+qet_add_app_test(tst_pdfnotes tst_pdfnotes.cpp)
 # The data a project asks of its P&ID symbols, by class: declared in its
 # codification, typed in the Data section of the P&ID tab, kept as information
 # of the element; the Informations tab neither shows nor loses them.

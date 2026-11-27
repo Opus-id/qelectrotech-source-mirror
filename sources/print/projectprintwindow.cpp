@@ -22,6 +22,7 @@
 
 #include <diagram.h>
 #include <pdf_links.h>
+#include <pidcodification.h>
 #include <qeticons.h>
 #include <qetinformation.h>
 #include <qetproject.h>
@@ -47,6 +48,27 @@
 #include <QMap>
 #include <QTimer>
 #include <QVector>
+
+/**
+	@brief ProjectPrintWindow::noteKeyName
+	See the declaration
+*/
+QString ProjectPrintWindow::noteKeyName(const QETProject *project, const QString &key)
+{
+		const QString translated = QETInformation::translatedInfoKey(key);
+		if (!translated.isEmpty()) return translated;
+		if (key == QLatin1String("pid_train"))
+			return QCoreApplication::translate("ProjectPrintWindow", "Train", "of a P&ID tag");
+		if (key == QLatin1String("pid_order"))
+			return QCoreApplication::translate("ProjectPrintWindow", "Number", "of a P&ID tag");
+		if (key == QLatin1String("pid_letters"))
+			return QCoreApplication::translate("ProjectPrintWindow", "Letters of identification", "of an instrument");
+		if (project) {
+			for (const PidCodification::DataField &field : project->pidCodification().data_fields)
+				if (field.key() == key) return field.title();
+		}
+		return key;
+}
 
 /**
  * @brief ProjectPrintWindow::ProjectPrintWindow
@@ -424,7 +446,7 @@ void ProjectPrintWindow::printDiagram(Diagram *diagram, bool fit_page, QPainter 
 					}
 					for (const QString &key : info.keys()) {
 						if (key == "formula" || key == QETInformation::ELMT_FORMULA_ID) continue;
-						QString translated = QETInformation::translatedInfoKey(key);
+						QString translated = noteKeyName(m_project, key);
 						if (lines.contains(translated + ": " + info.value(key).toString())) continue;
 						if (info.value(key).toString().isEmpty()) continue;
 						lines << translated + ": " + info.value(key).toString();

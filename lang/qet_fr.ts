@@ -19596,6 +19596,21 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <translation>Dessiner les noms et DN des piquages</translation>
     </message>
     <message>
+        <source>Train</source>
+        <comment>of a P&amp;ID tag</comment>
+        <translation>File</translation>
+    </message>
+    <message>
+        <source>Number</source>
+        <comment>of a P&amp;ID tag</comment>
+        <translation>Numéro</translation>
+    </message>
+    <message>
+        <source>Letters of identification</source>
+        <comment>of an instrument</comment>
+        <translation>Lettres d&apos;identification</translation>
+    </message>
+    <message>
         <source>Draw what is reported</source>
         <translation>Dessiner les signalements</translation>
     </message>

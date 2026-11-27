@@ -47,6 +47,13 @@ class ProjectPrintWindow : public QMainWindow
 	public:
 		static void launchDialog(QETProject *project, QPrinter::OutputFormat format = QPrinter::NativeFormat, QWidget *parent = nullptr);
 		static QString docName(QETProject *project);
+			/// The name an information @p key of a symbol is given in the
+			/// notes of a PDF ("Enter the component details"): its
+			/// translated name; for a key QElectroTech does not name, a
+			/// field of a P&ID tag or a datum the codification of
+			/// @p project declares; else the key itself (a custom
+			/// property), never nothing
+		static QString noteKeyName(const QETProject *project, const QString &key);
 
 		explicit ProjectPrintWindow(QETProject *project, QPrinter *printer, QWidget *parent = nullptr);
 		~ProjectPrintWindow();
