@@ -212,10 +212,13 @@ QStringList DiagramToolbarSettings::defaultIds(const QString &name)
 			QStringLiteral("diagrameditor.place_symbol_texts")};
 	}
 	if (name == QLatin1String("adding")) {
-			//add_pdf is skipped when built without QtPdf, as before
+			//add_pdf is skipped when built without QtPdf, as before.
+			//Five groups: what is inserted, the shapes, the electrical
+			//tools, the notes drawn over a diagram, the P&ID tools.
 		return {QStringLiteral("diagrameditor.add_text"),
 			QStringLiteral("diagrameditor.add_image"),
 			QStringLiteral("diagrameditor.add_pdf"),
+			sep,
 			QStringLiteral("diagrameditor.add_line"),
 			QStringLiteral("diagrameditor.add_rectangle"),
 			QStringLiteral("diagrameditor.add_ellipse"),
@@ -223,11 +226,14 @@ QStringList DiagramToolbarSettings::defaultIds(const QString &name)
 			QStringLiteral("diagrameditor.add_polyline"),
 			QStringLiteral("diagrameditor.add_path"),
 			QStringLiteral("diagrameditor.add_fillet"),
+			sep,
 			QStringLiteral("diagrameditor.add_terminal_strip"),
 			QStringLiteral("diagrameditor.add_generic_device"),
+			sep,
 			QStringLiteral("diagrameditor.add_structure_box"),
 			QStringLiteral("diagrameditor.add_revision_cloud"),
 			QStringLiteral("diagrameditor.add_review_note"),
+			sep,
 				//P&ID: pipes drawn from nozzle to nozzle
 			QStringLiteral("diagrameditor.add_pipe")};
 	}

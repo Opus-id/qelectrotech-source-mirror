@@ -35,6 +35,7 @@
         <file alias="themes/qet/scalable/selection-remove.svg">qet/scalable/selection-remove.svg</file>
         <file alias="themes/qet/scalable/selection-replace.svg">qet/scalable/selection-replace.svg</file>
         <file alias="themes/qet/scalable/snap-to-grid.svg">qet/scalable/snap-to-grid.svg</file>
+        <file alias="themes/qet/scalable/structure-box.svg">qet/scalable/structure-box.svg</file>
         <file alias="themes/qet/scalable/printer.svg">breeze/64/printer.svg</file>
         <file alias="themes/qet/scalable/settings.svg">breeze/48/systemsettings.svg</file>
         <file alias="themes/qet/scalable/configure-shortcuts.svg">qet/pages/configure-shortcuts.svg</file>
@@ -2467,6 +2468,18 @@
         <file alias="themes/qet/48x48@2/start.svg">themes/generated/breeze-24/media-playback-start.svg</file>
         <file alias="themes/qet/64x64@2/start.svg">breeze/32/media-playback-start.svg</file>
         <file alias="themes/qet/128x128@2/start.svg">breeze/32/media-playback-start.svg</file>
+        <file alias="themes/qet/16x16/structure-box.svg">qet/scalable/16/structure-box.svg</file>
+        <file alias="themes/qet/22x22/structure-box.svg">themes/generated/scalable-22/structure-box.svg</file>
+        <file alias="themes/qet/32x32/structure-box.svg">qet/scalable/16/structure-box.svg</file>
+        <file alias="themes/qet/48x48/structure-box.svg">qet/scalable/structure-box.svg</file>
+        <file alias="themes/qet/64x64/structure-box.svg">qet/scalable/16/structure-box.svg</file>
+        <file alias="themes/qet/128x128/structure-box.svg">qet/scalable/16/structure-box.svg</file>
+        <file alias="themes/qet/16x16@2/structure-box.svg">qet/scalable/16/structure-box.svg</file>
+        <file alias="themes/qet/22x22@2/structure-box.svg">themes/generated/scalable-22/structure-box.svg</file>
+        <file alias="themes/qet/32x32@2/structure-box.svg">qet/scalable/16/structure-box.svg</file>
+        <file alias="themes/qet/48x48@2/structure-box.svg">qet/scalable/structure-box.svg</file>
+        <file alias="themes/qet/64x64@2/structure-box.svg">qet/scalable/16/structure-box.svg</file>
+        <file alias="themes/qet/128x128@2/structure-box.svg">qet/scalable/16/structure-box.svg</file>
         <file alias="themes/qet/16x16/table-of-content.svg">breeze/16/gtk-index.svg</file>
         <file alias="themes/qet/22x22/table-of-content.svg">breeze/22/gtk-index.svg</file>
         <file alias="themes/qet/scalable/table-of-content.svg">themes/generated/breeze-24/gtk-index.svg</file>
@@ -2915,6 +2928,7 @@
         <file>themes/qet-dark/scalable/selection-remove.svg</file>
         <file>themes/qet-dark/scalable/selection-replace.svg</file>
         <file>themes/qet-dark/scalable/snap-to-grid.svg</file>
+        <file>themes/qet-dark/scalable/structure-box.svg</file>
         <file>themes/qet-dark/scalable/configure-shortcuts.svg</file>
         <file>themes/qet-dark/scalable/pid-diagram.svg</file>
         <file>themes/qet-dark/scalable-16/align-horizontal-center.svg</file>
@@ -3543,6 +3557,8 @@
         <file>themes/qet-dark/breeze/22/media-playback-start.svg</file>
         <file>themes/qet-dark/breeze-24/media-playback-start.svg</file>
         <file>themes/qet-dark/breeze/32/media-playback-start.svg</file>
+        <file>themes/qet-dark/scalable-16/structure-box.svg</file>
+        <file>themes/qet-dark/scalable-22/structure-box.svg</file>
         <file>themes/qet-dark/breeze/16/gtk-index.svg</file>
         <file>themes/qet-dark/breeze/22/gtk-index.svg</file>
         <file>themes/qet-dark/breeze-24/gtk-index.svg</file>
@@ -5821,6 +5837,18 @@
         <file alias="themes/qet-dark/48x48@2/start.svg">themes/qet-dark/breeze-24/media-playback-start.svg</file>
         <file alias="themes/qet-dark/64x64@2/start.svg">themes/qet-dark/breeze/32/media-playback-start.svg</file>
         <file alias="themes/qet-dark/128x128@2/start.svg">themes/qet-dark/breeze/32/media-playback-start.svg</file>
+        <file alias="themes/qet-dark/16x16/structure-box.svg">themes/qet-dark/scalable-16/structure-box.svg</file>
+        <file alias="themes/qet-dark/22x22/structure-box.svg">themes/qet-dark/scalable-22/structure-box.svg</file>
+        <file alias="themes/qet-dark/32x32/structure-box.svg">themes/qet-dark/scalable-16/structure-box.svg</file>
+        <file alias="themes/qet-dark/48x48/structure-box.svg">themes/qet-dark/scalable/structure-box.svg</file>
+        <file alias="themes/qet-dark/64x64/structure-box.svg">themes/qet-dark/scalable-16/structure-box.svg</file>
+        <file alias="themes/qet-dark/128x128/structure-box.svg">themes/qet-dark/scalable-16/structure-box.svg</file>
+        <file alias="themes/qet-dark/16x16@2/structure-box.svg">themes/qet-dark/scalable-16/structure-box.svg</file>
+        <file alias="themes/qet-dark/22x22@2/structure-box.svg">themes/qet-dark/scalable-22/structure-box.svg</file>
+        <file alias="themes/qet-dark/32x32@2/structure-box.svg">themes/qet-dark/scalable-16/structure-box.svg</file>
+        <file alias="themes/qet-dark/48x48@2/structure-box.svg">themes/qet-dark/scalable/structure-box.svg</file>
+        <file alias="themes/qet-dark/64x64@2/structure-box.svg">themes/qet-dark/scalable-16/structure-box.svg</file>
+        <file alias="themes/qet-dark/128x128@2/structure-box.svg">themes/qet-dark/scalable-16/structure-box.svg</file>
         <file alias="themes/qet-dark/16x16/table-of-content.svg">themes/qet-dark/breeze/16/gtk-index.svg</file>
         <file alias="themes/qet-dark/22x22/table-of-content.svg">themes/qet-dark/breeze/22/gtk-index.svg</file>
         <file alias="themes/qet-dark/scalable/table-of-content.svg">themes/qet-dark/breeze-24/gtk-index.svg</file>

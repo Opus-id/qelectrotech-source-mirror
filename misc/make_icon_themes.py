@@ -199,6 +199,7 @@ SVGS = [
     "qet/scalable/selection-remove.svg",
     "qet/scalable/selection-replace.svg",
     "qet/scalable/snap-to-grid.svg",
+    "qet/scalable/structure-box.svg",
 ]
 
 # Icons served by Breeze SVGs in ico/breeze/, QET name to Breeze name.

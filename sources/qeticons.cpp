@@ -153,6 +153,7 @@ namespace QET {
 		QIcon DrawFillet;
 		QIcon RevisionCloud;
 		QIcon ReviewNote;
+		QIcon StructureBox;
 		QIcon PartCircle;
 		QIcon PartEllipse;
 		QIcon PartLine;
@@ -579,6 +580,7 @@ void QET::Icons::initIcons()
 	DrawFillet          = QIcon::fromTheme("draw-fillet");
 	RevisionCloud       = QIcon::fromTheme("revision-cloud");
 	ReviewNote          = QIcon::fromTheme("review-note");
+	StructureBox        = QIcon::fromTheme("structure-box");
 	PartCircle        = QIcon::fromTheme("circle");
 	PartEllipse         = QIcon::fromTheme("ellipse");
 	PartLine            = QIcon::fromTheme("line");

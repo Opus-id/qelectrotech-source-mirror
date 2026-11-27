@@ -137,13 +137,36 @@ private slots:
 	}
 
 		/// The structure box is drawn like the other shapes, so its tool
-		/// sits on the Add toolbar with them
+		/// sits on the Add toolbar with them, first of the notes drawn over
+		/// a diagram, after the electrical tools
 	void structureBoxOnAddToolbar()
 	{
 		const QStringList ids = DiagramToolbarSettings::defaultIds(QStringLiteral("adding"));
 		QVERIFY(ids.contains(QStringLiteral("diagrameditor.add_structure_box")));
-		QCOMPARE(ids.indexOf(QStringLiteral("diagrameditor.add_structure_box")),
-			 ids.indexOf(QStringLiteral("diagrameditor.add_generic_device")) + 1);
+		const int box = ids.indexOf(QStringLiteral("diagrameditor.add_structure_box"));
+		QCOMPARE(ids.at(box - 1), DiagramToolbarSettings::separatorId());
+		QCOMPARE(ids.at(box - 2), QStringLiteral("diagrameditor.add_generic_device"));
+	}
+
+		/// The Add toolbar in five groups, one separator between two
+	void addToolbarInGroups()
+	{
+		const QString sep = DiagramToolbarSettings::separatorId();
+		const QStringList ids = DiagramToolbarSettings::defaultIds(QStringLiteral("adding"));
+		QList<QStringList> groups {{}};
+		for (const QString &id : ids) {
+			if (id == sep)
+				groups.append(QStringList());
+			else
+				groups.last().append(id.mid(QStringLiteral("diagrameditor.add_").size()));
+		}
+		const QList<QStringList> expected {
+			{"text", "image", "pdf"},
+			{"line", "rectangle", "ellipse", "arc", "polyline", "path", "fillet"},
+			{"terminal_strip", "generic_device"},
+			{"structure_box", "revision_cloud", "review_note"},
+			{"pipe"}};
+		QCOMPARE(groups, expected);
 	}
 
 		/// The revision cloud and the review note are drawn like the

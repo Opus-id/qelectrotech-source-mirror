@@ -161,6 +161,7 @@ namespace QET {
 		extern QIcon DrawFillet;
 		extern QIcon RevisionCloud;
 		extern QIcon ReviewNote;
+		extern QIcon StructureBox;
 		extern QIcon PartCircle;
 		extern QIcon PartEllipse;
 		extern QIcon PartLine;

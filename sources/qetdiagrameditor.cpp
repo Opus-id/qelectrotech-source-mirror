@@ -2246,7 +2246,7 @@ void QETDiagramEditor::setUpActions()
 	m_add_pipe      ->setStatusTip(tr("Draws pipes from a free nozzle to another, and signal lines from a signal terminal to another: a click near one is enough"));
 		//A frame with its own =plant +location: the symbols drawn inside it
 		//take them (see StructureBoxItem)
-	QAction *add_structure_box = m_add_item_actions_group.addAction(QET::Icons::PartRectangle, tr("Add a structure box"));
+	QAction *add_structure_box = m_add_item_actions_group.addAction(QET::Icons::StructureBox, tr("Add a structure box"));
 	add_structure_box->setStatusTip(tr("Adds a structure box (plant, location, prefix) to the current sheet: the symbols inside it take its plant and location"));
 		//A cloud around what changed, with the index of the revision; and a
 		//remark of a reviewer, drawn on paper only when asked (see
