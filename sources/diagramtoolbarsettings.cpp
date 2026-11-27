@@ -226,6 +226,8 @@ QStringList DiagramToolbarSettings::defaultIds(const QString &name)
 			QStringLiteral("diagrameditor.add_terminal_strip"),
 			QStringLiteral("diagrameditor.add_generic_device"),
 			QStringLiteral("diagrameditor.add_structure_box"),
+			QStringLiteral("diagrameditor.add_revision_cloud"),
+			QStringLiteral("diagrameditor.add_review_note"),
 				//P&ID: pipes drawn from nozzle to nozzle
 			QStringLiteral("diagrameditor.add_pipe")};
 	}

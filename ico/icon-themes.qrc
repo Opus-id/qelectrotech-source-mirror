@@ -28,6 +28,8 @@
         <file alias="themes/qet/scalable/generic-device.svg">qet/scalable/generic-device.svg</file>
         <file alias="themes/qet/scalable/label.svg">qet/scalable/label.svg</file>
         <file alias="themes/qet/scalable/pdf-import.svg">qet/scalable/pdf-import.svg</file>
+        <file alias="themes/qet/scalable/review-note.svg">qet/scalable/review-note.svg</file>
+        <file alias="themes/qet/scalable/revision-cloud.svg">qet/scalable/revision-cloud.svg</file>
         <file alias="themes/qet/scalable/select-by-criteria.svg">qet/scalable/select-by-criteria.svg</file>
         <file alias="themes/qet/scalable/selection-add.svg">qet/scalable/selection-add.svg</file>
         <file alias="themes/qet/scalable/selection-remove.svg">qet/scalable/selection-remove.svg</file>
@@ -2282,6 +2284,30 @@
         <file alias="themes/qet/48x48@2/restaurer.svg">themes/generated/breeze-24/view-visible.svg</file>
         <file alias="themes/qet/64x64@2/restaurer.svg">breeze/16/view-visible.svg</file>
         <file alias="themes/qet/128x128@2/restaurer.svg">breeze/16/view-visible.svg</file>
+        <file alias="themes/qet/16x16/review-note.svg">qet/scalable/16/review-note.svg</file>
+        <file alias="themes/qet/22x22/review-note.svg">themes/generated/scalable-22/review-note.svg</file>
+        <file alias="themes/qet/32x32/review-note.svg">qet/scalable/16/review-note.svg</file>
+        <file alias="themes/qet/48x48/review-note.svg">qet/scalable/review-note.svg</file>
+        <file alias="themes/qet/64x64/review-note.svg">qet/scalable/16/review-note.svg</file>
+        <file alias="themes/qet/128x128/review-note.svg">qet/scalable/16/review-note.svg</file>
+        <file alias="themes/qet/16x16@2/review-note.svg">qet/scalable/16/review-note.svg</file>
+        <file alias="themes/qet/22x22@2/review-note.svg">themes/generated/scalable-22/review-note.svg</file>
+        <file alias="themes/qet/32x32@2/review-note.svg">qet/scalable/16/review-note.svg</file>
+        <file alias="themes/qet/48x48@2/review-note.svg">qet/scalable/review-note.svg</file>
+        <file alias="themes/qet/64x64@2/review-note.svg">qet/scalable/16/review-note.svg</file>
+        <file alias="themes/qet/128x128@2/review-note.svg">qet/scalable/16/review-note.svg</file>
+        <file alias="themes/qet/16x16/revision-cloud.svg">qet/scalable/16/revision-cloud.svg</file>
+        <file alias="themes/qet/22x22/revision-cloud.svg">themes/generated/scalable-22/revision-cloud.svg</file>
+        <file alias="themes/qet/32x32/revision-cloud.svg">qet/scalable/16/revision-cloud.svg</file>
+        <file alias="themes/qet/48x48/revision-cloud.svg">qet/scalable/revision-cloud.svg</file>
+        <file alias="themes/qet/64x64/revision-cloud.svg">qet/scalable/16/revision-cloud.svg</file>
+        <file alias="themes/qet/128x128/revision-cloud.svg">qet/scalable/16/revision-cloud.svg</file>
+        <file alias="themes/qet/16x16@2/revision-cloud.svg">qet/scalable/16/revision-cloud.svg</file>
+        <file alias="themes/qet/22x22@2/revision-cloud.svg">themes/generated/scalable-22/revision-cloud.svg</file>
+        <file alias="themes/qet/32x32@2/revision-cloud.svg">qet/scalable/16/revision-cloud.svg</file>
+        <file alias="themes/qet/48x48@2/revision-cloud.svg">qet/scalable/revision-cloud.svg</file>
+        <file alias="themes/qet/64x64@2/revision-cloud.svg">qet/scalable/16/revision-cloud.svg</file>
+        <file alias="themes/qet/128x128@2/revision-cloud.svg">qet/scalable/16/revision-cloud.svg</file>
         <file alias="themes/qet/16x16/run-dxf.svg">qet/traced/16/run-dxf.svg</file>
         <file alias="themes/qet/16x16@2/run-dxf.svg">qet/traced/large16/run-dxf.svg</file>
         <file alias="themes/qet/22x22/run-dxf.svg">qet/traced/22/run-dxf.svg</file>
@@ -2882,6 +2908,8 @@
         <file>themes/qet-dark/scalable/generic-device.svg</file>
         <file>themes/qet-dark/scalable/label.svg</file>
         <file>themes/qet-dark/scalable/pdf-import.svg</file>
+        <file>themes/qet-dark/scalable/review-note.svg</file>
+        <file>themes/qet-dark/scalable/revision-cloud.svg</file>
         <file>themes/qet-dark/scalable/select-by-criteria.svg</file>
         <file>themes/qet-dark/scalable/selection-add.svg</file>
         <file>themes/qet-dark/scalable/selection-remove.svg</file>
@@ -3467,6 +3495,10 @@
         <file>themes/qet-dark/breeze/16/view-visible.svg</file>
         <file>themes/qet-dark/breeze/22/view-visible.svg</file>
         <file>themes/qet-dark/breeze-24/view-visible.svg</file>
+        <file>themes/qet-dark/scalable-16/review-note.svg</file>
+        <file>themes/qet-dark/scalable-22/review-note.svg</file>
+        <file>themes/qet-dark/scalable-16/revision-cloud.svg</file>
+        <file>themes/qet-dark/scalable-22/revision-cloud.svg</file>
         <file>themes/qet-dark/traced/16/run-dxf.svg</file>
         <file>themes/qet-dark/traced/large16/run-dxf.svg</file>
         <file>themes/qet-dark/traced/22/run-dxf.svg</file>
@@ -5606,6 +5638,30 @@
         <file alias="themes/qet-dark/48x48@2/restaurer.svg">themes/qet-dark/breeze-24/view-visible.svg</file>
         <file alias="themes/qet-dark/64x64@2/restaurer.svg">themes/qet-dark/breeze/16/view-visible.svg</file>
         <file alias="themes/qet-dark/128x128@2/restaurer.svg">themes/qet-dark/breeze/16/view-visible.svg</file>
+        <file alias="themes/qet-dark/16x16/review-note.svg">themes/qet-dark/scalable-16/review-note.svg</file>
+        <file alias="themes/qet-dark/22x22/review-note.svg">themes/qet-dark/scalable-22/review-note.svg</file>
+        <file alias="themes/qet-dark/32x32/review-note.svg">themes/qet-dark/scalable-16/review-note.svg</file>
+        <file alias="themes/qet-dark/48x48/review-note.svg">themes/qet-dark/scalable/review-note.svg</file>
+        <file alias="themes/qet-dark/64x64/review-note.svg">themes/qet-dark/scalable-16/review-note.svg</file>
+        <file alias="themes/qet-dark/128x128/review-note.svg">themes/qet-dark/scalable-16/review-note.svg</file>
+        <file alias="themes/qet-dark/16x16@2/review-note.svg">themes/qet-dark/scalable-16/review-note.svg</file>
+        <file alias="themes/qet-dark/22x22@2/review-note.svg">themes/qet-dark/scalable-22/review-note.svg</file>
+        <file alias="themes/qet-dark/32x32@2/review-note.svg">themes/qet-dark/scalable-16/review-note.svg</file>
+        <file alias="themes/qet-dark/48x48@2/review-note.svg">themes/qet-dark/scalable/review-note.svg</file>
+        <file alias="themes/qet-dark/64x64@2/review-note.svg">themes/qet-dark/scalable-16/review-note.svg</file>
+        <file alias="themes/qet-dark/128x128@2/review-note.svg">themes/qet-dark/scalable-16/review-note.svg</file>
+        <file alias="themes/qet-dark/16x16/revision-cloud.svg">themes/qet-dark/scalable-16/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/22x22/revision-cloud.svg">themes/qet-dark/scalable-22/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/32x32/revision-cloud.svg">themes/qet-dark/scalable-16/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/48x48/revision-cloud.svg">themes/qet-dark/scalable/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/64x64/revision-cloud.svg">themes/qet-dark/scalable-16/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/128x128/revision-cloud.svg">themes/qet-dark/scalable-16/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/16x16@2/revision-cloud.svg">themes/qet-dark/scalable-16/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/22x22@2/revision-cloud.svg">themes/qet-dark/scalable-22/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/32x32@2/revision-cloud.svg">themes/qet-dark/scalable-16/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/48x48@2/revision-cloud.svg">themes/qet-dark/scalable/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/64x64@2/revision-cloud.svg">themes/qet-dark/scalable-16/revision-cloud.svg</file>
+        <file alias="themes/qet-dark/128x128@2/revision-cloud.svg">themes/qet-dark/scalable-16/revision-cloud.svg</file>
         <file alias="themes/qet-dark/16x16/run-dxf.svg">themes/qet-dark/traced/16/run-dxf.svg</file>
         <file alias="themes/qet-dark/16x16@2/run-dxf.svg">themes/qet-dark/traced/large16/run-dxf.svg</file>
         <file alias="themes/qet-dark/22x22/run-dxf.svg">themes/qet-dark/traced/22/run-dxf.svg</file>

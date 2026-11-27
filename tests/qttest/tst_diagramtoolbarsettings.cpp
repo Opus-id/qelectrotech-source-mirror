@@ -146,6 +146,16 @@ private slots:
 			 ids.indexOf(QStringLiteral("diagrameditor.add_generic_device")) + 1);
 	}
 
+		/// The revision cloud and the review note are drawn like the
+		/// other shapes: their tools follow the structure box
+	void cloudsOnAddToolbar()
+	{
+		const QStringList ids = DiagramToolbarSettings::defaultIds(QStringLiteral("adding"));
+		const int box = ids.indexOf(QStringLiteral("diagrameditor.add_structure_box"));
+		QCOMPARE(ids.indexOf(QStringLiteral("diagrameditor.add_revision_cloud")), box + 1);
+		QCOMPARE(ids.indexOf(QStringLiteral("diagrameditor.add_review_note")), box + 2);
+	}
+
 	void fillSkipsUnknownAndStraySeparators()
 	{
 		const QString sep = DiagramToolbarSettings::separatorId();

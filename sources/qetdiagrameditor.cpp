@@ -2251,9 +2251,9 @@ void QETDiagramEditor::setUpActions()
 		//A cloud around what changed, with the index of the revision; and a
 		//remark of a reviewer, drawn on paper only when asked (see
 		//RevisionCloudItem). Space before the first click: a free outline
-	QAction *add_revision_cloud = m_add_item_actions_group.addAction(QET::Icons::PartPolygon, tr("Add a revision cloud"));
+	QAction *add_revision_cloud = m_add_item_actions_group.addAction(QET::Icons::RevisionCloud, tr("Add a revision cloud"));
 	add_revision_cloud->setStatusTip(tr("Draws a cloud around what changed, with the index of the last revision of the project"));
-	QAction *add_review_note = m_add_item_actions_group.addAction(QET::Icons::EditText, tr("Add a review note"));
+	QAction *add_review_note = m_add_item_actions_group.addAction(QET::Icons::ReviewNote, tr("Add a review note"));
 	add_review_note->setStatusTip(tr("Draws a cloud with a remark of a reviewer: printed only when asked"));
 
 	add_text     ->setData(QStringLiteral("text"));

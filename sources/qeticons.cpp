@@ -151,6 +151,8 @@ namespace QET {
 		QIcon PartArc;
 		QIcon PartBezier;
 		QIcon DrawFillet;
+		QIcon RevisionCloud;
+		QIcon ReviewNote;
 		QIcon PartCircle;
 		QIcon PartEllipse;
 		QIcon PartLine;
@@ -575,7 +577,9 @@ void QET::Icons::initIcons()
 	PartArc             = QIcon::fromTheme("arc");
 	PartBezier          = QIcon::fromTheme("draw-bezier-curves");
 	DrawFillet          = QIcon::fromTheme("draw-fillet");
-	PartCircle          = QIcon::fromTheme("circle");
+	RevisionCloud       = QIcon::fromTheme("revision-cloud");
+	ReviewNote          = QIcon::fromTheme("review-note");
+	PartCircle        = QIcon::fromTheme("circle");
 	PartEllipse         = QIcon::fromTheme("ellipse");
 	PartLine            = QIcon::fromTheme("line");
 	PartPolygon         = QIcon::fromTheme("polygon");

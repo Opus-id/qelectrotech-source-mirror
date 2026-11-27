@@ -192,6 +192,8 @@ SVGS = [
     "qet/scalable/generic-device.svg",
     "qet/scalable/label.svg",
     "qet/scalable/pdf-import.svg",
+    "qet/scalable/review-note.svg",
+    "qet/scalable/revision-cloud.svg",
     "qet/scalable/select-by-criteria.svg",
     "qet/scalable/selection-add.svg",
     "qet/scalable/selection-remove.svg",
