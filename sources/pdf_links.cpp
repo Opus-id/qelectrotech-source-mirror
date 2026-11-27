@@ -806,6 +806,9 @@ void convertComponentInfoAnnotations(const QString &pdfPath,
 		out += "/Contents <";
 		out += utf16be.toHex();
 		out += ">\n/AP << /N " + QByteArray::number(emptyXObjNum) + " 0 R >>\n";
+		// A viewer which draws the square itself instead of /AP (Open PDF
+		// Studio) gives it a border of 1 point by default: none
+		out += "/BS << /W 0 >>\n";
 
 		// Skip the entire /A << ... >> action dict.
 		// After closeParen ')' we have: \n>>  (closes /A dict)  \n>>  (closes annot dict)
