@@ -32,6 +32,7 @@
 #include "dynamicelementtextitemeditor.h"
 #include "elementarticleswidget.h"
 #include "elementinfowidget.h"
+#include "terminalpropertieswidget.h"
 #include "elementnozzleswidget.h"
 #include "elementoptionswidget.h"
 #include "elementtagwidget.h"
@@ -413,6 +414,7 @@ void ElementPropertiesWidget::updateUi()
 				m_list_editor << new LinkSingleElementWidget(m_element, this);
 			break;
 		case Element::Terminale:
+			m_list_editor << new TerminalPropertiesWidget(m_element, this);
 			addInfoAndArticlesTabs();
 			break;
 		case Element::Junction:
