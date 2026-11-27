@@ -298,6 +298,56 @@
             </property>
            </widget>
           </item>
+          <item>
+           <layout class="QHBoxLayout" name="m_revision_cloud_color_layout">
+            <item>
+             <widget class="QLabel" name="m_revision_cloud_color_label">
+              <property name="text">
+               <string>Colour of new revision clouds</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="KColorButton" name="m_revision_cloud_color_kpb">
+              <property name="toolTip">
+               <string>A new revision cloud is drawn in this colour, its index too. Each cloud keeps its colour, which its properties change. Black by default.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="m_revision_cloud_color_spacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="m_review_note_color_layout">
+            <item>
+             <widget class="QLabel" name="m_review_note_color_label">
+              <property name="text">
+               <string>Colour of new review notes</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="KColorButton" name="m_review_note_color_kpb">
+              <property name="toolTip">
+               <string>A new review note is drawn in this colour, its comment too. Each note keeps its colour, which its properties change. Red by default.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="m_review_note_color_spacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
          </layout>
         </widget>
        </item>

@@ -123,6 +123,28 @@ namespace ProjectReports
 				"CASE WHEN %1 IS NULL THEN NULL "
 				"ELSE RTRIM(RTRIM(PRINTF('%.%2f', %1), '0'), '.') END").arg(value).arg(places);
 		}
+
+			/// "clouds AS (...)": one row per revision cloud or review note
+			/// (RevisionCloudItem), from the rows of its <shape> in
+			/// drawing_item, so folios not built yet are read too; a field
+			/// not written is ''. No place on the folio ("B3"): the shape
+			/// table holds it, and reading that table builds every folio
+			/// (projectDataBase::newQuery()).
+		QString cloudRowsSql()
+		{
+			const auto field = [](const char *name) {
+				return QStringLiteral("COALESCE(MAX(CASE WHEN d.name = '%1' THEN d.value END), '')")
+						.arg(QLatin1String(name));
+			};
+			return QStringLiteral(
+				"clouds AS (SELECT d.item_uuid AS uuid, %1 AS cloud, %2 AS revision, %3 AS comment, "
+				"%4 AS author, %5 AS date, %6 AS reply, %7 = 'true' AS done, "
+				"f.folio_number AS folio_number, COALESCE(f.title, '') AS folio_title "
+				"FROM drawing_item d LEFT JOIN qet_folios f ON f.folio_uuid = d.folio_uuid "
+				"WHERE d.section = 'shape' GROUP BY d.item_uuid, d.folio_uuid)")
+					.arg(field("cloud"), field("revision"), field("comment"), field("author"),
+						 field("date"), field("reply"), field("done"));
+		}
 	}
 
 	QString Place::text() const
@@ -355,6 +377,52 @@ namespace ProjectReports
 			for (const QString &column : PidLists::equipmentColumns())
 				if (column != QLatin1String("folio_uuid"))
 					r.columns << Column{column, column};
+			list << r;
+		}
+		{
+				//The revision clouds (RevisionCloudItem), read from the rows
+				//of their <shape> in drawing_item, folios not built included:
+				//its index, and the date and description of that revision in
+				//the project's list, found by its text (a revision has no
+				//other name). By revision, the latest first, then by folio;
+				//an index the list does not hold comes last.
+			Report r;
+			r.id = QStringLiteral("revision_clouds");
+			r.title = Text::tr("Revision clouds");
+			r.source = QStringLiteral(
+				"(WITH %1, "
+				"listed AS (SELECT TRIM(revision) AS revision, MAX(position) AS position "
+					"FROM qet_revisions GROUP BY TRIM(revision)) "
+				"SELECT c.*, l.position AS revision_position, "
+				"COALESCE(q.date, '') AS revision_date, COALESCE(q.description, '') AS revision_description "
+				"FROM clouds c LEFT JOIN listed l ON l.revision = TRIM(c.revision) "
+				"LEFT JOIN qet_revisions q ON q.position = l.position "
+				"WHERE c.cloud = 'revision')").arg(cloudRowsSql());
+			r.order = QStringLiteral("revision_position IS NULL, revision_position DESC, "
+									 "folio_number, uuid");
+			r.columns = {{QStringLiteral("revision"), Text::tr("Revision")},
+						 {QStringLiteral("revision_date"), Text::tr("Date")},
+						 {QStringLiteral("revision_description"), Text::tr("Description")},
+						 {QStringLiteral("folio_number"), Text::tr("Sheet")},
+						 {QStringLiteral("folio_title"), Text::tr("Title")}};
+			list << r;
+		}
+		{
+				//The review notes, those still to do first
+			Report r;
+			r.id = QStringLiteral("review_notes");
+			r.title = Text::tr("Review notes");
+			r.source = QStringLiteral("(WITH %1 SELECT * FROM clouds WHERE cloud = 'review')")
+					.arg(cloudRowsSql());
+			r.order = QStringLiteral("done, folio_number, date, uuid");
+			r.columns = {{QStringLiteral("folio_number"), Text::tr("Sheet")},
+						 {QStringLiteral("comment"), Text::tr("Comment")},
+						 {QStringLiteral("author"), Text::tr("Author")},
+						 {QStringLiteral("date"), Text::tr("Date")},
+						 {QStringLiteral("CASE WHEN done THEN %1 ELSE %2 END")
+							  .arg(quoted(Text::tr("Done", "review note")),
+								   quoted(Text::tr("To do", "review note"))), Text::tr("State")},
+						 {QStringLiteral("reply"), Text::tr("Reply")}};
 			list << r;
 		}
 		return list;

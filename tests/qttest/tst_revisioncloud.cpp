@@ -27,6 +27,9 @@
 #include "qetgraphicsitem/revisionclouditem.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "reports/projectreports.h"
+#include "titleblockproperties.h"
+#include "ui/configpage/generalconfigurationpage.h"
 #include "ui/revisioncloudpropertieswidget.h"
 
 #include <QCheckBox>
@@ -815,6 +818,134 @@ class tst_revisioncloud : public QObject
 				QCOMPARE(clouds.first()->comment(), QStringLiteral("Check the slope"));
 				QVERIFY2(clouds.first()->isDone(), qPrintable(name));
 			}
+		}
+
+	private:
+			//A project with revisions A and B, and on two folios: clouds of B,
+			//A, an index the list does not hold and none, and two notes
+		static void fillForLists(QETProject &project)
+		{
+			RevisionList list;
+			list.setRevisions({Revision{QStringLiteral("A"), QStringLiteral("2026-10-01"),
+										QStringLiteral("First issue"), {}, {}},
+							   Revision{QStringLiteral("B"), QStringLiteral("2026-11-27"),
+										QStringLiteral("Pump moved"), {}, {}}});
+			project.setRevisions(list);
+			Diagram *first = project.addNewDiagram();
+			Diagram *second = project.addNewDiagram();
+			TitleBlockProperties block = second->border_and_titleblock.exportTitleBlock();
+			block.title = QStringLiteral("Filters");
+			second->border_and_titleblock.importTitleBlock(block);
+			cloud(first, QRectF(0, 0, 100, 100))->setRevision(QStringLiteral("A"));
+			cloud(first, QRectF(200, 0, 100, 100))->setRevision(QStringLiteral("Z"));
+			cloud(first, QRectF(400, 0, 100, 100))->setRevision(QStringLiteral("B"));
+			cloud(second, QRectF(0, 0, 100, 100))->setRevision(QStringLiteral("B"));
+			cloud(second, QRectF(200, 0, 100, 100));
+			RevisionCloudItem *done = cloud(first, QRectF(0, 200, 100, 100), RevisionCloudItem::Review);
+			done->setComment(QStringLiteral("DN 80, not 65"));
+			done->setAuthor(QStringLiteral("checker"));
+			done->setDate(QStringLiteral("2026-11-20"));
+			done->setReply(QStringLiteral("done, DN 80"));
+			done->setDone(true);
+			RevisionCloudItem *open = cloud(second, QRectF(0, 200, 100, 100), RevisionCloudItem::Review);
+			open->setComment(QStringLiteral("Add a drain"));
+				//A plain shape is in neither list
+			auto *shape = new QetShapeItem(QPointF(0, 400), QPointF(50, 450), QetShapeItem::Rectangle);
+			first->addItem(shape);
+		}
+
+			//Column @p title of @p table, row by row
+		static QStringList column(const ProjectReports::Table &table, const QString &title)
+		{
+			QStringList values;
+			const int c = int(table.headers.indexOf(title));
+			if (c < 0) return values;
+			for (const QStringList &row : table.rows) values << row.at(c);
+			return values;
+		}
+
+			//The two lists of fillForLists(): the clouds by revision, the
+			//latest first, an index the list does not hold last; the notes
+			//to do first
+		static void checkLists(QETProject &project)
+		{
+			const ProjectReports::Table clouds = ProjectReports::read(
+						&project, ProjectReports::report(QStringLiteral("revision_clouds")));
+			QVERIFY2(clouds.error.isEmpty(), qPrintable(clouds.error));
+			QCOMPARE(column(clouds, QStringLiteral("Revision")),
+					 QStringList({"B", "B", "A", "Z", ""}));
+			QCOMPARE(column(clouds, QStringLiteral("Sheet")), QStringList({"1", "2", "1", "1", "2"}));
+			QCOMPARE(column(clouds, QStringLiteral("Date")),
+					 QStringList({"2026-11-27", "2026-11-27", "2026-10-01", "", ""}));
+			QCOMPARE(column(clouds, QStringLiteral("Description")),
+					 QStringList({"Pump moved", "Pump moved", "First issue", "", ""}));
+			QCOMPARE(column(clouds, QStringLiteral("Title")).at(1), QStringLiteral("Filters"));
+
+			const ProjectReports::Table notes = ProjectReports::read(
+						&project, ProjectReports::report(QStringLiteral("review_notes")));
+			QVERIFY2(notes.error.isEmpty(), qPrintable(notes.error));
+			QCOMPARE(column(notes, QStringLiteral("Comment")),
+					 QStringList({"Add a drain", "DN 80, not 65"}));
+			QCOMPARE(column(notes, QStringLiteral("Sheet")), QStringList({"2", "1"}));
+			QCOMPARE(column(notes, QStringLiteral("State")),
+					 QStringList({QCoreApplication::translate("ProjectReports", "To do", "review note"),
+								  QCoreApplication::translate("ProjectReports", "Done", "review note")}));
+			QCOMPARE(column(notes, QStringLiteral("Author")).at(1), QStringLiteral("checker"));
+			QCOMPARE(column(notes, QStringLiteral("Date")).at(1), QStringLiteral("2026-11-20"));
+			QCOMPARE(column(notes, QStringLiteral("Reply")), QStringList({"", "done, DN 80"}));
+		}
+
+	private slots:
+			//Projet > Rapports, on a project built on the screen
+		void bothListsReadTheClouds()
+		{
+			QETProject project;
+			fillForLists(project);
+			checkLists(project);
+		}
+
+			//Saved as a .qetz and opened again, its folios not built: the
+			//lists read them all the same, and build nothing
+		void theListsReadFoliosNotBuilt()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			{
+				QETProject project;
+				fillForLists(project);
+				project.setFilePath(dir.filePath(QStringLiteral("lists.qetz")));
+				QVERIFY(project.write().isOk());
+			}
+			QETProject reopened(dir.filePath(QStringLiteral("lists.qetz")));
+			QCOMPARE(reopened.folios().size(), 2);
+			for (Diagram *folio : reopened.folios())
+				QVERIFY(!folio->isLoaded());
+			checkLists(reopened);
+			for (Diagram *folio : reopened.folios())
+				QVERIFY2(!folio->isLoaded(), "a list builds no folio");
+		}
+
+			//Settings > General: one colour button per kind, black and red
+			//by default, which new clouds take once applied
+		void theSettingsPageSetsTheColours()
+		{
+			QSettings().remove(QStringLiteral("diagrameditor/revision_cloud_color"));
+			QSettings().remove(QStringLiteral("diagrameditor/review_note_color"));
+			{
+				GeneralConfigurationPage page;
+				QObject *revision = page.findChild<QObject *>(QStringLiteral("m_revision_cloud_color_kpb"));
+				QObject *review = page.findChild<QObject *>(QStringLiteral("m_review_note_color_kpb"));
+				QVERIFY(revision && review);
+				QCOMPARE(revision->property("color").value<QColor>(), QColor(Qt::black));
+				QCOMPARE(review->property("color").value<QColor>(), QColor(Qt::red));
+				revision->setProperty("color", QColor(QStringLiteral("#0000ff")));
+				review->setProperty("color", QColor(QStringLiteral("#ff8800")));
+				page.applyConf();
+			}
+			QCOMPARE(RevisionCloudItem::newCloudColor(RevisionCloudItem::Revision), QColor(QStringLiteral("#0000ff")));
+			QCOMPARE(RevisionCloudItem::newCloudColor(RevisionCloudItem::Review), QColor(QStringLiteral("#ff8800")));
+			QSettings().remove(QStringLiteral("diagrameditor/revision_cloud_color"));
+			QSettings().remove(QStringLiteral("diagrameditor/review_note_color"));
 		}
 };
 

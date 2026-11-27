@@ -44,6 +44,7 @@
 #include <textgrid.h>
 #include <qetgraphicsitem/element.h>
 #include <qetgraphicsitem/structureboxitem.h>
+#include <qetgraphicsitem/revisionclouditem.h>
 #include <wiringrules.h>
 #include <ui/wiringruleswarning.h>
 #include <editor/terminalnamecheck.h>
@@ -161,6 +162,8 @@ GeneralConfigurationPage::GeneralConfigurationPage(QWidget *parent) :
 	ui->m_junction_replaces_cb->setChecked(ConnectionSymbols::newJunctionReplacesOld());
 	ui->m_structure_box_color_kpb->setColor(StructureBoxItem::newBoxColor());
 	ui->m_structure_box_ask_place_cb->setChecked(StructureBoxItem::askPlaceWhenDrawn());
+	ui->m_revision_cloud_color_kpb->setColor(RevisionCloudItem::newCloudColor(RevisionCloudItem::Revision));
+	ui->m_review_note_color_kpb->setColor(RevisionCloudItem::newCloudColor(RevisionCloudItem::Review));
 	ui->m_terminal_help_lines_cb->setChecked(DiagramView::terminalHelpLinesShown());
 	ui->m_dock_fold_cb->setChecked(DockFold::enabled());
 	ui->m_narrow_docks_cb->setChecked(DockFit::enabled());
@@ -603,6 +606,8 @@ void GeneralConfigurationPage::applyConf()
 	ConnectionSymbols::setNewJunctionReplacesOld(ui->m_junction_replaces_cb->isChecked());
 	StructureBoxItem::setNewBoxColor(ui->m_structure_box_color_kpb->color());
 	StructureBoxItem::setAskPlaceWhenDrawn(ui->m_structure_box_ask_place_cb->isChecked());
+	RevisionCloudItem::setNewCloudColor(RevisionCloudItem::Revision, ui->m_revision_cloud_color_kpb->color());
+	RevisionCloudItem::setNewCloudColor(RevisionCloudItem::Review, ui->m_review_note_color_kpb->color());
 	if (ui->m_vertical_texts_from_bottom_cb->isChecked() != DynamicElementTextItem::verticalFromBottom())
 		DynamicElementTextItem::setVerticalFromBottom(ui->m_vertical_texts_from_bottom_cb->isChecked());
 	DynamicElementTextItem::setDragMovesTextAlone(ui->m_drag_texts_without_shift_cb->isChecked());

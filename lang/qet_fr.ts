@@ -12756,6 +12756,22 @@ Toutes valeurs autre que ‘Pas d’arrondi’ peut causer des erreurs de rendu 
         <source>Terminal strips and conductors</source>
         <translation>Borniers et conducteurs</translation>
     </message>
+    <message>
+        <source>Colour of new revision clouds</source>
+        <translation>Couleur des nouveaux nuages de révision</translation>
+    </message>
+    <message>
+        <source>A new revision cloud is drawn in this colour, its index too. Each cloud keeps its colour, which its properties change. Black by default.</source>
+        <translation>Un nouveau nuage de révision est dessiné dans cette couleur, son indice aussi. Chaque nuage garde sa couleur, que ses propriétés changent. Noir par défaut.</translation>
+    </message>
+    <message>
+        <source>Colour of new review notes</source>
+        <translation>Couleur des nouvelles annotations de correction</translation>
+    </message>
+    <message>
+        <source>A new review note is drawn in this colour, its comment too. Each note keeps its colour, which its properties change. Red by default.</source>
+        <translation>Une nouvelle annotation de correction est dessinée dans cette couleur, son commentaire aussi. Chaque annotation garde sa couleur, que ses propriétés changent. Rouge par défaut.</translation>
+    </message>
 </context>
 <context>
     <name>GenericDevice</name>
@@ -20005,6 +20021,52 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <location filename="../sources/reports/projectreports.cpp" line="347"/>
         <source>P&amp;ID equipment list</source>
         <translation>Nomenclature P&amp;ID</translation>
+    </message>
+    <message>
+        <source>Revision clouds</source>
+        <translation>Nuages de révision</translation>
+    </message>
+    <message>
+        <source>Review notes</source>
+        <translation>Annotations de correction</translation>
+    </message>
+    <message>
+        <source>Revision</source>
+        <translation>Indice</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Date</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>Titre</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation>Commentaire</translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation>Auteur</translation>
+    </message>
+    <message>
+        <source>State</source>
+        <translation>État</translation>
+    </message>
+    <message>
+        <source>Reply</source>
+        <translation>Réponse</translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <comment>review note</comment>
+        <translation>Faite</translation>
+    </message>
+    <message>
+        <source>To do</source>
+        <comment>review note</comment>
+        <translation>À faire</translation>
     </message>
 </context>
 <context>
