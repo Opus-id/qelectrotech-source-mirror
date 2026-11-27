@@ -50,6 +50,7 @@
 #include <factory/elementpicturefactory.h>
 #include <leaderline.h>
 #include <qetapp.h>
+#include <QSettings>
 
 #include <QApplication>
 #include <QFontMetricsF>
@@ -1035,6 +1036,39 @@ QPointF Conductor::extendTerminal(const QPointF &terminal, Qet::Orientation term
 	return(extended_terminal);
 }
 
+namespace {
+	/// See Conductor::outlinesLightWires(); -1 until read from the settings
+	int s_outlines_light_wires = -1;
+	/// A wire lighter than this (0 black, 1 white) gets the outline
+	constexpr qreal light_wire_lightness = 0.85;
+}
+
+/**
+	@brief Conductor::outlinesLightWires
+	@return true if a white or very pale wire is drawn with a thin black
+	outline, so it shows on a white folio. Off by default.
+*/
+bool Conductor::outlinesLightWires()
+{
+	if (s_outlines_light_wires < 0) {
+		QSettings settings;
+		s_outlines_light_wires = settings.value(
+			QStringLiteral("diagrameditor/outline_light_wires"), false).toBool();
+	}
+	return s_outlines_light_wires;
+}
+
+/**
+	@brief Conductor::setOutlinesLightWires
+	@param outline : see outlinesLightWires(); kept in the settings
+*/
+void Conductor::setOutlinesLightWires(bool outline)
+{
+	s_outlines_light_wires = outline;
+	QSettings settings;
+	settings.setValue(QStringLiteral("diagrameditor/outline_light_wires"), outline);
+}
+
 /**
 	@brief Conductor::extendTerminalBeyond
 	@param terminal : the docking point of a terminal
@@ -1111,6 +1145,8 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	PotentialType potential_type;
 	const bool typed = potentialTypeFormat(&potential_type);
 	QColor final_conductor_color;
+		//False when a highlight, alert or selection colour replaces it
+	bool own_colour = false;
 	if (m_preview) {
 		final_conductor_color = QColor(160, 160, 160);
 	} else if (must_highlight_ == Normal) {
@@ -1120,6 +1156,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	} else if (isSelected()) {
 		final_conductor_color = QET::Palette::pickedColor(sheet_ink);
 	} else {
+		own_colour = true;
 		final_conductor_color = plainColor();
 	}
 
@@ -1151,6 +1188,34 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	}
 		//Draw the conductor, with a hop at each crossing if the project asks for them
 	const QPainterPath painted_path = paintedPath();
+		//A white wire is invisible on a white folio: draw a black line,
+		//one unit wider on each side, under it. Only for the wire's own
+		//colour, not a highlight or selection colour; only for a wire,
+		//a pipe or a signal line keeps its own drawing
+	const bool outlined = m_properties.m_medium == TerminalData::Electrical
+			&& outlinesLightWires() && own_colour
+			&& final_conductor_color.lightnessF() > light_wire_lightness;
+	if (outlined)
+	{
+		QPen outline_pen = final_conductor_pen;
+		outline_pen.setColor(Qt::black);
+		const qreal wire_width = final_conductor_pen.widthF();
+		outline_pen.setWidthF(wire_width + 2);
+			//A dash pattern is in pen widths: keep the dashes where the
+			//wire's own are, so a dashed wire stays dashed
+		if (outline_pen.style() != Qt::SolidLine && wire_width > 0)
+		{
+			QVector<qreal> pattern = final_conductor_pen.dashPattern();
+			for (qreal &length : pattern)
+				length *= wire_width / (wire_width + 2);
+			outline_pen.setDashPattern(pattern);
+		}
+		painter->save();
+		painter->setPen(outline_pen);
+		painter->drawPath(painted_path);
+		painter->restore();
+		painter->setPen(final_conductor_pen);
+	}
 	if (m_properties.m_medium == TerminalData::Pipe) {
 		drawOffSeries(painter, painted_path, line_width, detail);
 	}
@@ -1206,6 +1271,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	QList<QPointF> junctions_list = junctions();
 	if (!junctions_list.isEmpty()) {
 		final_conductor_pen.setStyle(Qt::SolidLine);
+		if (outlined) final_conductor_pen.setColor(Qt::black);
 		QBrush junction_brush(final_conductor_color, Qt::SolidPattern);
 		painter -> setPen(final_conductor_pen);
 		painter -> setBrush(junction_brush);
