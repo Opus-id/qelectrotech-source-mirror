@@ -1219,8 +1219,9 @@ bool PidCodification::isDataName(const QString &name)
 	if (!rule.match(name).hasMatch()) {
 		return false;
 	}
-		//The fields of the tag, and the texts made of them
-	const QStringList taken{PidTag::unitKey(), PidTag::trainKey(), PidTag::orderKey(),
+		//The fields of the tag (the unit is the plant, no "pid_" name), and
+		//the texts made of them
+	const QStringList taken{PidTag::trainKey(), PidTag::orderKey(),
 							PidTag::lettersKey(), QETInformation::PID_TAG_ID,
 							QETInformation::PID_TAG_REST, QETInformation::PID_STANDBY_TEXT};
 	return !taken.contains(dataPrefix() + name);

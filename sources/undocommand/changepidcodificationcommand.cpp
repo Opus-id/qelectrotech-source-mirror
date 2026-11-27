@@ -19,32 +19,16 @@
 
 #include "../diagram.h"
 #include "../pidtag.h"
+#include "../placerename.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/element.h"
 #include "../qetproject.h"
 
 namespace
 {
-		/// A valve may have a fluid at the head of its tag (an injection of a
-		/// reagent), in the place of a functional unit
-	bool isValve(const Element *element)
-	{
-		return element->elementData().m_pid_family == QLatin1String("valve");
-	}
-
 	QString unitOf(const Element *element)
 	{
 		return element->elementInformations().value(PidTag::unitKey()).toString();
-	}
-
-	bool isUnit(const PidCodification &codification, const QString &code)
-	{
-		for (const PidCodification::Entry &entry : codification.functional_units) {
-			if (entry.code == code) {
-				return true;
-			}
-		}
-		return false;
 	}
 }
 
@@ -75,8 +59,10 @@ ChangePidCodificationCommand::ChangePidCodificationCommand(
 		findCodeUsers(changes);
 	}
 	setObsolete(m_old_codification == m_new_codification
-				&& m_pipes.isEmpty() && m_elements.isEmpty());
+				&& m_pipes.isEmpty() && m_renames.empty());
 }
+
+ChangePidCodificationCommand::~ChangePidCodificationCommand() = default;
 
 /**
 	@brief ChangePidCodificationCommand::usersOf
@@ -106,12 +92,11 @@ int ChangePidCodificationCommand::usersOf(QETProject *project, PidCodification::
 				}
 			}
 		}
-		if (list == PidCodification::List::Materials) {
+		if (list != PidCodification::List::Units) {
 			continue;
 		}
 		for (const Element *element : folio->elements()) {
-			if (unitOf(element) == code
-				&& (list == PidCodification::List::Units || isValve(element))) {
+			if (unitOf(element) == code) {
 				++users;
 			}
 		}
@@ -121,9 +106,11 @@ int ChangePidCodificationCommand::usersOf(QETProject *project, PidCodification::
 
 /**
 	@brief ChangePidCodificationCommand::findCodeUsers
-	Find what bears a code given another, all folios built for that. A
-	symbol takes the new code of its functional unit; a valve which has no
-	unit of that code takes that of its fluid.
+	Find what bears a code given another, all folios built for that: the
+	pipe lines of a fluid or a material. A functional unit is a plant of
+	QElectroTech: it is renamed as the window of plants and locations does
+	(PlaceRename), the title blocks, the structure boxes, the symbols and
+	the wire counters which hold it, the labels of the symbols following.
 */
 void ChangePidCodificationCommand::findCodeUsers(const CodeChanges &changes)
 {
@@ -144,23 +131,15 @@ void ChangePidCodificationCommand::findCodeUsers(const CodeChanges &changes)
 				m_pipes << PipeChange{pipe, old_properties, new_properties};
 			}
 		}
-		for (Element *element : folio->elements())
-		{
-			const QString unit = unitOf(element);
-			if (unit.isEmpty()) {
-				continue;
-			}
-			QString new_unit = changes.units.value(unit);
-			if (new_unit.isEmpty() && isValve(element) && !isUnit(m_old_codification, unit)) {
-				new_unit = changes.fluids.value(unit);
-			}
-			if (new_unit.isEmpty()) {
-				continue;
-			}
-			const DiagramContext old_information = element->elementInformations();
-			DiagramContext new_information = old_information;
-			new_information.addValue(PidTag::unitKey(), new_unit);
-			m_elements << ElementChange{element, old_information, new_information};
+	}
+		//Each rename read before any is done: U01 and U02 may swap
+	for (auto it = changes.units.cbegin() ; it != changes.units.cend() ; ++it)
+	{
+		PlaceRename::Request request;
+		request.plant = it.key();
+		request.new_name = it.value();
+		if (QUndoCommand *rename = PlaceRename::command(m_project, request)) {
+			m_renames.emplace_back(rename);
 		}
 	}
 }
@@ -205,12 +184,9 @@ void ChangePidCodificationCommand::undo()
 			change.pipe->setProperties(change.old_properties);
 		}
 	}
-	for (const ElementChange &change : std::as_const(m_elements)) {
-		if (change.element) {
-			change.element->setElementInformations(change.old_information);
-		}
+	for (auto it = m_renames.rbegin() ; it != m_renames.rend() ; ++it) {
+		(*it)->undo();
 	}
-		//which gives the labels of the symbols the former units back
 	if (m_project) {
 		m_project->setPidCodification(m_old_codification);
 	}
@@ -231,11 +207,9 @@ void ChangePidCodificationCommand::redo()
 			change.pipe->setProperties(change.new_properties);
 		}
 	}
-	for (const ElementChange &change : std::as_const(m_elements)) {
-		if (change.element) {
-			change.element->setElementInformations(change.new_information);
-			change.element->updatePidLabel();
-		}
+		//The symbols renamed write their labels again (Element::setElementInformations())
+	for (const std::unique_ptr<QUndoCommand> &rename : m_renames) {
+		rename->redo();
 	}
 	for (const LabelSize &label : std::as_const(m_labels)) {
 		if (label.text) {

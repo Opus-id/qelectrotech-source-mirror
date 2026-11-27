@@ -88,7 +88,7 @@ QString project()
 			//a pump with a tag, data and a choice
 		+ placed(pump_uuid, QStringLiteral("pump_centrifugal"), 100, QStringLiteral("PC"),
 				 {QStringLiteral("label"), QStringLiteral("U01 PC 101"),
-				  QStringLiteral("pid_unit"), QStringLiteral("U01"),
+				  QStringLiteral("plant"), QStringLiteral("U01"),
 				  QStringLiteral("pid_train"), QStringLiteral("1"),
 				  QStringLiteral("pid_order"), QStringLiteral("1"),
 				  QStringLiteral("description"), QStringLiteral("Lift pump"),
@@ -97,14 +97,14 @@ QString project()
 			//a valve of a unit the codification does not name
 		+ placed(valve_uuid, QStringLiteral("valve_ball"), 200, QStringLiteral("VBO"),
 				 {QStringLiteral("label"), QStringLiteral("U02 VBO 201"),
-				  QStringLiteral("pid_unit"), QStringLiteral("U02"),
+				  QStringLiteral("plant"), QStringLiteral("U02"),
 				  QStringLiteral("pid_train"), QStringLiteral("2"),
 				  QStringLiteral("pid_order"), QStringLiteral("1")},
 				 QStringLiteral("<options><option name=\"command\" value=\"piston_single\"/></options>"))
 			//an instrument: its letters are its identifier
 		+ placed(bubble_uuid, QStringLiteral("instrument_bubble"), 300, QString(),
 				 {QStringLiteral("label"), QStringLiteral("U01 LIT 101"),
-				  QStringLiteral("pid_unit"), QStringLiteral("U01"),
+				  QStringLiteral("plant"), QStringLiteral("U01"),
 				  QStringLiteral("pid_train"), QStringLiteral("1"),
 				  QStringLiteral("pid_order"), QStringLiteral("1"),
 				  QStringLiteral("pid_letters"), QStringLiteral("LIT")})

@@ -2810,7 +2810,10 @@ bool Element::fromXml(QDomElement &e,
 	//otherwise the pos of the text will not be the same as it was at save time.
 	for(DynamicElementTextItem *deti : m_dynamic_text_list)
 		deti->m_block_alignment = true;
+		//Opening a file never changes it: a label is read as it was saved
+	m_reading_informations = true;
 	setElementInformations(dc);
+	m_reading_informations = false;
 	for(DynamicElementTextItem *deti : m_dynamic_text_list)
 		deti->m_block_alignment = false;
 
@@ -3735,6 +3738,12 @@ void Element::storeInformation()
 void Element::setElementInformations(DiagramContext dc)
 {
 	dropOrphanFormulaId(dc);
+		//A P&ID tag follows its fields, whatever changes them (the label is
+		//not typed when there is a model: ElementInfoWidget); what a file
+		//saved is read as it is
+	if (!m_reading_informations) {
+		dc = withPidLabel(dc);
+	}
 	if (m_data.m_informations == dc) {
 		return;
 	}
@@ -4763,6 +4772,8 @@ bool Element::labelShown() const
 	structure box, else its folio. That place is the
 	one of @p drawn_on when given (a contact showing its coil's label on
 	another folio), else of this element. An empty label stays empty.
+	A P&ID symbol whose model of tag writes its unit (PidTag::showsUnit())
+	and which has fields shows its label alone: the unit is its plant.
 */
 QString Element::designationForDisplay(const QString &label, const Element *drawn_on) const
 {
@@ -4772,6 +4783,11 @@ QString Element::designationForDisplay(const QString &label, const Element *draw
 	}
 	const QETProject::DesignationDisplay display = d->project()->designationDisplay();
 	if (display == QETProject::DesignationDisplay::Label) {
+		return label;
+	}
+		//A P&ID tag which writes its functional unit, the plant, shows it
+		//once: "U01 PC 101", never "=U01-U01 PC 101"
+	if (PidTag::showsUnit(pidTagModel()) && PidTag::hasFields(m_data.m_informations)) {
 		return label;
 	}
 

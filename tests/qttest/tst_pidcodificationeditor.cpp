@@ -11,6 +11,7 @@
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
+#include "titleblockproperties.h"
 #include "ui/configpage/pidconfigpage.h"
 #include "undocommand/changepidcodificationcommand.h"
 
@@ -336,28 +337,71 @@ class tst_pidcodificationeditor : public QObject
 			QVERIFY(m_project.pidCodification().fluid("W10"));
 		}
 
+			// 9e-0: the functional unit is the plant of QElectroTech. A unit
+			// renamed in the codification is renamed as the window of plants
+			// and locations does: the symbols, the title block of the folio
+			// and the electrical symbols of that plant too, in one undo
+			// step; a valve has its unit, never a fluid: a fluid renamed
+			// leaves its tag
 		void aCodeChangedReachesTheSymbols()
 		{
 			Element *pump = withUnit(m_equipment, "U01");
 			Element *other = withUnit(m_equipment, "U02");
-				// a valve whose tag starts with a fluid
 			Element *valve = withUnit(m_valve, "W02");
-				// an equipment never bears a fluid
-			Element *odd = withUnit(m_equipment, "W02");
-			QVERIFY(pump && other && valve && odd);
+			Element *electrical = withUnit(m_electrical, "U01");
+			QVERIFY(pump && other && valve && electrical);
+			TitleBlockProperties block = m_folio->border_and_titleblock.exportTitleBlock();
+			const TitleBlockProperties block_before = block;
+			block.plant = QStringLiteral("U01");
+			m_folio->border_and_titleblock.importTitleBlock(block);
+
 			PidConfigPage page(&m_project);
 			QTableWidget *units = page.codeTable(PidCodification::List::Units);
 			QTableWidget *fluids = page.codeTable(PidCodification::List::Fluids);
 			units->item(rowOf(units, "U01"), 0)->setText(QStringLiteral("U10"));
 			fluids->item(rowOf(fluids, "W02"), 0)->setText(QStringLiteral("W20"));
+			const int steps = m_project.undoStack()->count();
 			page.applyProjectConf();
+			QCOMPARE(m_project.undoStack()->count(), steps + 1);
 			QCOMPARE(unitOf(pump), QStringLiteral("U10"));
 			QCOMPARE(unitOf(other), QStringLiteral("U02"));
-			QCOMPARE(unitOf(valve), QStringLiteral("W20"));
-			QCOMPARE(unitOf(odd), QStringLiteral("W02"));
+			QCOMPARE(unitOf(valve), QStringLiteral("W02"));
+			QCOMPARE(unitOf(electrical), QStringLiteral("U10"));
+			QCOMPARE(m_folio->border_and_titleblock.plant(), QStringLiteral("U10"));
+				// a valve and a fluid: only the pipe lines count
+			QCOMPARE(ChangePidCodificationCommand::usersOf(&m_project, PidCodification::List::Fluids,
+														   QStringLiteral("W02")), 0);
 			m_project.undoStack()->undo();
 			QCOMPARE(unitOf(pump), QStringLiteral("U01"));
-			QCOMPARE(unitOf(valve), QStringLiteral("W02"));
+			QCOMPARE(unitOf(electrical), QStringLiteral("U01"));
+			QCOMPARE(m_folio->border_and_titleblock.plant(), QStringLiteral("U01"));
+			m_project.undoStack()->redo();
+			QCOMPARE(unitOf(pump), QStringLiteral("U10"));
+			QCOMPARE(m_folio->border_and_titleblock.plant(), QStringLiteral("U10"));
+			m_project.undoStack()->undo();
+			m_folio->border_and_titleblock.importTitleBlock(block_before);
+		}
+
+			// Two units which swap their codes (a script; the page refuses a
+			// code taken as it is typed): each symbol takes the other's
+		void twoUnitsMaySwapTheirCodes()
+		{
+			Element *first = withUnit(m_equipment, "U01");
+			Element *second = withUnit(m_equipment, "U02");
+			QVERIFY(first && second);
+			PidCodification swapped = m_project.pidCodification();
+			for (PidCodification::Entry &unit : swapped.functional_units) {
+				unit.code = unit.code == QLatin1String("U01") ? QStringLiteral("U02") : QStringLiteral("U01");
+			}
+			ChangePidCodificationCommand::CodeChanges changes;
+			changes.units.insert(QStringLiteral("U01"), QStringLiteral("U02"));
+			changes.units.insert(QStringLiteral("U02"), QStringLiteral("U01"));
+			m_project.undoStack()->push(new ChangePidCodificationCommand(&m_project, swapped, changes));
+			QCOMPARE(unitOf(first), QStringLiteral("U02"));
+			QCOMPARE(unitOf(second), QStringLiteral("U01"));
+			m_project.undoStack()->undo();
+			QCOMPARE(unitOf(first), QStringLiteral("U01"));
+			QCOMPARE(unitOf(second), QStringLiteral("U02"));
 		}
 
 		void aCodeTwiceOrEmptyIsRefused()

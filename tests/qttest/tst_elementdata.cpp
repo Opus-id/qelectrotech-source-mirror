@@ -139,7 +139,7 @@ class tst_elementdata : public QObject
 			int skipped = -1;
 			const PidCodification read = PidCodification::fromCsv(dataLines() + QStringLiteral(
 				"donnée;pump;pid_Flow;Débit;m3/h;nombre\n"          // French words, the prefix, a capital
-				"data;pump;unit;Unit;;text\n"                       // a field of the tag
+				"data;pump;train;Train;;text\n"                     // a field of the tag
 				"data;pump;power;Again;kW;number\n"                 // said twice
 				"data;pump;speed;Speed;rpm;quantity\n"              // no such kind
 				"data;;head;Head;m;number\n"                        // no class
@@ -232,7 +232,7 @@ class tst_elementdata : public QObject
 			QVERIFY(qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_insulated"))));
 			QVERIFY(qobject_cast<QCheckBox *>(section.fieldOf(QStringLiteral("pid_checked"))));
 			QVERIFY(qobject_cast<QLineEdit *>(section.fieldOf(QStringLiteral("pid_note"))));
-			QVERIFY(!section.fieldOf(QStringLiteral("pid_unit")));
+			QVERIFY(!section.fieldOf(PidTag::unitKey()));
 				// named in clear, with the unit
 			QStringList labels;
 			for (QLabel *label : section.findChildren<QLabel *>()) labels << label->text();
@@ -355,7 +355,9 @@ class tst_elementdata : public QObject
 			QCOMPARE(fields.size(), 1);
 			QCOMPARE(fields.first().key(), QStringLiteral("pid_power"));
 				// ...unless the symbol has no tag: then here
-			give(tee, PidTag::unitKey(), QStringLiteral("U01"));
+				// (the unit is the plant of QElectroTech, in the Informations
+				// tab: a field of the tag which begins with "pid_")
+			give(tee, PidTag::trainKey(), QStringLiteral("1"));
 			QVERIFY(ElementTagWidget::shownKeys(tee).isEmpty());
 			QCOMPARE(ElementDataWidget::fieldsOf(tee).size(), 1);
 

@@ -2215,14 +2215,11 @@ void PidConfigPage::removeSelectedEntries()
 	if (users)
 	{
 		const QString question =
-				list == PidCodification::List::Fluids
-				? tr("%n pipe line(s) or valve(s) bear the codes removed: they will keep them as "
-					 "free text. Remove them?", "", users)
-				: list == PidCodification::List::Materials
-				  ? tr("%n pipe line(s) bear the codes removed: they will keep them as free text. "
-					   "Remove them?", "", users)
-				  : tr("%n symbol(s) bear the codes removed: they will keep them as free text. "
-					   "Remove them?", "", users);
+				list != PidCodification::List::Units
+				? tr("%n pipe line(s) bear the codes removed: they will keep them as free text. "
+					 "Remove them?", "", users)
+				: tr("%n symbol(s) bear the codes removed: they will keep them as free text. "
+					 "Remove them?", "", users);
 		if (!confirm(question)) {
 			return;
 		}

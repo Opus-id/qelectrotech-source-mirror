@@ -25,6 +25,7 @@
 #include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/elementtextitemgroup.h"
+#include "qetinformation.h"
 #include "qetproject.h"
 
 #include <QHash>
@@ -82,7 +83,9 @@ QString counterOf(const QETProject *project, const QString &unit, const QString 
 	return keyOf(unit, loop, train);
 }
 
-	/// Every tag of @p project, folios not built included
+	/// Every tag of @p project, folios not built included: those of the P&ID
+	/// symbols only (a family), as the unit is the plant, which any
+	/// electrical symbol may hold too
 QList<Held> heldTags(QETProject *project)
 {
 	QList<Held> list;
@@ -102,7 +105,7 @@ QList<Held> heldTags(QETProject *project)
 		for (QGraphicsItem *item : items)
 		{
 			const auto *element = qgraphicsitem_cast<Element *>(item);
-			if (!element) continue;
+			if (!element || element->pidFamily().isEmpty()) continue;
 			const DiagramContext &information = element->elementInformations();
 			if (!PidTag::hasFields(information)) continue;
 			list << Held{element,
@@ -141,6 +144,7 @@ QList<Held> heldTags(QETProject *project)
 									 ElementsLocation(symbol.location, project).xml()
 									 .attribute(QStringLiteral("pid_family")));
 		}
+		if (family->isEmpty()) continue;
 		list << Held{nullptr,
 					 information.value(PidTag::unitKey()).toString(),
 					 PidTag::identifier(information, id),
@@ -167,7 +171,7 @@ void setInformation(Element *element, const DiagramContext &information)
 
 }
 
-QString PidTag::unitKey()  { return QStringLiteral("pid_unit"); }
+QString PidTag::unitKey()  { return QETInformation::ELMT_PLANT; }
 QString PidTag::trainKey() { return QStringLiteral("pid_train"); }
 QString PidTag::orderKey() { return QStringLiteral("pid_order"); }
 QString PidTag::lettersKey() { return QStringLiteral("pid_letters"); }
@@ -188,6 +192,12 @@ bool PidTag::showsTrain(const QString &model)
 {
 	static const QRegularExpression train(QStringLiteral("\\{train(?::\\d{1,2})?\\}"));
 	return model.contains(train);
+}
+
+bool PidTag::showsUnit(const QString &model)
+{
+	static const QRegularExpression unit(QStringLiteral("\\{unit(?::\\d{1,2})?\\}"));
+	return model.contains(unit);
 }
 
 bool PidTag::hasFields(const DiagramContext &information)

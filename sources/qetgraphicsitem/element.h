@@ -157,7 +157,12 @@ class Element : public QetGraphicsItem
 		DiagramContext elementInformations()const;
 			/// This symbol's own copy of its information, whatever the store holds
 		DiagramContext ownInformations() const {return m_data.m_informations;}
-		virtual void setElementInformations(DiagramContext dc);
+			/// Give this element @p dc. A P&ID tag follows its fields, however
+			/// they change (its unit from the Informations tab, a panel of
+			/// several symbols, a rename of the plant, a script, an undo...):
+			/// with a model and fields, the label is the one the model makes
+			/// (withPidLabel()); never while the element is read from a file
+			virtual void setElementInformations(DiagramContext dc);
 
 		ElementData elementData() const;
 		void setElementData (ElementData data);
@@ -713,6 +718,9 @@ class Element : public QetGraphicsItem
 		bool m_tool_placed = false;
 			/// What reducerSizesText() gave last (refreshReducerSizes())
 		QString m_reducer_sizes;
+			/// fromXml() gives the information read: a label read stays as
+			/// it was saved (setElementInformations())
+		bool m_reading_informations = false;
 		void drawAsDot(QPainter *painter, const QPointF &meet) const;
 		QHash<QUuid, QString> m_potential_sources;
 		QString m_F_str;

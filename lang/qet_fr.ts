@@ -16326,14 +16326,6 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message numerus="yes">
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
-        <source>%n pipe line(s) or valve(s) bear the codes removed: they will keep them as free text. Remove them?</source>
-        <translation>
-            <numerusform>%n tuyauterie ou vanne porte les codes supprimés : elle les gardera comme texte libre. Les supprimer ?</numerusform>
-            <numerusform>%n tuyauteries ou vannes portent les codes supprimés : elles les garderont comme texte libre. Les supprimer ?</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
         <source>%n pipe line(s) bear the codes removed: they will keep them as free text. Remove them?</source>
         <translation>
             <numerusform>%n tuyauterie porte les codes supprimés : elle les gardera comme texte libre. Les supprimer ?</numerusform>

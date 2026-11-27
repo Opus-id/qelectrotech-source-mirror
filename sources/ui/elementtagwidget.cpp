@@ -21,7 +21,9 @@
 #include <diagram.h>
 #include <pidcodification.h>
 #include <pidtag.h>
+#include <placesuggestions.h>
 #include <qetgraphicsitem/element.h>
+#include <qetgraphicsitem/structureboxitem.h>
 #include <qetproject.h>
 #include <undocommand/changeelementinformationcommand.h>
 
@@ -245,8 +247,11 @@ QString ElementTagWidget::lettersCode() const
 
 /**
 	@brief ElementTagWidget::fillUnits
-	The functional units of the project, and for a valve its fluids too,
-	whose code may stand first in its tag (an injection of a reagent)
+	The functional units offered, each once: first the plant the structure
+	box around the element or its folio gives (only offered: the tag never
+	reads it by itself), then the units of the codification of the project,
+	then the other plants of the project. A valve has its unit, as any
+	symbol.
 */
 void ElementTagWidget::fillUnits()
 {
@@ -258,18 +263,26 @@ void ElementTagWidget::fillUnits()
 		return;
 	}
 	const PidCodification &codification = m_project->pidCodification();
-	for (const PidCodification::Entry &unit : codification.functional_units) {
-		m_unit->addItem(unit.name.isEmpty() ? unit.code
-											: QStringLiteral("%1 – %2").arg(unit.code, unit.name),
-						unit.code);
-	}
-	if (m_element->elementData().m_pid_family == QLatin1String("valve"))
-	{
-		for (const PidCodification::Entry &fluid : codification.fluids) {
-			m_unit->addItem(fluid.name.isEmpty() ? fluid.code
-												 : QStringLiteral("%1 – %2").arg(fluid.code, fluid.name),
-							fluid.code);
+	QStringList offered;
+	auto offer = [this, &codification, &offered](const QString &code) {
+		if (code.isEmpty() || offered.contains(code)) {
+			return;
 		}
+		offered << code;
+		QString name;
+		for (const PidCodification::Entry &unit : codification.functional_units) {
+			if (unit.code == code) name = unit.name;
+		}
+		m_unit->addItem(name.isEmpty() ? code : QStringLiteral("%1 – %2").arg(code, name), code);
+	};
+	if (m_element->diagram()) {
+		offer(StructureBoxItem::referencePlace(m_element).plant.trimmed());
+	}
+	for (const PidCodification::Entry &unit : codification.functional_units) {
+		offer(unit.code);
+	}
+	for (const QString &plant : PlaceSuggestions::plants(m_project, m_element->uuid().toString())) {
+		offer(plant);
 	}
 	m_unit->setEditText(typed);
 }

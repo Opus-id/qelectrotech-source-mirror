@@ -29,6 +29,9 @@
 #include <QPointer>
 #include <QUndoCommand>
 
+#include <memory>
+#include <vector>
+
 class Conductor;
 class Element;
 class QETProject;
@@ -42,8 +45,10 @@ class QETProject;
 	A label placed follows the size of its family as long as it has the
 	former one: a size set by hand stays.
 	A code given another code (CodeChanges) is given to what bears it in the
-	same step: the pipe lines of a fluid or of a material, the symbols of a
-	functional unit, and the valves whose tag starts with a fluid. A name
+	same step: the pipe lines of a fluid or of a material; a functional unit,
+	which is a plant of QElectroTech, is renamed as the window of plants and
+	locations does (PlaceRename: title blocks, structure boxes, symbols, wire
+	counters), the labels of the symbols following their unit. A name
 	changed touches nothing: they keep the code. The lists of codes are
 	saved in the natural order of their codes (PidCodification::sortCodes()).
 	Pushed with the codification the project already has, it adds no step.
@@ -65,12 +70,13 @@ class ChangePidCodificationCommand : public QUndoCommand
 									 const PidCodification &new_codification,
 									 const CodeChanges &changes = CodeChanges(),
 									 QUndoCommand *parent = nullptr);
+		~ChangePidCodificationCommand() override;
 		void undo() override;
 		void redo() override;
 
 			/// How many pipe lines bear the fluid or the material @p code, or
-			/// how many symbols the functional unit @p code; a fluid counts
-			/// the valves whose tag starts with it too. All the folios of the
+			/// how many symbols hold the functional unit @p code themselves
+			/// (their plant). All the folios of the
 			/// project are built for that. Letters of instruments: none, a
 			/// help to type that no tag bears (PidCodification::instrument_letters).
 		static int usersOf(QETProject *project, PidCodification::List list, const QString &code);
@@ -87,12 +93,6 @@ class ChangePidCodificationCommand : public QUndoCommand
 			QPointer<Conductor> pipe;
 			ConductorProperties old_properties, new_properties;
 		};
-		struct ElementChange
-		{
-			QPointer<Element> element;
-			DiagramContext old_information, new_information;
-		};
-
 		void findLabels();
 		void findCodeUsers(const CodeChanges &changes);
 		static void setSize(DynamicElementTextItem *text, int size);
@@ -101,7 +101,9 @@ class ChangePidCodificationCommand : public QUndoCommand
 		PidCodification m_old_codification, m_new_codification;
 		QList<LabelSize> m_labels;
 		QList<PipeChange> m_pipes;
-		QList<ElementChange> m_elements;
+			/// The renames of the functional units (PlaceRename::command()),
+			/// done after the new codification, undone before the former one
+		std::vector<std::unique_ptr<QUndoCommand>> m_renames;
 };
 
 #endif // CHANGEPIDCODIFICATIONCOMMAND_H

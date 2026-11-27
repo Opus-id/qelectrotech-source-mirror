@@ -8,21 +8,29 @@
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
 #include "pidtag.h"
+#include "placecopy.h"
+#include "placerename.h"
 #include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
+#include "qetgraphicsitem/structureboxitem.h"
 #include "qetinformation.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "titleblockproperties.h"
 #include "ui/elementcommentwidget.h"
 #include "ui/elementinfopartwidget.h"
 #include "ui/elementpropertieswidget.h"
 #include "ui/elementtagwidget.h"
+#include "ui/multielementinfowidget.h"
+#include "undocommand/changeelementinformationcommand.h"
 #include "undocommand/changeelementlocationcommand.h"
 
 #include <QAbstractItemModel>
 #include <QComboBox>
 #include <QCompleter>
 #include <QDomDocument>
+#include <QFile>
+#include <QUndoStack>
 #include <QLabel>
 #include <QFocusEvent>
 #include <QLineEdit>
@@ -655,6 +663,234 @@ class tst_elementtag : public QObject
 			back.folios().at(1)->ensureLoaded();
 			QCOMPARE(PidTag::nextOrder(&back, "U01", "AA", "1"), 4);
 			QCOMPARE(PidTag::nextOrder(&back, "U01", "BB", "1"), 13);
+		}
+
+			// 9e-0: the functional unit is the plant of QElectroTech, the
+			// symbol's own; any change of it (Informations tab, script)
+			// writes the label again, undone in the same step
+		void theUnitIsThePlant()
+		{
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			QCOMPARE(PidTag::unitKey(), QETInformation::ELMT_PLANT);
+			Element *a = tag(place(m_folio, m_a), "U01", "1", "5");
+			QCOMPARE(a->elementInformations().value(QETInformation::ELMT_PLANT).toString(), QStringLiteral("U01"));
+			QVERIFY(!a->elementInformations().contains(QStringLiteral("pid_unit")));
+			QCOMPARE(shownLabel(a), QStringLiteral("U01 AA 105"));
+
+			DiagramContext information = a->elementInformations();
+			information.addValue(QETInformation::ELMT_PLANT, QStringLiteral("U02"));
+			m_folio->undoStack().push(new ChangeElementInformationCommand(a, a->elementInformations(), information));
+			QCOMPARE(shownLabel(a), QStringLiteral("U02 AA 105"));
+			QCOMPARE(a->elementInformations().value(QStringLiteral("label")).toString(), QStringLiteral("U02 AA 105"));
+			m_folio->undoStack().undo();
+			QCOMPARE(shownLabel(a), QStringLiteral("U01 AA 105"));
+			m_folio->undoStack().redo();
+			QCOMPARE(shownLabel(a), QStringLiteral("U02 AA 105"));
+
+				// an electrical symbol with a plant: its label stays its own
+				// and its order is never counted with the P&ID tags
+			Element *e = place(m_folio, m_e);
+			DiagramContext wire_side = e->elementInformations();
+			wire_side.addValue(QStringLiteral("label"), QStringLiteral("K1"));
+			wire_side.addValue(QETInformation::ELMT_PLANT, QStringLiteral("U02"));
+			wire_side.addValue(PidTag::orderKey(), QStringLiteral("40"));
+			e->setElementInformations(wire_side);
+			QCOMPARE(shownLabel(e), QStringLiteral("K1"));
+			QCOMPARE(PidTag::nextOrder(m_project, "U02", "", "0"), 1);
+			QCOMPARE(PidTag::nextOrder(m_project, "U02", "AA", "1"), 6);
+		}
+
+			// The panel of several symbols gives them a unit: each label is
+			// written again, all in one undo step
+		void severalSymbolsTakeAUnitInOneStep()
+		{
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			QList<Element *> elements{tag(place(m_folio, m_a), "", "1", "1"),
+									  tag(place(m_folio, m_b), "", "1", "2"),
+									  tag(place(m_folio, m_a), "", "1", "3")};
+			elements.at(1)->setPos(100, 0);
+			elements.at(2)->setPos(200, 0);
+			QCOMPARE(shownLabel(elements.at(0)), QStringLiteral("AA 101"));
+			MultiElementInfoWidget panel(elements);
+			panel.setFieldText(QETInformation::ELMT_PLANT, QStringLiteral("U02"));
+			const int before = m_folio->undoStack().index();
+			panel.apply();
+			QCOMPARE(m_folio->undoStack().index(), before + 1);
+			QCOMPARE(shownLabel(elements.at(0)), QStringLiteral("U02 AA 101"));
+			QCOMPARE(shownLabel(elements.at(1)), QStringLiteral("U02 BB 102"));
+			QCOMPARE(shownLabel(elements.at(2)), QStringLiteral("U02 AA 103"));
+			m_folio->undoStack().undo();
+			QCOMPARE(shownLabel(elements.at(0)), QStringLiteral("AA 101"));
+			QCOMPARE(shownLabel(elements.at(1)), QStringLiteral("BB 102"));
+			m_folio->undoStack().redo();
+			QCOMPARE(shownLabel(elements.at(2)), QStringLiteral("U02 AA 103"));
+		}
+
+			// Renaming a plant in the window of plants and locations renames
+			// the unit of the symbols, whose tags follow; copying a plant
+			// gives its copies the new unit, their orders kept
+		void renamingOrCopyingAPlantRewritesTheTags()
+		{
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			TitleBlockProperties block = m_folio->border_and_titleblock.exportTitleBlock();
+			block.plant = QStringLiteral("U01");
+			m_folio->border_and_titleblock.importTitleBlock(block);
+			Element *a = tag(place(m_folio, m_a), "U01", "1", "5");
+			Element *b = tag(place(m_folio, m_b), "U01", "1", "6");
+			b->setPos(100, 0);
+
+			PlaceRename::Request request;
+			request.plant = QStringLiteral("U01");
+			request.new_name = QStringLiteral("U09");
+			QUndoCommand *rename = PlaceRename::command(m_project, request);
+			QVERIFY(rename);
+			const int before = m_project->undoStack()->index();
+			m_project->undoStack()->push(rename);
+			QCOMPARE(m_project->undoStack()->index(), before + 1);
+			QCOMPARE(shownLabel(a), QStringLiteral("U09 AA 105"));
+			QCOMPARE(shownLabel(b), QStringLiteral("U09 BB 106"));
+			QCOMPARE(m_folio->border_and_titleblock.plant(), QStringLiteral("U09"));
+			m_project->undoStack()->undo();
+			QCOMPARE(shownLabel(a), QStringLiteral("U01 AA 105"));
+			QCOMPARE(a->elementInformations().value(QStringLiteral("label")).toString(), QStringLiteral("U01 AA 105"));
+
+			QVERIFY(PlaceCopy::copy(m_project, QStringLiteral("U01"), QStringLiteral("U05")));
+			QCOMPARE(m_project->folios().size(), 2);
+			Diagram *copy = m_project->folios().at(1);
+			QStringList labels;
+			for (Element *element : copy->elements()) labels << shownLabel(element);
+			labels.sort();
+			QCOMPARE(labels, QStringList({"U05 AA 105", "U05 BB 106"}));
+			QCOMPARE(shownLabel(a), QStringLiteral("U01 AA 105"));
+			QCOMPARE(PidTag::nextOrder(m_project, "U05", "AA", "1"), 6);
+			m_project->undoStack()->undo();
+			QCOMPARE(m_project->folios().size(), 1);
+		}
+
+			// Opening a file never changes it: a label which is not what the
+			// model would make is read and saved as it is
+		void aLabelReadIsKeptAsSaved()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			const QString first = dir.filePath(QStringLiteral("first.qet"));
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			tag(place(m_folio, m_a), "U01", "1", "5");
+			m_project->setFilePath(first);
+			QVERIFY(m_project->write().isOk());
+
+			QFile file(first);
+			QVERIFY(file.open(QIODevice::ReadOnly));
+			QByteArray content = file.readAll();
+			file.close();
+			QVERIFY(content.contains("U01 AA 105"));
+			content.replace("U01 AA 105", "typed by hand");
+			const QString typed = dir.filePath(QStringLiteral("typed.qet"));
+			QFile typed_file(typed);
+			QVERIFY(typed_file.open(QIODevice::WriteOnly));
+			typed_file.write(content);
+			typed_file.close();
+
+			const QString again = dir.filePath(QStringLiteral("again.qet"));
+			{
+				QETProject back(typed);
+				for (Diagram *folio : back.folios()) folio->ensureLoaded();
+				Element *a = nullptr;
+				for (Element *element : back.folios().first()->elements()) a = element;
+				QVERIFY(a);
+				QCOMPARE(a->elementInformations().value(QStringLiteral("label")).toString(),
+						 QStringLiteral("typed by hand"));
+				back.setFilePath(again);
+				QVERIFY(back.write().isOk());
+			}
+			QFile again_file(again);
+			QVERIFY(again_file.open(QIODevice::ReadOnly));
+				// the date and time of the save (<properties>) change on
+				// every save: all the rest is the same, to the byte
+			const auto withoutSaveTime = [](QByteArray text) {
+				const qsizetype from = text.indexOf("<properties>");
+				const qsizetype to = text.indexOf("</properties>");
+				if (from >= 0 && to > from) text.remove(from, to - from);
+				return text;
+			};
+			const QByteArray saved = withoutSaveTime(again_file.readAll());
+			content = withoutSaveTime(content);
+			qsizetype at = 0;
+			while (at < saved.size() && at < content.size() && saved.at(at) == content.at(at)) ++at;
+			QVERIFY2(saved == content, qPrintable(QStringLiteral("first difference at %1: read [%2] saved [%3]")
+					 .arg(at).arg(QString::fromUtf8(content.mid(qMax<qsizetype>(0, at - 80), 200)),
+								  QString::fromUtf8(saved.mid(qMax<qsizetype>(0, at - 80), 200)))));
+		}
+
+			// A symbol whose model writes its unit shows its label alone in
+			// a project which shows the reference designation: the unit is
+			// its plant, never written twice
+		void theDesignationShowsTheUnitOnce()
+		{
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			Element *a = tag(place(m_folio, m_a), "U01", "1", "5");
+			Element *e = place(m_folio, m_e);
+			e->setPos(200, 0);
+			DiagramContext wire_side = e->elementInformations();
+			wire_side.addValue(QStringLiteral("label"), QStringLiteral("K1"));
+			wire_side.addValue(QETInformation::ELMT_PLANT, QStringLiteral("U01"));
+			e->setElementInformations(wire_side);
+			for (QETProject::DesignationDisplay display : {QETProject::DesignationDisplay::Short,
+														   QETProject::DesignationDisplay::Full}) {
+				m_project->setDesignationDisplay(display);
+				QCOMPARE(a->infoForDisplay(QStringLiteral("label")), QStringLiteral("U01 AA 105"));
+			}
+			QCOMPARE(e->infoForDisplay(QStringLiteral("label")), QStringLiteral("=U01-K1"));
+				// a model which does not write the unit: the project's rule
+			m_project->setPidCodification(withModel(QStringLiteral("{id} {train}{order:2}")));
+			QCOMPARE(a->infoForDisplay(QStringLiteral("label")), QStringLiteral("=U01-AA 105"));
+			m_project->setDesignationDisplay(QETProject::DesignationDisplay::Label);
+			QCOMPARE(a->infoForDisplay(QStringLiteral("label")), QStringLiteral("AA 105"));
+		}
+
+			// The list of the Tag tab: the plant its structure box gives first,
+			// else its folio's, then the units of the codification, then the
+			// other plants of the project; a valve has no fluids there
+		void theListOffersThePlaceFirst()
+		{
+			PidCodification codification = withModel(QStringLiteral("{unit} {id} {train}{order:2}"));
+			codification.fluids << PidCodification::Entry{QStringLiteral("W01"), QStringLiteral("Raw water"), QString()};
+			m_project->setPidCodification(codification);
+			TitleBlockProperties block = m_folio->border_and_titleblock.exportTitleBlock();
+			block.plant = QStringLiteral("U07");
+			m_folio->border_and_titleblock.importTitleBlock(block);
+			Element *a = place(m_folio, m_a);
+			Element *elsewhere = tag(place(m_folio, m_b), "U08", "1", "1");
+			elsewhere->setPos(600, 0);
+			const auto codes = [](ElementTagWidget &tab) {
+				QStringList list;
+				for (int i = 1 ; i < tab.unitField()->count() ; ++i)
+					list << tab.unitField()->itemData(i).toString();
+				return list;
+			};
+			{
+				ElementTagWidget tab(a);
+				QCOMPARE(codes(tab), QStringList({"U07", "U01", "U02", "U08"}));
+				QCOMPARE(tab.unitField()->itemText(2), QStringLiteral("U01 – Lifting"));
+					// nothing is taken by itself
+				QVERIFY(a->elementInformations().value(PidTag::unitKey()).toString().isEmpty());
+			}
+			auto *box = new StructureBoxItem(QPointF(-60, -60), QPointF(60, 60));
+			box->setPlant(QStringLiteral("U02"));
+			m_folio->addItem(box);
+			{
+				ElementTagWidget tab(a);
+				QCOMPARE(codes(tab), QStringList({"U02", "U01", "U07", "U08"}));
+				QCOMPARE(tab.unitField()->itemText(1), QStringLiteral("U02 – Filters"));
+			}
+			QDomDocument dv;
+			const ElementsLocation valve_location = add(*m_project, "v.elmt",
+					definition(dv, "77777777-7777-7777-7777-777777777777", "V",
+							   QStringLiteral("pid_family=\"valve\" prefix=\"VBO\"")));
+			Element *valve = place(m_folio, valve_location);
+			valve->setPos(300, 0);
+			ElementTagWidget tab(valve);
+			QVERIFY(!codes(tab).contains(QStringLiteral("W01")));
 		}
 
 		// The panel shows the Tag tab for a P&ID equipment only

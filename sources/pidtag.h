@@ -33,7 +33,11 @@ class QETProject;
 	the train it is in and its order, as "{unit} {id} {train}{order:2}".
 
 	The unit, the train and the order are information of the placed element
-	(its elementInformations, saved as any other); the identifier comes from
+	(its elementInformations, saved as any other). The functional unit is the
+	plant of QElectroTech (QETInformation::ELMT_PLANT, the "=" of IEC 81346),
+	the value the symbol holds itself: what a structure box or the folio
+	gives is only offered (ElementTagWidget), never read into the tag, so
+	that a tag never changes when its symbol is moved. The identifier comes from
 	the symbol, so that changing the type of the element changes it. An
 	instrument has letters of identification instead ("PT", "LIC"), typed
 	on the placed element (lettersKey()), as its symbol, a bubble, may be
@@ -44,7 +48,8 @@ class QETProject;
 */
 namespace PidTag
 {
-		/// The keys of the fields in the information of an element
+		/// The keys of the fields in the information of an element; the
+		/// unit is the plant of QElectroTech (QETInformation::ELMT_PLANT)
 	QString unitKey();
 	QString trainKey();
 	QString orderKey();
@@ -67,6 +72,10 @@ namespace PidTag
 		/// an order always has a train, 0 when there is none, so that all
 		/// the tags of the project have as many digits
 	bool showsTrain(const QString &model);
+		/// @p model shows the functional unit ({unit}): the label already
+		/// says the plant, which the reference designation of IEC 81346
+		/// would write a second time (Element::designationForDisplay())
+	bool showsUnit(const QString &model);
 
 		/**
 			The label @p model gives: {unit}, {id}, {train} and {order} are
