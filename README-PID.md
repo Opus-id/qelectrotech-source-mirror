@@ -840,6 +840,34 @@ line.*
   question asked at each opening can be turned off, there or by its box
   *Do not ask again*. The progress window no longer stays behind it.
 
+**Revision clouds and review notes** (not P&ID only)
+- Two tools of the *Add* bar draw a cloud of arcs around what changed: a
+  rectangle in two clicks, or, with `Space` after the first click, a free
+  outline closed by a double click. A *revision cloud* takes the index of
+  the last revision of the project (*Project properties*, *Revisions*),
+  written in a small triangle beside it; another index is chosen in its
+  properties, or typed. The title block is never changed by it. A *review
+  note* asks for its comment as soon as it is drawn (cancelled: nothing
+  is placed) and takes the name of the user of the computer and the date
+  of the day; its comment is written beside it, the reply of the drafter
+  under it after an arrow, its author, date and state in its tool tip. A
+  note marked *Done* stays in place, greyed out, until it is deleted.
+- Each cloud is a shape: moved, copied, rotated, grouped, deleted as one;
+  its text moves alone, in one undo step. An older QElectroTech reads it as
+  a plain rectangle or polygon (and loses its data if it saves it).
+- Revision clouds are always printed and exported. Review notes are drawn
+  on the screen, on paper and in an export only when *Draw the review notes*
+  is ticked (print and export windows, unticked by default).
+- New clouds take a colour per kind (*Configure QElectroTech*, *General*:
+  black for revisions, red for review notes, by default); each cloud keeps
+  its own, which its properties change.
+- *Project > Reports* has two lists of them, to CSV or PDF, read without
+  building the folios: *Revision clouds* (index, date and description of
+  that revision in the project's list, sheet, title of the sheet; by
+  revision, the latest first, an index the list does not hold last) and
+  *Review notes* (sheet, comment, author, date, state, reply; those to do
+  first). A double click on a row does not open the folio.
+
 **Checks**: every step has its tests, and the example projects of
 QElectroTech are saved byte for byte as by master.
 
@@ -869,7 +897,8 @@ is saved as by master. A name added for the P&ID starts with `pid_`; what
 is inside a `pid_` block keeps short names. `medium` keeps its name, and
 the additions that are not P&ID-only keep plain names (`prefix`,
 `<options>`, `show_if`, `replaces`, `line-cap` / `line-join`,
-`<text_leaders>`, the `thinner` and `gap` of `<wire_crossings>`). Booleans are `true` /
+`<text_leaders>`, the `thinner` and `gap` of `<wire_crossings>`, the
+attributes of a cloud on its `<shape>`). Booleans are `true` /
 `false`.
 
 | Where | Name | Values | Default | Written when |
@@ -925,6 +954,12 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.qet`, `<pid_codification>` | `instrument_numbering` | `parallel` | in series | the loops of the instruments are numbered in parallel |
 | `.qet`, `<pid_codification>` | `<tool_symbol role location/>` | `role` = `free_end`, `tee`, `blind_flange` or `reducer`; `location` a symbol of a collection (`custom://…`) | none: the pipe tool needs a nozzle, a click on a pipe places no tee, a process connection is not drawn to a free end, *Correct* inserts no reducer | a symbol is chosen for the role |
 | `.qet`, `<pid_codification>` | `<option_default family option value/>` | `family` = a `pid_family`; `option`, `value` = names of the `<options>` block of its symbols (`instrument`, `shape`, `oval`) | none: a symbol placed new takes the defaults of its own file | the project gives an option of a family a value (page *P&ID*, *Symbols*; right click, *Options*); only a symbol placed new takes it, written in its own `<options>` |
+| `.qet`, `<shape>` | `cloud` | `revision`, `review` | none: a plain shape | the shape is a revision cloud or a review note |
+| `.qet`, `<shape>` of a cloud | `revision` | the index, text (`B`) | none: no triangle | the cloud has an index |
+| `.qet`, `<shape>` of a cloud | `comment`, `author`, `date`, `reply` | text; `date` as given (ISO 8601 when drawn: `2026-11-28`) | empty | set (a review note) |
+| `.qet`, `<shape>` of a cloud | `done` | `true` | `false`: to do | a review note is done |
+| `.qet`, `<shape>` of a cloud | `label_x`, `label_y` | offset of its text from the cloud, to the tenth | at the top right corner | the text was moved |
+| `.qet`, `<shape>` of a cloud | `label_size`, `arc` | size of the text in points; length of an arc in drawing units | `8`; `20` (5 mm) | not the default |
 | `.qet`, `<pid_codification>` | `<signal_mark type mark/>` | `type` = a type of signal (`undefined` and those of `pid_signal_type`); `mark` = `none`, `dashes`, `bar1`, `bar2`, `bar3`, `a_mark`, `e_mark`, `l_mark`, `cross`, `wave`, `circle` | the mark of ISO 14617 for the type, else that of ANSI/ISA-5.1 | the project gives the type another mark than the default one |
 
 A `medium` this version does not know is read as electrical and said in the
