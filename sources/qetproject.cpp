@@ -36,6 +36,7 @@
 #include "bridge/bridgepart.h"
 #include "autoNum/elementautonumschemecommand.h"
 #include "diagram.h"
+#include "pidduplicatetags.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/structureboxitem.h"
 #include "qetgraphicsitem/conductor.h"
@@ -4944,6 +4945,8 @@ void QETProject::setPidCodification(const PidCodification &codification)
 		}
 	}
 	m_pid_codification = codification;
+		//Its models say which symbols have a tag to compare
+	PidDuplicateTags::changed();
 
 	const QString owner = QString::fromLatin1(projectDataBase::project_owner);
 	QStringList blocks;

@@ -135,6 +135,9 @@ namespace DuplicateLabels
 	// which nothing links are one component unless their part numbers
 	// differ; terminal blocks still follow their potentials. With
 	// SignalScope::Plant, signals only clash within one plant.
+	// The P&ID symbols whose family has a model of tag clash in the whole
+	// project, whatever their place and the rule, as
+	// PidDuplicateTags::groups() finds them.
 	QVector<Group> find(
 		QETProject*			project,
 		Qt::CaseSensitivity sensitivity = Qt::CaseSensitive,

@@ -22,6 +22,7 @@
 #include "pidoffpage.h"
 #include "pidsizecorrections.h"
 #include "hiddenterminalcorrections.h"
+#include "pidduplicatetags.h"
 #include "traversalcorrections.h"
 #include "itemdescription.h"
 #include "shownkinds.h"
@@ -3638,6 +3639,7 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 		updateSizeCorrections();
 		updateHiddenTerminalCorrections();
 		updateTraversalCorrections();
+		updateDuplicateTagCorrection();
 			//The selection may just have changed under the mouse
 		if (QETDiagramEditor *qde = diagramEditor()) {
 			qde->m_create_similar->setEnabled(similarSource() != nullptr);
@@ -3946,6 +3948,35 @@ void DiagramView::updateTraversalCorrections()
 			}
 		});
 	}
+}
+
+/**
+	@brief DiagramView::updateDuplicateTagCorrection
+	9h: the right click on one P&ID symbol whose tag another symbol of the
+	project holds too (PidDuplicateTags), or on the text of its tag, adds
+	"Give the next number" to the "Correct" submenu (after
+	updateFlowCorrections(), which clears it): this symbol alone takes the
+	next order of its unit, identifier and train. One undo step. Not on a
+	read-only diagram.
+*/
+void DiagramView::updateDuplicateTagCorrection()
+{
+	const QList<QGraphicsItem *> selected = m_diagram->selectedItems();
+	if (m_diagram->isReadOnly() || selected.size() != 1) {
+		return;
+	}
+	const std::optional<PidDuplicateTags::Proposal> found =
+		PidDuplicateTags::proposal(selected.first());
+	if (!found) {
+		return;
+	}
+	const PidDuplicateTags::Proposal proposal = *found;
+	QAction *action = m_correct_menu->addAction(proposal.text);
+	connect(action, &QAction::triggered, this, [this, proposal]() {
+		if (QUndoCommand *undo = PidDuplicateTags::apply(proposal)) {
+			m_diagram->undoStack().push(undo);
+		}
+	});
 }
 
 /**

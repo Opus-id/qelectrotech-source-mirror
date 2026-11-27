@@ -1073,6 +1073,10 @@ qet_add_app_test(tst_elementtag tst_elementtag.cpp)
 # The tag of several P&ID symbols at once: unit and train of a selection,
 # "Number" (the unnumbered ones, or all again), one undo step each.
 qet_add_app_test(tst_pidselectiontag tst_pidselectiontag.cpp)
+# P&ID tags held twice in a project (9h): compared by their fields in the
+# whole project, folios not built included; the veil, the tool tip, "Give the
+# next number", and the duplicate list of upstream.
+qet_add_app_test(tst_pidduplicatetags tst_pidduplicatetags.cpp)
 # The data a project asks of its P&ID symbols, by class: declared in its
 # codification, typed in the Data section of the P&ID tab, kept as information
 # of the element; the Informations tab neither shows nor loses them.

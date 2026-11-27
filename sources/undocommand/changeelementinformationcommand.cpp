@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "changeelementinformationcommand.h"
+#include <pidduplicatetags.h>
 #include <qetproject.h>
 #include <diagram.h>
 #include <qetgraphicsitem/element.h>
@@ -160,10 +161,13 @@ void ChangeStoredElementInformationCommand::undo()
 {
 	if (m_project)
 		m_project->dataBase()->setPlacedElementInformation(m_element, m_old_info);
+		//A symbol on a folio not built: no Element tells it
+	PidDuplicateTags::changed();
 }
 
 void ChangeStoredElementInformationCommand::redo()
 {
 	if (m_project)
 		m_project->dataBase()->setPlacedElementInformation(m_element, m_new_info);
+	PidDuplicateTags::changed();
 }

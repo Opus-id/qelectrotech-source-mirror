@@ -5469,6 +5469,32 @@ Continuer ?</translation>
     </message>
 </context>
 <context>
+    <name>PidDuplicateTags</name>
+    <message>
+        <source>This tag is held elsewhere in the project too:</source>
+        <comment>followed by one line per symbol which holds it</comment>
+        <translation>Ce repère est aussi porté ailleurs dans le projet :</translation>
+    </message>
+    <message>
+        <source>%1, folio %2</source>
+        <comment>a tag held elsewhere, and its folio</comment>
+        <translation>%1, folio %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>and %n more</source>
+        <comment>symbols</comment>
+        <translation>
+            <numerusform>et %n autre</numerusform>
+            <numerusform>et %n autres</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Give the next number (%1)</source>
+        <comment>Correct submenu: %1 the tag it gives</comment>
+        <translation>Donner le numéro suivant (%1)</translation>
+    </message>
+</context>
+<context>
     <name>PidOffPage</name>
     <message>
         <source>nothing</source>

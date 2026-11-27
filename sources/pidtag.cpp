@@ -22,6 +22,7 @@
 #include "diagram.h"
 #include "diagramcontext.h"
 #include "pidcodification.h"
+#include "qet.h"
 #include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/elementtextitemgroup.h"
@@ -83,12 +84,25 @@ QString counterOf(const QETProject *project, const QString &unit, const QString 
 	return keyOf(unit, loop, train);
 }
 
-	/// Every tag of @p project, folios not built included: those of the P&ID
-	/// symbols only (a family), as the unit is the plant, which any
-	/// electrical symbol may hold too
-QList<Held> heldTags(QETProject *project)
+	/// A P&ID symbol of a project (symbolsOf()); element is null on a
+	/// folio not built
+struct Symbol
 {
-	QList<Held> list;
+	const Element *element = nullptr;
+	QUuid uuid;
+	QUuid folio;
+	DiagramContext information;
+	QString prefix;   ///< the identifier its symbol gives
+	QString family;
+	bool report = false;
+};
+
+	/// The P&ID symbols (a family) of @p project, folios not built included,
+	/// as the database has them; those whose information @p wanted refuses
+	/// are left out before anything more is read
+QList<Symbol> symbolsOf(QETProject *project, bool (*wanted)(const DiagramContext &))
+{
+	QList<Symbol> list;
 	if (!project) {
 		return list;
 	}
@@ -107,13 +121,10 @@ QList<Held> heldTags(QETProject *project)
 			const auto *element = qgraphicsitem_cast<Element *>(item);
 			if (!element || element->pidFamily().isEmpty()) continue;
 			const DiagramContext &information = element->elementInformations();
-			if (!PidTag::hasFields(information)) continue;
-			list << Held{element,
-						 information.value(PidTag::unitKey()).toString(),
-						 PidTag::identifier(information, element->getPrefix()),
-						 information.value(PidTag::trainKey()).toString(),
-						 information.value(PidTag::orderKey()).toString(),
-						 element->pidFamily()};
+			if (!wanted(information)) continue;
+			list << Symbol{element, element->uuid(), folio->uuid(), information,
+						   element->getPrefix(), element->pidFamily(),
+						   bool(element->linkType() & Element::AllReport)};
 		}
 	}
 	if (unbuilt.isEmpty()) {
@@ -132,12 +143,7 @@ QList<Held> heldTags(QETProject *project)
 	for (const projectDataBase::FolioSymbol &symbol : symbols)
 	{
 		const DiagramContext information = base->elementInformation(symbol.uuid);
-		if (!PidTag::hasFields(information)) continue;
-		QString id;
-		const QList<projectDataBase::ProjectSetting> values = base->elementValueRows(symbol.uuid);
-		for (const projectDataBase::ProjectSetting &value : values) {
-			if (value.name == QLatin1String("prefix")) id = value.value;
-		}
+		if (!wanted(information)) continue;
 		auto family = families.constFind(symbol.location);
 		if (family == families.constEnd()) {
 			family = families.insert(symbol.location,
@@ -145,14 +151,41 @@ QList<Held> heldTags(QETProject *project)
 									 .attribute(QStringLiteral("pid_family")));
 		}
 		if (family->isEmpty()) continue;
-		list << Held{nullptr,
-					 information.value(PidTag::unitKey()).toString(),
-					 PidTag::identifier(information, id),
-					 information.value(PidTag::trainKey()).toString(),
-					 information.value(PidTag::orderKey()).toString(),
-					 *family};
+		QString id;
+		const QList<projectDataBase::ProjectSetting> values = base->elementValueRows(symbol.uuid);
+		for (const projectDataBase::ProjectSetting &value : values) {
+			if (value.name == QLatin1String("prefix")) id = value.value;
+		}
+		list << Symbol{nullptr, symbol.uuid, symbol.folio, information, id, *family,
+					   bool(ElementData::typeFromString(symbol.kind) & ElementData::AllReport)};
 	}
 	return list;
+}
+
+	/// Every tag of @p project, folios not built included: those of the P&ID
+	/// symbols only (a family), as the unit is the plant, which any
+	/// electrical symbol may hold too
+QList<Held> heldTags(QETProject *project)
+{
+	QList<Held> list;
+	for (const Symbol &symbol : symbolsOf(project, &PidTag::hasFields))
+	{
+		const DiagramContext &information = symbol.information;
+		list << Held{symbol.element,
+					 information.value(PidTag::unitKey()).toString(),
+					 PidTag::identifier(information, symbol.prefix),
+					 information.value(PidTag::trainKey()).toString(),
+					 information.value(PidTag::orderKey()).toString(),
+					 symbol.family};
+	}
+	return list;
+}
+
+	/// A field of a tag, or a label: what a symbol may be tagged with
+bool tagOrLabel(const DiagramContext &information)
+{
+	return PidTag::hasFields(information)
+			|| !information.value(QETInformation::ELMT_LABEL).toString().trimmed().isEmpty();
 }
 
 	/// Give @p element @p information, its texts staying where they are
@@ -448,4 +481,46 @@ int PidTag::numberPasted(QETProject *project,
 		}
 	}
 	return new_orders.size();
+}
+
+QList<PidTag::Tagged> PidTag::tagged(QETProject *project)
+{
+	QList<Tagged> list;
+	if (!project) {
+		return list;
+	}
+	const auto models = project->pidCodification().tag_models;
+	if (models.isEmpty()) {
+		return list;
+	}
+	for (const Symbol &symbol : symbolsOf(project, &tagOrLabel))
+	{
+		const DiagramContext &information = symbol.information;
+		if (symbol.report || models.value(symbol.family).isEmpty()
+				|| QET::infoFlagIsTrue(information.value(QStringLiteral("exclude_from_bom")).toString())) {
+			continue;
+		}
+		Tagged tag;
+		tag.element = symbol.uuid;
+		tag.folio = symbol.folio;
+		tag.built = symbol.element;
+		tag.unit = information.value(unitKey()).toString();
+		tag.id = identifier(information, symbol.prefix);
+		tag.train = information.value(trainKey()).toString();
+		tag.order = information.value(orderKey()).toString();
+		tag.family = symbol.family;
+		tag.label = information.value(QETInformation::ELMT_LABEL).toString().trimmed();
+		tag.fields = hasFields(information);
+		list << tag;
+	}
+	return list;
+}
+
+QString PidTag::sameTagKey(const Tagged &tag)
+{
+	const QString order = normalized(tag.order);
+	if (!tag.fields || order.isEmpty()) {
+		return QString();
+	}
+	return keyOf(tag.unit, tag.id, tag.train) + QChar(0x1f) + order;
 }

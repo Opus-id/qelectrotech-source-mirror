@@ -21,6 +21,7 @@
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <QUuid>
 
 class DiagramContext;
 class Element;
@@ -174,6 +175,36 @@ namespace PidTag
 	QHash<Element *, QString> newOrders(QETProject *project,
 										const QList<Element *> &elements,
 										Numbering how);
+
+		/// A symbol of a project whose family has a model of tag (tagged())
+	struct Tagged {
+		QUuid element;
+		QUuid folio;
+		const Element *built = nullptr;   ///< null on a folio not built
+		QString unit;
+		QString id;                       ///< its letters, or its prefix
+		QString train;
+		QString order;
+		QString family;
+		QString label;                    ///< trimmed
+		bool fields = false;              ///< its label is made by the model
+	};
+
+		/**
+			Every symbol of @p project whose family has a model of tag and
+			which has a field of a tag or a label, folios not built
+			included, read from the project database (none is built). The
+			folio reports and the symbols excluded from the parts list
+			(exclude_from_bom: a device drawn twice on purpose) are left
+			out: what the duplicate tags compare (PidDuplicateTags).
+		*/
+	QList<Tagged> tagged(QETProject *project);
+
+		/// What two tags made by the model share when they are the same:
+		/// unit, identifier, train (none is 0) and order, a number as its
+		/// value ("05" is 5); empty for a label typed by hand or a tag
+		/// without an order, which no other tag is the same as
+	QString sameTagKey(const Tagged &tag);
 }
 
 #endif

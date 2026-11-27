@@ -29,6 +29,7 @@
 #include <diagram.h>
 #include <elementsmover.h>
 #include <leaderline.h>
+#include <pidduplicatetags.h>
 #include <pidflow.h>
 #include <pidnozzlemagnet.h>
 #include <pidoffpage.h>
@@ -1606,6 +1607,7 @@ void Element::paint(
 	}
 	drawFlowDisagreement(painter);
 	PidOffPage::drawVeil(this, painter);
+	PidDuplicateTags::drawOnSymbol(this, painter);
 
 		//Draw the selection rectangle
 	if ( isSelected() || m_mouse_over ) {
@@ -3758,6 +3760,10 @@ void Element::setElementInformations(DiagramContext dc)
 	storeInformation();
 	emit elementInfoChange(old_info, m_data.m_informations);
 	notifyTerminalStrip(this);
+		//Its tag may now be held by another, or not any more
+	if (!m_data.m_pid_family.isEmpty()) {
+		PidDuplicateTags::changed();
+	}
 
 	bool label_changed = old_info.value("label").toString() != dc.value("label").toString();
 	if (label_changed && (linkType() & Element::AllReport)) {
@@ -4373,9 +4379,11 @@ void Element::hoverEnterEvent(QGraphicsSceneHoverEvent *e)
 	}
 
 	m_mouse_over = true;
-		//What its orange disc says (drawFlowDisagreement()), and the veil
-		//of a pipe off-page connector (PidOffPage::drawVeil())
-	const QStringList disagreements = flowDisagreements() + PidOffPage::warnings(this);
+		//What its orange disc says (drawFlowDisagreement()), the veil of a
+		//pipe off-page connector (PidOffPage::drawVeil()) and that of a tag
+		//held elsewhere (PidDuplicateTags)
+	const QStringList disagreements = flowDisagreements() + PidOffPage::warnings(this)
+									  + PidDuplicateTags::warnings(this);
 	if (disagreements.isEmpty()) {
 		setToolTip(name());
 	} else {
@@ -4437,6 +4445,10 @@ QVariant Element::itemChange(GraphicsItemChange change, const QVariant &value)
 	}
 	else if (change == QGraphicsItem::ItemSceneHasChanged) {
 		PidTraversal::symbolsChanged();
+			//Its tag comes into the project, or goes
+		if (!m_data.m_pid_family.isEmpty()) {
+			PidDuplicateTags::changed();
+		}
 		updateSymbolPictures();
 			//Placed against a nozzle of the folio, or taken away from it
 		for (Terminal *terminal : std::as_const(m_terminals)) {

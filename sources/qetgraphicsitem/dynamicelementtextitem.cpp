@@ -22,6 +22,8 @@
 #include <QTextDocument>
 #include <QetGraphicsItemModeler/textresizehandles.h>
 #include <shownkinds.h>
+#include <pidduplicatetags.h>
+#include <pidtooltip.h>
 #include <qetproject.h>
 #include <dataBase/projectdatabase.h>
 #include <QSqlError>
@@ -1073,7 +1075,15 @@ void DynamicElementTextItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *eve
 void DynamicElementTextItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event)
 {
 	DiagramTextItem::hoverEnterEvent(event);
-	
+		//The tool tip of the tag says where else it is held, as that of
+		//its symbol (PidDuplicateTags)
+	if (isLabel()) {
+		const QStringList held = PidDuplicateTags::warnings(parentElement());
+		if (!held.isEmpty()) {
+			setToolTip(PidToolTip::wrapped(toolTip() + QLatin1Char('\n') + held.join(QLatin1Char('\n'))));
+		}
+	}
+
 		//If the text is selected we set the real color, otherwise the editor will display the color of text as blue,
 		//but this is not the color set by the user.
 	if(isSelected())
@@ -1109,6 +1119,8 @@ void DynamicElementTextItem::paint(QPainter *painter, const QStyleOptionGraphics
 {
 	if (m_jump_highlight)
 		painter->fillRect(boundingRect(), QColor(69, 137, 255, 90));
+		//A P&ID tag another symbol holds too: an orange veil behind it
+	PidDuplicateTags::drawBehind(this, painter);
 
 		//A fixed height cuts off the lines that do not fit
 	if (m_text_height > 0) {

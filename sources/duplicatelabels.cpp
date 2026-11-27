@@ -22,6 +22,7 @@
 #include "TerminalStrip/terminalstripbridge.h"
 #include "autoNum/assignvariables.h"
 #include "diagram.h"
+#include "pidduplicatetags.h"
 #include "qet.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
@@ -361,6 +362,9 @@ namespace DuplicateLabels
 					if (part->linkType()
 						& (Element::AllReport | Element::ConductorDefinition))
 						continue;
+						// A P&ID tag names one device in the whole project,
+						// whatever its place: compared below
+					if (PidDuplicateTags::comparedHere(part)) continue;
 					const auto info = part->elementInformations();
 					if (QET::infoFlagIsTrue(
 							info.value(QStringLiteral("exclude_from_bom"))
@@ -457,6 +461,32 @@ namespace DuplicateLabels
 		}
 		appendGroups(result, Kind::Signal, signal_labels, project);
 		appendGroups(result, Kind::Component, components, project, &disagreeing);
+		// The P&ID tags, in the whole project: every symbol a device of its
+		// own, whichever rule is chosen (one device drawn twice on purpose
+		// is excluded from the parts list)
+		const QList<QList<QUuid>> pid_groups =
+			PidDuplicateTags::groups(project, sensitivity);
+		if (! pid_groups.isEmpty())
+		{
+			QHash<QUuid, Element*> by_uuid;
+			for (Diagram* diagram : diagrams)
+				for (Element* element : diagram->elements())
+					by_uuid.insert(element->uuid(), element);
+			Labels pid_tags;
+			for (int i = 0; i < pid_groups.size(); ++i)
+			{
+				const QString group_key =
+					QString::number(i).rightJustified(6, QLatin1Char('0'));
+				for (const QUuid& uuid : pid_groups.at(i))
+					if (Element* element = by_uuid.value(uuid))
+						pid_tags[group_key].append(
+							{element,
+							 identifier(displayedLabel(element)),
+							 ++device,
+							 QString()});
+			}
+			appendGroups(result, Kind::Component, pid_tags, project);
+		}
 		return result;
 	}
 
