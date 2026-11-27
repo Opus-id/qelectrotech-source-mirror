@@ -43,6 +43,7 @@
 #include <ui/imagepropertieswidget.h>
 #include <ui/inditextpropertieswidget.h>
 #include <ui/multielementinfowidget.h>
+#include <ui/pidselectiontagwidget.h>
 #include <ui/shapegraphicsitempropertieswidget.h>
 #include <ui/pipepropertieswidget.h>
 #include <ui/signalpropertieswidget.h>
@@ -154,6 +155,16 @@ PropertiesEditorWidget *PropertiesEditorFactory::propertiesEditor(
 			return nullptr;
 		}
 		const int other_items = count_ - elements.size();
+			//P&ID symbols: their tag above the information
+		if (PidSelectionTagWidget::isWanted(elements))
+		{
+			if (class_name == PidSelectionTagWidget::staticMetaObject.className())
+			{
+				static_cast<PidSelectionTagWidget *>(editor)->setElements(elements, other_items);
+				return editor;
+			}
+			return new PidSelectionTagWidget(elements, other_items, parent);
+		}
 		if (class_name == MultiElementInfoWidget::staticMetaObject.className())
 		{
 			static_cast<MultiElementInfoWidget *>(editor)->setElements(elements, other_items);

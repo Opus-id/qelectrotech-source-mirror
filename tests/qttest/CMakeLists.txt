@@ -1070,6 +1070,9 @@ qet_add_app_test(tst_elementchangetype tst_elementchangetype.cpp)
 # The tag of a P&ID symbol: identifier given by the symbol, unit, train and
 # order of the placed element, label made by the model of the project.
 qet_add_app_test(tst_elementtag tst_elementtag.cpp)
+# The tag of several P&ID symbols at once: unit and train of a selection,
+# "Number" (the unnumbered ones, or all again), one undo step each.
+qet_add_app_test(tst_pidselectiontag tst_pidselectiontag.cpp)
 # The data a project asks of its P&ID symbols, by class: declared in its
 # codification, typed in the Data section of the P&ID tab, kept as information
 # of the element; the Informations tab neither shows nor loses them.

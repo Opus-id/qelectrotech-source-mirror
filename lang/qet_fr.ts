@@ -17268,6 +17268,102 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
 </context>
 <context>
+    <name>PidSelectionTagWidget</name>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="121"/>
+        <source>P&amp;&amp;ID tag</source>
+        <translation>Repère P&amp;&amp;ID</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="133"/>
+        <source>The functional unit of the P&amp;ID symbols of the selection, picked in the list of the project or typed; the same value as their plant</source>
+        <translation>L&apos;unité fonctionnelle des symboles P&amp;ID de la sélection, choisie dans la liste du projet ou saisie ; la même valeur que leur installation</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="140"/>
+        <source>Functional unit:</source>
+        <translation>Unité fonctionnelle :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="146"/>
+        <source>The number of the train of the P&amp;ID symbols of the selection, 0 when there is none</source>
+        <translation>Le numéro de file des symboles P&amp;ID de la sélection, 0 s&apos;il n&apos;y en a pas</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="147"/>
+        <source>Train:</source>
+        <translation>File :</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="149"/>
+        <source>Number again the symbols which already have a number</source>
+        <translation>Renuméroter aussi les symboles déjà numérotés</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="151"/>
+        <source>Unticked, only the symbols without a number get one. Ticked, every symbol of the selection is numbered again, the numbers it had being freed.</source>
+        <translation>Décochée, seuls les symboles sans numéro en reçoivent un. Cochée, toute la sélection est renumérotée, ses anciens numéros étant libérés.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="155"/>
+        <source>Number</source>
+        <translation>Numéroter</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="157"/>
+        <source>Give the P&amp;ID symbols of the selection the next numbers of the project, folio by folio, then from left to right and from top to bottom. Done at once, the changes pending first.</source>
+        <translation>Donne aux symboles P&amp;ID de la sélection les numéros suivants du projet, folio par folio, puis de gauche à droite, puis de haut en bas. Fait tout de suite, après ce qui était tapé.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="320"/>
+        <source>Multiple values</source>
+        <translation>Valeurs multiples</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="327"/>
+        <source>P&amp;ID symbols edited: %1</source>
+        <translation>Symboles P&amp;ID repérés : %1</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="329"/>
+        <source>P&amp;ID symbols edited: %1 of %2 (the others have no model of tag)</source>
+        <translation>Symboles P&amp;ID repérés : %1 sur %2 (les autres n&apos;ont pas de modèle de repère)</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="396"/>
+        <source>Tag the selected symbols</source>
+        <translation>Repérer les symboles sélectionnés</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="410"/>
+        <source>Number the selected symbols</source>
+        <translation>Numéroter les symboles sélectionnés</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="490"/>
+        <source>Nothing to change: the numbers are those already held.</source>
+        <translation>Rien à changer : les numéros sont ceux qu&apos;ils ont déjà.</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="491"/>
+        <source>Nothing to number: every symbol has a number.</source>
+        <translation>Rien à numéroter : chaque symbole a un numéro.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="496"/>
+        <source>%n symbol(s) numbered</source>
+        <translation>
+            <numerusform>%n symbole numéroté</numerusform>
+            <numerusform>%n symboles numérotés</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/pidselectiontagwidget.cpp" line="537"/>
+        <source>Tag and information</source>
+        <translation>Repère et informations</translation>
+    </message>
+</context>
+<context>
     <name>PipeConnection</name>
     <message>
         <location filename="../sources/pipeconnection.h" line="95"/>

@@ -18,6 +18,7 @@
 #ifndef PID_TAG_H
 #define PID_TAG_H
 
+#include <QHash>
 #include <QList>
 #include <QString>
 
@@ -149,6 +150,30 @@ namespace PidTag
 					 const QList<Element *> &pasted,
 					 bool renumber = true,
 					 bool fresh = false);
+
+		/// Which elements newOrders() gives an order
+	enum class Numbering {
+		Clashing,   ///< as numberPasted(): an order another element holds
+		Fresh,      ///< as numberPasted() with fresh: every element
+		Unnumbered, ///< the elements without an order; the others keep theirs
+		All         ///< every element again, the orders it had being freed
+	};
+
+		/**
+			The orders numberPasted() would give @p elements, by @p how,
+			nothing being written: the element and its new order, for
+			those which get one. The elements are taken folio by folio, then
+			from left to right and from top to bottom, each after the highest
+			order the other elements of @p project hold in its unit, identifier
+			and train (its loop, for an instrument). With All, instruments
+			which had the same order still share one (a loop stays a loop).
+			Clashing and Fresh take the elements which have a model of tag
+			and a field (numberPasted()); Unnumbered and All those with a
+			model of tag, a field or not: "Number" of a selection.
+		*/
+	QHash<Element *, QString> newOrders(QETProject *project,
+										const QList<Element *> &elements,
+										Numbering how);
 }
 
 #endif

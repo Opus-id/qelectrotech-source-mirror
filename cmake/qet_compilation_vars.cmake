@@ -1060,6 +1060,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/elementcommentwidget.h
   ${QET_DIR}/sources/ui/multielementinfowidget.cpp
   ${QET_DIR}/sources/ui/multielementinfowidget.h
+  ${QET_DIR}/sources/ui/pidselectiontagwidget.cpp
+  ${QET_DIR}/sources/ui/pidselectiontagwidget.h
   ${QET_DIR}/sources/ui/pipepropertieswidget.cpp
   ${QET_DIR}/sources/ui/pipepropertieswidget.h
   ${QET_DIR}/sources/ui/signalpropertieswidget.cpp

@@ -285,26 +285,21 @@ int PidTag::nextOrder(QETProject *project,
 	return highest + 1;
 }
 
-int PidTag::numberPasted(QETProject *project,
-						 const QList<Element *> &pasted,
-						 bool renumber,
-						 bool fresh)
+namespace {
+
+	/// The elements of @p elements which have a model of tag (and a field,
+	/// when @p with_fields), folio by folio, then from left to right and from
+	/// top to bottom
+QList<Element *> sortedTagged(QETProject *project, const QList<Element *> &elements,
+							  bool with_fields)
 {
-	if (!project) {
-		return 0;
-	}
 	QList<Element *> tagged;
-	for (Element *element : pasted) {
+	for (Element *element : elements) {
 		if (element && !element->pidTagModel().isEmpty()
-				&& hasFields(element->elementInformations())) {
+				&& (!with_fields || PidTag::hasFields(element->elementInformations()))) {
 			tagged << element;
 		}
 	}
-	if (tagged.isEmpty()) {
-		return 0;
-	}
-
-		//Folio by folio, then from left to right and from top to bottom
 	const QList<Diagram *> folios = project->folios();
 	std::stable_sort(tagged.begin(), tagged.end(), [&folios](Element *a, Element *b) {
 		const int folio_a = folios.indexOf(a->diagram());
@@ -313,6 +308,16 @@ int PidTag::numberPasted(QETProject *project,
 		if (!qFuzzyCompare(a->pos().x() + 1, b->pos().x() + 1)) return a->pos().x() < b->pos().x();
 		return a->pos().y() < b->pos().y();
 	});
+	return tagged;
+}
+
+	/// The new orders of @p tagged (sortedTagged()), by @p how, whose
+	/// clashes are counted against the elements of @p project out of @p numbered
+QHash<Element *, QString> ordersOf(QETProject *project, const QList<Element *> &tagged,
+								   const QList<Element *> &numbered, PidTag::Numbering how)
+{
+	using PidTag::Numbering;
+	const bool fresh = how == Numbering::Fresh;
 
 		//A tag is held by its unit, identifier and train (keyOf()); its order
 		//is counted with others for an instrument numbered by loop
@@ -325,38 +330,41 @@ int PidTag::numberPasted(QETProject *project,
 		const int value = order.trimmed().toInt(&number);
 		if (number && value > highest.value(counter)) highest.insert(counter, value);
 	};
-	const QSet<const Element *> pasted_set(pasted.cbegin(), pasted.cend());
+	const QSet<const Element *> numbered_set(numbered.cbegin(), numbered.cend());
 	for (const Held &tag : heldTags(project)) {
-		if (tag.element && pasted_set.contains(tag.element)) continue;
+		if (tag.element && numbered_set.contains(tag.element)) continue;
 		if (tag.order.trimmed().isEmpty()) continue;
 		hold(keyOf(tag.unit, tag.id, tag.train),
 			 counterOf(project, tag.unit, tag.id, tag.train, tag.family), tag.order);
 	}
 	auto keysOf = [project](const Element *element, QString *counter) {
 		const DiagramContext &information = element->elementInformations();
-		const QString unit = information.value(unitKey()).toString();
-		const QString id = identifier(element);
-		const QString train = information.value(trainKey()).toString();
+		const QString unit = information.value(PidTag::unitKey()).toString();
+		const QString id = PidTag::identifier(element);
+		const QString train = information.value(PidTag::trainKey()).toString();
 		*counter = counterOf(project, unit, id, train, element->pidFamily());
 		return keyOf(unit, id, train);
 	};
 
-		//The pasted elements that keep their order come first, so that a
-		//new number goes past theirs
+		//The elements that keep their order come first, so that a new
+		//number goes past theirs
 	QList<Element *> clashing;
-	for (Element *element : std::as_const(tagged))
+	for (Element *element : tagged)
 	{
-			//A new device: the next order, in the order of the sort above
-		if (fresh) {
+			//A new device, or all numbered again: the next order, in the
+			//order of the sort
+		if (fresh || how == Numbering::All) {
 			clashing << element;
 			continue;
 		}
-		const DiagramContext &information = element->elementInformations();
-		const QString order = information.value(orderKey()).toString();
-		if (order.trimmed().isEmpty()) continue;
+		const QString order = element->elementInformations().value(PidTag::orderKey()).toString();
+		if (order.trimmed().isEmpty()) {
+			if (how == Numbering::Unnumbered) clashing << element;
+			continue;
+		}
 		QString counter;
 		const QString key = keysOf(element, &counter);
-		if (renumber && held.value(key).contains(normalized(order))) {
+		if (how == Numbering::Clashing && held.value(key).contains(normalized(order))) {
 			clashing << element;
 		} else {
 			hold(key, counter, order);
@@ -371,7 +379,7 @@ int PidTag::numberPasted(QETProject *project,
 	{
 		QString counter;
 		const QString key = keysOf(element, &counter);
-		const QString old_order = element->elementInformations().value(orderKey()).toString();
+		const QString old_order = element->elementInformations().value(PidTag::orderKey()).toString();
 		const bool by_loop = counter != key && !fresh && !old_order.trimmed().isEmpty();
 		const QString loop = counter + QChar(0x1f) + normalized(old_order);
 		QString order = by_loop ? loops.value(loop) : QString();
@@ -383,6 +391,41 @@ int PidTag::numberPasted(QETProject *project,
 			loops.insert(loop, order);
 		}
 		new_orders.insert(element, order);
+	}
+	return new_orders;
+}
+
+}
+
+QHash<Element *, QString> PidTag::newOrders(QETProject *project,
+											const QList<Element *> &elements,
+											Numbering how)
+{
+	if (!project) {
+		return {};
+	}
+	const bool with_fields = how == Numbering::Clashing || how == Numbering::Fresh;
+	return ordersOf(project, sortedTagged(project, elements, with_fields), elements, how);
+}
+
+int PidTag::numberPasted(QETProject *project,
+						 const QList<Element *> &pasted,
+						 bool renumber,
+						 bool fresh)
+{
+	if (!project) {
+		return 0;
+	}
+	const QList<Element *> tagged = sortedTagged(project, pasted, true);
+	if (tagged.isEmpty()) {
+		return 0;
+	}
+		//Without renumber, every order is kept: Clashing which never clashes
+	QHash<Element *, QString> new_orders;
+	if (fresh) {
+		new_orders = ordersOf(project, tagged, pasted, Numbering::Fresh);
+	} else if (renumber) {
+		new_orders = ordersOf(project, tagged, pasted, Numbering::Clashing);
 	}
 
 	for (Element *element : std::as_const(tagged))

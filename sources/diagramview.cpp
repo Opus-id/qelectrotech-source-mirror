@@ -65,6 +65,7 @@
 #include "ui/duplicateoffsetdialog.h"
 #include "ui/elementoptionswidget.h"
 #include "ui/multielementinfowidget.h"
+#include "ui/pidselectiontagwidget.h"
 #include "ui/multipastedialog.h"
 #include "undocommand/changeelementlocationcommand.h"
 #include "undocommand/changetitleblockcommand.h"
@@ -3332,10 +3333,15 @@ void DiagramView::editSelection()
 		const QList<Element *> elements = MultiElementInfoWidget::informationElements(selection);
 		if (only_elements && elements.size() > 1)
 		{
-			PropertiesEditorDialog dialog(
-						new MultiElementInfoWidget(elements, selection.size() - elements.size()),
-						this);
-			dialog.exec();
+			const int other_items = selection.size() - elements.size();
+				//P&ID symbols: their tag above the information
+			if (PidSelectionTagWidget::isWanted(elements)) {
+				PropertiesEditorDialog dialog(new PidSelectionTagWidget(elements, other_items), this);
+				dialog.exec();
+			} else {
+				PropertiesEditorDialog dialog(new MultiElementInfoWidget(elements, other_items), this);
+				dialog.exec();
+			}
 		}
 		return;
 	}
