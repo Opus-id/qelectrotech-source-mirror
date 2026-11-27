@@ -461,6 +461,31 @@ class tst_revisioncloud : public QObject
 			QCOMPARE(diagram->undoStack().count(), steps + 1);
 		}
 
+			//Found under the cursor 4 px off its outline, and its tool tip
+			//not emptied when the cursor comes over it
+		void theToolTipIsEasyToShow()
+		{
+			QETProject project;
+			RevisionList list;
+			list.setRevisions({Revision{QStringLiteral("B"), QStringLiteral("2026-11-27"),
+										QStringLiteral("Pump moved"), {}, {}}});
+			project.setRevisions(list);
+			Diagram *diagram = project.addNewDiagram();
+			RevisionCloudItem *c = cloud(diagram, QRectF(100, 100, 200, 100));
+			c->setRevision(QStringLiteral("B"));
+				//Ten arcs of 20 along the top side: (120, 100) joins two of
+				//them. 4 px under it, the cursor finds the cloud; in its
+				//middle, what is under it
+			const QPointF joint(120, 100);
+			QVERIFY(diagram->items(joint + QPointF(0, 4)).contains(c));
+			QVERIFY(!diagram->items(QPointF(200, 150)).contains(c));
+
+			QGraphicsSceneHoverEvent enter(QEvent::GraphicsSceneHoverEnter);
+			enter.setScenePos(joint);
+			diagram->sendEvent(c, &enter);
+			QVERIFY2(c->toolTip().contains(QStringLiteral("Pump moved")), qPrintable(c->toolTip()));
+		}
+
 		void theDefaultColoursAreBlackAndRed()
 		{
 			QCOMPARE(RevisionCloudItem::newCloudColor(RevisionCloudItem::Revision), QColor(Qt::black));

@@ -33,6 +33,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QLineF>
 #include <QPainter>
+#include <QPainterPathStroker>
 #include <QSettings>
 #include <QStyleOptionGraphicsItem>
 #include <QTextDocument>
@@ -360,6 +361,31 @@ QVariant RevisionCloudItem::itemChange(GraphicsItemChange change, const QVariant
 	else if (change == ItemSceneHasChanged)
 		refreshLook();
 	return result;
+}
+
+/**
+	@brief RevisionCloudItem::shape
+	A thin outline is hard to point at, and the cloud's tool tip with it: a
+	cloud is always as easy to point at as a hovered shape.
+*/
+QPainterPath RevisionCloudItem::shape() const
+{
+	QPainterPathStroker stroker;
+	stroker.setWidth(pen().widthF() + 10);
+	stroker.setJoinStyle(Qt::RoundJoin);
+	return stroker.createStroke(outline());
+}
+
+/**
+	@brief RevisionCloudItem::hoverEnterEvent
+	QetShapeItem empties the tool tip of a shape not selected each time the
+	cursor comes over it: the cloud's comes back.
+*/
+void RevisionCloudItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event)
+{
+	QetShapeItem::hoverEnterEvent(event);
+	if (!isSelected())
+		setToolTip(toolTipText());
 }
 
 /**

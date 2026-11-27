@@ -134,6 +134,9 @@ class RevisionCloudItem : public QetShapeItem
 			/// Today, as a cloud writes it: ISO 8601
 		static QString today();
 
+			/// As wide as the shape of a hovered QetShapeItem, hovered or not
+		QPainterPath shape() const override;
+
 	signals:
 			/// One of its data, its kind, its sizes changed, by an edit or an undo
 		void cloudChanged();
@@ -143,6 +146,7 @@ class RevisionCloudItem : public QetShapeItem
 		void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 				   QWidget *widget) override;
 		QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
+		void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;
 
 	private:
 		void changed();
