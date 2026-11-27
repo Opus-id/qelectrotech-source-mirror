@@ -110,7 +110,15 @@ namespace PdfLinks {
 
 	struct ComponentInfo {
 		QString contents;
+			/// The head of the popup, the label of the symbol; none: no /T
+		QString title;
 	};
+
+		/// @p text as a PDF text string: UTF-16BE with its byte order mark,
+		/// written in hex, "<FEFF...>"
+	QByteArray pdfTextString(const QString &text);
+		/// @p moment as a PDF date, "D:20261127184000+01'00'"
+	QByteArray pdfDate(const QDateTime &moment);
 
 	/**
 		Post-process a Qt-generated PDF file: convert component-info placeholder

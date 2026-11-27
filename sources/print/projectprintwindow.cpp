@@ -459,6 +459,9 @@ void ProjectPrintWindow::printDiagram(Diagram *diagram, bool fit_page, QPainter 
 
 					PdfLinks::ComponentInfo ci;
 					ci.contents = lines.join("\n");
+						// The head of the popup: the label, on one line
+					ci.title = info.value(QStringLiteral("label")).toString()
+							   .replace(QLatin1Char('\n'), QLatin1Char(' ')).trimmed();
 					m_componentInfoList.append(ci);
 
 					// Create a link annotation as placeholder — post-processing

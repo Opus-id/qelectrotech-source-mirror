@@ -33,6 +33,7 @@
 
 #include <QByteArray>
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QFile>
 #include <QGraphicsTextItem>
 #include <QList>
@@ -653,6 +654,31 @@ void setDocumentDate(const QString &pdfPath, const QDateTime &when)
 	f.close();
 }
 
+QByteArray pdfTextString(const QString &text)
+{
+	// UTF-16BE with its byte order mark, as a hex string (PDF 32000
+	// 7.9.2.2): any character, accents and umlauts included
+	QByteArray utf16be("\xfe\xff");
+	for (const QChar character : text) {
+		const ushort unit = character.unicode();
+		utf16be.append(static_cast<char>((unit >> 8) & 0xFF));
+		utf16be.append(static_cast<char>(unit & 0xFF));
+	}
+	return "<" + utf16be.toHex() + ">";
+}
+
+QByteArray pdfDate(const QDateTime &moment)
+{
+	// D:YYYYMMDDHHmmSS and the offset from UTC, +01'00' (PDF 32000 7.9.4)
+	const int offset = moment.offsetFromUtc() / 60;
+	const QString sign = offset < 0 ? QStringLiteral("-") : QStringLiteral("+");
+	return QStringLiteral("D:%1%2%3'%4'")
+			.arg(moment.toString(QStringLiteral("yyyyMMddHHmmss")), sign)
+			.arg(qAbs(offset) / 60, 2, 10, QLatin1Char('0'))
+			.arg(qAbs(offset) % 60, 2, 10, QLatin1Char('0'))
+			.toLatin1();
+}
+
 void convertComponentInfoAnnotations(const QString &pdfPath,
 									const QList<ComponentInfo> &annotations)
 {
@@ -696,6 +722,7 @@ void convertComponentInfoAnnotations(const QString &pdfPath,
 	QByteArray out;
 	out.reserve(data.size());
 
+	const QByteArray exportDate = pdfDate(QDateTime::currentDateTime());
 	int pos = 0;
 	bool anyConverted = false;
 
@@ -755,8 +782,6 @@ void convertComponentInfoAnnotations(const QString &pdfPath,
 		// Copy annotation dict header up to /A <<
 		out.append(body.mid(pos, aDictOpen - pos));
 
-		QByteArray contents = annotations[annotIndex].contents.toUtf8();
-
 		// Replace /Subtype /Link with /Subtype /Text, bounded to the enclosing
 		// PDF object.  Anchoring to " 0 obj" prevents hitting /Subtype /Link
 		// from a cross-ref annotation that sits between the previous marker
@@ -773,42 +798,18 @@ void convertComponentInfoAnnotations(const QString &pdfPath,
 			// annotation, so the /Contents popup is unaffected.
 			out.replace(subTypePos, 14, "/Subtype /Square");
 
-		// Encode as UTF-16BE hex with BOM for proper Unicode support (Umlauten etc.).
-		// PDF spec: hex strings starting with FE FF are interpreted as UTF-16BE.
-		QByteArray utf16be;
-		utf16be.append('\xfe');
-		utf16be.append('\xff');
-		{
-			for (int i = 0; i < contents.size(); ) {
-				ushort cp = 0;
-				uchar c = static_cast<uchar>(contents.at(i));
-				if (c < 0x80) {
-					cp = c;
-					++i;
-				} else if ((c & 0xE0) == 0xC0 && i + 1 < contents.size()) {
-					cp = ((c & 0x1F) << 6)
-					   | (static_cast<uchar>(contents.at(i + 1)) & 0x3F);
-					i += 2;
-				} else if ((c & 0xF0) == 0xE0 && i + 2 < contents.size()) {
-					cp = ((c & 0x0F) << 12)
-					   | ((static_cast<uchar>(contents.at(i + 1)) & 0x3F) << 6)
-					   | (static_cast<uchar>(contents.at(i + 2)) & 0x3F);
-					i += 3;
-				} else {
-					cp = 0xFFFD; // replacement character
-					++i;
-				}
-				utf16be.append(static_cast<char>((cp >> 8) & 0xFF));
-				utf16be.append(static_cast<char>(cp & 0xFF));
-			}
-		}
-
-		out += "/Contents <";
-		out += utf16be.toHex();
-		out += ">\n/AP << /N " + QByteArray::number(emptyXObjNum) + " 0 R >>\n";
+		out += "/Contents " + pdfTextString(annotations[annotIndex].contents) + "\n";
+		// The head of the popup: the symbol, and the export as the date of
+		// the note (a viewer shows 1 January 1970 for a note without one)
+		if (!annotations[annotIndex].title.isEmpty())
+			out += "/T " + pdfTextString(annotations[annotIndex].title) + "\n";
+		out += "/M (" + exportDate + ")\n";
+		out += "/AP << /N " + QByteArray::number(emptyXObjNum) + " 0 R >>\n";
 		// A viewer which draws the square itself instead of /AP (Open PDF
-		// Studio) gives it a border of 1 point by default: none
-		out += "/BS << /W 0 >>\n";
+		// Studio) gives it a black border of 1 point by default: none, and
+		// no colour (an empty array is transparent, PDF 32000 12.5.2), as
+		// it draws a width of 0 as the thinnest line
+		out += "/BS << /W 0 >>\n/C []\n";
 
 		// Skip the entire /A << ... >> action dict.
 		// After closeParen ')' we have: \n>>  (closes /A dict)  \n>>  (closes annot dict)

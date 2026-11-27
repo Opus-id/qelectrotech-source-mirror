@@ -7,8 +7,10 @@
 #include "qetinformation.h"
 #include "qetproject.h"
 
+#include <QDateTime>
 #include <QFile>
 #include <QTemporaryDir>
+#include <QTimeZone>
 
 // The notes a PDF export puts on its symbols ("Enter the component details"):
 // every line names its information, P&ID ones included, and no viewer draws
@@ -63,14 +65,30 @@ class tst_pdfnotes : public QObject
 				QVERIFY(file.open(QIODevice::WriteOnly));
 				file.write(pdf);
 			}
-			PdfLinks::convertComponentInfoAnnotations(path, {PdfLinks::ComponentInfo{QStringLiteral("Label: U03 PC 001")}});
+			PdfLinks::convertComponentInfoAnnotations(path, {PdfLinks::ComponentInfo{QStringLiteral("Label: U03 PC 001"),
+																					  QStringLiteral("U03 PC 001")}});
 			QFile file(path);
 			QVERIFY(file.open(QIODevice::ReadOnly));
 			const QByteArray converted = file.readAll();
 			QVERIFY2(converted.contains("/Subtype /Square"), converted.constData());
 			QVERIFY(converted.contains("/Contents <"));
 			QVERIFY(converted.contains("/BS << /W 0 >>"));
+			QVERIFY(converted.contains("/C []"));
 			QVERIFY(!converted.contains("componentinfo.local"));
+				// The head of the popup: the symbol, and a date of today
+			QVERIFY(converted.contains("/T " + PdfLinks::pdfTextString(QStringLiteral("U03 PC 001"))));
+			const QByteArray today = "/M (D:" + QDate::currentDate().toString(QStringLiteral("yyyyMMdd")).toLatin1();
+			QVERIFY2(converted.contains(today), converted.constData());
+		}
+
+			// A PDF text string keeps every character; a date says its offset
+		void textAndDate()
+		{
+			QCOMPARE(PdfLinks::pdfTextString(QStringLiteral("é")), QByteArray("<feff00e9>"));
+			const QDateTime moment(QDate(2026, 11, 27), QTime(18, 40, 5), QTimeZone::fromSecondsAheadOfUtc(3600));
+			QCOMPARE(PdfLinks::pdfDate(moment), QByteArray("D:20261127184005+01'00'"));
+			const QDateTime behind(QDate(2026, 1, 2), QTime(3, 4, 5), QTimeZone::fromSecondsAheadOfUtc(-(5 * 3600 + 30 * 60)));
+			QCOMPARE(PdfLinks::pdfDate(behind), QByteArray("D:20260102030405-05'30'"));
 		}
 };
 
