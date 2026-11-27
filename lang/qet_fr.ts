@@ -29092,6 +29092,10 @@ Comment voulez-vous les placer ?</translation>
         <source>Standby, text of a spare in its crate</source>
         <translation>Secours, texte d&apos;un secours en caisse</translation>
     </message>
+    <message>
+        <source>Revisions</source>
+        <translation>Révisions</translation>
+    </message>
 </context>
 <context>
     <name>QTextOrientationWidget</name>
@@ -37568,6 +37572,46 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
     <message>
         <source>%1: left click: first corner (Ctrl = free position)</source>
         <translation>%1 : clic gauche : premier coin (Ctrl = position libre)</translation>
+    </message>
+</context>
+<context>
+    <name>RevisionsConfigPage</name>
+    <message>
+        <source>Revisions</source>
+        <comment>configuration page title</comment>
+        <translation>Révisions</translation>
+    </message>
+    <message>
+        <source>Revision</source>
+        <translation>Indice</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Date</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Description</translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation>Auteur</translation>
+    </message>
+    <message>
+        <source>Approved by</source>
+        <translation>Approuvé par</translation>
+    </message>
+    <message>
+        <source>Add a revision</source>
+        <translation>Ajouter une révision</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <source>The project&apos;s revision history, the latest last. A table on a folio can print it.</source>
+        <translation>L&apos;historique des révisions du projet, la plus récente en dernier. Un tableau posé sur un folio peut l&apos;imprimer.</translation>
     </message>
 </context>
 </TS>
