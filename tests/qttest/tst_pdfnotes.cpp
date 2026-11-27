@@ -72,8 +72,10 @@ class tst_pdfnotes : public QObject
 			const QByteArray converted = file.readAll();
 			QVERIFY2(converted.contains("/Subtype /Square"), converted.constData());
 			QVERIFY(converted.contains("/Contents <"));
-			QVERIFY(converted.contains("/BS << /W 0 >>"));
-			QVERIFY(converted.contains("/C []"));
+			QVERIFY(converted.contains("/BS << /W 0.5 /S /D /D [2 2] >>"));
+			QVERIFY(converted.contains("/C [0.63 0.63 0.63]"));
+				// never printed: no flags
+			QVERIFY(!converted.contains("/F "));
 			QVERIFY(!converted.contains("componentinfo.local"));
 				// The head of the popup: the symbol, and a date of today
 			QVERIFY(converted.contains("/T " + PdfLinks::pdfTextString(QStringLiteral("U03 PC 001"))));

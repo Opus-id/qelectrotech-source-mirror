@@ -806,10 +806,12 @@ void convertComponentInfoAnnotations(const QString &pdfPath,
 		out += "/M (" + exportDate + ")\n";
 		out += "/AP << /N " + QByteArray::number(emptyXObjNum) + " 0 R >>\n";
 		// A viewer which draws the square itself instead of /AP (Open PDF
-		// Studio) gives it a black border of 1 point by default: none, and
-		// no colour (an empty array is transparent, PDF 32000 12.5.2), as
-		// it draws a width of 0 as the thinnest line
-		out += "/BS << /W 0 >>\n/C []\n";
+		// Studio) would give it a black border of 1 point, or a black
+		// hairline for a border of 0 without colour, which it keeps so that
+		// the note can be found: a thin light grey dashed border instead,
+		// found and discreet. Viewers which follow /AP draw nothing; without
+		// the Print flag (/F), the note is never printed
+		out += "/BS << /W 0.5 /S /D /D [2 2] >>\n/C [0.63 0.63 0.63]\n";
 
 		// Skip the entire /A << ... >> action dict.
 		// After closeParen ')' we have: \n>>  (closes /A dict)  \n>>  (closes annot dict)
