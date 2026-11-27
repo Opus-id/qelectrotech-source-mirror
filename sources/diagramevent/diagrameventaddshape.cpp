@@ -278,7 +278,12 @@ void DiagramEventAddShape::mousePressEvent(QGraphicsSceneMouseEvent *event)
 				m_shape_item->setRect(m_shape_item->rect().normalized());
 			}
 			shapeDrawn(m_shape_item);
-			m_diagram->undoStack().push (new AddGraphicsObjectCommand(m_shape_item, m_diagram));
+			if (keepShape(m_shape_item)) {
+				m_diagram->undoStack().push (new AddGraphicsObjectCommand(m_shape_item, m_diagram));
+			} else {
+				m_diagram->removeItem(m_shape_item);
+				delete m_shape_item;
+			}
 			m_shape_item = nullptr; //< set to nullptr for create new shape at next left clic
 			hideCenterMarker();
 			updateCreationHint();

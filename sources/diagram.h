@@ -141,6 +141,7 @@ class Diagram : public QGraphicsScene
 		bool draw_terminal_names_;
 		bool m_draw_nozzle_names = true;
 		bool m_draw_warnings = true;
+		bool m_draw_review_notes = true;
 		bool draw_colored_conductors_;
 		bool m_small_pictures = false;
 
@@ -398,6 +399,8 @@ class Diagram : public QGraphicsScene
 		void setDrawNozzleNames(bool);
 		bool drawWarnings() const;
 		void setDrawWarnings(bool);
+		bool drawReviewNotes() const;
+		void setDrawReviewNotes(bool);
 		bool drawColoredConductors() const;
 		void setDrawColoredConductors(bool);
 			/// While true, pictures draw a copy of a few times the size
@@ -675,6 +678,17 @@ inline bool Diagram::drawNozzleNames() const
 inline bool Diagram::drawWarnings() const
 {
 	return(m_draw_warnings);
+}
+
+/**
+	@brief Diagram::drawReviewNotes
+	@return true if the review notes (RevisionCloudItem) are rendered:
+	always on the screen; on paper and in an exported picture, when the
+	option of rendering says so
+*/
+inline bool Diagram::drawReviewNotes() const
+{
+	return(m_draw_review_notes);
 }
 
 /**

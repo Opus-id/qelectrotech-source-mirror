@@ -53,6 +53,7 @@
 #include "qetgraphicsitem/qetshapeitem.h"
 #include "qetgraphicsitem/dimensionitem.h"
 #include "qetgraphicsitem/structureboxitem.h"
+#include "qetgraphicsitem/revisionclouditem.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetxml.h"
 #include "undocommand/addelementtextcommand.h"
@@ -2712,6 +2713,8 @@ bool Diagram::fromXml(QDomElement &document,
 												QStringLiteral("shape"))) {
 		QetShapeItem *dii = StructureBoxItem::isStructureBoxXml(shape_xml)
 				? new StructureBoxItem(QPointF(0,0))
+				: RevisionCloudItem::isCloudXml(shape_xml)
+				? new RevisionCloudItem(QPointF(0,0))
 				: new QetShapeItem (QPointF(0,0));
 		dii -> fromXml(shape_xml);
 		settle_uuid(dii, shape_xml, QStringLiteral("shape"), added_shapes.size());
@@ -4099,6 +4102,7 @@ ExportProperties Diagram::applyProperties(
 	old_properties.draw_terminal_names     = drawTerminalNames();
 	old_properties.draw_nozzle_names       = drawNozzleNames();
 	old_properties.draw_warnings           = drawWarnings();
+	old_properties.draw_review_notes       = drawReviewNotes();
 	old_properties.draw_colored_conductors = drawColoredConductors();
 	old_properties.exported_area = useBorder() ? QET::BorderArea
 						   : QET::ElementsArea;
@@ -4110,6 +4114,7 @@ ExportProperties Diagram::applyProperties(
 	setDrawTerminalNames     (new_properties.draw_terminal_names);
 	setDrawNozzleNames       (new_properties.draw_nozzle_names);
 	setDrawWarnings          (new_properties.draw_warnings);
+	setDrawReviewNotes       (new_properties.draw_review_notes);
 	setDrawColoredConductors (new_properties.draw_colored_conductors);
 	setDisplayGrid           (new_properties.draw_grid);
 	setDisplayGuides         (new_properties.draw_guides);
@@ -4393,6 +4398,18 @@ void Diagram::setDrawNozzleNames(bool draw) {
 void Diagram::setDrawWarnings(bool draw) {
 	if (m_draw_warnings == draw) return;
 	m_draw_warnings = draw;
+	update();
+}
+
+/**
+	@brief Diagram::setDrawReviewNotes
+	Defines whether or not to draw the review notes (drawReviewNotes());
+	every item is drawn again
+	@param draw : true to draw them, false otherwise
+*/
+void Diagram::setDrawReviewNotes(bool draw) {
+	if (m_draw_review_notes == draw) return;
+	m_draw_review_notes = draw;
 	update();
 }
 

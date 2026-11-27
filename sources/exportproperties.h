@@ -50,6 +50,7 @@ class ExportProperties {
 	bool draw_terminal_names;       ///< Whether to render terminal names/labels, nozzles apart
 	bool draw_nozzle_names;         ///< Whether to render the names and DN of the nozzles; its start comes from the project, it is not kept in the settings
 	bool draw_warnings;             ///< Whether to render the orange marks of what is reported (P&ID): off by default, always on the screen
+	bool draw_review_notes;         ///< Whether to render the review notes (RevisionCloudItem): off by default, always on the screen
 	bool draw_bg_transparent;       ///< Whether to use transparency for SVG-Export
 	bool draw_colored_conductors;   ///< Whether to render conductors colors
 	bool dxf_blocks;                ///< DXF: each symbol as a block, placed with an INSERT

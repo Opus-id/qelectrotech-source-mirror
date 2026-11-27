@@ -61,6 +61,9 @@ class DiagramEventAddShape : public DiagramEventInterface
 			//Called once the shape is drawn, right before it is added
 			//with its undo command: what is set here is part of that step.
 		virtual void shapeDrawn(QetShapeItem *shape) {Q_UNUSED(shape)}
+			//Called right after shapeDrawn(): false drops the shape, nothing
+			//is added (e.g. a dialog asked for it was cancelled)
+		virtual bool keepShape(QetShapeItem *shape) {Q_UNUSED(shape); return true;}
 
 		QetShapeItem::ShapeType  m_shape_type;
 		bool                     m_half_arc = false;   // Ellipse only: draw a half arc whose chord is the first click's height (the Arc tool)

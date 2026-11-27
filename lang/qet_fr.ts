@@ -10620,6 +10620,14 @@ En important ce fichier, vous confirmez que :
         <source>Pictures are stored at four times the size they have on the folio instead of their full resolution: a much smaller file, still sharp when printed</source>
         <translation>Les photos sont enregistrées à une taille quatre fois supérieure à celle affichée dans le folio, et non à leur résolution maximale : le fichier est ainsi beaucoup plus petit, tout en conservant une bonne netteté à l&apos;impression</translation>
     </message>
+    <message>
+        <source>Draw the review notes</source>
+        <translation>Dessiner les annotations de correction</translation>
+    </message>
+    <message>
+        <source>The clouds of review notes and their comments, always on the screen; on paper only when ticked. Revision clouds are always drawn.</source>
+        <translation>Les nuages des annotations de correction et leurs commentaires, toujours à l&apos;écran ; sur le papier seulement si la case est cochée. Les nuages de révision sont toujours dessinés.</translation>
+    </message>
 </context>
 <context>
     <name>FillUnsizedPipesCommand</name>
@@ -19776,6 +19784,14 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <source>File (*.pdf)</source>
         <translation>Fichier (*.pdf)</translation>
     </message>
+    <message>
+        <source>Draw the review notes</source>
+        <translation>Dessiner les annotations de correction</translation>
+    </message>
+    <message>
+        <source>The clouds of review notes and their comments, always on the screen; on paper only when ticked. Revision clouds are always drawn.</source>
+        <translation>Les nuages des annotations de correction et leurs commentaires, toujours à l&apos;écran ; sur le papier seulement si la case est cochée. Les nuages de révision sont toujours dessinés.</translation>
+    </message>
 </context>
 <context>
     <name>ProjectReports</name>
@@ -23843,6 +23859,22 @@ Déponter et/ou supprimer les niveaux des bornes concerné afin de pouvoir les s
         <location filename="../sources/qetdiagrameditor.cpp" line="2014"/>
         <source>Adds a chain dimension to the current sheet</source>
         <translation>Ajoute une cotation en continu au folio courant</translation>
+    </message>
+    <message>
+        <source>Add a revision cloud</source>
+        <translation>Ajouter un nuage de révision</translation>
+    </message>
+    <message>
+        <source>Draws a cloud around what changed, with the index of the last revision of the project</source>
+        <translation>Dessine un nuage autour de ce qui a changé, avec l&apos;indice de la dernière révision du projet</translation>
+    </message>
+    <message>
+        <source>Add a review note</source>
+        <translation>Ajouter une annotation de correction</translation>
+    </message>
+    <message>
+        <source>Draws a cloud with a remark of a reviewer: printed only when asked</source>
+        <translation>Dessine un nuage avec une remarque de relecture : imprimé seulement sur demande</translation>
     </message>
 </context>
 <context>
@@ -37348,6 +37380,194 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
     <message>
         <source>Change the data of an element</source>
         <translation>Modifier les données d&apos;un élément</translation>
+    </message>
+</context>
+<context>
+    <name>RevisionCloudItem</name>
+    <message>
+        <source>Revision cloud</source>
+        <translation>Nuage de révision</translation>
+    </message>
+    <message>
+        <source>Revision cloud %1</source>
+        <translation>Nuage de révision %1</translation>
+    </message>
+    <message>
+        <source>Review note</source>
+        <translation>Annotation de correction</translation>
+    </message>
+    <message>
+        <source>Author: %1</source>
+        <translation>Auteur : %1</translation>
+    </message>
+    <message>
+        <source>Date: %1</source>
+        <translation>Date : %1</translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation>Faite</translation>
+    </message>
+    <message>
+        <source>To do</source>
+        <translation>À faire</translation>
+    </message>
+    <message>
+        <source>a review note</source>
+        <translation>une annotation de correction</translation>
+    </message>
+    <message>
+        <source>a revision cloud</source>
+        <translation>un nuage de révision</translation>
+    </message>
+</context>
+<context>
+    <name>RevisionCloudLabelItem</name>
+    <message>
+        <source>Move the text of a cloud</source>
+        <translation>Déplacer le texte d&apos;un nuage</translation>
+    </message>
+</context>
+<context>
+    <name>RevisionCloudPropertiesWidget</name>
+    <message>
+        <source>Revision cloud</source>
+        <translation>Nuage de révision</translation>
+    </message>
+    <message>
+        <source>Review note</source>
+        <translation>Annotation de correction</translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation>Genre</translation>
+    </message>
+    <message>
+        <source>Revision</source>
+        <translation>Révision</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation>Commentaire</translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation>Auteur</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Date</translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation>Faite</translation>
+    </message>
+    <message>
+        <source>A note done stays in place, greyed out, until it is deleted</source>
+        <translation>Une annotation faite reste en place, grisée, jusqu&apos;à ce qu&apos;on la supprime</translation>
+    </message>
+    <message>
+        <source>Written under the comment, after an arrow</source>
+        <translation>Écrite sous le commentaire, après une flèche</translation>
+    </message>
+    <message>
+        <source>Reply</source>
+        <translation>Réponse</translation>
+    </message>
+    <message>
+        <source>Colour</source>
+        <translation>Couleur</translation>
+    </message>
+    <message>
+        <source>Line width</source>
+        <translation>Épaisseur du trait</translation>
+    </message>
+    <message>
+        <source>Solid</source>
+        <translation>Continu</translation>
+    </message>
+    <message>
+        <source>Dashed</source>
+        <translation>Tirets</translation>
+    </message>
+    <message>
+        <source>Dotted</source>
+        <translation>Pointillés</translation>
+    </message>
+    <message>
+        <source>Dash dot</source>
+        <translation>Mixte (tiret, point)</translation>
+    </message>
+    <message>
+        <source>Line style</source>
+        <translation>Style du trait</translation>
+    </message>
+    <message>
+        <source> pt</source>
+        <translation> pt</translation>
+    </message>
+    <message>
+        <source>Size of the text</source>
+        <translation>Taille du texte</translation>
+    </message>
+    <message>
+        <source>The length of an arc of the cloud</source>
+        <translation>La longueur d&apos;un arc du nuage</translation>
+    </message>
+    <message>
+        <source>Size of the arcs</source>
+        <translation>Taille des arcs</translation>
+    </message>
+    <message>
+        <source>Edit a review note</source>
+        <translation>Modifier une annotation de correction</translation>
+    </message>
+    <message>
+        <source>Edit a revision cloud</source>
+        <translation>Modifier un nuage de révision</translation>
+    </message>
+    <message>
+        <source>Modify a review note</source>
+        <translation>Modifier une annotation de correction</translation>
+    </message>
+    <message>
+        <source>Modify a revision cloud</source>
+        <translation>Modifier un nuage de révision</translation>
+    </message>
+</context>
+<context>
+    <name>DiagramEventAddRevisionCloud</name>
+    <message>
+        <source>New review note</source>
+        <translation>Nouvelle annotation de correction</translation>
+    </message>
+    <message>
+        <source>Comment</source>
+        <translation>Commentaire</translation>
+    </message>
+    <message>
+        <source>Review note</source>
+        <translation>Annotation de correction</translation>
+    </message>
+    <message>
+        <source>Revision cloud</source>
+        <translation>Nuage de révision</translation>
+    </message>
+    <message>
+        <source>%1, free outline: left click: next point; double click: close the cloud; right click: undo the last point</source>
+        <translation>%1, contour libre : clic gauche : point suivant ; double-clic : fermer le nuage ; clic droit : retirer le dernier point</translation>
+    </message>
+    <message>
+        <source>%1, free outline: left click: first point (Ctrl = free position); Space: rectangle</source>
+        <translation>%1, contour libre : clic gauche : premier point (Ctrl = position libre) ; Espace : rectangle</translation>
+    </message>
+    <message>
+        <source>%1, rectangle: left click: opposite corner (Ctrl = from center); right click: cancel</source>
+        <translation>%1, rectangle : clic gauche : coin opposé (Ctrl = depuis le centre) ; clic droit : annuler</translation>
+    </message>
+    <message>
+        <source>%1, rectangle: left click: first corner (Ctrl = free position); Space: free outline</source>
+        <translation>%1, rectangle : clic gauche : premier coin (Ctrl = position libre) ; Espace : contour libre</translation>
     </message>
 </context>
 </TS>

@@ -210,6 +210,16 @@
           </widget>
         </item>
         <item>
+          <widget class="QCheckBox" name="m_draw_review_notes_cb">
+           <property name="text">
+            <string>Draw the review notes</string>
+           </property>
+           <property name="toolTip">
+            <string>The clouds of review notes and their comments, always on the screen; on paper only when ticked. Revision clouds are always drawn.</string>
+           </property>
+          </widget>
+        </item>
+        <item>
           <widget class="QCheckBox" name="m_component_info_cb">
            <property name="text">
             <string>Enter the component details</string>

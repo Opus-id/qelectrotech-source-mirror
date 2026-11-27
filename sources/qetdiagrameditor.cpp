@@ -69,6 +69,7 @@
 #include "diagramevent/diagrameventaddpipe.h"
 #include "diagramevent/diagrameventfillet.h"
 #include "diagramevent/diagrameventaddstructurebox.h"
+#include "diagramevent/diagrameventaddrevisioncloud.h"
 #include "diagramevent/diagrameventaddtext.h"
 #include "cable/cablepart.h"
 #include "cable/editcablecommand.h"
@@ -2247,6 +2248,13 @@ void QETDiagramEditor::setUpActions()
 		//take them (see StructureBoxItem)
 	QAction *add_structure_box = m_add_item_actions_group.addAction(QET::Icons::PartRectangle, tr("Add a structure box"));
 	add_structure_box->setStatusTip(tr("Adds a structure box (plant, location, prefix) to the current sheet: the symbols inside it take its plant and location"));
+		//A cloud around what changed, with the index of the revision; and a
+		//remark of a reviewer, drawn on paper only when asked (see
+		//RevisionCloudItem). Space before the first click: a free outline
+	QAction *add_revision_cloud = m_add_item_actions_group.addAction(QET::Icons::PartPolygon, tr("Add a revision cloud"));
+	add_revision_cloud->setStatusTip(tr("Draws a cloud around what changed, with the index of the last revision of the project"));
+	QAction *add_review_note = m_add_item_actions_group.addAction(QET::Icons::EditText, tr("Add a review note"));
+	add_review_note->setStatusTip(tr("Draws a cloud with a remark of a reviewer: printed only when asked"));
 
 	add_text     ->setData(QStringLiteral("text"));
 	add_image    ->setData(QStringLiteral("image"));
@@ -2268,6 +2276,8 @@ void QETDiagramEditor::setUpActions()
 	m_add_bridge    ->setData(QStringLiteral("bridge"));
 	m_add_pipe      ->setData(QStringLiteral("pipe"));
 	add_structure_box->setData(QStringLiteral("structure_box"));
+	add_revision_cloud->setData(QStringLiteral("revision_cloud"));
+	add_review_note->setData(QStringLiteral("review_note"));
 
 	add_text->setCheckable(true);
 	add_line->setCheckable(true);
@@ -2283,6 +2293,8 @@ void QETDiagramEditor::setUpActions()
 	m_add_dimension_linear->setCheckable(true);
 	m_add_dimension_chain->setCheckable(true);
 	add_structure_box->setCheckable(true);
+	add_revision_cloud->setCheckable(true);
+	add_review_note->setCheckable(true);
 
 	connect(&m_add_item_actions_group, &QActionGroup::triggered, this, &QETDiagramEditor::addItemGroupTriggered);
 		//No default key, but an id: they can then be found by the command
@@ -4069,6 +4081,10 @@ void QETDiagramEditor::addItemGroupTriggered(QAction *action)
 		diagram_event = new DiagramEventAddShape (d, QetShapeItem::Ellipse, true);
 	else if (value == "structure_box")
 		diagram_event = new DiagramEventAddStructureBox (d);
+	else if (value == QLatin1String("revision_cloud"))
+		diagram_event = new DiagramEventAddRevisionCloud (d, RevisionCloudItem::Revision);
+	else if (value == QLatin1String("review_note"))
+		diagram_event = new DiagramEventAddRevisionCloud (d, RevisionCloudItem::Review);
 	else if (value == "polyline")
 		diagram_event = new DiagramEventAddShape (d, QetShapeItem::Polygon);
 	else if (value == "path")

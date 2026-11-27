@@ -37,6 +37,8 @@
 #include <qetgraphicsitem/dimensionitem.h>
 #include <ui/dimensionpropertieswidget.h>
 #include <qetgraphicsitem/structureboxitem.h>
+#include <qetgraphicsitem/revisionclouditem.h>
+#include "../ui/revisioncloudpropertieswidget.h"
 #include <ui/dynamicelementtextitemeditor.h>
 #include <ui/elementpropertieswidget.h>
 #include <ui/conductorpropertieseditorwidget.h>
@@ -117,6 +119,10 @@ PropertiesEditorWidget *PropertiesEditorFactory::propertiesEditor(
 			if (Conductor *parent_cond = cti->parentConductor()) {
 				qgi = parent_cond;
 			}
+		}
+			//The text of a cloud edits its cloud, as its double click does
+		if (qgi->type() == RevisionCloudLabelItem::Type && qgi->parentItem()) {
+			qgi = qgi->parentItem();
 		}
 		if (!seen.contains(qgi)) {
 			seen.insert(qgi);
@@ -270,6 +276,13 @@ PropertiesEditorWidget *PropertiesEditorFactory::propertiesEditor(
 		}
 		case QetShapeItem::Type: //1008
 		{
+				//A cloud alone: its kind and its data. Among other shapes, it
+				//is a shape: their line can be edited together
+			if (count_ == 1) {
+				if (auto cloud = qobject_cast<RevisionCloudItem *>(static_cast<QetShapeItem *>(item))) {
+					return new RevisionCloudPropertiesWidget(cloud, parent);
+				}
+			}
 			QList<QetShapeItem *> shapes_list;
 			for (QGraphicsItem *qgi : items) {
 				shapes_list.append(static_cast<QetShapeItem*>(qgi));

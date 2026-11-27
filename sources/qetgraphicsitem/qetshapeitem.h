@@ -235,6 +235,11 @@ class QetShapeItem : public QetGraphicsItem
 		void setPos(const QPointF &p) override;
 
 	protected:
+			// raw, unstroked path for the current type; shared by shape(),
+			// paint(), sceneOutlineRect() and the DXF fallback, so a subclass
+			// that draws another outline (RevisionCloudItem) is hit, framed
+			// and drawn by it
+		virtual QPainterPath outline() const;
 		void paint(
 				QPainter *painter,
 				const QStyleOptionGraphicsItem *option,
@@ -302,7 +307,6 @@ class QetShapeItem : public QetGraphicsItem
 		void removePathPoint(int nodeIndex);
 
 		QRectF localRect() const;
-		QPainterPath outline() const;   // raw, unstroked path for the current type; shared by shape() and paint()
 		QVector<QPointF> currentHandlePositions() const;   // in m_handleRoles/m_handleSlot order, local coordinates
 		QPointF handlePositionFor(HandleRole role, int slot) const;
 		QPointF rotateHandleReference(int slot) const;   // the point a Rotate handle tracks, before rotation is applied

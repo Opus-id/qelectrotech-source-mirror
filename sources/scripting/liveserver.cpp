@@ -895,19 +895,19 @@ QJsonObject LiveServer::print(const QJsonObject &request)
 	for (int i = 0; i < folios.count(); ++i) {
 		Diagram *d = folios.at(i);
 		if (i) printer.newPage();
-			//As the PDF export draws a folio: no grid, guides, terminals or
-			//orange marks of the P&ID
+			//As the PDF export draws a folio: no grid, guides, terminals,
+			//orange marks of the P&ID or review notes
 		const bool grid = d->displayGrid(), guides = d->displayGuides();
 		const bool terms = d->drawTerminals(), names = d->drawTerminalNames();
-		const bool warnings = d->drawWarnings();
+		const bool warnings = d->drawWarnings(), notes = d->drawReviewNotes();
 		d->setDisplayGrid(false); d->setDisplayGuides(false);
 		d->setDrawTerminals(false); d->setDrawTerminalNames(false);
-		d->setDrawWarnings(false);
+		d->setDrawWarnings(false); d->setDrawReviewNotes(false);
 		d->render(&painter, printer.pageLayout().paintRectPixels(printer.resolution()),
 			  folioRect(d), Qt::KeepAspectRatio);
 		d->setDisplayGrid(grid); d->setDisplayGuides(guides);
 		d->setDrawTerminals(terms); d->setDrawTerminalNames(names);
-		d->setDrawWarnings(warnings);
+		d->setDrawWarnings(warnings); d->setDrawReviewNotes(notes);
 	}
 	painter.end();
 	return {{QStringLiteral("ok"), true}, {QStringLiteral("printed"), int(folios.count())},

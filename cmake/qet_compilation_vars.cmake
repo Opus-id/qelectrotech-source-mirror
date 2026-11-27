@@ -567,6 +567,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/diagramevent/diagrameventaddpipe.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddstructurebox.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddstructurebox.h
+  ${QET_DIR}/sources/diagramevent/diagrameventaddrevisioncloud.cpp
+  ${QET_DIR}/sources/diagramevent/diagrameventaddrevisioncloud.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddtext.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddtext.h
   ${QET_DIR}/sources/diagramevent/diagrameventinterface.cpp
@@ -811,6 +813,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/qetgraphicsitem/shapetransform.h
   ${QET_DIR}/sources/qetgraphicsitem/structureboxitem.cpp
   ${QET_DIR}/sources/qetgraphicsitem/structureboxitem.h
+  ${QET_DIR}/sources/qetgraphicsitem/revisionclouditem.cpp
+  ${QET_DIR}/sources/qetgraphicsitem/revisionclouditem.h
   ${QET_DIR}/sources/qetgraphicsitem/qgraphicsitemutility.cpp
   ${QET_DIR}/sources/qetgraphicsitem/qgraphicsitemutility.h
   ${QET_DIR}/sources/qetgraphicsitem/junctionelement.cpp
@@ -1141,6 +1145,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/dimensionpropertieswidget.h
   ${QET_DIR}/sources/ui/structureboxpropertieswidget.cpp
   ${QET_DIR}/sources/ui/structureboxpropertieswidget.h
+  ${QET_DIR}/sources/ui/revisioncloudpropertieswidget.cpp
+  ${QET_DIR}/sources/ui/revisioncloudpropertieswidget.h
   ${QET_DIR}/sources/ui/thirdpartybinaryinstalldialog.cpp
   ${QET_DIR}/sources/ui/thirdpartybinaryinstalldialog.h
   ${QET_DIR}/sources/ui/titleblockpropertieswidget.cpp

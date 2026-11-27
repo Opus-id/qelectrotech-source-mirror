@@ -66,6 +66,7 @@ ExportProperties ExportPropertiesWidget::exportProperties() const
 	export_properties.draw_terminal_names     = draw_terminal_names -> isChecked();
 	export_properties.draw_nozzle_names       = draw_nozzle_names -> isChecked();
 	export_properties.draw_warnings           = draw_warnings -> isChecked();
+	export_properties.draw_review_notes       = draw_review_notes -> isChecked();
 	export_properties.draw_bg_transparent     = draw_bg_transparent -> isChecked();
 	export_properties.draw_colored_conductors = draw_colored_conductors -> isChecked();
 	export_properties.dxf_blocks              = dxf_blocks -> isChecked();
@@ -94,6 +95,7 @@ void ExportPropertiesWidget::setExportProperties(const ExportProperties &export_
 	draw_terminal_names     -> setChecked(export_properties.draw_terminal_names);
 	draw_nozzle_names       -> setChecked(export_properties.draw_nozzle_names);
 	draw_warnings           -> setChecked(export_properties.draw_warnings);
+	draw_review_notes       -> setChecked(export_properties.draw_review_notes);
 	draw_bg_transparent     -> setChecked(export_properties.draw_bg_transparent);
 	draw_colored_conductors -> setChecked(export_properties.draw_colored_conductors);
 	dxf_blocks              -> setChecked(export_properties.dxf_blocks);
@@ -273,7 +275,14 @@ void ExportPropertiesWidget::build()
 	svg_small_pictures = new QCheckBox(tr("SVG: smaller pictures"), groupbox_options);
 	svg_small_pictures -> setToolTip(tr("Pictures are stored at four times the size they have on the folio instead of their full resolution: a much smaller file, still sharp when printed"));
 	optionshlayout -> addWidget(svg_small_pictures, 6, 0);
-	
+
+	// the review notes (revision clouds of the kind "review note"): always
+	// on the screen, in a picture when ticked
+	draw_review_notes = new QCheckBox(tr("Draw the review notes"), groupbox_options);
+	draw_review_notes -> setObjectName(QStringLiteral("draw_review_notes"));
+	draw_review_notes -> setToolTip(tr("The clouds of review notes and their comments, always on the screen; on paper only when ticked. Revision clouds are always drawn."));
+	optionshlayout -> addWidget(draw_review_notes, 7, 0);
+
 	vboxLayout -> addWidget(groupbox_options);
 	
 	setLayout(vboxLayout);
@@ -306,6 +315,7 @@ void ExportPropertiesWidget::build()
 	connect(draw_terminal_names, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_nozzle_names, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_warnings, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
+	connect(draw_review_notes, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_bg_transparent, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_colored_conductors, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(dxf_blocks, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
@@ -319,6 +329,7 @@ void ExportPropertiesWidget::build()
 	connect(draw_terminal_names, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_nozzle_names, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_warnings, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
+	connect(draw_review_notes, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_bg_transparent, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_colored_conductors, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(dxf_blocks, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);

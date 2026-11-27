@@ -69,6 +69,7 @@ class ExportPropertiesWidget : public QWidget {
 	QCheckBox *draw_terminal_names;
 	QCheckBox *draw_nozzle_names;
 	QCheckBox *draw_warnings;
+	QCheckBox *draw_review_notes;
 	QCheckBox *draw_bg_transparent;
 	QCheckBox *draw_colored_conductors;
 	QCheckBox *dxf_blocks;

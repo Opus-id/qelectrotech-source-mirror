@@ -619,6 +619,10 @@ target_compile_definitions(tst_linklists PRIVATE
   QET_EXAMPLES_DIR="${QET_DIR}/examples")
 # IEC 81346 plant/location: an element takes its folio's, %{structure_id} composes them.
 qet_add_app_test(tst_structureid tst_structureid.cpp)
+# Revision clouds and review notes: a shape of arcs, saved as a <shape> an older
+# QElectroTech reads as a plain one; the tool, the editor, a review note
+# printed only when asked.
+qet_add_app_test(tst_revisioncloud tst_revisioncloud.cpp)
 # What a symbol's label field shows: the label, or its designation (#1878 C5).
 qet_add_app_test(tst_designationdisplay tst_designationdisplay.cpp)
 qet_add_app_test(tst_stripplacefrombox tst_stripplacefrombox.cpp)

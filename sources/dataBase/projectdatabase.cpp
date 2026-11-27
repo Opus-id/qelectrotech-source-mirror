@@ -35,6 +35,7 @@
 #include <qetgraphicsitem/independenttextitem.h>
 #include <qetgraphicsitem/qetshapeitem.h>
 #include <qetgraphicsitem/structureboxitem.h>
+#include <qetgraphicsitem/revisionclouditem.h>
 #include <qetgraphicsitem/ViewItem/qetgraphicstableitem.h>
 #include <qetgraphicsitem/terminal.h>
 #include <qetinformation.h>
@@ -4010,6 +4011,9 @@ void projectDataBase::addDrawingItem(QGraphicsItem *item)
 			//A structure box is a shape whose row also holds its =plant +location
 		if (auto box = qobject_cast<StructureBoxItem *>(object))
 			connect(box, &StructureBoxItem::identityChanged, this, &projectDataBase::drawingItemChanged, unique);
+			//A cloud's row also holds its data and the place of its text
+		if (auto cloud = qobject_cast<RevisionCloudItem *>(object))
+			connect(cloud, &RevisionCloudItem::cloudChanged, this, &projectDataBase::drawingItemChanged, unique);
 	}
 	else if (auto text = qobject_cast<IndependentTextItem *>(object)) {
 		connect(text, &IndependentTextItem::uuidChanged, this, &projectDataBase::drawingItemChanged, unique);
