@@ -476,13 +476,18 @@ class tst_revisioncloud : public QObject
 			DiagramEventAddRevisionCloud tool(diagram, RevisionCloudItem::Revision);
 			QKeyEvent space(QEvent::KeyPress, Qt::Key_Space, Qt::NoModifier);
 			QVERIFY(tool.handlesShortcutOverride(&space));
+				//Before the first click, Space does nothing
 			tool.keyPressEvent(&space);
-			QVERIFY(tool.drawsFreeOutline());
+			QVERIFY(!tool.drawsFreeOutline());
 			const QList<QPointF> points = {QPointF(100, 100), QPointF(300, 100), QPointF(300, 200),
 										   QPointF(200, 250)};
 			for (const QPointF &point : points) {
 				move(tool, point);
 				press(tool, point);
+				if (point == points.first()) {
+					tool.keyPressEvent(&space);
+					QVERIFY(tool.drawsFreeOutline());
+				}
 			}
 			doubleClick(tool, points.last());
 			const QList<RevisionCloudItem *> clouds = cloudsOf(diagram);
@@ -491,8 +496,8 @@ class tst_revisioncloud : public QObject
 			QVERIFY(clouds.first()->isClosed());
 			QCOMPARE(clouds.first()->polygon().size(), 4);
 			QCOMPARE(diagram->undoStack().count(), steps + 1);
-				//Space again: a rectangle
-			tool.keyPressEvent(&space);
+				//The next cloud starts as a rectangle again
+			press(tool, QPointF(400, 100));
 			QVERIFY(!tool.drawsFreeOutline());
 		}
 
@@ -531,7 +536,10 @@ class tst_revisioncloud : public QObject
 
 				//A free outline with its first point only becomes a rectangle
 			press(tool, QPointF(400, 100));
+			QVERIFY(!tool.drawsFreeOutline());
 			move(tool, QPointF(500, 200));
+			tool.keyPressEvent(&space);
+			QVERIFY(tool.drawsFreeOutline());
 			tool.keyPressEvent(&space);
 			QVERIFY(!tool.drawsFreeOutline());
 			QCOMPARE(cloudsOf(diagram).size(), 2);
@@ -554,9 +562,9 @@ class tst_revisioncloud : public QObject
 			[[maybe_unused]] const int steps = diagram->undoStack().count();
 			DiagramEventAddRevisionCloud tool(diagram, RevisionCloudItem::Revision);
 			QKeyEvent space(QEvent::KeyPress, Qt::Key_Space, Qt::NoModifier);
-			tool.keyPressEvent(&space);
 			move(tool, QPointF(100, 100));
 			press(tool, QPointF(100, 100));
+			tool.keyPressEvent(&space);
 			move(tool, QPointF(200, 100));
 			press(tool, QPointF(200, 100));
 			doubleClick(tool, QPointF(200, 100));

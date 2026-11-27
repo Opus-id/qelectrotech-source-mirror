@@ -116,6 +116,9 @@ bool DiagramEventAddRevisionCloud::askComment(RevisionCloudItem *note, QWidget *
 void DiagramEventAddRevisionCloud::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
 	const bool creating = !m_shape_item && event->button() == Qt::LeftButton;
+		//Every cloud starts as a rectangle: Space after this click for a free outline
+	if (creating)
+		m_shape_type = QetShapeItem::Rectangle;
 	DiagramEventAddShape::mousePressEvent(event);
 		//DiagramEventAddShape gives a new shape the style last used
 	if (creating && m_shape_item) {
@@ -180,19 +183,16 @@ void DiagramEventAddRevisionCloud::mouseDoubleClickEvent(QGraphicsSceneMouseEven
 
 /**
 	@brief DiagramEventAddRevisionCloud::keyPressEvent
-	Space: a rectangle or a free outline, before the first click or right
-	after it. Never a rotation of the selection while the tool runs
-	(handlesShortcutOverride()).
+	Space, after the first click: a rectangle or a free outline from that
+	point. Before it, nothing: never a rotation of the selection while the
+	tool runs (handlesShortcutOverride()).
 */
 void DiagramEventAddRevisionCloud::keyPressEvent(QKeyEvent *event)
 {
 	if (event->key() == Qt::Key_Space && event->modifiers() == Qt::NoModifier)
 	{
 		if (canSwitchOutline()) {
-			if (m_shape_item)
-				switchOutline();
-			else
-				m_shape_type = drawsFreeOutline() ? QetShapeItem::Rectangle : QetShapeItem::Polygon;
+			switchOutline();
 			showHint();
 		}
 		event->setAccepted(true);
@@ -204,7 +204,7 @@ void DiagramEventAddRevisionCloud::keyPressEvent(QKeyEvent *event)
 bool DiagramEventAddRevisionCloud::canSwitchOutline() const
 {
 		//A free outline holds its first point and the one following the cursor
-	return !m_shape_item || !drawsFreeOutline() || m_shape_item->pointsCount() <= 2;
+	return m_shape_item && (!drawsFreeOutline() || m_shape_item->pointsCount() <= 2);
 }
 
 /**
@@ -239,21 +239,16 @@ QString DiagramEventAddRevisionCloud::hint() const
 {
 	const QString what = m_kind == RevisionCloudItem::Review ? tr("Review note")
 															 : tr("Revision cloud");
-	if (drawsFreeOutline()) {
-		if (!m_shape_item)
-			return tr("%1, free outline: left click: first point (Ctrl = free position); "
-					  "Space: rectangle").arg(what);
+	if (!m_shape_item)
+		return tr("%1: left click: first corner (Ctrl = free position)").arg(what);
+	if (drawsFreeOutline())
 		return canSwitchOutline()
 				? tr("%1, free outline: left click: second point; Space: rectangle; "
 					 "right click: cancel").arg(what)
 				: tr("%1, free outline: left click: next point; double click: close the cloud; "
 					 "right click: undo the last point").arg(what);
-	}
-	return m_shape_item
-			? tr("%1, rectangle: left click: opposite corner (Ctrl = from center); "
-				 "Space: free outline; right click: cancel").arg(what)
-			: tr("%1, rectangle: left click: first corner (Ctrl = free position); "
-				 "Space: free outline").arg(what);
+	return tr("%1, rectangle: left click: opposite corner (Ctrl = from center); "
+			  "Space: free outline; right click: cancel").arg(what);
 }
 
 void DiagramEventAddRevisionCloud::showHint() const

@@ -37558,10 +37558,6 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
         <translation>%1, contour libre : clic gauche : point suivant ; double-clic : fermer le nuage ; clic droit : retirer le dernier point</translation>
     </message>
     <message>
-        <source>%1, free outline: left click: first point (Ctrl = free position); Space: rectangle</source>
-        <translation>%1, contour libre : clic gauche : premier point (Ctrl = position libre) ; Espace : rectangle</translation>
-    </message>
-    <message>
         <source>%1, free outline: left click: second point; Space: rectangle; right click: cancel</source>
         <translation>%1, contour libre : clic gauche : deuxième point ; Espace : rectangle ; clic droit : annuler</translation>
     </message>
@@ -37570,8 +37566,8 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
         <translation>%1, rectangle : clic gauche : coin opposé (Ctrl = depuis le centre) ; Espace : contour libre ; clic droit : annuler</translation>
     </message>
     <message>
-        <source>%1, rectangle: left click: first corner (Ctrl = free position); Space: free outline</source>
-        <translation>%1, rectangle : clic gauche : premier coin (Ctrl = position libre) ; Espace : contour libre</translation>
+        <source>%1: left click: first corner (Ctrl = free position)</source>
+        <translation>%1 : clic gauche : premier coin (Ctrl = position libre)</translation>
     </message>
 </context>
 </TS>
