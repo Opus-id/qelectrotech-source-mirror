@@ -187,7 +187,11 @@ void renderDiagram(Diagram *diagram, QPainter &painter, const QRectF &target,
 	const bool was_drawing_terminals = diagram->drawTerminals();
 	const bool was_drawing_terminal_names = diagram->drawTerminalNames();
 	const bool was_drawing_nozzle_names = diagram->drawNozzleNames();
+	const bool was_drawing_warnings = diagram->drawWarnings();
 	diagram->setDisplayGrid(false);
+	// The orange marks of the P&ID: on the screen only, as the dialogs
+	// draw them by default
+	diagram->setDrawWarnings(false);
 	diagram->setDisplayGuides(false);
 	diagram->setDrawTerminals(showTerminals);
 	diagram->setDrawTerminalNames(showTerminals);
@@ -200,6 +204,7 @@ void renderDiagram(Diagram *diagram, QPainter &painter, const QRectF &target,
 	diagram->setDrawTerminals(was_drawing_terminals);
 	diagram->setDrawTerminalNames(was_drawing_terminal_names);
 	diagram->setDrawNozzleNames(was_drawing_nozzle_names);
+	diagram->setDrawWarnings(was_drawing_warnings);
 }
 
 /// The time SOURCE_DATE_EPOCH names, in seconds since 1970 UTC, or an

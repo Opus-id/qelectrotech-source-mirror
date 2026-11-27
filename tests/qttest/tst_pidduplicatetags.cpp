@@ -3,6 +3,7 @@
 
 #include "diagram.h"
 #include "duplicatelabels.h"
+#include "exportproperties.h"
 #include "ElementsCollection/xmlelementcollection.h"
 #include "factory/elementfactory.h"
 #include "pidcodification.h"
@@ -18,6 +19,7 @@
 #include <QDomDocument>
 #include <QImage>
 #include <QPainter>
+#include <QSettings>
 #include <QStyleOptionGraphicsItem>
 #include <QTemporaryDir>
 #include <QUndoCommand>
@@ -351,13 +353,43 @@ class tst_pidduplicatetags : public QObject
 			const QColor veiled = cornerOfTag(a);
 			QCOMPARE(veiled.red(), 255);
 			QVERIFY2(veiled.blue() < 230, qPrintable(veiled.name()));
-				// Printed or exported: no mark
-			m_folio->setDrawTerminals(false);
+				// Printed or exported as the options of rendering say
+				// (9h-bis): by default, no mark
+			ExportProperties paper;
+			QVERIFY(!paper.draw_warnings);
+			const ExportProperties screen = m_folio->applyProperties(paper);
+			QVERIFY(screen.draw_warnings);
 			QCOMPARE(cornerOfTag(a), white);
-			m_folio->setDrawTerminals(true);
+				// asked for: the mark, terminals or not
+			paper.draw_warnings = true;
+			m_folio->applyProperties(paper);
+			QVERIFY(!m_folio->drawTerminals());
+			QCOMPARE(cornerOfTag(a).red(), 255);
+			QVERIFY(cornerOfTag(a) != white);
+			m_folio->applyProperties(screen);
+			QVERIFY(m_folio->drawWarnings());
 			QCOMPARE(PidDuplicateTags::warnings(a).size(), 2);
 			QVERIFY(PidDuplicateTags::warnings(tag(b, "U01", "4")).isEmpty());
 			QCOMPARE(cornerOfTag(a), white);
+		}
+
+			// The option of rendering is kept with the others of an export
+			// or a print, off when never given
+		void theOptionOfRenderingIsKept()
+		{
+			QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+							   QStringLiteral("qet-tests"), QStringLiteral("tst_pidduplicatetags"));
+			settings.clear();
+			ExportProperties read;
+			read.draw_warnings = true;
+			read.fromSettings(settings, QStringLiteral("print/default"));
+			QVERIFY(!read.draw_warnings);
+			ExportProperties written;
+			written.draw_warnings = true;
+			written.toSettings(settings, QStringLiteral("print/default"));
+			read.fromSettings(settings, QStringLiteral("print/default"));
+			QVERIFY(read.draw_warnings);
+			settings.clear();
 		}
 
 			// "Give the next number": this symbol alone, the next order of

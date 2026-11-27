@@ -1307,7 +1307,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		drawDiameterGaps(painter);
 			//The symbols whose direction of flow disagrees, drawn again when
 			//this pipe changes it (8a-bis-2)
-		if (diagram() && diagram()->drawTerminals()) {
+		if (diagram() && diagram()->drawWarnings()) {
 			PidFlow::refreshMarks(diagram());
 		}
 	}
@@ -2357,13 +2357,14 @@ void Conductor::drawJacket(QPainter *painter, const QColor &color, bool plain, q
 	Mark with an orange diamond each end of this pipe whose nozzle has another
 	DN (Terminal::hasDiameterGap()). It says so and blocks nothing: a valve may
 	be smaller than its line. Drawn here, not by the element: a pipe goes over
-	the elements, and would hide it. Like the terminals, on the screen only.
+	the elements, and would hide it. On the screen only, unless the options
+	of rendering ask for it on paper (Diagram::drawWarnings()).
 	@param painter
 */
 void Conductor::drawDiameterGaps(QPainter *painter) const
 {
 	const Diagram *folio = diagram();
-	if (!folio || !folio->drawTerminals()) {
+	if (!folio || !folio->drawWarnings()) {
 		return;
 	}
 	const QColor orange = QET::Palette::signalColor();
@@ -2435,7 +2436,7 @@ void Conductor::drawOffSeries(QPainter *painter, const QPainterPath &path,
 							  qreal line_width, qreal detail) const
 {
 	const Diagram *folio = diagram();
-	if (!folio || !folio->drawTerminals() || offSeriesNote().isEmpty()) {
+	if (!folio || !folio->drawWarnings() || offSeriesNote().isEmpty()) {
 		return;
 	}
 	painter->save();
@@ -2599,8 +2600,9 @@ QString Conductor::traversalNote() const
 	Draw again in orange, over the line, each part of this pipe or signal
 	line which runs over a symbol (updateTraversals()): never thinner than
 	a few pixels when the folio is zoomed out. It says so and blocks
-	nothing. Like the other marks of the P&ID, on the screen only, never
-	printed nor exported.
+	nothing. Like the other marks of the P&ID, on the screen only, printed
+	or exported when the options of rendering ask for it
+	(Diagram::drawWarnings()).
 	@param painter
 	@param line_width : the width of the line
 	@param detail : the level of detail of the painter
@@ -2608,7 +2610,7 @@ QString Conductor::traversalNote() const
 void Conductor::drawTraversals(QPainter *painter, qreal line_width, qreal detail) const
 {
 	const Diagram *folio = diagram();
-	if (!folio || !folio->drawTerminals() || m_properties.m_medium == TerminalData::Electrical) {
+	if (!folio || !folio->drawWarnings() || m_properties.m_medium == TerminalData::Electrical) {
 		return;
 	}
 	updateTraversals();

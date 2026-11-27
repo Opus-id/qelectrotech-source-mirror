@@ -353,14 +353,16 @@ void Terminal::paint(
 
 	// dessin de la borne en rouge
 	// draw the terminal in red, or in the color of its medium
-	if (!low_zoom && (!diagram() || diagram()->drawTerminals())) {
+	const bool terminals = !diagram() || diagram()->drawTerminals();
+		//Hidden by the options, a wire still on it: an orange stem, wider,
+		//and an orange disc of 3 mm at its end, seen above and under the
+		//line at any zoom (isKeptByWire()); a mark, drawn on paper too
+		//when the options of rendering ask for it, terminals or not
+	const bool kept = !low_zoom && (!diagram() || diagram()->drawWarnings()) && isKeptByWire();
+	if (!low_zoom && (terminals || kept)) {
 		t.setColor(takesConductorColor() && !m_conductors_list.isEmpty()
 				   ? m_conductors_list.first()->drawnColor()
 				   : stemColor(d->m_medium));
-			//Hidden by the options, a wire still on it: an orange stem,
-			//wider, and an orange disc of 3 mm at its end, seen above and
-			//under the line at any zoom (isKeptByWire())
-		const bool kept = isKeptByWire();
 		if (kept) {
 			t.setColor(QET::Palette::signalColor());
 			t.setWidthF(2.0);
@@ -381,13 +383,15 @@ void Terminal::paint(
 
 		// dessin du point d'amarrage au conducteur en bleu
 		// draw the docking point to the conductor in blue
-		t.setColor(m_hovered_color);
-		painter -> setPen(t);
-		painter -> setBrush(m_hovered_color);
-		if (m_hovered) {
-			painter -> setRenderHint(QPainter::Antialiasing, true);
-			painter -> drawEllipse(QRectF(c.x() - 2.5, c.y() - 2.5, 5.0, 5.0));
-		} else painter -> drawPoint(c);
+		if (terminals) {
+			t.setColor(m_hovered_color);
+			painter -> setPen(t);
+			painter -> setBrush(m_hovered_color);
+			if (m_hovered) {
+				painter -> setRenderHint(QPainter::Antialiasing, true);
+				painter -> drawEllipse(QRectF(c.x() - 2.5, c.y() - 2.5, 5.0, 5.0));
+			} else painter -> drawPoint(c);
+		}
 	}
 
 		//The mark of the connection of a nozzle: part of the drawing, at any
@@ -399,7 +403,7 @@ void Terminal::paint(
 
 		//Two sizes where this nozzle is placed against another one: the
 		//orange diamond a pipe draws at its ends, on the screen only
-	if (diagram() && diagram()->drawTerminals() && marksContactGap()) {
+	if (diagram() && diagram()->drawWarnings() && marksContactGap()) {
 		const QColor orange = QET::Palette::signalColor();
 		QPen pen(orange);
 		pen.setCosmetic(true);

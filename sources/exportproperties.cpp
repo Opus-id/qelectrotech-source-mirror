@@ -36,6 +36,7 @@ ExportProperties::ExportProperties() :
 	draw_terminals(false),
 	draw_terminal_names(false),
 	draw_nozzle_names(true),
+	draw_warnings(false),
 	draw_bg_transparent(false),
 	draw_colored_conductors(true),
 	dxf_blocks(false),
@@ -77,6 +78,8 @@ void ExportProperties::toSettings(QSettings &settings,
 			  draw_terminals);
 	settings.setValue(prefix % "drawterminalnames",
 			  draw_terminal_names);
+	settings.setValue(prefix % "drawwarnings",
+			  draw_warnings);
 	settings.setValue(prefix % "drawbgtransparent",
 			  draw_bg_transparent);
 	settings.setValue(prefix % "drawcoloredconductors",
@@ -119,6 +122,8 @@ void ExportProperties::fromSettings(QSettings &settings,
 	draw_terminals = settings.value(prefix % "drawterminals",
 					false).toBool();
 	draw_terminal_names = settings.value(prefix % "drawterminalnames",
+					false).toBool();
+	draw_warnings = settings.value(prefix % "drawwarnings",
 					false).toBool();
 	draw_bg_transparent = settings.value(prefix % "drawbgtransparent",
 					false).toBool();

@@ -156,11 +156,12 @@ namespace {
 		return false;
 	}
 
-		/// @p element is marked: on the screen, its tag held elsewhere
+		/// @p element is marked: on the screen (on paper when asked), its
+		/// tag held elsewhere
 	bool marked(const Element *element)
 	{
 		const Diagram *folio = element ? element->diagram() : nullptr;
-		return folio && folio->drawTerminals() && !PidDuplicateTags::othersOf(element).isEmpty();
+		return folio && folio->drawWarnings() && !PidDuplicateTags::othersOf(element).isEmpty();
 	}
 
 	QColor veilColour()

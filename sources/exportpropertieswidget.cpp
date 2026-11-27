@@ -65,6 +65,7 @@ ExportProperties ExportPropertiesWidget::exportProperties() const
 	export_properties.draw_terminals          = draw_terminals -> isChecked();
 	export_properties.draw_terminal_names     = draw_terminal_names -> isChecked();
 	export_properties.draw_nozzle_names       = draw_nozzle_names -> isChecked();
+	export_properties.draw_warnings           = draw_warnings -> isChecked();
 	export_properties.draw_bg_transparent     = draw_bg_transparent -> isChecked();
 	export_properties.draw_colored_conductors = draw_colored_conductors -> isChecked();
 	export_properties.dxf_blocks              = dxf_blocks -> isChecked();
@@ -92,6 +93,7 @@ void ExportPropertiesWidget::setExportProperties(const ExportProperties &export_
 	draw_terminals          -> setChecked(export_properties.draw_terminals);
 	draw_terminal_names     -> setChecked(export_properties.draw_terminal_names);
 	draw_nozzle_names       -> setChecked(export_properties.draw_nozzle_names);
+	draw_warnings           -> setChecked(export_properties.draw_warnings);
 	draw_bg_transparent     -> setChecked(export_properties.draw_bg_transparent);
 	draw_colored_conductors -> setChecked(export_properties.draw_colored_conductors);
 	dxf_blocks              -> setChecked(export_properties.dxf_blocks);
@@ -114,6 +116,7 @@ void ExportPropertiesWidget::offerNozzleNames(bool checked)
 {
 	draw_nozzle_names -> setChecked(checked);
 	draw_nozzle_names -> setVisible(true);
+	draw_warnings -> setVisible(true);
 }
 
 /**
@@ -239,6 +242,14 @@ void ExportPropertiesWidget::build()
 	draw_nozzle_names -> setVisible(false);
 	optionshlayout -> addWidget(draw_nozzle_names, 4, 0);
 
+	// the orange marks of what is reported (P&ID): always on the screen,
+	// in a picture when ticked; hidden with the box of the nozzles
+	draw_warnings = new QCheckBox(tr("Draw what is reported"), groupbox_options);
+	draw_warnings -> setObjectName(QStringLiteral("draw_warnings"));
+	draw_warnings -> setToolTip(tr("The orange marks of the P&ID (size gaps, lines over a symbol, directions of flow, tags held twice...), always on the screen; on paper only when ticked"));
+	draw_warnings -> setVisible(false);
+	optionshlayout -> addWidget(draw_warnings, 4, 1);
+
 	// conserver les couleurs des conducteurs
 	draw_colored_conductors = new QCheckBox(tr("Keep conductors colors"), groupbox_options);
 	optionshlayout -> addWidget(draw_colored_conductors, 3, 1);
@@ -294,6 +305,7 @@ void ExportPropertiesWidget::build()
 	connect(draw_terminals, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_terminal_names, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_nozzle_names, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
+	connect(draw_warnings, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_bg_transparent, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_colored_conductors, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(dxf_blocks, &QCheckBox::stateChanged, this, &ExportPropertiesWidget::optionChanged);
@@ -306,6 +318,7 @@ void ExportPropertiesWidget::build()
 	connect(draw_terminals, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_terminal_names, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_nozzle_names, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
+	connect(draw_warnings, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_bg_transparent, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(draw_colored_conductors, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);
 	connect(dxf_blocks, &QCheckBox::checkStateChanged, this, &ExportPropertiesWidget::optionChanged);

@@ -58,6 +58,7 @@ class ProjectPrintWindow : public QMainWindow
 		void on_m_draw_terminal_cb_clicked();
 		void on_m_draw_terminal_names_cb_clicked();
 		void on_m_draw_nozzle_names_cb_clicked();
+		void on_m_draw_warnings_cb_clicked();
 		void on_m_component_info_cb_clicked();
 		void on_m_fit_in_page_cb_clicked();
 		void on_m_use_full_page_cb_clicked();

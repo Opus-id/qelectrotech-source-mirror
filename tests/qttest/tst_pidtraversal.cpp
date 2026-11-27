@@ -303,9 +303,13 @@ class tst_pidtraversal : public QObject
 			QCOMPARE(pipe->traversalNote(),
 					 QStringLiteral("This pipe goes through the symbol T01 (Tank)."));
 
-				// never printed nor exported
+				// printed and exported only when the options of rendering
+				// ask for it (9h-bis): not with the terminals any more
 			m_folio->setDrawTerminals(false);
+			QCOMPARE(orangePixels(pipe), orange);
+			m_folio->setDrawWarnings(false);
 			QCOMPARE(orangePixels(pipe), 0);
+			m_folio->setDrawWarnings(true);
 			m_folio->setDrawTerminals(true);
 
 				// moved off the line: worked out again, nothing more

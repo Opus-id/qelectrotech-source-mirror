@@ -10573,6 +10573,14 @@ En important ce fichier, vous confirmez que :
         <translation>Dessiner les noms et DN des piquages</translation>
     </message>
     <message>
+        <source>Draw what is reported</source>
+        <translation>Dessiner les signalements</translation>
+    </message>
+    <message>
+        <source>The orange marks of the P&amp;ID (size gaps, lines over a symbol, directions of flow, tags held twice...), always on the screen; on paper only when ticked</source>
+        <translation>Les marques orange du P&amp;ID (écarts de taille, lignes qui traversent un symbole, sens d&apos;écoulement, repères en double…), toujours à l&apos;écran ; sur papier seulement si la case est cochée</translation>
+    </message>
+    <message>
         <location filename="../sources/exportpropertieswidget.cpp" line="224"/>
         <source>Keep conductors colors</source>
         <translation>Conserver les couleurs</translation>
@@ -19586,6 +19594,14 @@ Donnez-leur une autre numérotation d&apos;abord.</numerusform>
         <location filename="../sources/print/projectprintwindow.ui" line="197"/>
         <source>Draw the names and DN of the nozzles</source>
         <translation>Dessiner les noms et DN des piquages</translation>
+    </message>
+    <message>
+        <source>Draw what is reported</source>
+        <translation>Dessiner les signalements</translation>
+    </message>
+    <message>
+        <source>The orange marks of the P&amp;ID (size gaps, lines over a symbol, directions of flow, tags held twice...), always on the screen; on paper only when ticked</source>
+        <translation>Les marques orange du P&amp;ID (écarts de taille, lignes qui traversent un symbole, sens d&apos;écoulement, repères en double…), toujours à l&apos;écran ; sur papier seulement si la case est cochée</translation>
     </message>
     <message>
         <location filename="../sources/print/projectprintwindow.ui" line="198"/>

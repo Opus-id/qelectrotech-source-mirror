@@ -451,7 +451,7 @@ QPainterPath PidOffPage::veil(const QRectF &drawing)
 void PidOffPage::drawVeil(const Element *element, QPainter *painter)
 {
 	const Diagram *folio = element ? element->diagram() : nullptr;
-	if (!folio || !folio->drawTerminals() || !isPipeReport(element)
+	if (!folio || !folio->drawWarnings() || !isPipeReport(element)
 			|| warnings(element).isEmpty()) {
 		return;
 	}

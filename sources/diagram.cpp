@@ -4098,6 +4098,7 @@ ExportProperties Diagram::applyProperties(
 	old_properties.draw_terminals          = drawTerminals();
 	old_properties.draw_terminal_names     = drawTerminalNames();
 	old_properties.draw_nozzle_names       = drawNozzleNames();
+	old_properties.draw_warnings           = drawWarnings();
 	old_properties.draw_colored_conductors = drawColoredConductors();
 	old_properties.exported_area = useBorder() ? QET::BorderArea
 						   : QET::ElementsArea;
@@ -4108,6 +4109,7 @@ ExportProperties Diagram::applyProperties(
 	setDrawTerminals         (new_properties.draw_terminals);
 	setDrawTerminalNames     (new_properties.draw_terminal_names);
 	setDrawNozzleNames       (new_properties.draw_nozzle_names);
+	setDrawWarnings          (new_properties.draw_warnings);
 	setDrawColoredConductors (new_properties.draw_colored_conductors);
 	setDisplayGrid           (new_properties.draw_grid);
 	setDisplayGuides         (new_properties.draw_guides);
@@ -4380,6 +4382,18 @@ void Diagram::setDrawNozzleNames(bool draw) {
 			t -> update();
 		}
 	}
+}
+
+/**
+	@brief Diagram::setDrawWarnings
+	Defines whether or not to draw the orange marks of what is reported
+	(drawWarnings()); every item is drawn again
+	@param draw : true to draw them, false otherwise
+*/
+void Diagram::setDrawWarnings(bool draw) {
+	if (m_draw_warnings == draw) return;
+	m_draw_warnings = draw;
+	update();
 }
 
 /**

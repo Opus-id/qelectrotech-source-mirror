@@ -40,7 +40,8 @@ class ExportPropertiesWidget : public QWidget {
 	ExportProperties exportProperties() const;
 	void setPrintingMode(bool);
 		/// Show the box of the nozzles, hidden where no project is known,
-		/// ticked or not as the project asks
+		/// ticked or not as the project asks, and that of what is reported
+		/// (the orange marks of the P&ID)
 	void offerNozzleNames(bool checked);
 
 	public slots:
@@ -67,6 +68,7 @@ class ExportPropertiesWidget : public QWidget {
 	QCheckBox *draw_terminals;
 	QCheckBox *draw_terminal_names;
 	QCheckBox *draw_nozzle_names;
+	QCheckBox *draw_warnings;
 	QCheckBox *draw_bg_transparent;
 	QCheckBox *draw_colored_conductors;
 	QCheckBox *dxf_blocks;

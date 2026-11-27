@@ -157,8 +157,10 @@ class tst_pidtexts : public QObject
 		const bool names = m_folio->drawTerminalNames();
 		const bool terminals = m_folio->drawTerminals();
 		const bool grid = m_folio->displayGrid();
+		const bool warnings = m_folio->drawWarnings();
 		m_folio->setDrawTerminalNames(false);
 		m_folio->setDrawTerminals(false);
+		m_folio->setDrawWarnings(false);
 		m_folio->setDisplayGrid(false);
 		QImage image((rect.size() * scale).toSize(), QImage::Format_ARGB32);
 		image.fill(Qt::white);
@@ -168,6 +170,7 @@ class tst_pidtexts : public QObject
 		}
 		m_folio->setDrawTerminalNames(names);
 		m_folio->setDrawTerminals(terminals);
+		m_folio->setDrawWarnings(warnings);
 		m_folio->setDisplayGrid(grid);
 		int ink = 0;
 		for (int y = 0 ; y < image.height() ; ++y) {

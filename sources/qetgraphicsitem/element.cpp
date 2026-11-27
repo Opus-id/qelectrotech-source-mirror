@@ -1642,7 +1642,7 @@ QStringList Element::flowDisagreements() const
 void Element::drawFlowDisagreement(QPainter *painter) const
 {
 	const Diagram *folio = diagram();
-	if (!folio || !folio->drawTerminals() || flowDisagreements().isEmpty()) {
+	if (!folio || !folio->drawWarnings() || flowDisagreements().isEmpty()) {
 		return;
 	}
 	const QPointF centre = isJunction() ? QPointF() : drawingRect().center();
