@@ -23,9 +23,10 @@
 
 /**
 	@brief The DiagramEventAddRevisionCloud class
-	Draws a revision cloud or a review note: a rectangle in two clicks, or,
-	after Space before the first click, a free outline point by point,
-	closed by a double click. Reuses DiagramEventAddShape's mouse handling.
+	Draws a revision cloud or a review note: a rectangle in two clicks, or a
+	free outline point by point, closed by a double click. Space switches
+	between the two, before the first click or right after it (the first
+	point is kept). Reuses DiagramEventAddShape's mouse handling.
 	A new cloud takes the colour set for its kind; a revision cloud, the
 	last revision of the project; a review note, the user's name and
 	today's date, and asks for its comment at once (cancelled: no note).
@@ -45,8 +46,11 @@ class DiagramEventAddRevisionCloud : public DiagramEventAddShape
 		bool handlesShortcutOverride(QKeyEvent *event) const override;
 
 		RevisionCloudItem::Kind kind() const {return m_kind;}
-			/// Whether the next cloud is a free outline, not a rectangle
+			/// Whether the cloud drawn, or the next one, is a free outline, not a rectangle
 		bool drawsFreeOutline() const {return m_shape_type == QetShapeItem::Polygon;}
+			/// Whether Space can still switch the outline: before the first
+			/// click, or with only the first point placed
+		bool canSwitchOutline() const;
 			/// What the status bar says
 		QString hint() const;
 
@@ -60,6 +64,7 @@ class DiagramEventAddRevisionCloud : public DiagramEventAddShape
 	private:
 		void showHint() const;
 		void styleCloud(QetShapeItem *shape) const;
+		void switchOutline();
 
 		RevisionCloudItem::Kind m_kind;
 };

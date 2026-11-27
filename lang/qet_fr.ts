@@ -37562,8 +37562,12 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
         <translation>%1, contour libre : clic gauche : premier point (Ctrl = position libre) ; Espace : rectangle</translation>
     </message>
     <message>
-        <source>%1, rectangle: left click: opposite corner (Ctrl = from center); right click: cancel</source>
-        <translation>%1, rectangle : clic gauche : coin opposé (Ctrl = depuis le centre) ; clic droit : annuler</translation>
+        <source>%1, free outline: left click: second point; Space: rectangle; right click: cancel</source>
+        <translation>%1, contour libre : clic gauche : deuxième point ; Espace : rectangle ; clic droit : annuler</translation>
+    </message>
+    <message>
+        <source>%1, rectangle: left click: opposite corner (Ctrl = from center); Space: free outline; right click: cancel</source>
+        <translation>%1, rectangle : clic gauche : coin opposé (Ctrl = depuis le centre) ; Espace : contour libre ; clic droit : annuler</translation>
     </message>
     <message>
         <source>%1, rectangle: left click: first corner (Ctrl = free position); Space: free outline</source>

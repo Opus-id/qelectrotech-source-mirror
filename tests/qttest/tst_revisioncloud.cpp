@@ -496,6 +496,55 @@ class tst_revisioncloud : public QObject
 			QVERIFY(!tool.drawsFreeOutline());
 		}
 
+			//Space right after the first click switches the outline being
+			//drawn, from the same first point; not once a second point is placed
+		void spaceAfterTheFirstClickKeepsTheFirstPoint()
+		{
+			QETProject project;
+			Diagram *diagram = project.addNewDiagram();
+				//What the undo stack holds already: the steps below come on top
+			[[maybe_unused]] const int steps = diagram->undoStack().count();
+			DiagramEventAddRevisionCloud tool(diagram, RevisionCloudItem::Revision);
+			QKeyEvent space(QEvent::KeyPress, Qt::Key_Space, Qt::NoModifier);
+
+				//A rectangle begun becomes a free outline
+			press(tool, QPointF(100, 100));
+			move(tool, QPointF(300, 100));
+			tool.keyPressEvent(&space);
+			QVERIFY(tool.drawsFreeOutline());
+			QVERIFY(tool.hint().contains(QStringLiteral("second point")));
+				//Only one shape being drawn, never the rectangle left behind
+			QCOMPARE(cloudsOf(diagram).size(), 1);
+			press(tool, QPointF(300, 100));
+			QVERIFY(!tool.canSwitchOutline());
+			tool.keyPressEvent(&space);
+			QVERIFY(tool.drawsFreeOutline());
+			move(tool, QPointF(200, 250));
+			press(tool, QPointF(200, 250));
+			doubleClick(tool, QPointF(200, 250));
+			QList<RevisionCloudItem *> clouds = cloudsOf(diagram);
+			QCOMPARE(clouds.size(), 1);
+			QCOMPARE(clouds.first()->shapeType(), QetShapeItem::Polygon);
+			QCOMPARE(clouds.first()->polygon(),
+					 QPolygonF({QPointF(100, 100), QPointF(300, 100), QPointF(200, 250)}));
+			QCOMPARE(diagram->undoStack().count(), steps + 1);
+
+				//A free outline with its first point only becomes a rectangle
+			press(tool, QPointF(400, 100));
+			move(tool, QPointF(500, 200));
+			tool.keyPressEvent(&space);
+			QVERIFY(!tool.drawsFreeOutline());
+			QCOMPARE(cloudsOf(diagram).size(), 2);
+			press(tool, QPointF(500, 200));
+			clouds = cloudsOf(diagram);
+			QCOMPARE(clouds.size(), 2);
+			RevisionCloudItem *rectangle = clouds.first()->shapeType() == QetShapeItem::Rectangle
+					? clouds.first() : clouds.last();
+			QCOMPARE(rectangle->shapeType(), QetShapeItem::Rectangle);
+			QCOMPARE(rectangle->mapRectToScene(rectangle->rect()).normalized(), QRectF(400, 100, 100, 100));
+			QCOMPARE(diagram->undoStack().count(), steps + 2);
+		}
+
 			//A double click after one point is no cloud
 		void tooFewPointsDrawNothing()
 		{

@@ -29,6 +29,7 @@
 #include <QDialogButtonBox>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QPlainTextEdit>
@@ -117,8 +118,11 @@ void DiagramEventAddRevisionCloud::mousePressEvent(QGraphicsSceneMouseEvent *eve
 	const bool creating = !m_shape_item && event->button() == Qt::LeftButton;
 	DiagramEventAddShape::mousePressEvent(event);
 		//DiagramEventAddShape gives a new shape the style last used
-	if (creating && m_shape_item)
+	if (creating && m_shape_item) {
 		styleCloud(m_shape_item);
+			//Where the cursor is, for Space before the mouse moves
+		m_last_mouse_scene_pos = event->scenePos();
+	}
 	showHint();
 }
 
@@ -176,21 +180,54 @@ void DiagramEventAddRevisionCloud::mouseDoubleClickEvent(QGraphicsSceneMouseEven
 
 /**
 	@brief DiagramEventAddRevisionCloud::keyPressEvent
-	Space, before the first click: a rectangle or a free outline. Never a
-	rotation of the selection while the tool runs (handlesShortcutOverride()).
+	Space: a rectangle or a free outline, before the first click or right
+	after it. Never a rotation of the selection while the tool runs
+	(handlesShortcutOverride()).
 */
 void DiagramEventAddRevisionCloud::keyPressEvent(QKeyEvent *event)
 {
 	if (event->key() == Qt::Key_Space && event->modifiers() == Qt::NoModifier)
 	{
-		if (!m_shape_item) {
-			m_shape_type = drawsFreeOutline() ? QetShapeItem::Rectangle : QetShapeItem::Polygon;
+		if (canSwitchOutline()) {
+			if (m_shape_item)
+				switchOutline();
+			else
+				m_shape_type = drawsFreeOutline() ? QetShapeItem::Rectangle : QetShapeItem::Polygon;
 			showHint();
 		}
 		event->setAccepted(true);
 		return;
 	}
 	DiagramEventAddShape::keyPressEvent(event);
+}
+
+bool DiagramEventAddRevisionCloud::canSwitchOutline() const
+{
+		//A free outline holds its first point and the one following the cursor
+	return !m_shape_item || !drawsFreeOutline() || m_shape_item->pointsCount() <= 2;
+}
+
+/**
+	@brief DiagramEventAddRevisionCloud::switchOutline
+	The cloud being drawn becomes the other outline, from the same first
+	point to the cursor.
+*/
+void DiagramEventAddRevisionCloud::switchOutline()
+{
+	QPointF pos = m_last_mouse_scene_pos;
+	if (!(QGuiApplication::keyboardModifiers() & Qt::ControlModifier))
+		pos = Diagram::snapToGrid(pos);
+
+	QetShapeItem *old = m_shape_item;
+	m_shape_type = drawsFreeOutline() ? QetShapeItem::Rectangle : QetShapeItem::Polygon;
+	m_shape_item = createShapeItem(m_anchor_point, pos, m_shape_type);
+	m_diagram->removeItem(old);
+	delete old;
+		//Drawn from the centre only by a rectangle with Ctrl held
+	delete m_center_marker;
+	m_center_marker = nullptr;
+	m_center_anchored = false;
+	m_diagram->addItem(m_shape_item);
 }
 
 bool DiagramEventAddRevisionCloud::handlesShortcutOverride(QKeyEvent *event) const
@@ -202,15 +239,19 @@ QString DiagramEventAddRevisionCloud::hint() const
 {
 	const QString what = m_kind == RevisionCloudItem::Review ? tr("Review note")
 															 : tr("Revision cloud");
-	if (drawsFreeOutline())
-		return m_shape_item
-				? tr("%1, free outline: left click: next point; double click: close the cloud; "
-					 "right click: undo the last point").arg(what)
-				: tr("%1, free outline: left click: first point (Ctrl = free position); "
-					 "Space: rectangle").arg(what);
+	if (drawsFreeOutline()) {
+		if (!m_shape_item)
+			return tr("%1, free outline: left click: first point (Ctrl = free position); "
+					  "Space: rectangle").arg(what);
+		return canSwitchOutline()
+				? tr("%1, free outline: left click: second point; Space: rectangle; "
+					 "right click: cancel").arg(what)
+				: tr("%1, free outline: left click: next point; double click: close the cloud; "
+					 "right click: undo the last point").arg(what);
+	}
 	return m_shape_item
 			? tr("%1, rectangle: left click: opposite corner (Ctrl = from center); "
-				 "right click: cancel").arg(what)
+				 "Space: free outline; right click: cancel").arg(what)
 			: tr("%1, rectangle: left click: first corner (Ctrl = free position); "
 				 "Space: free outline").arg(what);
 }
