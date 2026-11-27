@@ -606,6 +606,23 @@ line.*
   starts a new line. The label
   follows a change of model or of type, and a label held twice in the
   project is told. Without a model, the label is typed by hand as before.
+  The functional unit is the plant of QElectroTech (the `=` of IEC 81346,
+  the *Plant* field of the *Informations* tab), the one the symbol holds
+  itself: a symbol placed has none, it is given afterwards, to one symbol
+  or to a selection (*Plant* in the panel of several symbols), and it does
+  not change when the symbol is moved. The plant of the structure box
+  around the symbol, else of its folio, is only offered first in the list
+  of the *Tag* section, never taken by itself. However the plant changes
+  (the *Tag* section, the *Informations* tab, the panel of several
+  symbols, renaming or copying a plant in *Plants and locations*, a
+  script, an undo), the label follows; opening a file never changes one.
+  A code of unit changed in the codification renames the plant the same
+  way, title blocks and structure boxes included, in one undo step
+  (renaming a plant in *Plants and locations* leaves the list of the
+  codification as it is: rename a unit there). A valve has its unit, as
+  any symbol. In a project showing the reference designation (short or
+  full), a symbol whose model writes `{unit}` shows its label alone
+  (`U01 PC 101`, never `=U01-U01 PC 101`).
   The label of a turned symbol follows the project: when it keeps the
   texts of rotated elements horizontal, the label stays level, beside an
   upright line rather than across it (its near edge as far from the line
@@ -877,7 +894,7 @@ the additions that are not P&ID-only keep plain names (`prefix`,
 | `.elmt`, `<terminal>` | `pid_chamber` | a name (`1`, `2`) | none | the nozzle belongs to that chamber of its equipment (a side of a heat exchanger); the direction of flow goes through a chamber of two nozzles, never through one of three or more (a vessel) |
 | `.qet`, `<element>` | `<options>` block | `<option name="…" value="…"/>`, among them `pid_status` (`existing`, `demolished`) | the default of each option; to be built | a value is chosen |
 | `.qet`, `<element>` | `<pid_nozzles>` block | `<nozzle name dn od thread connection mark/>`, `mark` = `always`, `never`; on the block, `same_connection`, `same_size`, `same_mark` = `false` | those of the symbol and the project; nozzles linked | a nozzle of the placed symbol is changed, or a link undone |
-| `.qet`, `<element>` | information `pid_unit`, `pid_train`, `pid_order` | text | empty | the *Tag* section is filled |
+| `.qet`, `<element>` | information `pid_train`, `pid_order` (the functional unit is QElectroTech's `plant`) | text | empty | the *Tag* section is filled |
 | `.qet`, `<element>` | information `pid_letters` | letters of identification of an instrument (`PT`) | the identifier of its symbol | the letters of an instrument are typed |
 | `.qet`, `<element>` | information `pid_<name>` (`pid_power`, `pid_starter`) | the value alone, without its unit: text, number with a point, a value of a list, `true` | empty | a line of the *Data* section is filled; stored as a custom property of QElectroTech is |
 | `.qet`, `<element>` | information `pid_standby` | `installed`, `spare` (kept in its crate) | none: no standby | the symbol is a standby (a line of the *Data* section, for the classes the project says) |
