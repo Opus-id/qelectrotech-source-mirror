@@ -24,8 +24,10 @@
 
 #include "../qetgraphicsitem/dynamicelementtextitem.h"
 
+#include <QHash>
 #include <QList>
 #include <QMap>
+#include <QStringList>
 #include <QPointer>
 #include <QUndoCommand>
 
@@ -48,7 +50,8 @@ class QETProject;
 	same step: the pipe lines of a fluid or of a material; a functional unit,
 	which is a plant of QElectroTech, is renamed as the window of plants and
 	locations does (PlaceRename: title blocks, structure boxes, symbols, wire
-	counters), the labels of the symbols following their unit. A name
+	counters, those written once for all the renames, which may swap or
+	shift codes), the labels of the symbols following their unit. A name
 	changed touches nothing: they keep the code. The lists of codes are
 	saved in the natural order of their codes (PidCodification::sortCodes()).
 	Pushed with the codification the project already has, it adds no step.
@@ -93,8 +96,12 @@ class ChangePidCodificationCommand : public QUndoCommand
 			QPointer<Conductor> pipe;
 			ConductorProperties old_properties, new_properties;
 		};
+			/// The wire counters of each numbering scheme, by plant
+		using Counters = QHash<QString, QHash<QString, QStringList>>;
 		void findLabels();
 		void findCodeUsers(const CodeChanges &changes);
+		void findCounters(const CodeChanges &changes);
+		void setCounters(const Counters &counters);
 		static void setSize(DynamicElementTextItem *text, int size);
 
 		QPointer<QETProject> m_project;
@@ -104,6 +111,12 @@ class ChangePidCodificationCommand : public QUndoCommand
 			/// The renames of the functional units (PlaceRename::command()),
 			/// done after the new codification, undone before the former one
 		std::vector<std::unique_ptr<QUndoCommand>> m_renames;
+			/// The wire counters of the plants renamed and of the names they
+			/// take, before and after: each rename reads the counters before
+			/// any is done, the next one would empty what the former has just
+			/// written when two units swap or shift (U02 -> U03, U01 -> U02).
+			/// Written after the renames; none when no counter changes
+		Counters m_old_counters, m_new_counters;
 };
 
 #endif // CHANGEPIDCODIFICATIONCOMMAND_H

@@ -382,13 +382,18 @@ class tst_pidcodificationeditor : public QObject
 			m_folio->border_and_titleblock.importTitleBlock(block_before);
 		}
 
-			// Two units which swap their codes (a script; the page refuses a
-			// code taken as it is typed): each symbol takes the other's
+			// Two units which swap their codes (in the page, through a code
+			// for a while: U01 -> TMP, U02 -> U01, TMP -> U02, one Apply):
+			// each symbol takes the other's, and so do the wire counters of
+			// the two plants, never merged
 		void twoUnitsMaySwapTheirCodes()
 		{
 			Element *first = withUnit(m_equipment, "U01");
 			Element *second = withUnit(m_equipment, "U02");
 			QVERIFY(first && second);
+			const QString scheme = QStringLiteral("wires");
+			m_project.setConductorPlantCounter(scheme, QStringLiteral("U01"), {QStringLiteral("7")});
+			m_project.setConductorPlantCounter(scheme, QStringLiteral("U02"), {QStringLiteral("3")});
 			PidCodification swapped = m_project.pidCodification();
 			for (PidCodification::Entry &unit : swapped.functional_units) {
 				unit.code = unit.code == QLatin1String("U01") ? QStringLiteral("U02") : QStringLiteral("U01");
@@ -399,9 +404,123 @@ class tst_pidcodificationeditor : public QObject
 			m_project.undoStack()->push(new ChangePidCodificationCommand(&m_project, swapped, changes));
 			QCOMPARE(unitOf(first), QStringLiteral("U02"));
 			QCOMPARE(unitOf(second), QStringLiteral("U01"));
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U01")), QStringList{QStringLiteral("3")});
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U02")), QStringList{QStringLiteral("7")});
 			m_project.undoStack()->undo();
 			QCOMPARE(unitOf(first), QStringLiteral("U01"));
 			QCOMPARE(unitOf(second), QStringLiteral("U02"));
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U01")), QStringList{QStringLiteral("7")});
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U02")), QStringList{QStringLiteral("3")});
+			m_project.undoStack()->redo();
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U01")), QStringList{QStringLiteral("3")});
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U02")), QStringList{QStringLiteral("7")});
+			m_project.undoStack()->undo();
+			clearCounters(scheme);
+		}
+
+			// A unit renamed in the page to a plant the project has outside
+			// the list (an electrical symbol) merges with it: asked first,
+			// nothing applied on no. A new code or a swap through a code
+			// for a while asks nothing
+		void aUnitMergedWithAPlantIsAskedFirst()
+		{
+			Element *pump = withUnit(m_equipment, "U01");
+			Element *other = withUnit(m_equipment, "U02");
+			Element *electrical = withUnit(m_electrical, "U09");
+			QVERIFY(pump && other && electrical);
+			{
+				PidConfigPage page(&m_project);
+				QString asked;
+				bool answer = false;
+				page.setConfirmer([&](const QString &question) { asked = question; return answer; });
+				QTableWidget *units = page.codeTable(PidCodification::List::Units);
+				units->item(rowOf(units, "U01"), 0)->setText(QStringLiteral("U09"));
+				const int steps = m_project.undoStack()->count();
+				page.applyProjectConf();
+				QVERIFY(asked.contains(QStringLiteral("U09")));
+				QCOMPARE(m_project.undoStack()->count(), steps);
+				QCOMPARE(unitOf(pump), QStringLiteral("U01"));
+				answer = true;
+				page.applyProjectConf();
+				QCOMPARE(m_project.undoStack()->count(), steps + 1);
+				QCOMPARE(unitOf(pump), QStringLiteral("U09"));
+				QCOMPARE(unitOf(electrical), QStringLiteral("U09"));
+				m_project.undoStack()->undo();
+				QCOMPARE(unitOf(pump), QStringLiteral("U01"));
+			}
+			{
+				PidConfigPage page(&m_project);
+				bool asked = false;
+				page.setConfirmer([&](const QString &) { asked = true; return true; });
+				QTableWidget *units = page.codeTable(PidCodification::List::Units);
+				units->item(rowOf(units, "U01"), 0)->setText(QStringLiteral("TMP"));
+				units->item(rowOf(units, "U02"), 0)->setText(QStringLiteral("U01"));
+				units->item(rowOf(units, "TMP"), 0)->setText(QStringLiteral("U02"));
+				page.applyProjectConf();
+				QVERIFY(!asked);
+				QCOMPARE(unitOf(pump), QStringLiteral("U02"));
+				QCOMPARE(unitOf(other), QStringLiteral("U01"));
+				m_project.undoStack()->undo();
+				QCOMPARE(unitOf(pump), QStringLiteral("U01"));
+			}
+		}
+
+		void clearCounters(const QString &scheme)
+		{
+			for (const QString &plant : {QStringLiteral("U01"), QStringLiteral("U02"),
+										 QStringLiteral("U03"), QStringLiteral("U09")}) {
+				m_project.setConductorPlantCounter(scheme, plant, QStringList());
+			}
+		}
+
+			// Units shifted in one Apply (U02 -> U03, U01 -> U02): each name
+			// takes the counters of the plant it replaces. A unit renamed to
+			// a plant the codification does not list but the project has (an
+			// electrical symbol, here U09) keeps the higher counters, as the
+			// window of plants and locations does
+		void unitsShiftedKeepTheirWireCounters()
+		{
+			Element *first = withUnit(m_equipment, "U01");
+			Element *second = withUnit(m_equipment, "U02");
+			Element *electrical = withUnit(m_electrical, "U09");
+			QVERIFY(first && second && electrical);
+			const QString scheme = QStringLiteral("wires");
+			m_project.setConductorPlantCounter(scheme, QStringLiteral("U01"), {QStringLiteral("7")});
+			m_project.setConductorPlantCounter(scheme, QStringLiteral("U02"), {QStringLiteral("9")});
+			PidCodification shifted = m_project.pidCodification();
+			for (PidCodification::Entry &unit : shifted.functional_units) {
+				unit.code = unit.code == QLatin1String("U01") ? QStringLiteral("U02") : QStringLiteral("U03");
+			}
+			ChangePidCodificationCommand::CodeChanges changes;
+			changes.units.insert(QStringLiteral("U02"), QStringLiteral("U03"));
+			changes.units.insert(QStringLiteral("U01"), QStringLiteral("U02"));
+			m_project.undoStack()->push(new ChangePidCodificationCommand(&m_project, shifted, changes));
+			QCOMPARE(unitOf(first), QStringLiteral("U02"));
+			QCOMPARE(unitOf(second), QStringLiteral("U03"));
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U01")), QStringList());
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U02")), QStringList{QStringLiteral("7")});
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U03")), QStringList{QStringLiteral("9")});
+			m_project.undoStack()->undo();
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U01")), QStringList{QStringLiteral("7")});
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U02")), QStringList{QStringLiteral("9")});
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U03")), QStringList());
+
+			m_project.setConductorPlantCounter(scheme, QStringLiteral("U09"), {QStringLiteral("8")});
+			PidCodification merged = m_project.pidCodification();
+			for (PidCodification::Entry &unit : merged.functional_units) {
+				if (unit.code == QLatin1String("U02")) unit.code = QStringLiteral("U09");
+			}
+			ChangePidCodificationCommand::CodeChanges into;
+			into.units.insert(QStringLiteral("U02"), QStringLiteral("U09"));
+			m_project.undoStack()->push(new ChangePidCodificationCommand(&m_project, merged, into));
+			QCOMPARE(unitOf(second), QStringLiteral("U09"));
+			QCOMPARE(unitOf(electrical), QStringLiteral("U09"));
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U02")), QStringList());
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U09")), QStringList{QStringLiteral("9")});
+			m_project.undoStack()->undo();
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U02")), QStringList{QStringLiteral("9")});
+			QCOMPARE(m_project.conductorPlantCounter(scheme, QStringLiteral("U09")), QStringList{QStringLiteral("8")});
+			clearCounters(scheme);
 		}
 
 		void aCodeTwiceOrEmptyIsRefused()

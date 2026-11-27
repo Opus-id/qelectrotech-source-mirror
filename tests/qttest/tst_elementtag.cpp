@@ -16,6 +16,7 @@
 #include "qetinformation.h"
 #include "qetproject.h"
 #include "qetresult.h"
+#include "scripting/qetscriptapi.h"
 #include "titleblockproperties.h"
 #include "ui/elementcommentwidget.h"
 #include "ui/elementinfopartwidget.h"
@@ -820,6 +821,138 @@ class tst_elementtag : public QObject
 			QVERIFY2(saved == content, qPrintable(QStringLiteral("first difference at %1: read [%2] saved [%3]")
 					 .arg(at).arg(QString::fromUtf8(content.mid(qMax<qsizetype>(0, at - 80), 200)),
 								  QString::fromUtf8(saved.mid(qMax<qsizetype>(0, at - 80), 200)))));
+		}
+
+			// A script changing a field of the tag of a P&ID symbol on a folio
+			// not built (lazy folios): the folio is built and the label made
+			// again, as a label formula would have it; one undo gives both
+			// back. An electrical symbol, or a key the tag does not read, is
+			// changed through the project database, its folio left unbuilt
+		void aScriptOnAFolioNotBuiltRewritesTheLabel_data()
+		{
+			QTest::addColumn<bool>("pid");
+			QTest::addColumn<QString>("key");
+			QTest::addColumn<bool>("built");
+			QTest::newRow("P&ID, unit") << true << PidTag::unitKey() << true;
+			QTest::newRow("P&ID, train") << true << PidTag::trainKey() << true;
+			QTest::newRow("electrical, plant") << false << PidTag::unitKey() << false;
+			QTest::newRow("P&ID, comment") << true << QStringLiteral("comment") << false;
+			QTest::newRow("P&ID, pid_power") << true << QStringLiteral("pid_power") << false;
+		}
+
+		void aScriptOnAFolioNotBuiltRewritesTheLabel()
+		{
+			QFETCH(bool, pid);
+			QFETCH(QString, key);
+			QFETCH(bool, built);
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			Diagram *second = m_project->addNewDiagram();
+			Element *symbol = pid ? tag(place(second, m_a), "U01", "1", "5") : place(second, m_e);
+			QVERIFY(symbol);
+			const QString uuid = symbol->uuid().toString();
+			const QString label = symbol->elementInformations().value(QStringLiteral("label")).toString();
+			QCOMPARE(label, pid ? QStringLiteral("U01 AA 105") : QString());
+			const QString file = dir.filePath(QStringLiteral("lazy.qet"));
+			m_project->setFilePath(file);
+			QVERIFY(m_project->write().isOk());
+
+			const QByteArray previous = qgetenv("QET_EAGER_FOLIOS");
+			qputenv("QET_EAGER_FOLIOS", "0");
+			QETProject back(file);
+			if (previous.isNull()) {
+				qunsetenv("QET_EAGER_FOLIOS");
+			} else {
+				qputenv("QET_EAGER_FOLIOS", previous);
+			}
+			QCOMPARE(back.state(), QETProject::Ok);
+			Diagram *folio = back.folios().at(1);
+			QVERIFY(!folio->isLoaded());
+
+			QetScriptApi api(&back);
+			const QString value = key == PidTag::unitKey() ? QStringLiteral("U02") : QStringLiteral("2");
+			QVERIFY(api.setElementInfo(1, uuid, key, value));
+			QCOMPARE(folio->isLoaded(), built);
+			QCOMPARE(api.elementInfo(1, uuid, key), value);
+			QCOMPARE(folio->isLoaded(), built);
+			const QString expected = !pid ? QString()
+								   : key == PidTag::unitKey() ? QStringLiteral("U02 AA 105")
+								   : key == PidTag::trainKey() ? QStringLiteral("U01 AA 205")
+								   : label;
+			QCOMPARE(api.elementInfo(1, uuid, QStringLiteral("label")), expected);
+			if (built) {
+				Element *element = nullptr;
+				for (Element *e : folio->elements())
+					if (e->uuid().toString() == uuid) element = e;
+				QVERIFY(element);
+				QCOMPARE(shownLabel(element), expected);
+			}
+
+			back.undoStack()->undo();
+			QCOMPARE(api.elementInfo(1, uuid, key), key == PidTag::unitKey() ? (pid ? QStringLiteral("U01") : QString())
+													 : key == PidTag::trainKey() ? QStringLiteral("1") : QString());
+			QCOMPARE(api.elementInfo(1, uuid, QStringLiteral("label")), label);
+			QCOMPARE(folio->isLoaded(), built);
+		}
+
+			// The Tag section and the panel of several symbols build no folio
+			// (#1766): on a project whose second folio is not built, the
+			// next order counts its symbols from the project database, and
+			// a unit given to the symbols of the first folio leaves it so
+		void theTagAndThePanelBuildNoFolio()
+		{
+			QTemporaryDir dir;
+			QVERIFY(dir.isValid());
+			m_project->setPidCodification(withModel(QStringLiteral("{unit} {id} {train}{order:2}")));
+			Element *a = tag(place(m_folio, m_a), "U01", "1", "1");
+			Element *b = tag(place(m_folio, m_a), "U01", "1", "2");
+			b->setPos(100, 0);
+			Diagram *second = m_project->addNewDiagram();
+			tag(place(second, m_a), "U01", "1", "7");
+			const QUuid a_uuid = a->uuid(), b_uuid = b->uuid();
+			const QString file = dir.filePath(QStringLiteral("lazy.qet"));
+			m_project->setFilePath(file);
+			QVERIFY(m_project->write().isOk());
+
+			const QByteArray previous = qgetenv("QET_EAGER_FOLIOS");
+			qputenv("QET_EAGER_FOLIOS", "0");
+			QETProject back(file);
+			if (previous.isNull()) {
+				qunsetenv("QET_EAGER_FOLIOS");
+			} else {
+				qputenv("QET_EAGER_FOLIOS", previous);
+			}
+			QCOMPARE(back.state(), QETProject::Ok);
+			Diagram *first = back.folios().first();
+			Diagram *other = back.folios().at(1);
+			back.buildFolios({first});
+			QVERIFY(first->isLoaded());
+			QVERIFY(!other->isLoaded());
+			Element *back_a = nullptr, *back_b = nullptr;
+			for (Element *element : first->elements()) {
+				if (element->uuid() == a_uuid) back_a = element;
+				if (element->uuid() == b_uuid) back_b = element;
+			}
+			QVERIFY(back_a && back_b);
+
+			QCOMPARE(PidTag::nextOrder(&back, QStringLiteral("U01"), QStringLiteral("AA"), QStringLiteral("1"),
+									   nullptr, QStringLiteral("equipment")), 8);
+			{
+				ElementTagWidget tab(back_a);
+				QVERIFY(tab.unitField()->count() > 1);
+			}
+			QVERIFY(!other->isLoaded());
+
+			MultiElementInfoWidget panel({back_a, back_b});
+			panel.setFieldText(QETInformation::ELMT_PLANT, QStringLiteral("U02"));
+			panel.apply();
+			QCOMPARE(shownLabel(back_a), QStringLiteral("U02 AA 101"));
+			QCOMPARE(shownLabel(back_b), QStringLiteral("U02 AA 102"));
+			QVERIFY(!other->isLoaded());
+			first->undoStack().undo();
+			QCOMPARE(shownLabel(back_a), QStringLiteral("U01 AA 101"));
+			QVERIFY(!other->isLoaded());
 		}
 
 			// A symbol whose model writes its unit shows its label alone in

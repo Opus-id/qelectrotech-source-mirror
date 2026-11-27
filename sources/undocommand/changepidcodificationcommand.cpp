@@ -142,6 +142,68 @@ void ChangePidCodificationCommand::findCodeUsers(const CodeChanges &changes)
 			m_renames.emplace_back(rename);
 		}
 	}
+	findCounters(changes);
+}
+
+/**
+	@brief ChangePidCodificationCommand::findCounters
+	The wire counters the renames of the functional units @p changes give:
+	the plants renamed leave before the others arrive, so in a swap or a
+	shift each name takes the counters of the one it replaces; a name
+	already held by a plant not renamed keeps the higher counters, as
+	PlaceRename::command() does by default (CounterPolicy::MergeHigher)
+*/
+void ChangePidCodificationCommand::findCounters(const CodeChanges &changes)
+{
+	if (changes.units.isEmpty()) {
+		return;
+	}
+	const Counters counters = m_project->conductorPlantCounters();
+	for (auto scheme = counters.cbegin() ; scheme != counters.cend() ; ++scheme)
+	{
+		const QHash<QString, QStringList> &before = scheme.value();
+		QHash<QString, QStringList> after = before;
+		for (auto it = changes.units.cbegin() ; it != changes.units.cend() ; ++it) {
+			after.remove(it.key());
+		}
+		for (auto it = changes.units.cbegin() ; it != changes.units.cend() ; ++it)
+		{
+			const QStringList moved = before.value(it.key());
+			if (!moved.isEmpty()) {
+				after.insert(it.value(), PlaceRename::mergeCounter(moved, after.value(it.value()),
+																   PlaceRename::CounterPolicy::MergeHigher));
+			}
+		}
+			//Only the names the renames touch
+		QHash<QString, QStringList> old_part, new_part;
+		for (auto it = changes.units.cbegin() ; it != changes.units.cend() ; ++it) {
+			for (const QString &plant : {it.key(), it.value()}) {
+				old_part.insert(plant, before.value(plant));
+				new_part.insert(plant, after.value(plant));
+			}
+		}
+		if (old_part != new_part) {
+			m_old_counters.insert(scheme.key(), old_part);
+			m_new_counters.insert(scheme.key(), new_part);
+		}
+	}
+}
+
+/**
+	@brief ChangePidCodificationCommand::setCounters
+	Give the project the wire counters @p counters (findCounters()), an
+	empty one removed
+*/
+void ChangePidCodificationCommand::setCounters(const Counters &counters)
+{
+	if (!m_project) {
+		return;
+	}
+	for (auto scheme = counters.cbegin() ; scheme != counters.cend() ; ++scheme) {
+		for (auto plant = scheme.value().cbegin() ; plant != scheme.value().cend() ; ++plant) {
+			m_project->setConductorPlantCounter(scheme.key(), plant.key(), plant.value());
+		}
+	}
 }
 
 /**
@@ -187,6 +249,7 @@ void ChangePidCodificationCommand::undo()
 	for (auto it = m_renames.rbegin() ; it != m_renames.rend() ; ++it) {
 		(*it)->undo();
 	}
+	setCounters(m_old_counters);
 	if (m_project) {
 		m_project->setPidCodification(m_old_codification);
 	}
@@ -211,6 +274,7 @@ void ChangePidCodificationCommand::redo()
 	for (const std::unique_ptr<QUndoCommand> &rename : m_renames) {
 		rename->redo();
 	}
+	setCounters(m_new_counters);
 	for (const LabelSize &label : std::as_const(m_labels)) {
 		if (label.text) {
 			setSize(label.text, label.new_size);

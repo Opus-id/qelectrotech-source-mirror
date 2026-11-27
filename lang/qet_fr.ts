@@ -16342,6 +16342,11 @@ Les importer ? Les éléments recevront alors les prochains numéros, à partir 
     </message>
     <message>
         <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
+        <source>The project already has the plant(s) %1: the functional unit(s) renamed so will be merged with them (symbols, title blocks, structure boxes, wire counters). Apply the page?</source>
+        <translation>Le projet a déjà l&apos;installation ou les installations %1 : l&apos;unité ou les unités fonctionnelles renommées ainsi s&apos;y fondront (symboles, cartouches, cadres, compteurs de fils). Appliquer la page ?</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/configpage/pidconfigpage.cpp" line="150"/>
         <source>The file %1 could not be read.</source>
         <translation>Le fichier %1 n&apos;a pas pu être lu.</translation>
     </message>

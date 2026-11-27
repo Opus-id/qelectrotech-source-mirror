@@ -24,6 +24,7 @@
 #include "../../pidtooltip.h"
 #include "../../pipediameter.h"
 #include "../../pipeproperties.h"
+#include "../../placerename.h"
 #include "../../qeticons.h"
 #include "../../qetproject.h"
 #include "../../undocommand/changepidcodificationcommand.h"
@@ -286,12 +287,37 @@ QIcon PidConfigPage::icon() const
 
 /**
 	@brief PidConfigPage::applyProjectConf
-	Give the project the colours of this page
+	Give the project the colours of this page. A functional unit renamed to
+	a plant the project already has outside the list (a title block, a
+	structure box, an electrical symbol) is merged with it: asked first, as
+	the window of plants and locations asks (PlaceRename::targetExists());
+	nothing applied on no
 */
 void PidConfigPage::applyProjectConf()
 {
+	const ChangePidCodificationCommand::CodeChanges changes = codeChanges();
+	QStringList merged;
+	for (auto it = changes.units.cbegin() ; it != changes.units.cend() ; ++it)
+	{
+			//A name another unit leaves: a swap or a shift, no merge
+		if (changes.units.contains(it.value())) {
+			continue;
+		}
+		PlaceRename::Request request;
+		request.plant = it.key();
+		request.new_name = it.value();
+		if (PlaceRename::targetExists(m_project, request)) {
+			merged << it.value();
+		}
+	}
+	if (!merged.isEmpty()
+		&& !confirm(tr("The project already has the plant(s) %1: the functional unit(s) renamed so "
+					   "will be merged with them (symbols, title blocks, structure boxes, wire "
+					   "counters). Apply the page?").arg(merged.join(QStringLiteral(", "))))) {
+		return;
+	}
 	m_project->undoStack()->push(new ChangePidCodificationCommand(m_project, m_codification,
-																  codeChanges()));
+																  changes));
 }
 
 void PidConfigPage::initWidgets()

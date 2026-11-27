@@ -86,6 +86,7 @@
 #include <titleblock/templatescollection.h>
 #include <diagramcommands.h>
 #include <placerename.h>
+#include <pidtag.h>
 #include <symboltextplacement.h>
 #include <qetgraphicsitem/terminal.h>
 #include <qetgraphicsitem/terminalelement.h>
@@ -715,6 +716,24 @@ const QStringList &conductorPropertyNames()
 	return names;
 }
 
+	/// @p key is a field of the tag of the symbol @p element of @p project
+	/// whose label a model of tag makes (its family has one): changed
+	/// through the database alone, the label would stay as it was
+bool makesPidLabel(QETProject *project, const QUuid &element, const QString &key)
+{
+	if (key != PidTag::unitKey() && key != PidTag::trainKey()
+			&& key != PidTag::orderKey() && key != PidTag::lettersKey()) {
+		return false;
+	}
+	const QList<projectDataBase::ProjectSetting> values = project->dataBase()->elementValueRows(element);
+	for (const projectDataBase::ProjectSetting &value : values) {
+		if (value.section == QLatin1String("pid_symbol") && value.name == QLatin1String("family")) {
+			return !project->pidCodification().tag_models.value(value.value).isEmpty();
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 bool QetScriptApi::setInfoKey(int folioIndex, const QString &elementUuid,
@@ -736,8 +755,10 @@ bool QetScriptApi::setInfoKey(int folioIndex, const QString &elementUuid,
 	}
 		//A symbol on a folio not built whose information nothing else
 		//shows is changed through the project database, its folio left
-		//unbuilt (stage D5)
-	if (key != QETInformation::ELMT_FORMULA) {
+		//unbuilt (stage D5). Not a field of a P&ID tag a model makes, which
+		//its label reads, as a label formula: the folio is built
+	if (key != QETInformation::ELMT_FORMULA
+			&& !makesPidLabel(m_project, QUuid(elementUuid), key)) {
 		if (const auto stored = unbuiltInformation(folioIndex, elementUuid)) {
 			if (stored->value(key).toString() == value) return true; // nothing to push
 			DiagramContext new_info = *stored;
