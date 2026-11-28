@@ -27,6 +27,7 @@
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QLocale>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTimer>
@@ -135,8 +136,8 @@ void RevisionsConfigPage::applyProjectConf()
 
 /**
 	@brief RevisionsConfigPage::addRevision
-	A new row at the end, dated today, its date typed in ISO 8601, and
-	ready to be typed in
+	A new row at the end, dated today in the short format of the system
+	(28/11/2026), as a title block writes its date, and ready to be typed in
 */
 void RevisionsConfigPage::addRevision()
 {
@@ -144,7 +145,8 @@ void RevisionsConfigPage::addRevision()
 	m_table->insertRow(row);
 	for (int column = 0 ; column < 5 ; ++column)
 		m_table->setItem(row, column, new QTableWidgetItem(
-			column == 1 ? QDate::currentDate().toString(Qt::ISODate) : QString()));
+			column == 1 ? QLocale::system().toString(QDate::currentDate(), QLocale::ShortFormat)
+						: QString()));
 	m_table->setCurrentCell(row, 0);
 	m_table->setFocus();
 		//Once the new row is laid out: opened at once, the editor fails

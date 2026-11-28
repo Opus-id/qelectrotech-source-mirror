@@ -147,8 +147,9 @@ private slots:
 		QVERIFY(add->mapTo(&page, QPoint(0, 0)).y() < table->mapTo(&page, QPoint(0, 0)).y());
 		add->click();
 		QCOMPARE(table->rowCount(), 3);
-			//Dated today, the rest to type
-		QCOMPARE(table->item(2, 1)->text(), QDate::currentDate().toString(Qt::ISODate));
+			//Dated today as a title block writes it, the rest to type
+		QCOMPARE(table->item(2, 1)->text(),
+				 QLocale::system().toString(QDate::currentDate(), QLocale::ShortFormat));
 		table->item(2, 0)->setText(QStringLiteral(" C "));
 		table->item(2, 2)->setText(QStringLiteral("Cable list"));
 		table->setCurrentCell(0, 0);
