@@ -37675,5 +37675,17 @@ associer le nom &quot;volta&quot; et la valeur &quot;1745&quot; remplacera %{vol
         <source>The project&apos;s revision history, the latest last. A table on a folio can print it.</source>
         <translation>L&apos;historique des révisions du projet, la plus récente en dernier. Un tableau posé sur un folio peut l&apos;imprimer.</translation>
     </message>
+    <message>
+        <source>Move up</source>
+        <translation>Monter</translation>
+    </message>
+    <message>
+        <source>Move down</source>
+        <translation>Descendre</translation>
+    </message>
+    <message>
+        <source>The order of the rows is the order of the revisions, the latest last</source>
+        <translation>L&apos;ordre des lignes est celui des révisions, la plus récente en dernier</translation>
+    </message>
 </context>
 </TS>

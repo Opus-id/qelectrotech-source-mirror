@@ -61,8 +61,17 @@ void RevisionsConfigPage::initWidgets()
 	m_add->setObjectName(QStringLiteral("addRevision"));
 	m_remove = new QPushButton(tr("Remove"), this);
 	m_remove->setObjectName(QStringLiteral("removeRevision"));
+	m_move_up = new QPushButton(tr("Move up"), this);
+	m_move_up->setObjectName(QStringLiteral("moveRevisionUp"));
+	m_move_up->setToolTip(tr("The order of the rows is the order of the revisions, the latest last"));
+	m_move_down = new QPushButton(tr("Move down"), this);
+	m_move_down->setObjectName(QStringLiteral("moveRevisionDown"));
+	m_move_down->setToolTip(m_move_up->toolTip());
 	connect(m_add, &QPushButton::clicked, this, &RevisionsConfigPage::addRevision);
 	connect(m_remove, &QPushButton::clicked, this, &RevisionsConfigPage::removeRevision);
+	connect(m_move_up, &QPushButton::clicked, this, [this]() {moveRevision(-1);});
+	connect(m_move_down, &QPushButton::clicked, this, [this]() {moveRevision(1);});
+	connect(m_table, &QTableWidget::currentCellChanged, this, &RevisionsConfigPage::updateMoveButtons);
 }
 
 void RevisionsConfigPage::initLayout()
@@ -70,6 +79,8 @@ void RevisionsConfigPage::initLayout()
 	auto *buttons = new QHBoxLayout;
 	buttons->addWidget(m_add);
 	buttons->addWidget(m_remove);
+	buttons->addWidget(m_move_up);
+	buttons->addWidget(m_move_down);
 	buttons->addStretch();
 	auto *layout = new QVBoxLayout(this);
 	auto *help = new QLabel(tr("The project's revision history, the latest last. "
@@ -94,6 +105,7 @@ void RevisionsConfigPage::readValuesFromProject()
 		for (int column = 0 ; column < 5 ; ++column)
 			m_table->setItem(row, column, new QTableWidgetItem(values[column]));
 	}
+	updateMoveButtons();
 }
 
 void RevisionsConfigPage::adjustReadOnly()
@@ -103,6 +115,7 @@ void RevisionsConfigPage::adjustReadOnly()
 									   : QAbstractItemView::AllEditTriggers);
 	m_add->setEnabled(!read_only);
 	m_remove->setEnabled(!read_only);
+	updateMoveButtons();
 }
 
 void RevisionsConfigPage::applyProjectConf()
@@ -163,4 +176,41 @@ void RevisionsConfigPage::removeRevision()
 	const int row = m_table->currentRow();
 	if (row >= 0)
 		m_table->removeRow(row);
+	updateMoveButtons();
+}
+
+/**
+	@brief RevisionsConfigPage::moveRevision
+	The current row goes @p step rows up (-1) or down (1), its cells as
+	they are, and stays the current one: the order of the rows is the
+	order of the revisions, the latest last (RevisionList::latest())
+*/
+void RevisionsConfigPage::moveRevision(int step)
+{
+	const int row = m_table->currentRow();
+	const int target = row + step;
+	if (row < 0 || target < 0 || target >= m_table->rowCount())
+		return;
+	const int column = m_table->currentColumn();
+	for (int c = 0 ; c < m_table->columnCount() ; ++c) {
+		QTableWidgetItem *moved = m_table->takeItem(row, c);
+		QTableWidgetItem *other = m_table->takeItem(target, c);
+		m_table->setItem(target, c, moved);
+		m_table->setItem(row, c, other);
+	}
+	m_table->setCurrentCell(target, column < 0 ? 0 : column);
+	updateMoveButtons();
+}
+
+/**
+	@brief RevisionsConfigPage::updateMoveButtons
+	Move up and Move down only where the current row can go
+*/
+void RevisionsConfigPage::updateMoveButtons()
+{
+	if (!m_move_up || !m_project) return;
+	const bool editable = !m_project->isReadOnly();
+	const int row = m_table->currentRow();
+	m_move_up->setEnabled(editable && row > 0);
+	m_move_down->setEnabled(editable && row >= 0 && row < m_table->rowCount() - 1);
 }

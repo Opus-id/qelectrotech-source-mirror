@@ -28,7 +28,7 @@ class QPushButton;
 	@brief The RevisionsConfigPage class
 	The project's revision history (#1295, rule 2; #1878 item C8): one
 	row per revision -- revision, date, description, author, approver --
-	added, removed and edited in place.
+	added, removed, moved up or down and edited in place.
 */
 class RevisionsConfigPage : public ProjectConfigPage
 {
@@ -50,10 +50,14 @@ class RevisionsConfigPage : public ProjectConfigPage
 	private:
 		void addRevision();
 		void removeRevision();
+		void moveRevision(int step);
+		void updateMoveButtons();
 
 		QTableWidget *m_table = nullptr;
 		QPushButton *m_add = nullptr;
 		QPushButton *m_remove = nullptr;
+		QPushButton *m_move_up = nullptr;
+		QPushButton *m_move_down = nullptr;
 };
 
 #endif // REVISIONSCONFIGPAGE_H

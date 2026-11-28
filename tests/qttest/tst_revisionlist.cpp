@@ -162,6 +162,52 @@ private slots:
 		QVERIFY(project.projectOptionsWereModified() || project.projectWasModified());
 	}
 
+		//Move up and Move down change the order of the revisions, the
+		//latest last: a row added in the wrong place is put back
+	void thePageMovesARevision()
+	{
+		QETProject project;
+		project.addNewDiagram();
+		RevisionList list;
+		list.setRevisions({Revision{QStringLiteral("A"), {}, {}, {}, {}},
+						   Revision{QStringLiteral("B"), {}, {}, {}, {}},
+						   Revision{QStringLiteral("D"), QStringLiteral("2026-11-29"), QStringLiteral("Later"), {}, {}},
+						   Revision{QStringLiteral("C"), {}, {}, {}, {}}});
+		project.setRevisions(list);
+		RevisionsConfigPage page(&project);
+		auto *table = page.findChild<QTableWidget *>(QStringLiteral("revisionTable"));
+		auto *up = page.findChild<QPushButton *>(QStringLiteral("moveRevisionUp"));
+		auto *down = page.findChild<QPushButton *>(QStringLiteral("moveRevisionDown"));
+		QVERIFY(table && up && down);
+			//Nothing chosen: nothing to move
+		table->setCurrentCell(-1, -1);
+		QVERIFY(!up->isEnabled());
+		QVERIFY(!down->isEnabled());
+			//The first row goes no higher, the last no lower
+		table->setCurrentCell(0, 0);
+		QVERIFY(!up->isEnabled());
+		QVERIFY(down->isEnabled());
+		table->setCurrentCell(3, 0);
+		QVERIFY(up->isEnabled());
+		QVERIFY(!down->isEnabled());
+			//D after C, with its date and description, and still chosen
+		table->setCurrentCell(2, 1);
+		down->click();
+		QCOMPARE(table->currentRow(), 3);
+		QCOMPARE(table->currentColumn(), 1);
+		QVERIFY(!down->isEnabled());
+		page.applyProjectConf();
+		QStringList order;
+		for (const Revision &r : project.revisions().revisions()) order << r.revision;
+		QCOMPARE(order, QStringList({"A", "B", "C", "D"}));
+		QCOMPARE(project.revisions().latest().description, QStringLiteral("Later"));
+		QCOMPARE(project.revisions().latest().date, QStringLiteral("2026-11-29"));
+			//And back up
+		up->click();
+		page.applyProjectConf();
+		QCOMPARE(project.revisions().revisions().at(2).revision, QStringLiteral("D"));
+	}
+
 
 		//Return typed in a cell ends its edit and keeps the text, but does
 		//not close the dialog the page is in (its default button)
