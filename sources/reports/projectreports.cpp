@@ -124,6 +124,18 @@ namespace ProjectReports
 				"ELSE RTRIM(RTRIM(PRINTF('%.%2f', %1), '0'), '.') END").arg(value).arg(places);
 		}
 
+			/// The date @p text holds as 2026-11-28, from 2026-11-28 or
+			/// 28/11/2026; NULL otherwise (a year of two digits is left
+			/// out: 01/02/03 says nothing sure)
+		QString dateKeySql(const QString &text)
+		{
+			return QStringLiteral(
+				"CASE WHEN %1 GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(%1, 1, 10) "
+				"WHEN %1 GLOB '[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]' "
+					"THEN substr(%1, 7, 4) || '-' || substr(%1, 4, 2) || '-' || substr(%1, 1, 2) "
+				"END").arg(text);
+		}
+
 			/// "clouds AS (...)": one row per revision cloud or review note
 			/// (RevisionCloudItem), from the rows of its <shape> in
 			/// drawing_item, so folios not built yet are read too; a field
@@ -408,13 +420,16 @@ namespace ProjectReports
 			list << r;
 		}
 		{
-				//The review notes, those still to do first
+				//The review notes, those still to do first, then by sheet and
+				//by date: a free text, read as a date when it is 2026-11-28
+				//or 28/11/2026 (the short format of a French system), else
+				//after them, as text
 			Report r;
 			r.id = QStringLiteral("review_notes");
 			r.title = Text::tr("Review notes");
-			r.source = QStringLiteral("(WITH %1 SELECT * FROM clouds WHERE cloud = 'review')")
-					.arg(cloudRowsSql());
-			r.order = QStringLiteral("done, folio_number, date, uuid");
+			r.source = QStringLiteral("(WITH %1 SELECT *, %2 AS date_key FROM clouds WHERE cloud = 'review')")
+					.arg(cloudRowsSql(), dateKeySql(QStringLiteral("TRIM(date)")));
+			r.order = QStringLiteral("done, folio_number, date_key IS NULL, date_key, date, uuid");
 			r.columns = {{QStringLiteral("folio_number"), Text::tr("Sheet")},
 						 {QStringLiteral("comment"), Text::tr("Comment")},
 						 {QStringLiteral("author"), Text::tr("Author")},

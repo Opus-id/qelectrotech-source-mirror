@@ -131,7 +131,8 @@ class RevisionCloudItem : public QetShapeItem
 			/// The outline of arcs bulging outwards along the closed polygon
 			/// @p base, each about @p arc_size long
 		static QPainterPath cloudPath(const QPolygonF &base, qreal arc_size);
-			/// Today, as a cloud writes it: ISO 8601
+			/// Today, as a cloud writes it: in the short format of the
+			/// system, as a title block writes its date (28/11/2026)
 		static QString today();
 
 			/// As wide as the shape of a hovered QetShapeItem, hovered or not

@@ -32,6 +32,7 @@
 #include <QFont>
 #include <QGraphicsSceneMouseEvent>
 #include <QLineF>
+#include <QLocale>
 #include <QPainter>
 #include <QPainterPathStroker>
 #include <QSettings>
@@ -600,7 +601,7 @@ void RevisionCloudItem::setNewCloudColor(Kind kind, const QColor &color)
 
 QString RevisionCloudItem::today()
 {
-	return QDate::currentDate().toString(Qt::ISODate);
+	return QLocale::system().toString(QDate::currentDate(), QLocale::ShortFormat);
 }
 
 RevisionCloudLabelItem::RevisionCloudLabelItem(RevisionCloudItem *cloud) :

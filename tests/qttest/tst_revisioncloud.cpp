@@ -904,6 +904,27 @@ class tst_revisioncloud : public QObject
 			checkLists(project);
 		}
 
+			//On one sheet, the notes by date, written 2026-11-30 or
+			//02/12/2026; then, as text, what is no sure date (28/11/26)
+		void theNotesAreListedByDate()
+		{
+			QETProject project;
+			Diagram *diagram = project.addNewDiagram();
+			const QStringList dates = {QStringLiteral("02/12/2026"), QStringLiteral("next week"),
+									   QStringLiteral("2026-11-30"), QStringLiteral("28/11/26"),
+									   QStringLiteral("27/11/2026")};
+			for (int i = 0 ; i < dates.size() ; ++i) {
+				RevisionCloudItem *n = cloud(diagram, QRectF(i * 150, 0, 100, 100), RevisionCloudItem::Review);
+				n->setComment(QStringLiteral("note %1").arg(i));
+				n->setDate(dates.at(i));
+			}
+			const ProjectReports::Table notes = ProjectReports::read(
+						&project, ProjectReports::report(QStringLiteral("review_notes")));
+			QVERIFY2(notes.error.isEmpty(), qPrintable(notes.error));
+			QCOMPARE(column(notes, QStringLiteral("Date")),
+					 QStringList({"27/11/2026", "2026-11-30", "02/12/2026", "28/11/26", "next week"}));
+		}
+
 			//Saved as a .qetz and opened again, its folios not built: the
 			//lists read them all the same, and build nothing
 		void theListsReadFoliosNotBuilt()
