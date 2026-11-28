@@ -849,7 +849,8 @@ line.*
   properties, or typed. The title block is never changed by it. A *review
   note* asks for its comment as soon as it is drawn (cancelled: nothing
   is placed) and takes the name of the user of the computer and the date
-  of the day; its comment is written beside it, the reply of the drafter
+  of the day, in the short format of the system as a title block writes
+  it (so does a revision added to the project's list); its comment is written beside it, the reply of the drafter
   under it after an arrow, its author, date and state in its tool tip. A
   note marked *Done* stays in place, greyed out, until it is deleted.
 - Each cloud is a shape: moved, copied, rotated, grouped, deleted as one;
@@ -866,7 +867,10 @@ line.*
   that revision in the project's list, sheet, title of the sheet; by
   revision, the latest first, an index the list does not hold last) and
   *Review notes* (sheet, comment, author, date, state, reply; those to do
-  first). A double click on a row does not open the folio.
+  first, then by sheet and date, a date read when written `2026-11-28` or
+  `28/11/2026`). A double click on a row does not open the folio.
+- *Project properties*, *Revisions*: *Move up* and *Move down* change the
+  order of the revisions, the latest last.
 
 **Checks**: every step has its tests, and the example projects of
 QElectroTech are saved byte for byte as by master.
@@ -956,7 +960,7 @@ attributes of a cloud on its `<shape>`). Booleans are `true` /
 | `.qet`, `<pid_codification>` | `<option_default family option value/>` | `family` = a `pid_family`; `option`, `value` = names of the `<options>` block of its symbols (`instrument`, `shape`, `oval`) | none: a symbol placed new takes the defaults of its own file | the project gives an option of a family a value (page *P&ID*, *Symbols*; right click, *Options*); only a symbol placed new takes it, written in its own `<options>` |
 | `.qet`, `<shape>` | `cloud` | `revision`, `review` | none: a plain shape | the shape is a revision cloud or a review note |
 | `.qet`, `<shape>` of a cloud | `revision` | the index, text (`B`) | none: no triangle | the cloud has an index |
-| `.qet`, `<shape>` of a cloud | `comment`, `author`, `date`, `reply` | text; `date` as given (ISO 8601 when drawn: `2026-11-28`) | empty | set (a review note) |
+| `.qet`, `<shape>` of a cloud | `comment`, `author`, `date`, `reply` | text; `date` as given (when drawn: today in the short format of the system, `28/11/2026`) | empty | set (a review note) |
 | `.qet`, `<shape>` of a cloud | `done` | `true` | `false`: to do | a review note is done |
 | `.qet`, `<shape>` of a cloud | `label_x`, `label_y` | offset of its text from the cloud, to the tenth | at the top right corner | the text was moved |
 | `.qet`, `<shape>` of a cloud | `label_size`, `arc` | size of the text in points; length of an arc in drawing units | `8`; `20` (5 mm) | not the default |
